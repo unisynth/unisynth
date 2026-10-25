@@ -1,0 +1,24 @@
+[package]
+name = "tfsynth"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "MIT no_std synth engine sound-compatible with Tunefish 4 patches and .tfm songs (own implementation)"
+
+[dependencies]
+libm.workspace = true
+synth-core.workspace = true
+
+[dev-dependencies]
+wavesabre = { workspace = true, features = ["ws-slaughter"] }
+
+[features]
+default = ["tf-fx-all"]
+tf-fx-all = ["tf-fx-distortion", "tf-fx-delay", "tf-fx-chorus", "tf-fx-flanger", "tf-fx-reverb", "tf-fx-formant", "tf-fx-eq"]
+tf-fx-distortion = []
+tf-fx-delay = []
+tf-fx-chorus = []
+tf-fx-flanger = []
+tf-fx-reverb = []
+tf-fx-formant = []
+tf-fx-eq = []
