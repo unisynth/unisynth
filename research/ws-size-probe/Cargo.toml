@@ -1,0 +1,32 @@
+# Standalone size probe for the WaveSabre Rust port (never part of the root workspace).
+[workspace]
+[package]
+name = "ws-size-probe"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[features]
+# every WaveSabre device (renders `songs::showcase`)
+all = ["wavesabre/ws-all"]
+# Slaughter only (renders `songs::all` "slaughter_automation")
+slaughter = ["wavesabre/ws-slaughter"]
+
+[dependencies]
+synth-core = { path = "../../crates/synth-core" }
+wavesabre = { path = "../../crates/wavesabre", default-features = false }
+
+[build-dependencies]
+wavesabre = { path = "../../crates/wavesabre", default-features = false }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+debug = false
+strip = true
+incremental = false
+
+[profile.dev]
+panic = "abort"

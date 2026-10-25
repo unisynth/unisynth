@@ -1,0 +1,30 @@
+# Standalone size probe for tfsynth (never part of the root workspace).
+[workspace]
+[package]
+name = "tf-size-probe"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[features]
+# every effect kind (tf-fx-all); the default build has none (slots act as none)
+all = ["tfsynth/tf-fx-all"]
+
+[dependencies]
+synth-core = { path = "../../crates/synth-core" }
+tfsynth = { path = "../../crates/tfsynth", default-features = false }
+
+[build-dependencies]
+tfsynth = { path = "../../crates/tfsynth", default-features = false }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+debug = false
+strip = true
+incremental = false
+
+[profile.dev]
+panic = "abort"
