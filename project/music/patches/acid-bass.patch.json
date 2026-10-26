@@ -1,0 +1,18 @@
+{
+ "format": "us-patch/1",
+ "name": "Acid Bass",
+ "kind": 64,
+ "values": {
+  "capacity": 0.0,
+  "mode": 1.0,
+  "glide": 0.1,
+  "osc1.type": 0.5,
+  "filt1.type": 0.625,
+  "filt1.cutoff": 0.32,
+  "filt1.resonance": 0.45,
+  "env1.attack": 0.0,
+  "env1.decay": 0.2,
+  "env1.sustain": 0.6,
+  "env1.release": 0.08
+ }
+}

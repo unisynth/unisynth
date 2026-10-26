@@ -1,0 +1,152 @@
+{
+  "format": "song/1",
+  "meta": {
+    "title": "Global Groove",
+    "author": "WaveSabre Team (the song's own composer is not named in the repository)",
+    "description": "Global Groove, a Renoise project in the WaveSabre converter test suite that exercises the Global Groove parameters. This is an adapted version, not the original recording: The project was converted to a WaveSabre song (the `synth-mix` layout), then by `synth-convert ws` to the unified synth (instrument kind 64, effects kinds 65-73), then imported to song/1 with `song import` (lanes cut into 2-, 4- or 8-bar patterns with variants, notes rounded to 960 ticks per beat; track names from the original project where it has them). Instruments and effects are the unified equivalents of the WaveSabre devices and sound close to, not identical with, the original (parity target: 1 dB loudness, 3 dB per octave band).",
+    "copyright": "Copyright 2012-2021 WaveSabre Team",
+    "license": "MIT",
+    "url": "https://github.com/logicomacorp/WaveSabre/blob/9245fb822c6ab74da607315a55b5149e80329114/Tests/WaveSabreConvertTests/Tests/Global%20Groove.xrns",
+    "adapted_from": "Global Groove.xrns (https://github.com/logicomacorp/WaveSabre/blob/9245fb822c6ab74da607315a55b5149e80329114/Tests/WaveSabreConvertTests/Tests/Global%20Groove.xrns)"
+  },
+  "about": {
+    "type": "test project",
+    "style": "tiny 4-bar Renoise test project that exercises Renoise's Global Groove (swing) setting; a single noise tick, not a piece of music",
+    "tempo": "120 BPM, swung 16ths (Global Groove test)",
+    "engine": "WaveSabre: Slaughter (noise only)",
+    "description": "Four bars of one repeated noise click on a 16th-note grid, routed through one bus to the master. It exists to check that the converter reproduces Renoise's Global Groove timing, so it has no arrangement, melody or key."
+  },
+  "rate": 44100,
+  "tempo": 120.0,
+  "signature": [4, 4],
+  "ticks_per_beat": 960,
+  "length": 15600,
+  "clips": [
+    {
+      "id": "t1/A",
+      "length": 30720,
+      "notes": [
+        [0, 240, 48, 127],
+        [240, 240, 48, 127],
+        [480, 240, 48, 127],
+        [720, 240, 48, 127],
+        [960, 400, 48, 127],
+        [1360, 80, 48, 127],
+        [1440, 240, 48, 127],
+        [1680, 2160, 48, 127],
+        [3840, 240, 48, 127],
+        [4080, 240, 48, 127],
+        [4320, 240, 48, 127],
+        [4560, 240, 48, 127],
+        [4800, 400, 48, 127],
+        [5200, 80, 48, 127],
+        [5280, 240, 48, 127],
+        [5520, 2160, 48, 127],
+        [7680, 240, 48, 127],
+        [7920, 240, 48, 127],
+        [8160, 240, 48, 127],
+        [8400, 240, 48, 127],
+        [8640, 400, 48, 127],
+        [9040, 80, 48, 127],
+        [9120, 240, 48, 127],
+        [9360, 2160, 48, 127],
+        [11520, 240, 48, 127],
+        [11760, 240, 48, 127],
+        [12000, 240, 48, 127],
+        [12240, 240, 48, 127],
+        [12480, 400, 48, 127],
+        [12880, 80, 48, 127],
+        [12960, 240, 48, 127],
+        [13200, 2400, 48, 127]
+      ]
+    }
+  ],
+  "tracks": [
+    {
+      "id": "t1",
+      "name": "VST: Slaughter (Default)",
+      "about": {
+        "type": "hat",
+        "style": "very short white-noise click",
+        "tempo": "16th-note pulse, about 9 hits per bar",
+        "engine": "WaveSabre Slaughter: all three oscillators muted, noise at full level, filter open, zero decay and sustain with a very short release",
+        "similar_to": ["Roland TR-808 (closed hi-hat)"],
+        "description": "Repeats one note (C3, full velocity) on the 16th grid across all 4 bars as a timing probe for the groove/swing setting. It sounds like a dry, closed-hat-like tick."
+      },
+      "volume": 0.5011872053146362,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "master": 0.4000000059604645,
+            "capacity": 0.01587301678955555,
+            "velocity": 0.0,
+            "start_spread": 0.5165349841117859,
+            "noise_level": 0.25,
+            "filt1.type": 0.125,
+            "filt1.cutoff": 0.9994993805885315,
+            "env1.decay": 0.0,
+            "env1.sustain": 0.0,
+            "env1.release": 0.009999999776482582,
+            "env2.decay": 0.028284268453717232,
+            "env2.release": 0.009999999776482582,
+            "env3.decay": 0.028284268453717232,
+            "env3.sustain": 0.5,
+            "env3.release": 0.009999999776482582,
+            "noise.width": 0.0
+          }
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t1/A",
+          "start": 0,
+          "length": 15600,
+          "loop": false
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "id": "t2",
+      "name": "Track 01",
+      "about": {
+        "type": "bus",
+        "style": "plain mix bus, no effects",
+        "tempo": "follows its input",
+        "engine": "Renoise track used as a bus; no WaveSabre devices",
+        "description": "Receives the Slaughter track and passes it on to the master without processing."
+      },
+      "volume": 1.0,
+      "mute": false,
+      "receives": [
+        {
+          "from": "t1",
+          "channel": "main",
+          "volume": 1.0
+        }
+      ],
+      "devices": [],
+      "placements": [],
+      "lanes": []
+    }
+  ],
+  "master": {
+    "id": "master",
+    "name": "Master",
+    "volume": 1.0,
+    "mute": false,
+    "receives": [
+      {
+        "from": "t2",
+        "channel": "main",
+        "volume": 1.0
+      }
+    ],
+    "devices": [],
+    "placements": [],
+    "lanes": []
+  }
+}
