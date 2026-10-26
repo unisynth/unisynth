@@ -375,3 +375,81 @@ corrected).
 
 `.text` 34.8 KB, `.rdata` 5.0 KB (song, formant coefficients, constants); no `core::fmt`. The 7 effects cost about
 4 KB packed. Reference code size for comparison: x86_64 `-Os` `__text` ≈ 17.7 KB without player or libm.
+
+## Unified synth `unisynth`: parity, speed and size (measured 2026-10-26, change add-unified-synth)
+
+Setup: `tools/unisynth-parity` (`report.md` holds the full tables). Every legacy device test song (16 WaveSabre songs, 27 Tunefish
+synthetic patches) and the six reference songs are rendered by the legacy crate and, converted by `synth-convert`, by
+`unisynth`; metrics from `tools/synth-parity`: loudness ±1 dB, octave bands ±3 dB (bands more than 24 dB below the loudest
+are skipped), onset lag within 100 / 512 frames with a curve correlation of at least 0.5. 49 of 49 pass; the retirement
+verdict stays BLOCKED until the A/B listening is signed off.
+
+| Reference song | Loudness diff | Worst band diff | Onset lag |
+|---|---|---|---|
+| Global Groove | −0.00 dB (8 seeds) | −2.3 dB | 0 |
+| Elysian | +0.05 dB | +0.25 dB | 0 |
+| Engage | +0.04 dB | +0.06 dB | 0 |
+| Eladamri | −0.03 dB | −0.38 dB | 0 |
+| no_remorse | −0.21 dB | −1.74 dB | 64 frames |
+| tf4testsong | +0.04 dB | −1.30 dB | 0 |
+
+What it took (task 7.2): WaveSabre's noise is one signal on both channels (new `noise.width` parameter, 3 dB in a mono
+sum), 2 ms envelopes need an 8-frame control grid for 256 frames after a note edge (1.75 dB on Global Groove), Tunefish
+releases need freeing when inaudible (33 voices against the legacy engine's 19), silent reverbs sleep, and the mod matrix
+is scanned once per segment instead of once per target. The in-process parity tests of `crates/synth-convert` keep their
+24 dB band cut; the parity tool uses the same.
+
+**Speed** (one thread, real time = audio seconds per render second; speed build = release at opt-level 3):
+
+| Song | Legacy (speed build) | Unified (speed build) | Legacy (size build) | Unified (size build) |
+|---|---|---|---|---|
+| Elysian 217.8 s | 7.1× | 9.3× | 5.2× | 6.4× |
+| no_remorse 205.6 s | 15.4× | 10.9× | 14.2× | 8.5× |
+
+Spec bars (Elysian ≥ 5×, no_remorse ≥ 10×): met on the speed build; on the size-optimised `release` profile no_remorse
+reaches 8.5×. The unified synth is more generic (iterators, slots) and relies on the optimiser more. Profile of no_remorse at
+the start: wavetable layers 22 %, filters 15 %, reverbs 12 %, control ticks 20 %.
+
+**Size** (i686 `no_std`, opt-level z, LTO; `research/us-size-probe`): all modules 104,448 raw / 51,080 xz / 39,424 squishy
+(song of 3.4 KB included), against 71,168 / 34,472 / 27,648 for WaveSabre with every device plus 41,472 raw for Tunefish with
+every effect. Per-song builds with exactly the listed features, song bytes included: Global Groove 49,152 / 21,504, no_remorse
+121,344 / 29,696 (a 57.5 KB song), tf4testsong 75,776 / 28,160, Eladamri 101,888 / 35,328, Elysian 134,144 / 49,664,
+Engage 162,304 / 42,496 (raw / squishy). Not run on i686 yet (macOS Wine is 64-bit only).
+
+### Unified against legacy: packed size under six compile configurations (2026-10-26)
+
+`research/size-compare/compare.sh`, full tables in `tools/unisynth-parity/size-compare.md`. For each reference song the legacy engine
+(only the devices that song uses, playing the original `.bin`/`.tfm`) and the unified synth (only its `synth-convert features`, playing the converted
+song) are built as i686 `no_std` probes and packed with squishy 0.1.3. Squishy bytes, legacy / unified, configuration `bz` (core rebuilt with
+`optimize_for_size`, opt-level z, `panic=immediate-abort`: the compo build):
+
+| song | legacy | unified | unified vs legacy |
+|---|---:|---:|---:|
+| Global Groove | 14,336 | 16,384 | +14 % |
+| Elysian | 43,520 | 45,568 | +5 % |
+| Engage | 36,352 | 38,400 | +6 % |
+| Eladamri | 30,208 | 31,232 | +3 % |
+| no_remorse | 17,920 | 23,552 | +31 % |
+| tf4testsong | 17,408 | 22,016 | +26 % |
+
+(After `shrink-unified-synth` steps 1 and 4.1: module arms guarded by `cfg!(feature)` (−0.5 to −2 KB) and `libm` replaced by `unisynth::fm`
+(11.8 KB → 0.3 KB of code, −3 to −4.5 KB packed). Before: Global Groove 20,992, Elysian 49,152, Engage 42,496, Eladamri 34,816, no_remorse 29,184,
+tf4testsong 27,648. The legacy engines still carry their ~10 KB of `libm`.)
+
+- **Compile configuration matters little for the ratio, a lot for the absolute size.** Opt-level z is smallest in all cases; s costs 0–5 %, opt-level 3
+  costs 7–29 % for the legacy engines and 9–17 % for the unified synth. Rebuilding core with `optimize_for_size` and immediate-abort saves 0.5–1 KB (about 1–3 %). `-Zmerge-functions=aliases`
+  and `-Zinline-mir=no` change nothing. pentium3 and x87-only builds do not compile on i686 (core needs `sse2`).
+- **The gap is code, not song.** The converted songs are 0–2 KB larger packed (no_remorse 3.3 KB against 1.3 KB xz, tf4testsong 1.5 KB against 0.7 KB;
+  WaveSabre songs within 1 KB), the rest is the engine: roughly 25 KB for the unified synth with the WaveSabre feature set against 20 KB for the legacy
+  engine on Elysian; for Tunefish songs about 26 KB against 17 KB (wavetable, both ladder filters and RBJ, both envelope families and the shared matrix
+  are generic; the Tunefish port is purpose-built).
+- **The smallest case shows the fixed cost.** Global Groove (Slaughter only, one filter) is +6.7 KB: oscillator, matrix, voice framework and the
+  generic parameter and chunk code are linked even for a patch that uses a fraction.
+- **A unified build holding both families** (the all-modules probe) is 39,424 B squishy, against 27,648 for WaveSabre with every device plus
+  about 19 KB for Tunefish: one engine instead of two is smaller than the two together, but not smaller than either alone.
+
+**Where the unified bytes are** (`research/us-size-probe/attr.sh`, no LTO and no inlining, so ranks not totals; no_remorse, 64 KB code): `unisynth` 26.8 KB
+(`Voice` 9.5, `UInstrument` 1.7, wavetable 1.5, matrix 1.4, reverb 1.3), `libm` 11.8 KB before `fm.rs` (`rem_pio2` 3.3, `pow` 2.1, `powf` 1.7; the legacy Tunefish probe has 10.2), 0.3 KB after,
+`synth_core` 10.7 KB (mix player/song/mixer 7.9: legacy `.tfm` plays without them), trait impls 9.8 KB. Module cost (`marginal.sh`, raw/xz KB, all modules against one removed):
+GSM 6.1/2.8, Leveller 5.1/1.5, Chamber 4.6/1.4, wavetable 4.1/2.2, Echo 3.6/1.1, chorus 3.1/1.3, Twister 3.1/1.0, Cathedral 3.1/0.6, DLS 2.6/1.4. Next steps: change `shrink-unified-synth`.
+

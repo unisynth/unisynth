@@ -1,0 +1,6 @@
+{
+  "decision": "approved",
+  "by": "robson",
+  "date": "2026-10-26",
+  "notes": "A/B listening of the six reference songs (renders/wavesabre, renders/tfsynth, renders/unisynth): \"seems ok\". The WaveSabre songs and Global Groove he heard were rendered at 12:50 that day, before the libm replacement and the open-filter bypass (Global Groove and Eladamri are slightly brighter since, see Accepted differences); the Tunefish songs were re-rendered at 17:16 and include the libm replacement. A listen to the current build is recommended before retire-legacy-synths is archived."
+}

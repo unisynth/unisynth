@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://64k.local/schema/song.schema.json",
+  "title": "64k song source (song/1)",
+  "description": "Editable song for the unified synth; exported to the synth-mix blob by crates/song. Structural schema; semantic checks (parameter names and ranges per device kind, references, receive cycles, duplicate lanes, notes and points inside the song) are done by crates/song and reported as JSON-pointer issues.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "rate", "tempo", "signature", "ticks_per_beat", "length", "clips", "tracks", "master"],
+  "properties": {
+    "format": { "const": "song/1" },
+    "meta": { "$ref": "#/$defs/meta" },
+    "about": { "$ref": "#/$defs/about" },
+    "rate": { "type": "integer", "minimum": 8000, "maximum": 192000 },
+    "tempo": { "type": "number", "minimum": 20, "maximum": 999 },
+    "signature": { "type": "array", "items": { "type": "integer", "minimum": 1 }, "minItems": 2, "maxItems": 2, "description": "[beats per bar, beat unit]; display only" },
+    "ticks_per_beat": { "const": 960 },
+    "length": { "type": "integer", "minimum": 0, "description": "song length in ticks" },
+    "clips": { "type": "array", "items": { "$ref": "#/$defs/clip" } },
+    "tracks": { "type": "array", "items": { "$ref": "#/$defs/track" } },
+    "master": { "$ref": "#/$defs/track" }
+  },
+  "$defs": {
+    "meta": {
+      "type": "object", "additionalProperties": false,
+      "required": ["author", "description", "copyright", "url"],
+      "description": "Authorship and terms. Not exported to the blob. A work with adapted_from must say it is adapted in its description (checked by crates/song).",
+      "properties": {
+        "title": { "type": "string" },
+        "author": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "copyright": { "type": "string", "minLength": 1 },
+        "license": { "type": "string", "description": "SPDX identifier, e.g. MIT, GPL-3.0-only" },
+        "url": { "type": "string", "pattern": "^https?://" },
+        "adapted_from": { "type": "string", "minLength": 1, "description": "the original work this song was converted or arranged from" }
+      }
+    },
+    "about": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "description"],
+      "description": "What a song or track is, for people and tools. Not exported to the blob.",
+      "properties": {
+        "type": { "type": "string", "minLength": 1, "description": "song: genre; track: role (kick, bass, lead, pad, ...)" },
+        "style": { "type": "string", "minLength": 1 },
+        "tempo": { "type": "string", "minLength": 1, "description": "song: BPM and feel; track: rhythm" },
+        "engine": { "type": "string", "minLength": 1, "description": "the synth engine and how it makes the sound" },
+        "similar_to": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "real-world instruments it resembles" },
+        "description": { "type": "string", "minLength": 1 }
+      }
+    },
+    "id": { "type": "string", "minLength": 1 },
+    "unit": { "type": "number", "minimum": 0, "maximum": 1 },
+    "point": {
+      "type": "array", "minItems": 2, "maxItems": 2,
+      "prefixItems": [ { "type": "number", "description": "tick (fractional allowed)" }, { "$ref": "#/$defs/unit" } ]
+    },
+    "note": {
+      "type": "array", "minItems": 4, "maxItems": 4,
+      "description": "[start tick, length ticks, MIDI pitch, velocity]",
+      "prefixItems": [
+        { "type": "integer", "minimum": 0 },
+        { "type": "integer", "minimum": 1 },
+        { "type": "integer", "minimum": 0, "maximum": 127 },
+        { "type": "integer", "minimum": 1, "maximum": 127 }
+      ]
+    },
+    "clip": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "length", "notes"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "length": { "type": "integer", "minimum": 1 },
+        "notes": { "type": "array", "items": { "$ref": "#/$defs/note" } },
+        "wheel": { "type": "array", "items": { "$ref": "#/$defs/point" }, "description": "mod-wheel envelope, ticks within the clip" },
+        "bend": { "type": "array", "items": { "$ref": "#/$defs/point" }, "description": "pitch-bend envelope, centre 0.5" }
+      }
+    },
+    "device": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "values"],
+      "properties": {
+        "kind": { "type": "integer", "minimum": 64, "maximum": 73, "description": "64 instrument, 65–73 effects" },
+        "values": { "type": "object", "additionalProperties": { "type": "number" }, "description": "parameter name → normalized value (raw sampler index 0..65535); effects: mode selects the parameter set" },
+        "samples": { "type": "array", "maxItems": 255, "items": { "type": "string", "contentEncoding": "base64" } },
+        "bypass": { "type": "boolean" },
+        "preset": { "type": "string" },
+        "trailer": { "type": "integer" }
+      }
+    },
+    "receive": {
+      "type": "object", "additionalProperties": false,
+      "required": ["from", "channel", "volume"],
+      "properties": {
+        "from": { "$ref": "#/$defs/id" },
+        "channel": { "enum": ["main", "side"] },
+        "volume": { "type": "number", "minimum": 0 }
+      }
+    },
+    "placement": {
+      "type": "object", "additionalProperties": false,
+      "required": ["clip", "start", "length", "loop"],
+      "properties": {
+        "clip": { "$ref": "#/$defs/id" },
+        "start": { "type": "integer", "minimum": 0 },
+        "length": { "type": ["integer", "null"], "minimum": 1 },
+        "loop": { "type": "boolean" }
+      }
+    },
+    "lane": {
+      "type": "object", "additionalProperties": false,
+      "required": ["device", "param", "points"],
+      "properties": {
+        "device": { "type": "integer", "minimum": 0 },
+        "param": { "type": "string", "minLength": 1 },
+        "points": { "type": "array", "items": { "$ref": "#/$defs/point" } }
+      }
+    },
+    "track": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "name", "volume", "mute", "receives", "devices", "placements", "lanes"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "name": { "type": "string" },
+        "about": { "$ref": "#/$defs/about" },
+        "color": { "type": "string" },
+        "volume": { "type": "number", "minimum": 0 },
+        "mute": { "type": "boolean" },
+        "receives": { "type": "array", "items": { "$ref": "#/$defs/receive" } },
+        "devices": { "type": "array", "items": { "$ref": "#/$defs/device" } },
+        "placements": { "type": "array", "items": { "$ref": "#/$defs/placement" } },
+        "lanes": { "type": "array", "items": { "$ref": "#/$defs/lane" } }
+      }
+    }
+  }
+}

@@ -2,11 +2,13 @@
 //! `WaveSabreConvert`), so WaveSabre songs load unchanged; device kinds are resolved by an engine-provided
 //! [`Kinds`] enum (ids 0–12 WaveSabre, ≥ 32 other engines).
 
+mod mixer;
 mod player;
 mod registry;
 mod song;
 
-pub use player::{Player, DEFAULT_SUB};
+pub use mixer::{Mixer, Source, TrackSource};
+pub use player::{BlobSource, Player, TrackSrc, DEFAULT_SUB};
 pub use registry::{devices_need, load_devices, Either, Env, Kinds};
 pub use song::{Automation, DeviceRec, Lane, LaneEvents, Points, Receive, Song, Track};
 
@@ -19,6 +21,9 @@ pub enum LoadError {
     BadIndex,
     /// A device kind not compiled into this build (or unknown).
     UnsupportedKind(u8),
+    /// The kind exists but a module its chunk uses (oscillator, filter, effect mode, …) is not compiled in. The id
+    /// is the engine's own module number. Unlike `UnsupportedKind`, `Either` does not fall back on it.
+    UnsupportedModule(u8),
     /// A device chunk the device cannot read.
     BadChunk,
     OutOfMemory,

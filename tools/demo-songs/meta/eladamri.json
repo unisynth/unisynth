@@ -1,0 +1,134 @@
+{
+  "about": {
+    "type": "electronic / bass music",
+    "style": "half-time bass music with a dark E-minor mood: detuned saw stabs, FM sub and a gliding distorted FM growl; a small WaveSabre test-suite project (triplet-timing issue)",
+    "tempo": "130 BPM, half-time drums with triplet-flavoured arpeggios",
+    "engine": "WaveSabre: Slaughter, Falcon, Specimen; effects Echo, Leveller, Scissor, Chamber, Smasher",
+    "description": "Opens with E-minor saw stabs alone, then the bass and FM sub enter around bar 5, drums at bars 9-13, the gliding FM growl at bar 17 and the arpeggio at bar 21; hi-hats join at bar 37 and the plucked lead at bar 45. Kick and snare drop out from about bar 49 to 76 for a breakdown carried by stabs, arp and lead, and the full beat returns from bar 77 to the end at bar 104. The tonal centre is E minor (E, G and B dominate every melodic track) and the mood is dark and driving."
+  },
+  "tracks": [
+    {
+      "name": "Stabs",
+      "about": {
+        "type": "chord stab",
+        "style": "bright detuned saw/pulse chord stab with a short tail",
+        "tempo": "on-beat chord hits, about 6 notes per bar",
+        "engine": "WaveSabre Slaughter: 3 saw/pulse oscillators slightly detuned, a little noise, 3-voice unison, filter wide open, short amp decay with no sustain",
+        "similar_to": [
+          "Roland JP-8000 (supersaw stab)",
+          "Sequential Prophet-5"
+        ],
+        "description": "Plays E-minor chords (E, G, B voicings from E2 to B4) through the whole song, bars 1-104, with a calmer B pattern at bars 53-68. A light tempo echo (Echo) widens the hits."
+      }
+    },
+    {
+      "name": "Bass Dist",
+      "about": {
+        "type": "bass",
+        "style": "thick detuned saw/pulse bass with beating",
+        "tempo": "long held notes, under one note per bar",
+        "engine": "WaveSabre Slaughter: 3 saw/pulse oscillators with growing fine detune, 4-voice unison, filter open, organ-like sustain",
+        "similar_to": [
+          "Moog Minimoog Model D",
+          "Roland Juno-106"
+        ],
+        "description": "Holds low E1 (with occasional G1 and B1) from bar 5 to bar 103 as the mid-bass layer; the detuned oscillators beat against each other in a Reese-like way. Despite the name, the chain has no distortion device."
+      }
+    },
+    {
+      "name": "Sub",
+      "about": {
+        "type": "sub bass",
+        "style": "clean near-sine FM sub",
+        "tempo": "long held roots, about 2 notes per bar",
+        "engine": "WaveSabre Falcon: 2-operator FM at 1:1 ratio with no feedback (almost a pure sine), 6-voice unison, short release",
+        "similar_to": [
+          "Yamaha DX7 (sine bass)",
+          "Roland SH-101 (sub oscillator)"
+        ],
+        "description": "Doubles the bass line on E1/E2 (down to C1) from bar 5 to bar 103; a parametric EQ (Leveller) boosts the lowest band and cuts the top. Transpose and LFO amount are automated."
+      }
+    },
+    {
+      "name": "WeirdSaw",
+      "about": {
+        "type": "bass",
+        "style": "distorted gliding FM growl with vibrato",
+        "tempo": "slow legato phrases, mostly off the beat",
+        "engine": "WaveSabre Falcon: 2-operator FM with the modulator at about 5x ratio and strong feedback, mono legato with a long slide, deep fast vibrato, into Scissor waveshaper",
+        "similar_to": [
+          "Yamaha TX81Z",
+          "Yamaha DX7"
+        ],
+        "description": "A gliding, wobbling mid-bass voice around E2 (range E1-E3) that enters at bar 17 and runs to the end with several variations. The Scissor waveshaper adds fold-over distortion for a growl."
+      }
+    },
+    {
+      "name": "Kick",
+      "about": {
+        "type": "kick",
+        "style": "sampled kick drum",
+        "tempo": "half-time pattern, about 2 hits per bar",
+        "engine": "WaveSabre Specimen: one GSM 6.10-compressed sample played back",
+        "similar_to": [
+          "Roland TR-909 (sampled kick)"
+        ],
+        "description": "Kick from bar 13 to bar 48 and again from bar 77 to 104, silent during the breakdown at bars 49-76. Only about half the hits fall on the beat, so the pattern is broken rather than four on the floor."
+      }
+    },
+    {
+      "name": "Snare",
+      "about": {
+        "type": "snare",
+        "style": "sampled snare with room reverb and echo",
+        "tempo": "one backbeat per bar (half-time)",
+        "engine": "WaveSabre Specimen: GSM-compressed sample, into Echo (short stereo delay) and Chamber (room reverb)",
+        "similar_to": [
+          "Roland TR-909 (sampled snare)"
+        ],
+        "description": "One snare per bar on the beat from bar 12 to bar 48 and from bar 77 to 104, giving the half-time feel. A short stereo echo and a room reverb add space."
+      }
+    },
+    {
+      "name": "Hihat",
+      "about": {
+        "type": "hat",
+        "style": "short sampled hi-hat",
+        "tempo": "quarter-note pulse, about 4 hits per bar",
+        "engine": "WaveSabre Specimen: GSM-compressed sample, no effects",
+        "similar_to": [
+          "Roland TR-909 (sampled hats)"
+        ],
+        "description": "Short hi-hat hits from bar 37 to the end, continuing through the breakdown so the pulse stays alive while kick and snare rest. Several pattern variants from bar 65 on."
+      }
+    },
+    {
+      "name": "Arp",
+      "about": {
+        "type": "arp",
+        "style": "detuned saw/pulse arpeggio with a short envelope",
+        "tempo": "very short notes off the 16th grid (triplet-like), about 6 notes per bar",
+        "engine": "WaveSabre Slaughter: 3 saw/pulse oscillators detuned, 4-voice unison with wide detune, mono legato, medium decay to low sustain, light vibrato",
+        "similar_to": [
+          "Roland Juno-106",
+          "Sequential Prophet-5"
+        ],
+        "description": "Arpeggiates the E-minor chord across three octaves (E2 to E5) from bar 21 to the end. Most onsets fall off the 16th grid, which is likely the triplet timing the test project was named after."
+      }
+    },
+    {
+      "name": "LeadPluck",
+      "about": {
+        "type": "pluck",
+        "style": "bright detuned pulse pluck",
+        "tempo": "sparse melodic hits, about 2 notes per bar",
+        "engine": "WaveSabre Slaughter: 3 pulse oscillators with different pulse widths and fine detune, 4-voice unison, fast attack, short decay, no sustain",
+        "similar_to": [
+          "Lennar Digital Sylenth1",
+          "Access Virus"
+        ],
+        "description": "A plucked melody on E4-G5 that enters at bar 45, carries the breakdown (bars 49-68) and returns with new phrases from bar 77 to the end."
+      }
+    }
+  ]
+}

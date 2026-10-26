@@ -847,8 +847,8 @@ mod sample_instrument_tests {
     }
 
     pub fn vectors() -> (&'static [u8], Vec<f32>) {
-        let g: &'static [u8] = include_bytes!("testdata/gsm_vectors.gsm");
-        let pcm = include_bytes!("testdata/gsm_vectors.pcm")
+        let g: &'static [u8] = include_bytes!("../../gsm/testdata/gsm_vectors.gsm");
+        let pcm = include_bytes!("../../gsm/testdata/gsm_vectors.pcm")
             .chunks_exact(2)
             .map(|b| (i16::from_le_bytes([b[0], b[1]]) as f64 / 32768.0) as f32)
             .collect();

@@ -6,6 +6,13 @@ mod patches;
 use tfsynth::params::COUNT;
 
 fn main() {
+    // TF_SONG=<file>: embed a real .tfm (research/size-compare) instead of the synthetic one.
+    println!("cargo:rerun-if-env-changed=TF_SONG");
+    if let Ok(f) = std::env::var("TF_SONG") {
+        let out = std::path::Path::new(&std::env::var("OUT_DIR").unwrap()).join("song.tfm");
+        std::fs::copy(f, out).unwrap();
+        return;
+    }
     let mut ins: Vec<[f32; COUNT]> = patches::instrument_patches().into_iter().take(6).map(|(_, p)| p).collect();
     ins.extend(patches::effect_patches().into_iter().map(|(_, _, p)| p));
     let mut b = vec![];

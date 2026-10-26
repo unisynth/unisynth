@@ -29,7 +29,7 @@ pub fn chunk(params: &[f32]) -> Vec<u8> {
 
 /// Specimen/Thunder chunk around the checked-in libgsm vectors.
 pub fn gsm_chunk(params: &[f32]) -> Vec<u8> {
-    let blocks: &[u8] = include_bytes!("../src/testdata/gsm_vectors.gsm");
+    let blocks: &[u8] = include_bytes!("../../gsm/testdata/gsm_vectors.gsm");
     let mut c = vec![];
     c.extend((blocks.len() as i32).to_le_bytes());
     c.extend((blocks.len() as i32 / 65 * 320).to_le_bytes());

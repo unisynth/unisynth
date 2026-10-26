@@ -1,14 +1,15 @@
 //! Song player: single-threaded, deterministic port of upstream WaveSabre `SongRenderer` / `Track::Run`.
 //!
-//! Per sub-block of `sub` frames (default 100 = upstream players' step), each track in dependency order:
-//! deliver lane events (up to the track's event lookahead early) to every device on the track, apply automations,
-//! clear its 4 buffers, add receives, run its devices in chain order, scale by the track volume. The last track is
-//! the master. Caller buffers of any size are served from the master's sub-block.
+//! A [`Mixer`] over a [`BlobSource`]: per sub-block of `sub` frames (default 100 = upstream players' step), each
+//! track in dependency order: deliver lane events (up to the track's event lookahead early) to every device on the
+//! track, apply automations, clear its 4 buffers, add receives, run its devices in chain order, scale by the track
+//! volume. The last track is the master. Caller buffers of any size are served from the master's sub-block.
 
+use super::mixer::{Mixer, Source, TrackSource};
 use super::registry::{devices_need, load_devices, Env, Kinds};
-use super::song::{LaneEvents, Points, Song, Track};
+use super::song::{LaneEvents, Points, Receive, Song, Track};
 use super::LoadError;
-use crate::device::{Ctx, Device, EventKind, Io};
+use crate::device::{Device, EventKind};
 use crate::pool::Pool;
 use crate::rng::Rng;
 
@@ -71,26 +72,21 @@ impl<'a> AutoState<'a> {
     }
 }
 
-struct TrackState<'a> {
+pub struct TrackSrc<'a> {
     track: Track<'a>,
-    bufs: [&'a mut [f32]; 4],
     lane: LaneEvents<'a>,
     events: LaneEvents<'a>,
     acc: i64,
     next: Option<(i64, EventKind)>,
-    look: u32,
     autos: &'a mut [AutoState<'a>],
 }
 
-impl TrackState<'_> {
+impl TrackSrc<'_> {
     fn reset(&mut self) {
         self.events = self.lane;
         self.acc = 0;
         self.advance();
         self.autos.iter_mut().for_each(AutoState::reset);
-        for b in self.bufs.iter_mut() {
-            b.fill(0.0);
-        }
     }
 
     fn advance(&mut self) {
@@ -101,49 +97,24 @@ impl TrackState<'_> {
     }
 }
 
-pub struct Player<'a, K, R> {
-    song: Song<'a>,
-    devices: &'a mut [K],
-    tracks: &'a mut [TrackState<'a>],
-    order: &'a mut [usize],
-    rng: R,
-    rng0: R,
-    sub: usize,
-    /// Song frame of the next sub-block.
-    frame: u64,
-    /// Next unread frame in the master's sub-block (`sub` = empty).
-    read: usize,
+/// The song blob as a mixer [`Source`]: routing from the blob's tracks, events from their lanes (delta times
+/// accumulated), automation by the upstream point walk.
+pub struct BlobSource<'a> {
+    tracks: &'a mut [TrackSrc<'a>],
 }
 
-impl<'a, K: Kinds<'a>, R: Rng + Clone> Player<'a, K, R> {
-    /// Pool bytes [`Player::new`] needs (upper bound).
-    pub fn required_pool(song: &Song<'a>, env: &Env<'a>, sub: usize) -> Result<usize, LoadError> {
-        let nt = song.track_count();
-        let mut n = devices_need::<K>(song, env)? + Pool::need::<TrackState>(nt) + Pool::need::<usize>(nt);
-        n += Pool::need::<u8>(nt); // dependency flags
+impl<'a> BlobSource<'a> {
+    fn need(song: &Song<'a>) -> usize {
+        let mut n = Pool::need::<TrackSrc>(song.track_count());
         for t in song.tracks() {
-            n += 4 * Pool::need::<f32>(sub) + Pool::need::<AutoState>(t.automations().count());
+            n += Pool::need::<AutoState>(t.automations().count());
         }
-        Ok(n)
+        n
     }
 
-    /// Loads `song`: builds devices, validates automation targets, orders tracks, allocates track buffers.
-    /// `rng` is the song random source: devices draw from it while loading, and its post-load state is what
-    /// seek restores. `sub` is the internal sub-block size (≥ 1).
-    pub fn new(song: Song<'a>, env: &Env<'a>, pool: &mut Pool<'a>, mut rng: R, sub: usize) -> Result<Self, LoadError> {
-        let sub = sub.max(1);
-        let devices = load_devices::<K>(&song, env, pool, &mut rng)?;
-        for t in song.tracks() {
-            for a in t.automations() {
-                let d = t.devices().nth(a.device).ok_or(LoadError::BadIndex)?;
-                if a.param >= devices[d].param_count() {
-                    return Err(LoadError::BadIndex);
-                }
-            }
-        }
+    fn new(song: &Song<'a>, pool: &mut Pool<'a>) -> Result<Self, LoadError> {
         let nt = song.track_count();
-        let order = Self::order(&song, pool)?;
-        let slots = pool.uninit::<TrackState>(nt)?;
+        let slots = pool.uninit::<TrackSrc>(nt)?;
         let mut built = 0;
         for (slot, t) in slots.iter_mut().zip(song.tracks()) {
             let lane = song.lane(t.lane).ok_or(LoadError::BadIndex)?.events();
@@ -153,16 +124,7 @@ impl<'a, K: Kinds<'a>, R: Rng + Clone> Player<'a, K, R> {
                 let d = t.devices().nth(a.device).unwrap_or(0);
                 AutoState::new(d, a.param, a.points(), a.len())
             })?;
-            let mut st = TrackState {
-                track: t,
-                bufs: [pool.slice(sub)?, pool.slice(sub)?, pool.slice(sub)?, pool.slice(sub)?],
-                lane,
-                events: lane,
-                acc: 0,
-                next: None,
-                look: t.devices().map(|d| devices[d].event_lookahead()).max().unwrap_or(0),
-                autos,
-            };
+            let mut st = TrackSrc { track: t, lane, events: lane, acc: 0, next: None, autos };
             st.reset();
             slot.write(st);
             built += 1;
@@ -171,31 +133,99 @@ impl<'a, K: Kinds<'a>, R: Rng + Clone> Player<'a, K, R> {
             return Err(LoadError::Malformed);
         }
         // SAFETY: all `nt` slots written above; MaybeUninit<T> has T's layout.
-        let tracks = unsafe { &mut *(slots as *mut [core::mem::MaybeUninit<TrackState>] as *mut [TrackState]) };
-        Ok(Player { song, devices, tracks, order, rng0: rng.clone(), rng, sub, frame: 0, read: sub })
+        let tracks = unsafe { &mut *(slots as *mut [core::mem::MaybeUninit<TrackSrc>] as *mut [TrackSrc]) };
+        Ok(BlobSource { tracks })
     }
 
-    /// Upstream single-thread order: repeated passes in index order, rendering each track whose sending tracks are
-    /// done, until the master (last track) is done. A pass that renders nothing means a receive cycle.
-    fn order(song: &Song<'a>, pool: &mut Pool<'a>) -> Result<&'a mut [usize], LoadError> {
-        let nt = song.track_count();
-        let done = pool.slice::<u8>(nt)?;
-        let order = pool.slice::<usize>(nt)?;
-        let mut n = 0;
-        while done[nt - 1] == 0 {
-            let before = n;
-            for (i, t) in song.tracks().enumerate() {
-                if done[i] == 0 && t.receives().all(|r| done[r.track] != 0) {
-                    done[i] = 1;
-                    order[n] = i;
-                    n += 1;
-                }
-            }
-            if n == before {
-                return Err(LoadError::BadIndex);
+    fn reset(&mut self) {
+        self.tracks.iter_mut().for_each(TrackSrc::reset);
+    }
+}
+
+impl<'a> Source for BlobSource<'a> {
+    type Track<'s>
+        = &'s mut TrackSrc<'a>
+    where
+        Self: 's;
+
+    fn track_count(&self) -> usize {
+        self.tracks.len()
+    }
+
+    fn track(&mut self, t: usize) -> &mut TrackSrc<'a> {
+        &mut self.tracks[t]
+    }
+}
+
+impl TrackSource for &mut TrackSrc<'_> {
+    fn devices(&self) -> impl Iterator<Item = usize> + '_ {
+        self.track.devices()
+    }
+
+    fn receives(&self) -> impl Iterator<Item = Receive> + '_ {
+        self.track.receives()
+    }
+
+    fn volume(&self) -> f32 {
+        self.track.volume
+    }
+
+    #[inline]
+    fn peek(&self) -> Option<(i64, EventKind)> {
+        self.next
+    }
+
+    #[inline]
+    fn advance(&mut self) {
+        TrackSrc::advance(self)
+    }
+
+    #[inline]
+    fn automate(&mut self, n: usize, mut set: impl FnMut(usize, usize, f32)) {
+        for a in self.autos.iter_mut() {
+            if let Some(v) = a.step(n) {
+                set(a.device, a.param, v);
             }
         }
-        Ok(&mut order[..n])
+    }
+}
+
+pub struct Player<'a, K, R> {
+    song: Song<'a>,
+    devices: &'a mut [K],
+    src: BlobSource<'a>,
+    mixer: Mixer<'a>,
+    rng: R,
+    rng0: R,
+    /// Next unread frame in the master's sub-block (`sub` = empty).
+    read: usize,
+}
+
+impl<'a, K: Kinds<'a>, R: Rng + Clone> Player<'a, K, R> {
+    /// Pool bytes [`Player::new`] needs (upper bound).
+    pub fn required_pool(song: &Song<'a>, env: &Env<'a>, sub: usize) -> Result<usize, LoadError> {
+        Ok(devices_need::<K>(song, env)? + BlobSource::need(song) + Mixer::need(song.track_count(), sub))
+    }
+
+    /// Loads `song`: builds devices, validates automation targets, orders tracks, allocates track buffers.
+    /// `rng` is the song random source: devices draw from it while loading, and its post-load state is what
+    /// seek restores. `sub` is the internal sub-block size (≥ 1).
+    pub fn new(song: Song<'a>, env: &Env<'a>, pool: &mut Pool<'a>, mut rng: R, sub: usize) -> Result<Self, LoadError> {
+        let devices = load_devices::<K>(&song, env, pool, &mut rng)?;
+        for t in song.tracks() {
+            for a in t.automations() {
+                let d = t.devices().nth(a.device).ok_or(LoadError::BadIndex)?;
+                if a.param >= devices[d].param_count() {
+                    return Err(LoadError::BadIndex);
+                }
+            }
+        }
+        let src = BlobSource::new(&song, pool)?;
+        let mut src = src;
+        let mut mixer = Mixer::new(&mut src, pool, sub)?;
+        mixer.update_look(devices, &mut src);
+        let read = mixer.sub();
+        Ok(Player { song, devices, src, mixer, rng0: rng.clone(), rng, read })
     }
 
     pub fn song(&self) -> &Song<'a> {
@@ -235,16 +265,16 @@ impl<'a, K: Kinds<'a>, R: Rng + Clone> Player<'a, K, R> {
     pub fn seek(&mut self, frame: u64) {
         let _g = crate::denormal::Guard::new();
         self.devices.iter_mut().for_each(Device::reset);
-        self.tracks.iter_mut().for_each(TrackState::reset);
+        self.src.reset();
+        self.mixer.reset(0);
         self.rng = self.rng0.clone();
-        self.frame = 0;
-        self.read = self.sub;
-        let sub = self.sub as u64;
-        while self.frame + sub <= frame {
+        let sub = self.mixer.sub() as u64;
+        self.read = sub as usize;
+        while self.mixer.frame() + sub <= frame {
             self.render_sub();
         }
-        if frame > self.frame {
-            let start = self.frame;
+        if frame > self.mixer.frame() {
+            let start = self.mixer.frame();
             self.render_sub();
             self.read = (frame - start) as usize;
         }
@@ -252,77 +282,16 @@ impl<'a, K: Kinds<'a>, R: Rng + Clone> Player<'a, K, R> {
 
     #[inline]
     fn next_frame(&mut self) -> (f32, f32) {
-        if self.read == self.sub {
+        if self.read == self.mixer.sub() {
             self.render_sub();
             self.read = 0;
         }
-        let m = &self.tracks[self.tracks.len() - 1];
         let i = self.read;
         self.read += 1;
-        (m.bufs[0][i], m.bufs[1][i])
+        self.mixer.master_frame(i)
     }
 
     fn render_sub(&mut self) {
-        let n = self.sub;
-        let t0 = self.frame as i64;
-        for oi in 0..self.order.len() {
-            let ti = self.order[oi];
-            // 1. events (with the track's lookahead)
-            let st = &mut self.tracks[ti];
-            let limit = t0 + n as i64 + st.look as i64;
-            while let Some((at, kind)) = st.next {
-                if at >= limit {
-                    break;
-                }
-                let off = (at - t0) as u32;
-                for d in st.track.devices() {
-                    match kind {
-                        EventKind::NoteOn { note, velocity } => self.devices[d].note_on(note, velocity, off),
-                        EventKind::NoteOff { note } => self.devices[d].note_off(note, off),
-                    }
-                }
-                st.advance();
-            }
-            // 2. automations
-            for a in st.autos.iter_mut() {
-                if let Some(v) = a.step(n) {
-                    self.devices[a.device].set_param(a.param, v);
-                }
-            }
-            // 3. clear + receives
-            for b in st.bufs.iter_mut() {
-                b[..n].fill(0.0);
-            }
-            let track = st.track;
-            for r in track.receives() {
-                let (dst, src) = if r.track < ti {
-                    let (a, b) = self.tracks.split_at_mut(ti);
-                    (&mut b[0], &a[r.track])
-                } else {
-                    let (a, b) = self.tracks.split_at_mut(r.track);
-                    (&mut a[ti], &b[0])
-                };
-                for j in 0..2 {
-                    for (d, s) in dst.bufs[r.channel + j][..n].iter_mut().zip(&src.bufs[j][..n]) {
-                        *d += s * r.volume;
-                    }
-                }
-            }
-            // 4. devices in chain order
-            let st = &mut self.tracks[ti];
-            let [a, b, c, d] = &mut st.bufs;
-            let mut io = Io { ch: [&mut a[..n], &mut b[..n], &mut c[..n], &mut d[..n]] };
-            let mut ctx = Ctx { rate: self.song.rate as f64, tempo: self.song.tempo, frame: self.frame, rng: &mut self.rng };
-            for di in track.devices() {
-                self.devices[di].run(&mut io, n, &mut ctx);
-            }
-            // 5. volume
-            if track.volume != 1.0 {
-                for b in st.bufs.iter_mut() {
-                    b[..n].iter_mut().for_each(|x| *x *= track.volume);
-                }
-            }
-        }
-        self.frame += n as u64;
+        self.mixer.render_sub(self.devices, &mut self.src, self.song.rate as f64, self.song.tempo, &mut self.rng);
     }
 }

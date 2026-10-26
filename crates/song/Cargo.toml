@@ -1,0 +1,17 @@
+[package]
+name = "song"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "song/1 song source and us-patch/1 presets for the unified synth: validation, export to and import from the synth-mix blob, render, CLI (change add-synth-daw)"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
+serde_path_to_error = "0.1"
+synth-core.workspace = true
+unisynth = { path = "../unisynth", features = ["std"] }
+
+[[bin]]
+name = "song"
+path = "src/main.rs"

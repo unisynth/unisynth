@@ -1,0 +1,5 @@
+# block note velocity (a block is 512 frames); velocity 0 releases the note
+0 60 100
+40 60 0
+44 67 110
+90 67 0

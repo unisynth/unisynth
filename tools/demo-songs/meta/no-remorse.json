@@ -1,0 +1,187 @@
+{
+  "about": {
+    "type": "electronic",
+    "style": "melodic synth electro / slow house, dark minor-key and driving",
+    "tempo": "100 BPM, steady four-on-the-floor with 8th- and 16th-note sequences",
+    "engine": "Tunefish 4: PADsynth-style wavetable generator with unison layers, band noise, ladder/RBJ filters, distortion, delay, reverb, EQ",
+    "description": "A one-bar-chord pad and an 8th-note D pluck open the track (bars 1-8), hats enter at bar 9 and a 16th-note bass arp at bar 13; kick and snare drop in at bar 21 and two low bass sequences plus extra snare layers at bar 29. A low riff (bars 37-52) and a tremolo arp (bars 45-53) lead into the peak at bars 53-72 with chord stabs, an 8th-note chord pulse and an echoing lead; the drums stop around bar 77 and the basses and hats carry the outro to bar 85. The tonal centre is D minor (D, F, G, A, B-flat, C)."
+  },
+  "tracks": [
+    {
+      "name": "Kick",
+      "about": {
+        "type": "kick",
+        "style": "distorted pitch-swept kick",
+        "tempo": "four on the floor",
+        "engine": "Tunefish 4: fixed-frequency generator (about 48 Hz) with a fast envelope pitch drop, band noise 55 Hz-5.2 kHz, ladder low-pass 1.28 kHz, power distortion 0.36",
+        "similar_to": ["Roland TR-909 bass drum", "Roland TR-808 bass drum"],
+        "description": "Plays on every beat from bar 21 to bar 77 (pattern A, then a variant from bar 33). Distortion adds punch and a small compact reverb gives it some room."
+      }
+    },
+    {
+      "name": "Snare",
+      "about": {
+        "type": "snare",
+        "style": "tone-plus-noise snare with a big damped reverb",
+        "tempo": "backbeat on 2 and 4",
+        "engine": "Tunefish 4: fixed 180 Hz tone with a pitch envelope plus noise up to 6 kHz, resonant RBJ high-pass 174 Hz, power distortion, 3-band EQ",
+        "similar_to": ["Roland TR-909 snare drum"],
+        "description": "Two hits per bar from bar 21 to bar 77. A wide, heavily damped reverb (wet 0.29) makes it the main backbeat layer."
+      }
+    },
+    {
+      "name": "Bass",
+      "about": {
+        "type": "bass",
+        "style": "dark detuned unison bass",
+        "tempo": "8th-note bassline",
+        "engine": "Tunefish 4: full-harmonic wavetable two octaves down, 4 detuned unison layers, ladder low-pass 7.2 kHz, 1.2 Hz LFO on the layer count, long-slope amp envelope",
+        "similar_to": ["Access Virus", "Moog Minimoog"],
+        "description": "An 8th-note line on G, B-flat, C and D in the first and second octave, from bar 29 to the end (bar 85). Dry, with no effects, so it sits under the mix."
+      }
+    },
+    {
+      "name": "Chord Stabs",
+      "about": {
+        "type": "chord stab",
+        "style": "bright supersaw-like chord stabs",
+        "tempo": "chords on the beat",
+        "engine": "Tunefish 4: 10 detuned unison layers of a full-harmonic table, ladder low-pass 3 kHz, sustaining amp envelope, 3 voices",
+        "similar_to": ["Roland JP-8000 supersaw", "Access Virus"],
+        "description": "Three-note chords in the D4-D5 range during the peak section, bars 53-73. A stereo ping-pong delay widens them."
+      }
+    },
+    {
+      "name": "Chord Pulse",
+      "about": {
+        "type": "chord stab",
+        "style": "soft damped unison chords",
+        "tempo": "8th-note chord pulse",
+        "engine": "Tunefish 4: few, heavily damped harmonics with 9 unison layers, slight drive, open low-pass, decaying envelope that also modulates layers and pan, 3 voices",
+        "similar_to": ["Roland Juno-106", "Roland JP-8000"],
+        "description": "Pulses three-note chords in 8th notes in the D3-D4 range during bars 53-69, under the brighter stabs. Delay and a wide, fully damped reverb blur it into a rhythmic pad."
+      }
+    },
+    {
+      "name": "Low Riff",
+      "about": {
+        "type": "lead",
+        "style": "low, driven unison riff",
+        "tempo": "syncopated 8ths, about 5 notes per bar",
+        "engine": "Tunefish 4: wavetable two octaves down with drive, 3 unison layers, ladder low-pass 4 kHz, envelope-to-pitch blip",
+        "similar_to": ["Access Virus", "Sequential Prophet-5"],
+        "description": "A G-B-flat-C-D riff in the G2-D3 range during bars 37-52, the first melodic hook. A short stereo delay and light reverb follow it."
+      }
+    },
+    {
+      "name": "Echo Lead",
+      "about": {
+        "type": "lead",
+        "style": "distant, distorted echoing lead",
+        "tempo": "sparse long notes",
+        "engine": "Tunefish 4: 10-layer unison wavetable, open ladder low-pass 12.5 kHz, slow envelope on layers; reverb into distortion into a long delay (decay 0.75)",
+        "similar_to": ["Roland JP-8000", "Access Virus"],
+        "description": "A quiet melody of long notes (C5-B-flat5) at the start of the peak section, bars 53-61. The reverb, distortion and long feedback delay turn it into an echoing background line."
+      }
+    },
+    {
+      "name": "Bass 16ths",
+      "about": {
+        "type": "bass",
+        "style": "deep accented unison bass sequence",
+        "tempo": "16th-note sequence with velocity accents",
+        "engine": "Tunefish 4: same full-harmonic, 4-layer patch as Bass, three octaves down, 2 Hz LFO on the layer count",
+        "similar_to": ["Roland SH-101", "Access Virus"],
+        "description": "A rolling 16th-note bassline mostly on D, G, B-flat and C in the lowest octaves, bars 29-81, with accents (velocity 64-127). It doubles the 8th-note Bass and drives the groove."
+      }
+    },
+    {
+      "name": "Closed Hat",
+      "about": {
+        "type": "hat",
+        "style": "short high-band noise hat",
+        "tempo": "steady pattern, about 6 hits per bar",
+        "engine": "Tunefish 4: noise only, band 8.3-16.6 kHz, very short gate envelope",
+        "similar_to": ["Roland TR-909 closed hi-hat"],
+        "description": "Runs from bar 9 to the end of the song (bar 85) as the main timekeeper. Light small-room reverb."
+      }
+    },
+    {
+      "name": "Arp",
+      "about": {
+        "type": "arp",
+        "style": "tremolo unison arp",
+        "tempo": "8th-note arpeggio",
+        "engine": "Tunefish 4: 5 unison layers, ladder low-pass 3.6 kHz, 0.46 Hz LFO on the layer count and the oscillator gain, envelope-driven panning",
+        "similar_to": ["Roland Juno-106", "Access Virus"],
+        "description": "An arpeggio centred on D4 that reaches up to D5, bars 45-53, leading into the peak. Delay and a mid-size reverb spread it out."
+      }
+    },
+    {
+      "name": "Open Hat",
+      "about": {
+        "type": "hat",
+        "style": "washy high-pass noise hat",
+        "tempo": "4 hits per bar",
+        "engine": "Tunefish 4: noise only, high-pass 10 kHz, short decay",
+        "similar_to": ["Roland TR-909 open hi-hat"],
+        "description": "Plays four longer hits per bar from bar 37 to the end. A wet, wide reverb (wet 0.5) gives it a washy tail."
+      }
+    },
+    {
+      "name": "Snare Noise",
+      "about": {
+        "type": "snare",
+        "style": "bright noise snare layer",
+        "tempo": "backbeat on 2 and 4",
+        "engine": "Tunefish 4: loud band noise 1.7-7 kHz plus a driven 10-layer wavetable, very short decay, EQ high cut, short delay",
+        "similar_to": ["Roland TR-909 snare drum"],
+        "description": "Adds a bright noise crack to the backbeat from bar 29 to bar 77. A short slap delay and reverb thicken it."
+      }
+    },
+    {
+      "name": "Pluck",
+      "about": {
+        "type": "pluck",
+        "style": "detuned supersaw pluck sequence",
+        "tempo": "8th-note sequence",
+        "engine": "Tunefish 4: full-harmonic table with 10 detuned unison layers, ladder low-pass 3 kHz, short decay with sustain",
+        "similar_to": ["Roland JP-8000 supersaw", "Lennar Digital Sylenth1"],
+        "description": "The opening hook: 8th notes hammering on D3 with F, A and C, from bar 5 to bar 69, in three patterns (bars 1, 33 and 57). Delay and a large reverb make it shimmer."
+      }
+    },
+    {
+      "name": "Clap",
+      "about": {
+        "type": "clap",
+        "style": "short band-noise clap",
+        "tempo": "backbeat on 2 and 4",
+        "engine": "Tunefish 4: fixed 205 Hz tone plus band noise 430 Hz-4.3 kHz, resonant high-pass 174 Hz, very fast decay, 3-band EQ",
+        "similar_to": ["Roland TR-909 hand clap", "Roland TR-808 hand clap"],
+        "description": "Layered with the snares on the backbeat from bar 29 to bar 77. Reverb (wet 0.31) widens it."
+      }
+    },
+    {
+      "name": "Bass Arp",
+      "about": {
+        "type": "arp",
+        "style": "plucky low unison arp",
+        "tempo": "16th-note arpeggio",
+        "engine": "Tunefish 4: two-octave-down wavetable, 2 unison layers, some drive, open ladder low-pass 14.8 kHz, short decay",
+        "similar_to": ["Roland SH-101", "Access Virus"],
+        "description": "A 16th-note arpeggio over G, B-flat, C and D in the low register, from bar 13 to the end (pattern A, then B from bar 33). Reverb and delay thicken the line."
+      }
+    },
+    {
+      "name": "Pad",
+      "about": {
+        "type": "pad",
+        "style": "soft detuned unison pad",
+        "tempo": "one chord per bar",
+        "engine": "Tunefish 4: 10-layer unison table, ladder low-pass 3 kHz, sustaining envelope, slow 0.13 Hz LFO on the layer count, 3 voices",
+        "similar_to": ["Roland JP-8000", "Roland Juno-106"],
+        "description": "Quiet three-note chords that last a bar each, through the whole song (bars 1-84). They change pattern at bars 33 and 49, and a stereo delay adds movement."
+      }
+    }
+  ]
+}

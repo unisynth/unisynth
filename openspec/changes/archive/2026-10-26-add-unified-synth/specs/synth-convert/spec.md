@@ -1,0 +1,145 @@
+# Spec Delta
+
+## Purpose
+
+Converting legacy WaveSabre song blobs, `.tfm` songs and Tunefish patches into unified songs. This covers parity
+checks against the legacy engines and the gate that decides when the legacy engines may be retired.
+
+## ADDED Requirements
+
+### Requirement: Host-only converter
+The converter SHALL be a std command-line tool, never linked into the player. It SHALL read a `synth-mix` song blob
+with legacy kinds (WaveSabre 0–12, Tunefish 32–39) or a `.tfm` file, and write a `synth-mix` song blob that uses only
+unified kinds (64–73).
+
+#### Scenario: WaveSabre song
+- **WHEN** a WaveSabre song blob with Slaughter, Falcon, Specimen, Echo and Cathedral is converted
+- **THEN** the output loads in the unified player with no legacy kind and the same track count, routing and lanes
+
+#### Scenario: Malformed input
+- **WHEN** the input is truncated, has an unknown legacy kind, or fails legacy decoding
+- **THEN** the converter exits non-zero with a message naming the problem and writes no output
+
+### Requirement: Song structure preserved
+Converting a WaveSabre song SHALL keep tempo, rate, length, tracks, receives (main and sidechain), track volumes, note
+lanes and device order. Each legacy device SHALL become one unified device in its place.
+
+#### Scenario: Sidechain routing
+- **WHEN** a song with a Smasher keyed by a sidechain receive is converted
+- **THEN** the converted compressor is keyed by the sidechain and receives from the same track at the same volume
+
+### Requirement: Tunefish song structure
+Converting a `.tfm` SHALL give one track per non-empty instrument, with that instrument's insert effects as unified
+effect devices after it in slot order, plus a master track. An event at row r SHALL land at the start of the
+512-frame block that contains time `r · 60/(tempo·4)`, as the `.tfm` player fires it. Velocity 0 SHALL become a
+note-off, and the master SHALL apply the `.tfm` player's output scaling.
+
+#### Scenario: Insert chain
+- **WHEN** an instrument with effect slots [reverb, none, delay] is converted
+- **THEN** its track holds the instrument, then a Tunefish-mode reverb, then a Tunefish-mode delay
+
+#### Scenario: Loudness of a converted song
+- **WHEN** a converted `.tfm` renders through the unified player and the original through the legacy i16 player
+- **THEN** their integrated loudness differs by at most 1 dB
+
+### Requirement: Instrument mapping
+Each legacy instrument SHALL map to a unified slot configuration through the physical values of its parameters
+(frequencies, times, ratios, levels), not by copying normalized values. Legacy routes SHALL become mod-matrix slots:
+WaveSabre pitch envelope, mod-envelope cutoff and vibrato as Offset slots, Tunefish matrix slots as Scale slots.
+
+#### Scenario: Slaughter cutoff route
+- **WHEN** a Slaughter with filter mod amount 0.75 and its mod envelope is converted
+- **THEN** the unified patch has an Offset slot from that envelope to filter 1 cutoff, adding up to +9990 Hz
+
+#### Scenario: Tunefish organ gate
+- **WHEN** a Tunefish patch routes no envelope to volume
+- **THEN** the unified envelope 1 gates the note (instant attack, sustain 1) and ends it where Tunefish's gate closes: within a block of the key-up when no envelope is read by a mod slot, otherwise when the longest of those envelopes has finished
+
+### Requirement: Tunefish instruments in songs
+A `synth-mix` kind 32 device SHALL convert in place to a unified instrument. The insert effects of its patch SHALL
+become unified effect devices in the Tunefish modes, appended to the song and listed after the instrument in every
+track that lists it, in slot order. Automation of an effect parameter SHALL move to that effect device at the
+parameter's index in the effect's own order plus one.
+
+#### Scenario: Effect automation
+- **WHEN** an automation of a Tunefish chorus depth drives a kind 32 device whose patch has a chorus in slot 1
+- **THEN** the converted song automates the unified chorus device at parameter index 2 (depth is its second parameter, after the mode)
+
+### Requirement: Fixed routing
+Automation of an effect slot's kind, or of the source or target of a mod slot, SHALL be an error naming the parameter,
+because the unified patch cannot change its routing during a song. Automation of a mod slot's amount SHALL be converted.
+
+#### Scenario: Automated slot kind
+- **WHEN** an automation drives the kind of an effect slot or the source of a mod slot
+- **THEN** the converter exits non-zero naming that parameter and writes no output
+
+### Requirement: Automation re-mapping
+WaveSabre automation of instrument parameters SHALL be re-mapped point by point through the legacy and unified
+parameter curves. Points SHALL be added where linear interpolation in the unified curve would differ from the legacy
+value by more than one byte step. Effect automation SHALL be copied with the parameter index shifted past the mode
+parameter.
+
+#### Scenario: Cutoff automation
+- **WHEN** a Slaughter filter-frequency automation ramps from 0 to 1 over 1 s
+- **THEN** the converted automation's cutoff in Hz stays within one byte step of the legacy cutoff at every 100-frame step
+
+### Requirement: Discrete parameter automation
+Automation of a discrete legacy parameter (filter type, voice mode, loop mode, interpolation, boundary, unison) SHALL
+be converted by evaluating the legacy decode at every 100-frame step and emitting a step (two points at the same
+frame) wherever the decoded value changes, so the converted song never passes through intermediate values. Automation
+of oscillator type, voice capacity and sampler source or index SHALL NOT be emitted.
+
+#### Scenario: Filter type sweep
+- **WHEN** a Slaughter filter-type automation ramps 0 → 1 over 1 s
+- **THEN** the converted song switches the filter type at the frames where the legacy decode changes and at no other frame
+
+### Requirement: Level compensation
+A legacy device whose centre pan is not equal power (Thunder: the sample at full level on both sides; Tunefish: a
+linear balance with full level at the centre) SHALL be converted with its gain raised by √2, so that its centred
+loudness matches.
+
+#### Scenario: Thunder level
+- **WHEN** the Thunder test song is rendered by the legacy crate and, converted, by the unified instrument
+- **THEN** their integrated loudness differs by at most 1 dB
+
+### Requirement: Feature list
+The converter SHALL print the cargo features (oscillator types, filter types, envelope modes, effect kinds and modes)
+that a unified song needs, so a compo build links only those modules. A build with exactly the listed features SHALL load and render the song.
+
+#### Scenario: Minimal features
+- **WHEN** a song that uses only Slaughter-equivalent instruments and no effects is analysed
+- **THEN** the list holds the saw/pulse, noise, state-variable filter and WaveSabre envelope features only (the instrument itself is always built)
+
+#### Scenario: Automation reach
+- **WHEN** a lane steps a filter's type, raises the noise level or switches an envelope's mode
+- **THEN** the list holds the modules of every value the lane can reach, and a build with exactly the list loads the song and plays all of them
+
+### Requirement: Device parity
+For every legacy device, an opt-in tool SHALL convert that device's legacy synthetic test songs, render the legacy
+song with its legacy crate and the converted one with the unified crates, and compare them with the shared metrics: 1
+dB loudness, 3 dB per octave band 63 Hz–16 kHz, onsets within 100 frames (WaveSabre) or one 512-frame block (Tunefish).
+
+#### Scenario: Falcon test song
+- **WHEN** the Falcon legacy test song is rendered both ways
+- **THEN** the parity report passes all three metrics
+
+### Requirement: Reference song parity
+The tool SHALL convert and compare the reference songs Global Groove, Elysian, Engage and Eladamri (WaveSabre) and
+no_remorse and tf4testsong (Tunefish) with the same metrics and onset tolerances. Songs and renders stay outside the
+repo, and the tool SHALL skip with a message when they are absent.
+
+#### Scenario: Elysian
+- **WHEN** Elysian is rendered by `crates/wavesabre` and, converted, by `unisynth`
+- **THEN** all three metrics are within tolerance
+
+#### Scenario: Songs absent
+- **WHEN** the synth lab directory is not present
+- **THEN** the tool prints a skip message and exits 0, and the normal test suite does not depend on it
+
+### Requirement: Retirement gate
+The legacy crates SHALL NOT be removed until a parity report shows every device and reference song passing and the
+user has signed off an A/B listen. The report SHALL be committed (metrics only, no audio).
+
+#### Scenario: Failing song blocks retirement
+- **WHEN** any device or reference song fails parity
+- **THEN** the report marks retirement as blocked and names the failing item

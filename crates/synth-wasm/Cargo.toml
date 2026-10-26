@@ -1,0 +1,22 @@
+[package]
+name = "synth-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Live host for the DAW: the song player's mixer over an editable schedule, plus song/preset/table functions, behind a plain C ABI for wasm32 (change add-synth-daw)"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+song = { path = "../song" }
+dls.workspace = true
+gsm.workspace = true
+synth-core.workspace = true
+unisynth = { path = "../unisynth", features = ["std"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+
+[dev-dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }

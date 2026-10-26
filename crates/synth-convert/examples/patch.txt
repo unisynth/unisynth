@@ -1,0 +1,17 @@
+# One Tunefish patch: 112 numbers in 0..1 (the tfsynth parameter order; `#` starts a comment).
+# A sawtooth-ish wavetable pad: 3 unison layers, ADSR 1 on the volume, a chorus in effect slot 1.
+# Run: synth-convert patch patch.txt phrase.txt pad.song
+0.7 0.2 0.4 0.4 0.5 1 0.5 0   # 0.. 0=Gain, 1=GenBandw, 2=GenHarmn, 3=GenDamp, 4=GenMod, 5=GenVol, 6=GenPan, 7=GenSlop
+0.5 0 0 0 1 0 0.2 0.4   # 8.. 8=GenOct, 9=GenGlid, 10=GetDetn, 11=GenFreq, 12=GenPoly, 13=GenDriv, 14=GenUnis, 15=GenSprd
+0.25 0 0 1 0 0 0 0   # 16.. 16=GenScale, 17=NoiseOn, 18=NoiseFreq, 19=NoiseBw, 20=FltLPOn, 21=FltLPCut, 22=FltLPRes, 23=FltHPOn
+0 0 0.1 0.4 0.6 0.4 0.5 0   # 24.. 24=FltHPCut, 25=FltHPRes, 26=Env1Att, 27=Env1Dec, 28=Env1Sus, 29=Env1Rel, 30=Env1Slp, 31=Env2Att
+0 0 0 0 0 0 0 0   # 32.. 36=Lfo1Rate
+0 0 0 0 0.2143 0.5 0.1282 0   # 40.. 40=Lfo2Rate, 44=Mod1 source, 45=Mod1 amount, 46=Mod1 target
+0 0 0 0 0 0 0 0   # 48..
+0 0 0 0 0 0 0 0   # 56..
+0 0 0 0 0 0 0 0   # 64..
+0 0 0.3 0 0 0 0 0   # 72.. 74=Effect slot 1 kind
+0 0 0 0 0 0 0 0   # 80.. 84=DistAmount
+0 0 0 0 0 0 0 0   # 88..
+0 0 0 0 0 0 0 0   # 96..
+0 0 0 0 0 0 0 0   # 104..

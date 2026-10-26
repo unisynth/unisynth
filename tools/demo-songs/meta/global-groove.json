@@ -1,0 +1,34 @@
+{
+  "about": {
+    "type": "test project",
+    "style": "tiny 4-bar Renoise test project that exercises Renoise's Global Groove (swing) setting; a single noise tick, not a piece of music",
+    "tempo": "120 BPM, swung 16ths (Global Groove test)",
+    "engine": "WaveSabre: Slaughter (noise only)",
+    "description": "Four bars of one repeated noise click on a 16th-note grid, routed through one bus to the master. It exists to check that the converter reproduces Renoise's Global Groove timing, so it has no arrangement, melody or key."
+  },
+  "tracks": [
+    {
+      "name": "VST: Slaughter (Default)",
+      "about": {
+        "type": "hat",
+        "style": "very short white-noise click",
+        "tempo": "16th-note pulse, about 9 hits per bar",
+        "engine": "WaveSabre Slaughter: all three oscillators muted, noise at full level, filter open, zero decay and sustain with a very short release",
+        "similar_to": [
+          "Roland TR-808 (closed hi-hat)"
+        ],
+        "description": "Repeats one note (C3, full velocity) on the 16th grid across all 4 bars as a timing probe for the groove/swing setting. It sounds like a dry, closed-hat-like tick."
+      }
+    },
+    {
+      "name": "Track 01",
+      "about": {
+        "type": "bus",
+        "style": "plain mix bus, no effects",
+        "tempo": "follows its input",
+        "engine": "Renoise track used as a bus; no WaveSabre devices",
+        "description": "Receives the Slaughter track and passes it on to the master without processing."
+      }
+    }
+  ]
+}

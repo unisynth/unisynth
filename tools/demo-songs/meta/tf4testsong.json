@@ -1,0 +1,88 @@
+{
+  "about": {
+    "type": "electronic",
+    "style": "short melodic electro / house test loop, minor-key",
+    "tempo": "100 BPM, four-on-the-floor with 8th- and 16th-note sequences",
+    "engine": "Tunefish 4: PADsynth-style wavetable generator with unison layers, band noise, ladder/RBJ filters, distortion, delay, reverb, EQ",
+    "description": "A short 26-bar demo module: hats, a 16th-note pluck and an 8th-note arp play from bar 1, a lead pluck, kick and snare join at bar 9, and a low bass enters for the last section (bars 17-25). The pitches centre on F (F, G, A-flat, B-flat, C, E-flat), giving a minor feel."
+  },
+  "tracks": [
+    {
+      "name": "Hi-Hat",
+      "about": {
+        "type": "hat",
+        "style": "short high-band noise hat",
+        "tempo": "8th notes",
+        "engine": "Tunefish 4: noise only, band 8.3-16.6 kHz, very short envelope",
+        "similar_to": ["Roland TR-909 closed hi-hat"],
+        "description": "8th-note hats through the whole loop (bars 1-25). A fairly wet small-room reverb (wet 0.48) softens them."
+      }
+    },
+    {
+      "name": "Pulse Pluck",
+      "about": {
+        "type": "pluck",
+        "style": "thin plucky pulse",
+        "tempo": "16th-note sequence",
+        "engine": "Tunefish 4: one octave up, sparse harmonics with phase modulation, 3 unison layers, ladder low-pass 5 kHz, short decay",
+        "similar_to": ["Roland Juno-106", "Lennar Digital Sylenth1"],
+        "description": "Repeats F3 in 16ths with occasional higher notes up to B-flat4, from bar 1 to bar 25. A long-feedback delay (decay 0.68) and reverb blur it into a rhythmic bed."
+      }
+    },
+    {
+      "name": "Bass",
+      "about": {
+        "type": "bass",
+        "style": "dark unison bass",
+        "tempo": "8th-note bassline",
+        "engine": "Tunefish 4: full-harmonic table two octaves down, 4 unison layers, ladder low-pass 3.4 kHz",
+        "similar_to": ["Moog Minimoog", "Access Virus"],
+        "description": "An 8th-note line mostly on F in the first octave, played only in the final section (bars 17-25). Dry, with no effects."
+      }
+    },
+    {
+      "name": "Arp",
+      "about": {
+        "type": "arp",
+        "style": "soft-attack evolving unison arp",
+        "tempo": "8th-note arpeggio",
+        "engine": "Tunefish 4: one octave up, 8 unison layers, open ladder low-pass 11.6 kHz, slow attack, very slow 0.064 Hz LFO on the layer count",
+        "similar_to": ["Roland JP-8000", "Roland Juno-106"],
+        "description": "An arpeggio over C, E-flat, F and B-flat across C3-B-flat4, bars 1-25. A long delay (0.45, decay 0.65) and reverb make it the main atmosphere."
+      }
+    },
+    {
+      "name": "Pluck Lead",
+      "about": {
+        "type": "pluck",
+        "style": "bright driven unison pluck",
+        "tempo": "8th notes",
+        "engine": "Tunefish 4: 9 unison layers with drive, open ladder low-pass 14.5 kHz, decaying envelope",
+        "similar_to": ["Access Virus", "Lennar Digital Sylenth1"],
+        "description": "A melodic 8th-note line in F3-C4 from bar 9 to the end. Stereo delay and a wide, damped reverb follow it."
+      }
+    },
+    {
+      "name": "Kick",
+      "about": {
+        "type": "kick",
+        "style": "distorted pitch-swept kick",
+        "tempo": "four on the floor",
+        "engine": "Tunefish 4: fixed-frequency generator (about 48 Hz) with a fast envelope pitch drop, band noise 174 Hz-3.9 kHz, ladder low-pass 1.28 kHz, power distortion 0.36",
+        "similar_to": ["Roland TR-909 bass drum", "Roland TR-808 bass drum"],
+        "description": "Plays on every beat from bar 9 to the end. Distortion adds punch and a compact reverb gives it some room."
+      }
+    },
+    {
+      "name": "Snare",
+      "about": {
+        "type": "snare",
+        "style": "tone-plus-noise snare",
+        "tempo": "backbeat on 2 and 4",
+        "engine": "Tunefish 4: fixed 180 Hz tone with a pitch envelope plus noise up to 7.5 kHz, resonant RBJ high-pass 174 Hz, distortion 0.22, 3-band EQ",
+        "similar_to": ["Roland TR-909 snare drum"],
+        "description": "Two hits per bar from bar 9, with a pattern variant from bar 17. A damped, wide reverb sits behind it."
+      }
+    }
+  ]
+}

@@ -9,6 +9,7 @@ description = "no_std Rust port of the WaveSabre synth devices (Logicoma, MIT; s
 libm.workspace = true
 synth-core.workspace = true
 dls = { workspace = true, optional = true }
+gsm = { workspace = true, optional = true }
 
 [features]
 default = ["ws-all"]
@@ -16,7 +17,7 @@ ws-all = ["ws-falcon", "ws-slaughter", "ws-thunder", "ws-scissor", "ws-leveller"
           "ws-smasher", "ws-chamber", "ws-twister", "ws-cathedral", "ws-adultery", "ws-specimen"]
 ws-falcon = []
 ws-slaughter = []
-ws-thunder = []
+ws-thunder = ["dep:gsm"]
 ws-scissor = []
 ws-leveller = []
 ws-crusher = []
@@ -26,7 +27,7 @@ ws-chamber = []
 ws-twister = []
 ws-cathedral = []
 ws-adultery = ["dep:dls"]
-ws-specimen = []
+ws-specimen = ["dep:gsm"]
 
 [dev-dependencies]
 synth-core.workspace = true

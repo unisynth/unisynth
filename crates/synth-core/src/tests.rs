@@ -1061,6 +1061,119 @@ mod player_tests {
         vec![(0, 60, Some(100))]
     }
 
+    /// An owned, editable source (the live host's shape): absolute-frame events per track, routing as plain data.
+    struct VecSource {
+        tracks: Vec<VTrack>,
+    }
+    struct VTrack {
+        devices: Vec<usize>,
+        receives: Vec<Receive>,
+        volume: f32,
+        events: Vec<(i64, EventKind)>,
+        pos: usize,
+    }
+    impl Source for VecSource {
+        type Track<'s> = &'s mut VTrack;
+        fn track_count(&self) -> usize {
+            self.tracks.len()
+        }
+        fn track(&mut self, t: usize) -> &mut VTrack {
+            &mut self.tracks[t]
+        }
+    }
+    impl TrackSource for &mut VTrack {
+        fn devices(&self) -> impl Iterator<Item = usize> + '_ {
+            self.devices.iter().copied()
+        }
+        fn receives(&self) -> impl Iterator<Item = Receive> + '_ {
+            self.receives.iter().copied()
+        }
+        fn volume(&self) -> f32 {
+            self.volume
+        }
+        fn peek(&self) -> Option<(i64, EventKind)> {
+            self.events.get(self.pos).copied()
+        }
+        fn advance(&mut self) {
+            self.pos += 1;
+        }
+        fn automate(&mut self, _: usize, _: impl FnMut(usize, usize, f32)) {}
+    }
+    fn vec_source(s: &Song) -> VecSource {
+        VecSource {
+            tracks: s
+                .tracks()
+                .map(|t| {
+                    let mut at = 0i64;
+                    let events = s.lane(t.lane).unwrap().events().map(|(d, k)| {
+                        at += d as i64;
+                        (at, k)
+                    });
+                    VTrack { devices: t.devices().collect(), receives: t.receives().collect(), volume: t.volume, events: events.collect(), pos: 0 }
+                })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn owned_source_renders_like_the_player() {
+        // instrument → probe (sidechain at 0.5) → master (last track), odd sub size, notes across sub-blocks, a
+        // second instrument on its own lane fed straight into the master
+        let mut probe = t(&[1], 1);
+        probe.recv.push((0, 2, 0.5));
+        let mut master = t(&[], 1);
+        master.recv.push((1, 0, 1.0));
+        master.recv.push((2, 0, 0.25));
+        master.vol = 0.8;
+        let lane = vec![(0, 60, Some(100)), (130, 60, None), (77, 64, Some(90)), (301, 64, None)];
+        let lane2 = vec![(50, 48, Some(70)), (400, 48, None)];
+        let b = song(&[1, 2, 1], &[lane, vec![], lane2], &[t(&[0], 0), probe, t(&[2], 2), master]);
+        let mut want = vec![0.0f32; 2 * 1000];
+        with_player(&b, 37, |p| p.render_f32(&mut want));
+
+        let s = Song::parse(&b).unwrap();
+        let env = Env::for_song(&s, None);
+        let mut mem = vec![0u8; 1 << 16];
+        let mut pool = Pool::new(&mut mem);
+        let mut rng = Lcg(1);
+        let devices = load_devices::<TD>(&s, &env, &mut pool, &mut rng).unwrap();
+        let mut src = vec_source(&s);
+        assert_eq!(Mixer::check(&mut src, devices.len()), Ok(()));
+        let mut m = Mixer::new(&mut src, &mut pool, 37).unwrap();
+        m.update_look(devices, &mut src);
+        let mut got = vec![0.0f32; 2 * 1000];
+        let mut i = 0;
+        while i < 1000 {
+            m.render_sub(devices, &mut src, 44100.0, 120, &mut rng);
+            for j in 0..37.min(1000 - i) {
+                (got[2 * (i + j)], got[2 * (i + j) + 1]) = m.master_frame(j);
+            }
+            i += 37;
+        }
+        assert!(want.iter().filter(|x| x.abs() > 0.1).count() > 500, "the reference is audible, not silence");
+        assert_eq!(got, want);
+    }
+
+    #[test]
+    fn mixer_check_rejects_bad_routing() {
+        let b = song(&[1], &[vec![]], &[t(&[0], 0), t(&[], 0)]);
+        let s = Song::parse(&b).unwrap();
+        let ok = vec_source(&s);
+        let bad = |f: &dyn Fn(&mut VecSource)| {
+            let mut v = VecSource { tracks: ok.tracks.iter().map(|t| VTrack { devices: t.devices.clone(), receives: t.receives.clone(), volume: t.volume, events: vec![], pos: 0 }).collect() };
+            f(&mut v);
+            Mixer::check(&mut v, 1)
+        };
+        assert_eq!(bad(&|_| {}), Ok(()));
+        assert_eq!(bad(&|v| v.tracks.clear()), Err(LoadError::Malformed));
+        assert_eq!(bad(&|v| v.tracks[1].receives.push(Receive { track: 7, channel: 0, volume: 1.0 })), Err(LoadError::BadIndex));
+        for ch in [1, 3, 4] {
+            assert_eq!(bad(&|v| v.tracks[1].receives.push(Receive { track: 0, channel: ch, volume: 1.0 })), Err(LoadError::BadIndex), "channel {ch}");
+        }
+        assert_eq!(bad(&|v| v.tracks[1].receives.push(Receive { track: 1, channel: 0, volume: 1.0 })), Err(LoadError::BadIndex), "self receive");
+        assert_eq!(bad(&|v| v.tracks[0].devices.push(1)), Err(LoadError::BadIndex), "device out of range");
+    }
+
     #[test]
     fn send_into_sidechain() {
         let mut probe = t(&[1], 1);
@@ -1318,6 +1431,37 @@ mod either_tests {
     }
 
     type Mixed = Either<Eng<0, 12>, Eng<32, 39>>;
+
+    /// Engine that owns kind 5 but cannot build it: a module of the kind is compiled out.
+    struct NoModule;
+    impl Device for NoModule {
+        fn param_count(&self) -> usize {
+            0
+        }
+        fn set_param(&mut self, _: usize, _: f32) {}
+        fn reset(&mut self) {}
+        fn run(&mut self, _: &mut Io, _: usize, _: &mut Ctx) {}
+    }
+    impl<'a> Kinds<'a> for NoModule {
+        fn need(k: u8, _: &'a [u8], _: &Env<'a>) -> Result<usize, LoadError> {
+            if k == 5 { Err(LoadError::UnsupportedModule(9)) } else { Err(LoadError::UnsupportedKind(k)) }
+        }
+        fn load(k: u8, c: &'a [u8], e: &Env<'a>, _: &mut Pool<'a>, _: &mut dyn crate::rng::Rng) -> Result<Self, LoadError> {
+            Self::need(k, c, e).map(|_| NoModule)
+        }
+    }
+
+    #[test]
+    fn unsupported_module_is_not_a_missing_kind() {
+        type M = Either<NoModule, Eng<0, 12>>;
+        let env = Env { rate: 44100.0, tempo: 120, bank: None };
+        // kind 5 exists in A, so B (which would accept it) is never consulted
+        assert_eq!(M::need(5, &[], &env), Err(LoadError::UnsupportedModule(9)));
+        assert_eq!(M::need(6, &[], &env), Ok(8));
+        let mut mem = [0u8; 64];
+        let mut pool = Pool::new(&mut mem);
+        assert_eq!(M::load(5, &[], &env, &mut pool, &mut Zero).err(), Some(LoadError::UnsupportedModule(9)));
+    }
 
     #[test]
     fn dispatches_by_kind_and_forwards() {

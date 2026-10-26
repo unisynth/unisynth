@@ -1,0 +1,9 @@
+[package]
+name = "gsm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "no_std GSM 06.10 (WAV49) decoder + encoder, port of libgsm 1.0.24, plus the WaveSabre sample-chunk parser"
+
+[dependencies]
+synth-core.workspace = true

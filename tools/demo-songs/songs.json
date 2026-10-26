@@ -1,0 +1,69 @@
+{
+  "$comment": "The reference songs (the ones the A/B renders play), converted to the unified synth and saved as song/1 in project/music. Each entry's meta is attached by `song import --meta`; `description` is completed with the adaptation text in build.ts. Facts come from the upstream repositories (WaveSabre 9245fb8, Tunefish 7e48ce8, Enigma Studio 4 5b82e1e); a composer the repository does not name is not invented.",
+  "sources": {
+    "wavesabre": {
+      "dir_env": "WS_SONG_DIR",
+      "convert": "ws",
+      "copyright": "Copyright 2012-2021 WaveSabre Team",
+      "license": "MIT",
+      "repo": "https://github.com/logicomacorp/WaveSabre/blob/9245fb822c6ab74da607315a55b5149e80329114/Tests/WaveSabreConvertTests/Tests/",
+      "pipeline": "The project was converted to a WaveSabre song (the `synth-mix` layout), then by `synth-convert ws` to the unified synth (instrument kind 64, effects kinds 65-73), then imported to song/1 with `song import` (lanes cut into 2-, 4- or 8-bar patterns with variants, notes rounded to 960 ticks per beat; track names from the original project where it has them).",
+      "differences": "Instruments and effects are the unified equivalents of the WaveSabre devices and sound close to, not identical with, the original (parity target: 1 dB loudness, 3 dB per octave band)."
+    },
+    "enigma-studio-4": {
+      "dir_env": "ES4_SONGS",
+      "convert": "tf4m",
+      "copyright": "Brain Control",
+      "license": "CC0-1.0",
+      "repo": "https://github.com/enigmastudio/Enigma-Studio-4/blob/5b82e1e2b05e95b409f372b323e4c0fdeedab6fa/demos/zoom/",
+      "pipeline": "The Tunefish 4 song of the 2013 engine (.tf4m, 110 values per instrument) was translated by `synth-convert tf4m` to the final Tunefish layout (parameter indices, mod-matrix sources, targets and amount law, reverb width), converted to the unified synth (instrument kind 64 with its insert effects as track devices, kinds 65-73), then imported to song/1 with `song import` (lanes cut into 2-, 4- or 8-bar patterns with variants, notes rounded to 960 ticks per beat; track names from the original project where it has them). Events are placed at the start of the 512-frame block that fires them in the Tunefish player.",
+      "differences": "Instruments and effects are the unified equivalents of the final Tunefish 4 ones, which differ in places from the 2013 engine the intro used: the 2013 LFO sine spans -0.5 to 1.5 (instruments 9, 13, 19, 20 use an LFO), its generator modulation reads a shorter sine table, it does not band-limit the wavetable and it rounds where the final engine truncates. The random per-voice detune GenSlop is not converted and the wavetable phases are drawn from a different random sequence."
+    },
+    "tunefish": {
+      "dir_env": "TF_SONGS",
+      "convert": "tfm",
+      "copyright": "Brain Control",
+      "license": "GPL-3.0-or-later",
+      "repo": "https://github.com/paynebc/tunefish/blob/7e48ce8683155d5c37eb317b7ed509481c76a352/media/tf4modules/",
+      "pipeline": "The Tunefish module (.tfm) was converted by `synth-convert tfm` to the unified synth (instrument kind 64 with its insert effects as track devices, kinds 65-73), then imported to song/1 with `song import` (lanes cut into 2-, 4- or 8-bar patterns with variants, notes rounded to 960 ticks per beat; track names from the original project where it has them). Events are placed at the start of the 512-frame block that fires them in the Tunefish player.",
+      "differences": "Instruments and effects are the unified equivalents of the Tunefish ones and sound close to, not identical with, the original; the random per-voice detune GenSlop is not converted and the wavetable phases are drawn from a different random sequence."
+    }
+  },
+  "songs": [
+    {
+      "name": "global-groove", "source": "wavesabre", "file": "groove.bin", "original": "Global Groove.xrns",
+      "title": "Global Groove", "author": "WaveSabre Team (the song's own composer is not named in the repository)",
+      "about": "Global Groove, a Renoise project in the WaveSabre converter test suite that exercises the Global Groove parameters."
+    },
+    {
+      "name": "elysian", "source": "wavesabre", "file": "elysian.bin", "original": "Elysian.als",
+      "title": "Elysian", "author": "logicoma (the composer is not named in the repository)",
+      "about": "Elysian, an Ableton Live project in the WaveSabre converter test suite, named after logicoma's 2016 intro Elysian (http://www.pouet.net/prod.php?which=68375), which the WaveSabre README lists as made with WaveSabre."
+    },
+    {
+      "name": "engage", "source": "wavesabre", "file": "engage.bin", "original": "Engage.als",
+      "title": "Engage", "author": "logicoma (the composer is not named in the repository)",
+      "about": "Engage, an Ableton Live project in the WaveSabre converter test suite, named after logicoma's 2017 intro Engage (http://www.pouet.net/prod.php?which=69658), which the WaveSabre README lists as made with WaveSabre."
+    },
+    {
+      "name": "eladamri", "source": "wavesabre", "file": "eladamri.bin", "original": "eladamri-Try_Stopping_abl11_triplet_issue.als",
+      "title": "Try Stopping (triplet issue)", "author": "eladamri (named in the file name; a contribution to the WaveSabre test suite)",
+      "about": "A small Ableton Live 11 project from the WaveSabre converter test suite that reproduces a triplet-timing issue."
+    },
+    {
+      "name": "no-remorse", "source": "tunefish", "file": "no_remorse.tfm", "original": "no_remorse.tfm",
+      "title": "No Remorse", "author": "Brain Control (the Tunefish authors; the composer is not named in the repository)",
+      "about": "No Remorse, a Tunefish 4 example module (16 instruments, 100 BPM) that ships with Tunefish."
+    },
+    {
+      "name": "tf4testsong", "source": "tunefish", "file": "tf4testsong.tfm", "original": "tf4testsong.tfm",
+      "title": "Tunefish 4 test song", "author": "Brain Control (the Tunefish authors; the composer is not named in the repository)",
+      "about": "The Tunefish 4 test module that ships with Tunefish."
+    },
+    {
+      "name": "turtles", "source": "enigma-studio-4", "file": "zoom.tf4m", "original": "zoom.tf4m",
+      "title": "Turtles all the way down", "author": "Brain Control (the intro's credits name Hunta, Pap, Payne, Skyrunner and Strepto; the composer is not named in the repository)",
+      "about": "The soundtrack of Turtles all the way down, Brain Control's 64k intro that won the PC 64k intro competition at Revision 2013 (https://www.pouet.net/prod.php?which=61204), made with Tunefish 4 (20 instruments, 230 BPM). Enigma Studio 4, the tool it was made with, was released with the intro project and this song under CC0 1.0."
+    }
+  ]
+}

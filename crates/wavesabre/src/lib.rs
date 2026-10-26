@@ -20,7 +20,7 @@ mod echo;
 #[cfg(feature = "ws-falcon")]
 mod falcon;
 #[cfg(any(feature = "ws-specimen", feature = "ws-thunder"))]
-pub mod gsm;
+pub use gsm;
 #[cfg(feature = "ws-leveller")]
 mod leveller;
 #[cfg(any(feature = "ws-specimen", feature = "ws-adultery"))]

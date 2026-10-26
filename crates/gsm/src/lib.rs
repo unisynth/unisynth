@@ -1,6 +1,7 @@
-//! GSM 06.10 full-rate speech decoder (decode only, WAV49 / Microsoft framing), `no_std`, no heap.
+//! GSM 06.10 full-rate speech codec (WAV49 / Microsoft framing): decoder here, encoder in `encode.rs`
+//! (re-exported), `no_std`, no heap.
 //!
-//! This is a Rust port of the libgsm 1.0.24 decoder (`gsm_decode.c` WAV49 branch, `decode.c`, `rpe.c`,
+//! This is a Rust port of the libgsm 1.0.24 codec; the decoder side ports (`gsm_decode.c` WAV49 branch, `decode.c`, `rpe.c`,
 //! `long_term.c`, `short_term.c`, `add.c`, `table.c`, `private.h`) from <https://www.quut.com/gsm/gsm-1.0.24.tar.gz>.
 //! The output is bit-exact with libgsm (same `i16` words, saturating `GSM_ADD`/`GSM_SUB`, rounding `GSM_MULT_R`,
 //! arithmetic right shifts of negatives).
@@ -44,6 +45,10 @@
 //! Jutta Degener
 //! Carsten Bormann
 //! ```
+#![cfg_attr(not(test), no_std)]
+
+mod encode;
+pub use encode::{blocks_for, encode, GsmEncoder};
 
 /// Bytes per WAV49 block (two GSM frames).
 pub const BLOCK_BYTES: usize = 65;
@@ -659,12 +664,38 @@ impl<'a> GsmChunk<'a> {
     }
 }
 
+/// Bytes of a GSM sample-chunk header (see [`write_chunk_header`]).
+pub const CHUNK_HEADER: usize = 28;
+
+/// Write the header of a GSM sample chunk, the inverse of [`GsmChunk::parse`] with `cbSize = 2`:
+/// `i32` compressed size, `i32` uncompressed size, then `WAVEFORMATEX { tag 0x31, channels 1, rate 44100,
+/// avg bytes/s 8957, block align 65, bits 0, cbSize 2 }` + `u16 320` (samples per block). The compressed
+/// blocks (`compressed` bytes, a multiple of 65) follow directly; append them after the header.
+///
+/// The uncompressed field is set to `samples` (the **sample count**), because [`GsmChunk::parse`] reads it as
+/// a cap on the decoded length (`samples = uncomp` when `0 < uncomp < blocks*320`), so this is the value that
+/// makes `parse` return exactly `samples`. (Upstream WaveSabre/ACM files store the uncompressed *byte* size,
+/// about `samples * 2`; `parse` ignores such a value since it exceeds the decoded length and falls back to
+/// `blocks * 320`, i.e. a padded tail.)
+pub fn write_chunk_header(compressed: usize, samples: usize, out: &mut [u8; CHUNK_HEADER]) {
+    out[0..4].copy_from_slice(&(compressed as i32).to_le_bytes());
+    out[4..8].copy_from_slice(&(samples as i32).to_le_bytes());
+    out[8..10].copy_from_slice(&0x31u16.to_le_bytes());
+    out[10..12].copy_from_slice(&1u16.to_le_bytes());
+    out[12..16].copy_from_slice(&44100u32.to_le_bytes());
+    out[16..20].copy_from_slice(&8957u32.to_le_bytes());
+    out[20..22].copy_from_slice(&(BLOCK_BYTES as u16).to_le_bytes());
+    out[22..24].copy_from_slice(&0u16.to_le_bytes());
+    out[24..26].copy_from_slice(&2u16.to_le_bytes());
+    out[26..28].copy_from_slice(&(BLOCK_SAMPLES as u16).to_le_bytes());
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    const ENC: &[u8] = include_bytes!("testdata/gsm_vectors.gsm");
-    const PCM: &[u8] = include_bytes!("testdata/gsm_vectors.pcm");
+    const ENC: &[u8] = include_bytes!("../testdata/gsm_vectors.gsm");
+    const PCM: &[u8] = include_bytes!("../testdata/gsm_vectors.pcm");
 
     fn ref_pcm() -> std::vec::Vec<i16> {
         PCM.chunks_exact(2).map(|b| i16::from_le_bytes([b[0], b[1]])).collect()
@@ -732,6 +763,113 @@ mod tests {
             }
             dec.decode_block(&blk, &mut out);
         }
+    }
+
+    // ---- encoder: bit-exact against libgsm 1.0.24 (-DWAV49, no FAST/USE_FLOAT_MUL/LTP_CUT) ----
+    //
+    // Vectors in testdata/: `enc_in.pcm` (s16le mono, 80423 samples: silence, sine sweep, full-scale noise,
+    // quiet noise, plucked tone, full-scale squares incl. -32768/32767, Nyquist alternation, DC sine, odd tail)
+    // and `enc_ref.gsm` (libgsm output, 252 x 65-byte blocks). Regenerate with:
+    //   python3 testdata/gen_enc_vectors.py testdata/enc_in.pcm
+    //   /tmp/libgsm/enc49 < testdata/enc_in.pcm > testdata/enc_ref.gsm
+    // (enc49.c: gsm_create + GSM_OPT_WAV49, gsm_encode per 160 samples, 32 + 33 bytes per pair, zero-padded tail).
+    const ENC_IN: &[u8] = include_bytes!("../testdata/enc_in.pcm");
+    const ENC_REF: &[u8] = include_bytes!("../testdata/enc_ref.gsm");
+
+    fn enc_in() -> std::vec::Vec<i16> {
+        ENC_IN.chunks_exact(2).map(|b| i16::from_le_bytes([b[0], b[1]])).collect()
+    }
+
+    #[test]
+    fn encoder_matches_libgsm() {
+        let pcm = enc_in();
+        assert_eq!(pcm.len() % BLOCK_SAMPLES, 103, "odd tail present");
+        assert_eq!(ENC_REF.len(), blocks_for(pcm.len()) * BLOCK_BYTES);
+        let mut padded = pcm.clone();
+        padded.resize(blocks_for(pcm.len()) * BLOCK_SAMPLES, 0);
+        let mut enc = GsmEncoder::new();
+        let mut out = [0u8; BLOCK_BYTES];
+        for (b, (src, want)) in padded.chunks_exact(BLOCK_SAMPLES).zip(ENC_REF.chunks_exact(BLOCK_BYTES)).enumerate() {
+            enc.encode_block(src.try_into().unwrap(), &mut out);
+            if let Some(i) = (0..BLOCK_BYTES).find(|&i| out[i] != want[i]) {
+                panic!("block {b} byte {i}: got {:#04x} want {:#04x}", out[i], want[i]);
+            }
+        }
+    }
+
+    #[test]
+    fn encode_f32_matches_libgsm() {
+        let pcm = enc_in();
+        let f: std::vec::Vec<f32> = pcm.iter().map(|&s| s as f32 / 32768.0).collect();
+        let mut out = std::vec![0u8; blocks_for(f.len()) * BLOCK_BYTES];
+        assert_eq!(encode(&f, &mut out), ENC_REF.len());
+        assert!(out == ENC_REF, "f32 path differs from libgsm output");
+        assert_eq!(blocks_for(0), 0);
+        assert_eq!(blocks_for(1), 1);
+        assert_eq!(blocks_for(320), 1);
+        assert_eq!(blocks_for(321), 2);
+        assert_eq!(encode(&[], &mut []), 0);
+        // out-of-range / NaN input converts like the saturating cast
+        let mut one = [0u8; BLOCK_BYTES];
+        assert_eq!(encode(&[2.0, -2.0, f32::NAN], &mut one), BLOCK_BYTES);
+    }
+
+    #[test]
+    fn encoder_round_trip_decodes_like_reference() {
+        let pcm = enc_in();
+        let f: std::vec::Vec<f32> = pcm.iter().map(|&s| s as f32 / 32768.0).collect();
+        let mut ours = std::vec![0u8; blocks_for(f.len()) * BLOCK_BYTES];
+        encode(&f, &mut ours);
+        let n = blocks_for(f.len()) * BLOCK_SAMPLES;
+        let mut a = std::vec![0f32; n];
+        let mut b = std::vec![0f32; n];
+        assert_eq!(decode(&ours, &mut a), Ok(n));
+        assert_eq!(decode(ENC_REF, &mut b), Ok(n));
+        assert!(a == b);
+        // sine sweep segment (samples 4000..24000): lossy but close, SNR > 5 dB
+        let (mut sig, mut err) = (0f64, 0f64);
+        for i in 4000..24000 {
+            let x = pcm[i] as f64 / 32768.0;
+            sig += x * x;
+            err += (x - a[i] as f64) * (x - a[i] as f64);
+        }
+        let snr = 10.0 * (sig / err).log10();
+        assert!(snr > 5.0, "SNR {snr} dB");
+    }
+
+    #[test]
+    fn chunk_header_round_trip() {
+        let pcm = enc_in();
+        let f: std::vec::Vec<f32> = pcm.iter().map(|&s| s as f32 / 32768.0).collect();
+        let nb = blocks_for(f.len());
+        let mut chunk = std::vec![0u8; CHUNK_HEADER + nb * BLOCK_BYTES];
+        let (h, body) = chunk.split_at_mut(CHUNK_HEADER);
+        encode(&f, body);
+        write_chunk_header(nb * BLOCK_BYTES, f.len(), h.try_into().unwrap());
+        let g = GsmChunk::parse(&chunk).unwrap().unwrap();
+        assert_eq!(g.samples, f.len());
+        assert!(g.rest.is_empty());
+        assert_eq!(g.blocks, ENC_REF);
+        // exact block multiple and the empty chunk
+        let mut h2 = [0u8; CHUNK_HEADER];
+        write_chunk_header(BLOCK_BYTES, BLOCK_SAMPLES, &mut h2);
+        let mut c2 = h2.to_vec();
+        c2.extend_from_slice(&ENC_REF[..BLOCK_BYTES]);
+        let g = GsmChunk::parse(&c2).unwrap().unwrap();
+        assert_eq!(g.samples, BLOCK_SAMPLES);
+        assert!(g.rest.is_empty());
+    }
+
+    #[test]
+    fn chunk_header_layout_matches_real_chunk() {
+        // header of a real song chunk (base64 "XBcAACLkAAAxAAEARKwAAP0iAABBAAAAAgBAAQ==")
+        let real: [u8; 28] = [
+            0x5C, 0x17, 0, 0, 0x22, 0xE4, 0, 0, 0x31, 0, 1, 0, 0x44, 0xAC, 0, 0, 0xFD, 0x22, 0, 0, 0x41, 0, 0, 0, 2, 0,
+            0x40, 0x01,
+        ];
+        let mut h = [0u8; CHUNK_HEADER];
+        write_chunk_header(0x175C, 0xE422, &mut h);
+        assert_eq!(h, real);
     }
 }
 

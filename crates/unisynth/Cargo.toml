@@ -1,0 +1,65 @@
+[package]
+name = "unisynth"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "no_std unified synth: one slot-based instrument and one merged effect set (MIT; WaveSabre-derived code keeps its notice, see LICENSE-WaveSabre)"
+
+[dependencies]
+libm.workspace = true
+synth-core.workspace = true
+gsm = { workspace = true, optional = true }
+dls = { workspace = true, optional = true }
+
+[[example]]
+name = "render"
+required-features = ["std"]
+
+[features]
+default = ["us-all"]
+# host-side only: chunk encoder (task 1.4), requires std
+std = []
+
+# --- instrument modules (a patch that uses a disabled module fails at load with UnsupportedModule) ---
+us-osc-pm = []
+us-osc-blit = []
+us-osc-wt = []
+us-osc-sample = []
+us-sample-gsm = ["us-osc-sample", "dep:gsm"]
+us-sample-dls = ["us-osc-sample", "dep:dls"]
+us-noise = []
+us-flt-svf = []
+us-flt-ladder = []
+us-flt-rbj = []
+us-flt-notch = []
+us-env-timed = []
+us-env-rate = []
+
+# --- effect kinds and modes (kind = any of its modes) ---
+us-fx-distortion = ["us-fx-distortion-shaper", "us-fx-distortion-power"]
+us-fx-distortion-shaper = []
+us-fx-distortion-power = []
+us-fx-crusher = []
+us-fx-eq = ["us-fx-eq-parametric", "us-fx-eq-3band"]
+us-fx-eq-parametric = []
+us-fx-eq-3band = []
+us-fx-delay = ["us-fx-delay-tempo", "us-fx-delay-ms"]
+us-fx-delay-tempo = []
+us-fx-delay-ms = []
+us-fx-chorus = []
+us-fx-flanger = ["us-fx-flanger-phaser", "us-fx-flanger-ring"]
+us-fx-flanger-phaser = []
+us-fx-flanger-ring = []
+us-fx-reverb = ["us-fx-reverb-freeverb", "us-fx-reverb-compact", "us-fx-reverb-rooms"]
+us-fx-reverb-freeverb = []
+us-fx-reverb-compact = []
+us-fx-reverb-rooms = []
+us-fx-compressor = []
+us-fx-formant = []
+
+us-osc = ["us-osc-pm", "us-osc-blit", "us-osc-wt", "us-osc-sample", "us-sample-gsm", "us-sample-dls"]
+us-flt = ["us-flt-svf", "us-flt-ladder", "us-flt-rbj", "us-flt-notch"]
+us-env = ["us-env-timed", "us-env-rate"]
+us-fx = ["us-fx-distortion", "us-fx-crusher", "us-fx-eq", "us-fx-delay", "us-fx-chorus", "us-fx-flanger",
+         "us-fx-reverb", "us-fx-compressor", "us-fx-formant"]
+us-all = ["us-osc", "us-noise", "us-flt", "us-env", "us-fx"]

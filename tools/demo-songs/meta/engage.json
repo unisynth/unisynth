@@ -1,0 +1,567 @@
+{
+  "about": {
+    "type": "electro house",
+    "style": "cinematic demoscene electro house with distorted FM growl basses, acid lines and big-room drops; dark and driving",
+    "tempo": "118 BPM, four on the floor",
+    "engine": "WaveSabre: Falcon, Slaughter, Thunder, Adultery; effects Scissor, Leveller, Crusher, Echo, Smasher, Chamber, Twister, Cathedral",
+    "similar_to": [
+      "2010s electro house",
+      "complextro"
+    ],
+    "description": "A beatless, cinematic intro (bars 1-36) of crushed FM plucks, an FM bass, a sampled pad and reverse crashes builds through noise risers into the first drop at bar 37, where kick, backbeat snare, sine sub and the pitch-dropping 'Waaarrp' growl bass take over. Bar 53 adds the broken acid line, congas, a square-wave lead and offbeat stabs; bars 69-84 swap the acid for a 16th-note FM noodle and a filtered growl before the final drop (bars 85-103) brings everything back with 16th 808 hats, then an outro to bar 108. Pitches centre on D (D1 root in the sub and bass, F/D/A plucks), a D-minor feel with menacing G# accents; the synth bus pumps against a sidechain key on every kick."
+  },
+  "tracks": [
+    {
+      "name": "Thud",
+      "about": {
+        "type": "fx",
+        "style": "low sampled impact with huge reverb",
+        "tempo": "one hit per section start",
+        "engine": "WaveSabre Adultery: gm.dls wave 221, low-pass filtered, through Leveller, Smasher and Cathedral reverb",
+        "similar_to": [
+          "Roland Sound Canvas SC-55"
+        ],
+        "description": "A single dark boom at bars 1, 29 and 85 marking the intro, the start of the build and the final drop, washed in a near-infinite freeverb."
+      }
+    },
+    {
+      "name": "Crash Adlt",
+      "about": {
+        "type": "cymbal",
+        "style": "detuned sampled crash, high-passed",
+        "tempo": "one hit per 8 bars plus pickup hits",
+        "engine": "WaveSabre Adultery: gm.dls wave 107 with 2-voice unison detune, high-pass filter, short decay to a low sustain",
+        "similar_to": [
+          "Roland Sound Canvas SC-55",
+          "Roland TR-909"
+        ],
+        "description": "Crash hits on the 8-bar section downbeats from bar 9 to 103, some with quarter-note pickups; sent heavily to the big reverb bus."
+      }
+    },
+    {
+      "name": "Rev Crash Adlt",
+      "about": {
+        "type": "riser",
+        "style": "reversed crash swell",
+        "tempo": "one swell before every 8-bar section",
+        "engine": "WaveSabre Adultery: gm.dls wave 107 played reversed, slow attack, high-pass filtered, 2-voice unison",
+        "similar_to": [
+          "Roland Sound Canvas SC-55"
+        ],
+        "description": "A reversed cymbal that sucks into section downbeats (starting around bars 12.7 to 101.7), pairing with Crash Adlt; sent to the big reverb."
+      }
+    },
+    {
+      "name": "Click",
+      "about": {
+        "type": "percussion",
+        "style": "resonant high-passed click in reverb and phaser",
+        "tempo": "sparse half-bar pulse",
+        "engine": "WaveSabre Adultery: gm.dls wave 446 from a late sample start, short decay, resonant high-pass; Smasher, Leveller, Cathedral, Twister",
+        "similar_to": [
+          "Roland Sound Canvas SC-55"
+        ],
+        "description": "A ticking, roomy click through the intro (bars 1-28) whose filter cutoff and EQ high cut are automated to open up the atmosphere."
+      }
+    },
+    {
+      "name": "Noise Up",
+      "about": {
+        "type": "riser",
+        "style": "band-passed noise sweep with phaser",
+        "tempo": "one swell before section changes",
+        "engine": "WaveSabre Slaughter: noise only, resonant band-pass filter, slow attack; Twister phaser with automated amount",
+        "similar_to": [
+          "Roland Juno-106",
+          "Sequential Prophet-5"
+        ],
+        "description": "White-noise whooshes leading into the drops and sections from bar 36.8 to 101.8, the phaser amount automated for a rising sweep; sent to the big reverb."
+      }
+    },
+    {
+      "name": "Bass",
+      "about": {
+        "type": "bass",
+        "style": "distorted 2-op FM bass with vibrato",
+        "tempo": "quarter notes and held notes",
+        "engine": "WaveSabre Falcon: 2-operator FM, sine-ish carrier, modulator with strong feedback (automated), medium decay; Scissor distortion, Chamber room reverb",
+        "similar_to": [
+          "Yamaha DX7",
+          "Yamaha TX81Z"
+        ],
+        "description": "The intro bass (bars 5-28) on D1 moving to A1 and Bb1, the operator feedback and EQ cuts automated to grow brighter as the intro builds."
+      }
+    },
+    {
+      "name": "HugePluck",
+      "about": {
+        "type": "pluck",
+        "style": "crushed 5-voice FM pluck",
+        "tempo": "8th-note arpeggio",
+        "engine": "WaveSabre Falcon: 2-operator FM, modulator at ratio 10 with fast decay, 5-voice unison; Crusher, Leveller, Echo",
+        "similar_to": [
+          "Yamaha DX7",
+          "Lennar Digital Sylenth1"
+        ],
+        "description": "The intro motif from bar 1 to 28: two-voice 8th-note plucks around F4, D4 and A3 outlining D minor, with automated high cut opening across the variants and a light tempo echo."
+      }
+    },
+    {
+      "name": "Garrix",
+      "about": {
+        "type": "lead",
+        "style": "distorted FM pluck lead with chorus and delay",
+        "tempo": "8th-note arpeggio",
+        "engine": "WaveSabre Falcon: 2-operator FM, short percussive envelopes, high operator feedback; Chamber, Scissor distortion, Twister chorus, Echo",
+        "similar_to": [
+          "Yamaha DX7",
+          "Lennar Digital Sylenth1"
+        ],
+        "description": "Doubles the HugePluck figure an octave up (F5, D5, A4) from bar 13 to 28, adding a bright, chorused top line to the second half of the intro."
+      }
+    },
+    {
+      "name": "Coin",
+      "about": {
+        "type": "fx",
+        "style": "high FM blip with full-wet delay",
+        "tempo": "sparse offbeat pings",
+        "engine": "WaveSabre Falcon: 2-operator FM, short decay; Scissor distortion, 100% wet Echo",
+        "similar_to": [
+          "Yamaha DX7"
+        ],
+        "description": "Very high pings (A6, D7, A7) echoing through bars 13-35, the level automated; sent to the big reverb for a glittering intro texture."
+      }
+    },
+    {
+      "name": "Tamb",
+      "about": {
+        "type": "percussion",
+        "style": "high-passed sampled tambourine",
+        "tempo": "8th notes with offbeat accents",
+        "engine": "WaveSabre Adultery: gm.dls wave 436, high-pass filter, Smasher",
+        "similar_to": [
+          "Roland Sound Canvas SC-55"
+        ],
+        "description": "A shuffling tambourine layer with varied velocities in the groove sections from bar 45 to 102; partly sent to the drum reverb."
+      }
+    },
+    {
+      "name": "HCALP",
+      "about": {
+        "type": "clap",
+        "style": "heavily distorted clap in big reverb",
+        "tempo": "sparse accents",
+        "engine": "WaveSabre Adultery: gm.dls wave 194, Scissor at full drive, Cathedral reverb",
+        "similar_to": [
+          "Roland TR-909",
+          "Roland Sound Canvas SC-55"
+        ],
+        "description": "Occasional crunchy clap hits and fills from bar 44 to 95, drenched in a large freeverb."
+      }
+    },
+    {
+      "name": "Kick",
+      "about": {
+        "type": "kick",
+        "style": "punchy sampled house kick",
+        "tempo": "four on the floor",
+        "engine": "WaveSabre Thunder: one GSM 6.10-compressed kick sample; Leveller low boost",
+        "similar_to": [
+          "Roland TR-909"
+        ],
+        "description": "Drives every drop from bar 37 to 103 on all four beats, with occasional pickup variations at the section ends."
+      }
+    },
+    {
+      "name": "Cowbell",
+      "about": {
+        "type": "percussion",
+        "style": "distorted sampled cowbell",
+        "tempo": "sparse syncopated hits",
+        "engine": "WaveSabre Adultery: gm.dls wave 105, Scissor distortion, Leveller",
+        "similar_to": [
+          "Roland TR-808",
+          "Roland Sound Canvas SC-55"
+        ],
+        "description": "Short offbeat cowbell fills at the end of phrases from bar 39 to 99, sent to the drum reverb."
+      }
+    },
+    {
+      "name": "Open Hat",
+      "about": {
+        "type": "hat",
+        "style": "crushed band-passed noise open hat",
+        "tempo": "offbeat 8ths",
+        "engine": "WaveSabre Slaughter: noise through a resonant band-pass around 11 kHz, short decay; Crusher, Leveller",
+        "similar_to": [
+          "Roland TR-909",
+          "Roland TR-808"
+        ],
+        "description": "The classic house offbeat open hat from bar 45 to 102, in the drop and groove sections, lightly sent to the drum reverb."
+      }
+    },
+    {
+      "name": "808 hat",
+      "about": {
+        "type": "hat",
+        "style": "tight high-passed closed hat",
+        "tempo": "16th notes",
+        "engine": "WaveSabre Adultery: gm.dls wave 19, high-pass filter, short release, light Scissor drive",
+        "similar_to": [
+          "Roland TR-808",
+          "Roland Sound Canvas SC-55"
+        ],
+        "description": "Rapid 16th-note closed hats that only appear in the final drop (bars 87-102) to lift the energy."
+      }
+    },
+    {
+      "name": "Open Hat 2",
+      "about": {
+        "type": "hat",
+        "style": "crushed, distorted, phased hat sample",
+        "tempo": "16th-note ticks",
+        "engine": "WaveSabre Adultery: gm.dls wave 19 pitched down, long decay; Crusher, Leveller, Scissor, Twister phaser, Leveller",
+        "similar_to": [
+          "Roland TR-808",
+          "Roland Sound Canvas SC-55"
+        ],
+        "description": "A gritty, phased hat texture in 2-bar runs during the groove sections from bar 45 to 102, lightly sent to the drum reverb."
+      }
+    },
+    {
+      "name": "Snare",
+      "about": {
+        "type": "snare",
+        "style": "sampled snare",
+        "tempo": "backbeat on 2 and 4",
+        "engine": "WaveSabre Thunder: one GSM 6.10-compressed snare sample; Leveller mid/high shaping",
+        "similar_to": [
+          "Roland TR-909"
+        ],
+        "description": "The backbeat of every drop from bar 37 to 103 with fills at phrase ends; sent to the Snare Verb bus."
+      }
+    },
+    {
+      "name": "Snare OH",
+      "about": {
+        "type": "snare",
+        "style": "band-passed noise snare tail",
+        "tempo": "backbeat on 2 and 4",
+        "engine": "WaveSabre Slaughter: noise through a band-pass around 6.7 kHz, medium decay; Chamber room",
+        "similar_to": [
+          "Roland TR-909",
+          "Roland TR-808"
+        ],
+        "description": "A noise layer doubling the snare backbeat (bars 37-103) to give it a bright, roomy tail."
+      }
+    },
+    {
+      "name": "Noise Rise",
+      "about": {
+        "type": "riser",
+        "style": "filter-swept noise pulses",
+        "tempo": "quarter and half-note pulses",
+        "engine": "WaveSabre Slaughter: noise through a resonant band-pass with automated cutoff, slow attack; Echo, Chamber",
+        "similar_to": [
+          "Roland Juno-106"
+        ],
+        "description": "Rhythmic noise swells whose band-pass sweeps up across 2-bar phrases in the drops (bars 37-101), adding air and tension."
+      }
+    },
+    {
+      "name": "Falcon Fly",
+      "about": {
+        "type": "fx",
+        "style": "slow-attack inharmonic FM swoosh",
+        "tempo": "one 2-bar swell per 16 bars",
+        "engine": "WaveSabre Falcon: 2-operator FM with high non-integer ratios (28 and 22.37) and feedback, slow attack, pitch envelope; Leveller, Twister",
+        "similar_to": [
+          "Yamaha DX7"
+        ],
+        "description": "A metallic fly-by played on a very low note at bars 50, 65, 81 and 97, the EQ low and high cuts automated to sweep it; sent to the big reverb."
+      }
+    },
+    {
+      "name": "big effin pad",
+      "about": {
+        "type": "pad",
+        "style": "detuned sampled pad with heavy phaser and delay",
+        "tempo": "held 2-bar chords",
+        "engine": "WaveSabre Adultery: gm.dls wave 389 with 2-voice unison detune, slow attack and release; Twister, Leveller, Echo",
+        "similar_to": [
+          "Roland Sound Canvas SC-55",
+          "Roland Juno-106"
+        ],
+        "description": "Four-voice chords on D, A and Bb from bar 13 to 29 underpinning the intro, the phaser, EQ cuts and delay mix all automated as it swells into the build."
+      }
+    },
+    {
+      "name": "SUB",
+      "about": {
+        "type": "sub bass",
+        "style": "clean FM sine sub",
+        "tempo": "syncopated 8ths and 16ths",
+        "engine": "WaveSabre Falcon: carrier-only sine with no modulation, short release; Smasher",
+        "similar_to": [
+          "Roland TR-808",
+          "Minimoog Model D"
+        ],
+        "description": "The low end of every drop from bar 37 to 104, rooted on D1 and moving to G#1, D2 and F2 in 2-bar patterns; transpose automated for shifts, ducked by the Main Duck sidechain."
+      }
+    },
+    {
+      "name": "Broke Acid",
+      "about": {
+        "type": "bass",
+        "style": "squelchy crushed FM acid line",
+        "tempo": "syncopated 16ths",
+        "engine": "WaveSabre Falcon: 2-operator FM, modulator at ratio 16 with very high feedback and a fast pitch/modulation envelope; Crusher, Smasher, Leveller, Twister",
+        "similar_to": [
+          "Roland TB-303",
+          "Yamaha DX7"
+        ],
+        "description": "A broken, off-beat acid riff on D1, G#1 and D2 in bars 53-68 and 85-102; the crusher rate, phaser and transpose are automated."
+      }
+    },
+    {
+      "name": "BrokeAcidSup",
+      "about": {
+        "type": "bass",
+        "style": "saw support layer for the acid line",
+        "tempo": "syncopated 16ths",
+        "engine": "WaveSabre Slaughter: single saw oscillator through a low-pass filter with a short envelope",
+        "similar_to": [
+          "Roland TB-303",
+          "Roland SH-101"
+        ],
+        "description": "Plays the same notes as Broke Acid (bars 53-68 and 85-102) to give it a solid saw body."
+      }
+    },
+    {
+      "name": "Waaarrp Main",
+      "about": {
+        "type": "bass",
+        "style": "pitch-dropping distorted FM growl bass",
+        "tempo": "syncopated 8ths and held notes",
+        "engine": "WaveSabre Falcon: 2-operator FM with feedback, 2-voice unison, LFO vibrato and a pitch envelope for the 'waaarp' drop; stacked Scissor/foldover distortions, Leveller, short Echo",
+        "similar_to": [
+          "Native Instruments Massive",
+          "Yamaha DX7"
+        ],
+        "description": "The main drop bass from bar 37 to 68 and 85 to 103, mostly on D1 with F2, D2 and G#2 jumps; EQ, modulation and transpose automated, sent to the room reverb and ducked by the sidechain."
+      }
+    },
+    {
+      "name": "Waaarrp LC",
+      "about": {
+        "type": "bass",
+        "style": "filtered FM growl bass",
+        "tempo": "syncopated 8ths and held notes",
+        "engine": "WaveSabre Falcon: same growl patch as Waaarrp Main with an extra automated low-cut/high-cut Leveller",
+        "similar_to": [
+          "Native Instruments Massive",
+          "Yamaha DX7"
+        ],
+        "description": "Replaces the main growl in the middle section (bars 69-84) on D1 and A#1, its EQ band narrowing at the end to lead into the final drop."
+      }
+    },
+    {
+      "name": "Waaarrp",
+      "about": {
+        "type": "fx",
+        "style": "crushed high FM growl shot",
+        "tempo": "sparse offbeat accents",
+        "engine": "WaveSabre Falcon: the growl patch played high (A4) with a long decay; Scissor stack, Echo, automated Crusher and level",
+        "similar_to": [
+          "Native Instruments Massive",
+          "Yamaha DX7"
+        ],
+        "description": "Single 'waaarp' shots ending phrases from bar 38.8 to 108, including the last notes of the outro."
+      }
+    },
+    {
+      "name": "Waaarrp Own RV",
+      "about": {
+        "type": "fx",
+        "style": "folded, phased noise burst",
+        "tempo": "sparse offbeat accents",
+        "engine": "WaveSabre Slaughter: noise through a resonant high-pass with automated cutoff; Scissor foldover, Twister, Leveller",
+        "similar_to": [
+          "Roland Juno-106"
+        ],
+        "description": "A noise tail layered under the Waaarrp shots (bars 38.8-100.8) acting as their own fake reverb; sent to the big reverb."
+      }
+    },
+    {
+      "name": "Waaarrp 2",
+      "about": {
+        "type": "fx",
+        "style": "distorted, phased FM stab",
+        "tempo": "one hit per few bars",
+        "engine": "WaveSabre Falcon: growl patch with carrier ratio 13 and a slow-attack modulator; Twister, Scissor, Leveller, Scissor",
+        "similar_to": [
+          "Yamaha DX7"
+        ],
+        "description": "Eight off-beat C#2 hits between bars 40 and 99 that punctuate phrase ends; lightly sent to the big reverb."
+      }
+    },
+    {
+      "name": "Feed Me Squares",
+      "about": {
+        "type": "lead",
+        "style": "detuned square-wave lead with vibrato",
+        "tempo": "long notes, 1-1.5 bars",
+        "engine": "WaveSabre Slaughter: two detuned pulse oscillators with 2-voice unison, open filter, LFO vibrato; Echo, Leveller",
+        "similar_to": [
+          "Roland Juno-106",
+          "Sequential Prophet-5"
+        ],
+        "description": "A high, nagging D6/D#6 semitone figure over the groove sections (bars 53-68 and 87-101), echoed and sent to the big reverb."
+      }
+    },
+    {
+      "name": "Stab backup",
+      "about": {
+        "type": "chord stab",
+        "style": "crushed, folded FM stab",
+        "tempo": "offbeat 16ths",
+        "engine": "WaveSabre Falcon: 2-operator FM with ratios 8 and 3, 2-voice detuned unison; Crusher, Scissor foldover, Chamber, Smasher",
+        "similar_to": [
+          "Yamaha DX7",
+          "Korg M1"
+        ],
+        "description": "A gritty D3 stab answering the bass on the off-16ths in bars 53-68 and 85-102."
+      }
+    },
+    {
+      "name": "noodle",
+      "about": {
+        "type": "arp",
+        "style": "blippy FM sequence with pitch envelope",
+        "tempo": "16th-note sequence",
+        "engine": "WaveSabre Falcon: 2-operator FM, modulator ratio 33 (automated) with feedback, fast pitch envelope; Scissor, Leveller, Echo",
+        "similar_to": [
+          "Yamaha DX7",
+          "Yamaha TX81Z"
+        ],
+        "description": "Busy 16th-note figures on D2, A2 and D3 that carry the middle section (bars 69-84), with the operator ratio and EQ cuts automated; sent to the big reverb."
+      }
+    },
+    {
+      "name": "Faller",
+      "about": {
+        "type": "fx",
+        "style": "falling saw sweep in big reverb",
+        "tempo": "one bar-long note per section",
+        "engine": "WaveSabre Slaughter: two saw/pulse oscillators with unison, high-pass filter, slow attack, transpose automated downward; Chamber, Echo, Scissor",
+        "similar_to": [
+          "Roland JP-8000",
+          "Access Virus"
+        ],
+        "description": "Long downward pitch sweeps at section changes from bar 9 to 67, smeared by a full-wet room and a delay whose mix is automated."
+      }
+    },
+    {
+      "name": "Laser Riser",
+      "about": {
+        "type": "riser",
+        "style": "detuned saw laser zaps",
+        "tempo": "repeated syncopated 8ths",
+        "engine": "WaveSabre Slaughter: two saw oscillators with 3-voice unison, LFO and envelope modulation, transpose and level automated; Echo, Chamber, Smasher",
+        "similar_to": [
+          "Roland JP-8000",
+          "Access Virus"
+        ],
+        "description": "A repeated D6 zap whose pitch is automated upward to build tension in the groove sections (bars 45-68 and 87-102)."
+      }
+    },
+    {
+      "name": "Conga!",
+      "about": {
+        "type": "percussion",
+        "style": "distorted sampled conga",
+        "tempo": "syncopated 16ths with ghost notes",
+        "engine": "WaveSabre Adultery: gm.dls wave 193, Scissor distortion, Leveller with automated level",
+        "similar_to": [
+          "Roland Sound Canvas SC-55"
+        ],
+        "description": "A dense, off-grid conga groove with dynamic velocities from bar 53 to 102; partly sent to the drum reverb."
+      }
+    },
+    {
+      "name": "Chain Key",
+      "about": {
+        "type": "sidechain key",
+        "style": "short noise burst",
+        "tempo": "four on the floor",
+        "engine": "WaveSabre Slaughter: noise with a short decay, used only as a trigger",
+        "description": "Follows the kick from bar 37 to 103 and feeds the [Main Duck] compressor's sidechain input to pump the synth bus."
+      }
+    },
+    {
+      "name": "Main Ride",
+      "about": {
+        "type": "cymbal",
+        "style": "wide detuned ride sample",
+        "tempo": "syncopated off-grid hits",
+        "engine": "WaveSabre Adultery: gm.dls wave 273 with wide 2-voice unison detune, low-pass filter, long decay; Leveller",
+        "similar_to": [
+          "Roland TR-909",
+          "Roland Sound Canvas SC-55"
+        ],
+        "description": "A shimmering ride pattern over the drops from bar 37 to 102, sent to the room reverb and ducked by the sidechain."
+      }
+    },
+    {
+      "name": "Bigger Reverb",
+      "about": {
+        "type": "reverb bus",
+        "style": "large bright hall",
+        "tempo": "follows its sends",
+        "engine": "WaveSabre Cathedral: freeverb, room size 0.945, light damping, low cut",
+        "description": "The main long reverb send for crashes, risers, pad, plucks, FX shots and lead; ducked by [Main Duck]."
+      }
+    },
+    {
+      "name": "Room Verb (short)",
+      "about": {
+        "type": "reverb bus",
+        "style": "short room",
+        "tempo": "follows its sends",
+        "engine": "WaveSabre Cathedral: freeverb, room size 0.67, low cut",
+        "description": "Short room for Broke Acid, Waaarrp Main and Main Ride; ducked by [Main Duck]."
+      }
+    },
+    {
+      "name": "[Main Duck]",
+      "about": {
+        "type": "bus",
+        "style": "sidechain pumping compressor",
+        "tempo": "pumps on every kick",
+        "engine": "WaveSabre Smasher: compressor keyed from Chain Key, fast attack, medium release",
+        "description": "Sums all synths, the ride and the two reverb buses and ducks them on each kick-aligned Chain Key hit for the electro-house pump."
+      }
+    },
+    {
+      "name": "Drum Reverb",
+      "about": {
+        "type": "reverb bus",
+        "style": "large drum hall",
+        "tempo": "follows its sends",
+        "engine": "WaveSabre Cathedral: freeverb, room size 0.895, strong low cut",
+        "description": "Reverb send for tambourine, conga, cowbell and the open hats, outside the sidechain duck."
+      }
+    },
+    {
+      "name": "Snare Verb",
+      "about": {
+        "type": "reverb bus",
+        "style": "snare plate-like hall",
+        "tempo": "follows its sends",
+        "engine": "WaveSabre Leveller into Cathedral: freeverb, room size 0.93, low wet mix",
+        "description": "Gives the Thunder snare its tail; the input level and wet mix are automated to open the reverb at chosen moments."
+      }
+    }
+  ]
+}

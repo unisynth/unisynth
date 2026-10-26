@@ -1,0 +1,24 @@
+# Standalone size probe for the unified synth (never part of the root workspace).
+[workspace]
+[package]
+name = "us-size-probe"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+# Features are those of `unisynth`, passed as `--features unisynth/us-osc-wt,...` (see measure.sh).
+[dependencies]
+synth-core = { path = "../../crates/synth-core" }
+unisynth = { path = "../../crates/unisynth", default-features = false }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+debug = false
+strip = true
+incremental = false
+
+[profile.dev]
+panic = "abort"

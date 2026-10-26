@@ -4,7 +4,11 @@
 mod songs;
 
 fn main() {
-    let blob = if std::env::var("CARGO_FEATURE_ALL").is_ok() {
+    // WS_SONG=<file>: embed a real song (research/size-compare) instead of a synthetic one.
+    println!("cargo:rerun-if-env-changed=WS_SONG");
+    let blob = if let Ok(f) = std::env::var("WS_SONG") {
+        std::fs::read(f).unwrap()
+    } else if std::env::var("CARGO_FEATURE_ALL").is_ok() {
         songs::showcase()
     } else {
         songs::all().into_iter().find(|(n, _)| *n == "slaughter_automation").unwrap().1

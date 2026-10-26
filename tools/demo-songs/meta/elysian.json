@@ -1,0 +1,419 @@
+{
+  "about": {
+    "type": "electronica",
+    "style": "melodic, uplifting broken-beat electronica / 64k-intro soundtrack: lush detuned pads, FM plucks and sidechain-pumping basses; dreamy and euphoric",
+    "tempo": "130 BPM, syncopated broken-beat groove with sidechain pump",
+    "engine": "WaveSabre: Slaughter, Falcon, Thunder (effects Echo, Chamber, Leveller, Scissor, Crusher, Smasher)",
+    "description": "The intro (bars 1-16) builds from a soft pad, vocal chops, hats and claps. The kick and bass enter at bar 17, and the detuned pad and 16th FM arpeggio join at bar 33. A riser leads into a second half at bar 49 with an added FM growl bass, then the climax (bars 65-96) brings a huge reverb snare. A pad outro runs from bar 97 to bar 118. The tonal centre is B♭ minor / D♭ major, and the mood is bright, airy and nostalgic; the project is named after logicoma's 2016 64k intro Elysian."
+  },
+  "tracks": [
+    {
+      "name": "Crash1",
+      "about": {
+        "type": "cymbal",
+        "style": "long high-passed noise crash",
+        "tempo": "one hit per 24-32 bars, on the downbeat",
+        "engine": "WaveSabre Slaughter: oscillators off, noise only, high-pass filter (~2.3 kHz) with slow mod-envelope sweep, long amp decay/release",
+        "similar_to": [
+          "Roland TR-909 (crash cymbal)",
+          "Roland TR-808 (cymbal)"
+        ],
+        "description": "Marks the section starts at bars 17, 41, 65 and 97 with a 4-bar noise crash, widened by a short Echo, Chamber reverb and a dotted tempo echo."
+      }
+    },
+    {
+      "name": "Crash2",
+      "about": {
+        "type": "cymbal",
+        "style": "bit-crushed resonant noise crash",
+        "tempo": "one hit per 8-48 bars, on the downbeat",
+        "engine": "WaveSabre Slaughter: noise only through a resonant high-pass (~1 kHz) swept by the mod envelope, then Crusher (sample-rate reduction)",
+        "similar_to": [
+          "Roland TR-909 (crash cymbal)"
+        ],
+        "description": "A grittier crash layer at bars 33, 41 and 81, crushed, slightly delayed and put in a dark Chamber reverb."
+      }
+    },
+    {
+      "name": "Big Hi Fall",
+      "about": {
+        "type": "fx",
+        "style": "downward filtered noise sweep",
+        "tempo": "one long hit per section (bars 49 and 97)",
+        "engine": "WaveSabre Slaughter: noise through a high-pass whose cutoff is driven almost fully by a slowly decaying mod envelope, full-sustain amp",
+        "similar_to": [
+          "Roland Jupiter-8 (noise sweep)",
+          "Sequential Prophet-5 (noise sweep)"
+        ],
+        "description": "A long falling noise sweep (about 7 beats) that opens the second half at bar 49 and the outro at bar 97; the tempo echo send is automated."
+      }
+    },
+    {
+      "name": "woow",
+      "about": {
+        "type": "fx",
+        "style": "reverberant vocal 'woow' sample",
+        "tempo": "sparse one-shots, one per 4-16 bars",
+        "engine": "WaveSabre Thunder: one GSM 6.10-compressed sample (a vocal exclamation, judging by the track name), played one-shot",
+        "description": "A vocal shout dropped at phrase starts from bar 9 to bar 113, washed in Chamber reverb and a quarter-note echo, with automated EQ low/high cuts sweeping its band."
+      }
+    },
+    {
+      "name": "me",
+      "about": {
+        "type": "fx",
+        "style": "filtered vocal chop 'me'",
+        "tempo": "syncopated 8th-note chops",
+        "engine": "WaveSabre Thunder: one GSM 6.10-compressed sample (a short vocal syllable), one-shot, retriggered rhythmically",
+        "description": "A chopped vocal syllable repeated in syncopated 8ths from bar 3 to bar 95, band-limited by a Leveller whose low cut, high cut and Q are automated (filter-sweep effect), plus reverb."
+      }
+    },
+    {
+      "name": "Up Short",
+      "about": {
+        "type": "riser",
+        "style": "short low-passed noise swell",
+        "tempo": "one-beat pickups before phrases",
+        "engine": "WaveSabre Slaughter: noise only through a resonant low-pass (~260 Hz) opened by a mod envelope with slow attack, swelling amp attack",
+        "similar_to": [
+          "Roland Jupiter-8 (noise sweep)"
+        ],
+        "description": "A one-beat noise whoosh that rises into phrase starts across bars 8-94, cleaned up with a low cut and a short Echo."
+      }
+    },
+    {
+      "name": "Down Short",
+      "about": {
+        "type": "fx",
+        "style": "resonant band-pass noise fall",
+        "tempo": "none (no notes)",
+        "engine": "WaveSabre Slaughter: noise through a resonant band-pass with a decaying mod envelope on the cutoff, into Chamber reverb",
+        "description": "A downward noise fall patch that has no notes in the arrangement, so it is silent; it was probably left over from an earlier draft."
+      }
+    },
+    {
+      "name": "Kick",
+      "about": {
+        "type": "kick",
+        "style": "punchy sampled kick",
+        "tempo": "syncopated broken-beat kick, about two per bar",
+        "engine": "WaveSabre Thunder: one GSM 6.10-compressed kick sample, one-shot; Leveller boosts the low-mid body and the click",
+        "similar_to": [
+          "Roland TR-909 (bass drum)",
+          "Roland TR-808 (bass drum)"
+        ],
+        "description": "Drives the groove from bar 17 to bar 97 with a syncopated, not four-on-the-floor, pattern that changes at bars 49 and 65; it also keys the sidechain ducking via Kick Chain."
+      }
+    },
+    {
+      "name": "Rim",
+      "about": {
+        "type": "percussion",
+        "style": "dry sampled rimshot",
+        "tempo": "syncopated off-beat 16ths",
+        "engine": "WaveSabre Thunder: one GSM 6.10-compressed rimshot sample, one-shot, no effects (small send to the CPU Saver Reverb)",
+        "similar_to": [
+          "Roland TR-808 (rim shot)",
+          "Roland TR-909 (rim shot)"
+        ],
+        "description": "Off-beat rim clicks fill out the groove from bar 17 to bar 96, with new variants at bars 33 and 65."
+      }
+    },
+    {
+      "name": "Casta",
+      "about": {
+        "type": "percussion",
+        "style": "sampled castanet click",
+        "tempo": "off-beat syncopated hits",
+        "engine": "WaveSabre Thunder: one GSM 6.10-compressed castanet sample (per the track name), one-shot, low-cut by a Leveller",
+        "similar_to": [
+          "Roland Sound Canvas (GS castanets)"
+        ],
+        "description": "A light castanet accent that never lands on the beat, playing from bar 17 to bar 96."
+      }
+    },
+    {
+      "name": "Clap",
+      "about": {
+        "type": "clap",
+        "style": "sampled hand clap with short room",
+        "tempo": "backbeat on 2 and 4 with fills",
+        "engine": "WaveSabre Thunder: one GSM 6.10-compressed clap sample, one-shot, into a small Chamber room",
+        "similar_to": [
+          "Roland TR-909 (hand clap)",
+          "Roland TR-808 (hand clap)"
+        ],
+        "description": "The backbeat from bar 1 to bar 97, routed through the [Drums] bus; it also feeds the Clap Chain sidechain key that ducks the music."
+      }
+    },
+    {
+      "name": "Hat SL",
+      "about": {
+        "type": "hat",
+        "style": "synthesized closed hi-hat",
+        "tempo": "busy 8th/16th hats",
+        "engine": "WaveSabre Slaughter: noise only, high-pass at ~11.7 kHz, very short decay, no sustain; Leveller presence boost",
+        "similar_to": [
+          "Roland TR-808 (closed hi-hat)",
+          "Roland TR-909 (closed hi-hat)"
+        ],
+        "description": "The closed hats of the first half, bars 1-48, with frequent pattern variants; they drop out for the second half."
+      }
+    },
+    {
+      "name": "Hat Clean",
+      "about": {
+        "type": "hat",
+        "style": "clean sampled closed hat",
+        "tempo": "16th-note off-beat hats",
+        "engine": "WaveSabre Thunder: one GSM 6.10-compressed hi-hat sample, one-shot, short Chamber room",
+        "similar_to": [
+          "Roland TR-909 (closed hi-hat)"
+        ],
+        "description": "Off-beat 16th hats with velocity accents from bar 1 to bar 95, changing pattern at bars 13 and 65."
+      }
+    },
+    {
+      "name": "Hat Crack",
+      "about": {
+        "type": "hat",
+        "style": "cracking sampled hat accent",
+        "tempo": "off-beat 16ths, under one per bar",
+        "engine": "WaveSabre Thunder: one GSM 6.10-compressed hat/crack sample, one-shot, low-cut and short Chamber room",
+        "similar_to": [
+          "Roland TR-909 (open hi-hat)"
+        ],
+        "description": "A sharp off-beat hat accent between bars 1 and 95 that adds snap to the hat groove."
+      }
+    },
+    {
+      "name": "Shaker ruff",
+      "about": {
+        "type": "percussion",
+        "style": "crushed noise shaker",
+        "tempo": "sparse syncopated short ticks",
+        "engine": "WaveSabre Slaughter: noise only, high-pass at ~9.1 kHz, short attack/decay; Crusher bit/rate reduction, band-limited by a Leveller",
+        "similar_to": [
+          "Roland TR-808 (maracas)"
+        ],
+        "description": "A lo-fi shaker texture running from bar 4 to bar 96."
+      }
+    },
+    {
+      "name": "Shaker clean",
+      "about": {
+        "type": "percussion",
+        "style": "clean noise shaker",
+        "tempo": "ticks placed off the 16th grid",
+        "engine": "WaveSabre Slaughter: noise only, high-pass at ~9.1 kHz, very short attack and no decay tail",
+        "similar_to": [
+          "Roland TR-808 (maracas)"
+        ],
+        "description": "Clean shaker ticks in the first half (bars 1-48), placed off the 16th grid for a swung, humanised feel."
+      }
+    },
+    {
+      "name": "[Drums]",
+      "about": {
+        "type": "bus",
+        "style": "drum group EQ",
+        "tempo": "follows the drums",
+        "engine": "WaveSabre Leveller (EQ) on a group bus",
+        "description": "Groups clap, hats and shakers; its automated low and high cuts filter the whole drum kit for build-ups and breakdowns."
+      }
+    },
+    {
+      "name": "big riser",
+      "about": {
+        "type": "riser",
+        "style": "distorted noise-and-tone riser",
+        "tempo": "one ~4-bar swell into each drop",
+        "engine": "WaveSabre Slaughter: osc1 mixed waveform plus noise through a band-pass, slow amp attack, automated cutoff; Scissor distortion and Chamber reverb",
+        "similar_to": [
+          "Roland JP-8000 (noise riser)",
+          "Access Virus (noise riser)"
+        ],
+        "description": "A long rising swell in the last bars before bars 49, 65 and 97 (notes at bars 45, 61 and 93), with its band-pass cutoff automated upward."
+      }
+    },
+    {
+      "name": "Snare Crash",
+      "about": {
+        "type": "snare",
+        "style": "reverb-drenched noise snare",
+        "tempo": "backbeat on 2 and 4",
+        "engine": "WaveSabre Slaughter: noise through a band-pass at ~3.5 kHz, medium decay and release, into a wet Chamber reverb",
+        "similar_to": [
+          "Roland TR-909 (snare drum)",
+          "Roland TR-808 (snare drum)"
+        ],
+        "description": "A huge, washy backbeat snare that only plays in the climax section, bars 65-96."
+      }
+    },
+    {
+      "name": "OH",
+      "about": {
+        "type": "hat",
+        "style": "band-passed open hat",
+        "tempo": "off-beat accent, a few per section",
+        "engine": "WaveSabre Slaughter: mostly noise through a resonant band-pass at ~11.5 kHz, short decay, a little pitch envelope; short Echo and high-shelf boost",
+        "similar_to": [
+          "Roland TR-909 (open hi-hat)",
+          "Roland TR-808 (open hi-hat)"
+        ],
+        "description": "Open-hat accents placed at phrase ends between bars 13 and 48."
+      }
+    },
+    {
+      "name": "Super Clap",
+      "about": {
+        "type": "clap",
+        "style": "big processed fill clap",
+        "tempo": "one hit per 16-24 bars",
+        "engine": "WaveSabre Thunder: one GSM 6.10-compressed clap sample through Chamber reverb, a short feedback Echo and a Smasher compressor",
+        "similar_to": [
+          "Roland TR-909 (hand clap)"
+        ],
+        "description": "A big one-off clap at the ends of phrases (around bars 9, 25 and 49) that sets up the next section."
+      }
+    },
+    {
+      "name": "Test Bass",
+      "about": {
+        "type": "bass",
+        "style": "warm detuned saw/pulse bass",
+        "tempo": "long sustained root notes, one or two per 2 bars",
+        "engine": "WaveSabre Slaughter: osc1 saw/pulse morph (narrow pulse) plus a detuned osc2, resonant low-pass ~1 kHz with filter-envelope attack, vibrato, unison detune; Scissor distortion",
+        "similar_to": [
+          "Minimoog Model D",
+          "Sequential Prophet-5",
+          "Roland Juno-106"
+        ],
+        "description": "Holds the chord roots (D♭, G♭, B♭ and A♭ areas) from bar 17 to bar 95. It is ducked by the kick/clap sidechain, so it pumps, and its transpose is automated."
+      }
+    },
+    {
+      "name": "Utter Filth?",
+      "about": {
+        "type": "bass",
+        "style": "gritty high-ratio FM growl",
+        "tempo": "long sustained root notes",
+        "engine": "WaveSabre Falcon: 2-operator FM with a high modulator ratio, strong operator feedback, fast modulator envelope and 2-voice unison; Leveller low boost, Scissor distortion",
+        "similar_to": [
+          "Yamaha DX7",
+          "Yamaha TX81Z"
+        ],
+        "description": "Doubles the bass line from bar 49 to bar 95 with a distorted FM growl. Its high cut is automated and it is sidechain-ducked with the rest of the music."
+      }
+    },
+    {
+      "name": "Space Sine",
+      "about": {
+        "type": "bell",
+        "style": "crushed sine twinkles in reverb",
+        "tempo": "free-floating, off-beat, up to 6 voices",
+        "engine": "WaveSabre Falcon: pure sine operators at a 1:1 ratio with a soft decaying envelope; Crusher sample-rate reduction into a 100%-wet Chamber reverb",
+        "similar_to": [
+          "Yamaha DX7 (sine bell)"
+        ],
+        "description": "Quiet, randomly placed high sine pings with low velocities (B♭ minor pentatonic area) from bar 13 to bar 112, forming a glittering ambient layer."
+      }
+    },
+    {
+      "name": "Plinky",
+      "about": {
+        "type": "arp",
+        "style": "detuned plucky FM arpeggio",
+        "tempo": "16th-note arpeggio",
+        "engine": "WaveSabre Falcon: 2-operator FM with a ~5:1 ratio, feed-forward and short modulator decay, 2-voice unison detune; Leveller high cut, Chamber and Echo",
+        "similar_to": [
+          "Yamaha DX7",
+          "Yamaha TX81Z"
+        ],
+        "description": "A running 16th-note arpeggio in F/A♭ octaves from bar 33 to bar 96, changing figure at bar 65. Its high cut and echo send are automated."
+      }
+    },
+    {
+      "name": "NuPad",
+      "about": {
+        "type": "pad",
+        "style": "bright detuned two-oscillator pad",
+        "tempo": "2-bar sustained chords",
+        "engine": "WaveSabre Slaughter: two pulse-width saw/pulse oscillators detuned against each other, a little noise, unison detune, vibrato; low-pass with automated cutoff",
+        "similar_to": [
+          "Roland Juno-106",
+          "Roland Jupiter-8",
+          "Sequential Prophet-5"
+        ],
+        "description": "Carries the B♭-minor/D♭-major chord progression in 2-bar, 5-note chords through the main body, bars 33-95, with a dotted tempo echo and filter-cutoff automation."
+      }
+    },
+    {
+      "name": "Soft pad",
+      "about": {
+        "type": "pad",
+        "style": "soft swelling filtered pad",
+        "tempo": "2-bar sustained chords",
+        "engine": "WaveSabre Slaughter: pulse plus a second oscillator two octaves up, noise, low cutoff (~150 Hz) opened by a slow filter envelope, wide unison spread; Smasher, Chamber, Echo",
+        "similar_to": [
+          "Roland Juno-106",
+          "Roland Jupiter-8"
+        ],
+        "description": "Plays the chord progression in the intro (bars 1-32) and the outro (bars 97-113) as a soft, breathing pad. Its release and EQ low cut are automated."
+      }
+    },
+    {
+      "name": "Trill",
+      "about": {
+        "type": "arp",
+        "style": "fast FM arpeggio run",
+        "tempo": "rapid triplet-32nd runs, a few per section",
+        "engine": "WaveSabre Falcon: 2-operator FM with a 1:1 ratio, feedback and feed-forward, slow carrier attack; Chamber reverb and an automated echo send",
+        "similar_to": [
+          "Yamaha DX7"
+        ],
+        "description": "Quiet, fast ascending D♭-major arpeggio flourishes spanning several octaves, placed at phrase transitions from bar 17 to bar 97."
+      }
+    },
+    {
+      "name": "Kick Chain",
+      "about": {
+        "type": "sidechain key",
+        "style": "kick sidechain trigger",
+        "tempo": "follows the kick",
+        "engine": "WaveSabre send-only track (no devices)",
+        "description": "Receives the Kick and feeds it as the sidechain signal into the [FUCK A DUCK] bus compressors."
+      }
+    },
+    {
+      "name": "Clap Chain",
+      "about": {
+        "type": "sidechain key",
+        "style": "clap sidechain trigger",
+        "tempo": "follows the clap",
+        "engine": "WaveSabre send-only track (no devices)",
+        "description": "Receives the Clap and feeds it as a second sidechain signal into the [FUCK A DUCK] bus compressors."
+      }
+    },
+    {
+      "name": "CPU Saver Reverb",
+      "about": {
+        "type": "reverb bus",
+        "style": "shared dark room reverb",
+        "tempo": "follows its sends",
+        "engine": "WaveSabre Chamber reverb (100% wet) and a Leveller",
+        "description": "A shared send reverb for the rim, castanet, hats, shakers, OH, bass and pad, used to save CPU. Its EQ high cut is automated."
+      }
+    },
+    {
+      "name": "[FUCK A DUCK]",
+      "about": {
+        "type": "bus",
+        "style": "double sidechain ducking bus",
+        "tempo": "pumps with kick and clap",
+        "engine": "WaveSabre: two Smasher compressors in series, both sidechained",
+        "description": "The music bus (riser, snare, OH, Super Clap, basses, FM layers, pads, Trill and the reverb return) is ducked by the Kick Chain and Clap Chain keys for the pumping groove."
+      }
+    }
+  ]
+}

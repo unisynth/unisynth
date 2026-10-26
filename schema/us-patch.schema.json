@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://64k.local/schema/us-patch.schema.json",
+  "title": "Unified synth patch preset (us-patch/1)",
+  "description": "One device: kind plus the values that differ from the kind's defaults, keyed by parameter name and sorted by parameter index. Names and ranges are checked by crates/song.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "name", "kind", "values"],
+  "properties": {
+    "format": { "const": "us-patch/1" },
+    "name": { "type": "string", "minLength": 1 },
+    "kind": { "type": "integer", "minimum": 64, "maximum": 73 },
+    "values": { "type": "object", "additionalProperties": { "type": "number" } },
+    "samples": { "type": "array", "maxItems": 255, "items": { "type": "string", "contentEncoding": "base64" } }
+  }
+}

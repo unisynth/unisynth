@@ -1,0 +1,19 @@
+[package]
+name = "synth-convert"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Host-only converter: legacy WaveSabre/Tunefish songs and patches to unified-synth (unisynth) songs"
+
+# std, never linked into the player; not in the workspace default-members.
+
+[dependencies]
+synth-core.workspace = true
+wavesabre = { workspace = true, features = ["ws-all"] }
+tfsynth = { workspace = true, features = ["tf-fx-all"] }
+gsm.workspace = true
+unisynth = { path = "../unisynth", features = ["std"] }
+
+[[bin]]
+name = "synth-convert"
+path = "src/main.rs"

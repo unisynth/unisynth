@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { compare, DEFAULT_TOL, loudness, octaveLtas, onsets, readWav, writeWav, type Audio } from "./metrics.ts";
+import { alignment, compare, DEFAULT_TOL, loudness, octaveLtas, onsets, readWav, writeWav, type Audio } from "./metrics.ts";
 
 const RATE = 44100;
 
@@ -99,4 +99,36 @@ test("WAV round trip (16-bit)", () => {
   expect(b.rate).toBe(RATE);
   expect(b.ch[1].length).toBe(1000);
   for (let i = 0; i < 1000; i++) expect(Math.abs(b.ch[1][i] - a.ch[1][i])).toBeLessThan(1 / 32000);
+});
+
+test("alignment: the same render has lag 0 and correlation 1; 192 frames late reads 192", () => {
+  const a = music();
+  const same = alignment(a, a, 1024);
+  expect(same.lag).toBe(0);
+  expect(same.corr).toBeCloseTo(1, 3);
+  const late = alignment(music(RATE * 4, 1, 192), a, 1024);
+  expect(late.lag).toBe(192); // a multiple of the 64-frame step of the curve
+  expect(late.corr).toBeGreaterThan(0.7);
+  expect(alignment(a, music(RATE * 4, 1, 192), 1024).lag).toBe(-192);
+});
+
+test("alignment mode of compare: 200 frames late fails, 64 frames late passes, different music does not correlate", () => {
+  const tol = { ...DEFAULT_TOL, onsetAlignment: 0.5 };
+  expect(compare(music(), music(), tol).onsets.pass).toBe(true);
+  expect(compare(music(RATE * 4, 1, 64), music(), tol).onsets.pass).toBe(true);
+  const late = compare(music(RATE * 4, 1, 200), music(), tol);
+  expect(late.onsets.pass).toBe(false);
+  expect(late.onsets.lag).toBeGreaterThanOrEqual(192);
+  // steady noise has no onsets to line up with the bursts
+  let s = 7;
+  const noise = audio(RATE * 4, () => 0.2 * (((s = (s * 1103515245 + 12345) >>> 0) / 2 ** 32) * 2 - 1));
+  expect(compare(noise, music(), tol).onsets.pass).toBe(false);
+}, 60000);
+
+test("band floor: a band far below the loudest one is skipped only when the floor says so", () => {
+  const ref = audio(RATE * 3, (i) => 0.3 * Math.sin((2 * Math.PI * 1000 * i) / RATE) + 0.0003 * Math.sin((2 * Math.PI * 125 * i) / RATE));
+  const ours = audio(RATE * 3, (i) => 0.3 * Math.sin((2 * Math.PI * 1000 * i) / RATE) + 0.0012 * Math.sin((2 * Math.PI * 125 * i) / RATE));
+  // the 125 Hz band is 60 dB down in the reference and 12 dB higher in ours
+  expect(compare(ours, ref, { ...DEFAULT_TOL, bandFloorDb: 80 }).bands.find((b) => b.fc === 125)!.pass).toBe(false);
+  expect(compare(ours, ref, { ...DEFAULT_TOL, bandFloorDb: 24 }).bands.find((b) => b.fc === 125)!.pass).toBe(true);
 });
