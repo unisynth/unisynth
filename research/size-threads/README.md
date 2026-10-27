@@ -10,19 +10,30 @@ Gates and measurements for change `add-synth-threads` (opt-in multi-threaded son
 replaces the link timestamp with a content hash, so equal code gives equal bytes (checked: two builds after `touch`ing
 the crates give the same hashes).
 
-`baseline.txt` = the probes of commit `ebf516c` (before add-synth-threads), built in a clean `git worktree`. Another
-change (`shrink-unified-synth`) edits `unisynth` and `us-size-probe` in the same working tree, so a before/after
-comparison in place mixes both changes. The gate is therefore run in isolation:
+`baseline.txt` = the probes of commit `dc6bb80` (threads code present, feature off) built in this checkout
+(`/Users/robson/Project/64k`). Use it as a regression reference: `./research/size-threads/hashes.sh | diff
+research/size-threads/baseline.txt -` must print nothing while no synth source changes. Any later synth change moves the
+hashes; refresh the file in the same commit.
+
+**The bytes depend on the checkout path.** Cargo derives symbol hashes from the absolute path of path dependencies, and
+the linker orders code by symbol, so the same commit built in another directory (e.g. a `git worktree`) gives
+different `us-*` executables of the same size (~900 bytes differ). Compare hashes only between builds in the same
+directory.
+
+### Isolated "feature off adds nothing" proof
+
+Run in one clean worktree, before and after removing the threads code, so both builds share the path:
 
 ```bash
-git worktree add --detach /tmp/wt HEAD            # tree without either change
-(cd /tmp/wt && /path/to/research/size-threads/hashes.sh > /tmp/A.txt)
-# apply only the add-synth-threads hunks (synth-core, unisynth/tfsynth Cargo.toml + device.rs) to /tmp/wt
-(cd /tmp/wt && /path/to/research/size-threads/hashes.sh > /tmp/B.txt)
-diff /tmp/A.txt /tmp/B.txt                        # must print nothing
+git worktree add --detach /tmp/wt HEAD
+(cd /tmp/wt && ./research/size-threads/hashes.sh > /tmp/A.txt)
+(cd /tmp/wt && git revert --no-commit dc6bb80 ab4523a)  # resolve doc-only conflicts with --ours; restore hashes.sh
+(cd /tmp/wt && ./research/size-threads/hashes.sh > /tmp/B.txt)
+diff /tmp/A.txt /tmp/B.txt                               # must print nothing
 ```
 
-Result (task 5.1): identical for all 11 probes; the all-modules probe imports only `kernel32!ExitProcess`.
+Results: task 5.1 at `ebf516c` ± the change: 11/11 identical, the all-modules probe imports only `kernel32!ExitProcess`.
+Re-run at `dc6bb80` (after `shrink-unified-synth` landed): 11/11 identical.
 
 ## Benchmark
 
