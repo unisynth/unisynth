@@ -365,6 +365,17 @@ sequenceDiagram
   WaveSabre track can end in a Tunefish reverb. Chorus keeps its 512-frame control grid across calls.
 - Mixed songs load through `synth_core::mix::Either<WsDevice, TfDevice>`.
 
+### `.tf4m`: the 2013 engine (Enigma Studio 4)
+
+Brain Control's *Turtles all the way down* (Revision 2013) was made with the 2013 Tunefish 4 in Enigma Studio 4
+(released under CC0: `demos/zoom/zoom.tf4m`). Its song container is the `.tfm` one, but with **110** values per
+instrument and the 2013 mod-matrix encoding. `synth-convert tf4m-tfm` rewrites it to the final layout (dropped unused
+generator values, index −6 from the noise on, mod source `round(4p)` → `/14`, target `round(16p)` → `/39` with the 2013
+target order, amount `((p − ½)·20)²` → the final law, reverb width 1 since the 2013 reverb ignores width), so `tfsynth`
+and the converter play it. Not reproducible by values alone (warned): the 2013 LFO sine spans −0.5…1.5, its generator
+modulation reads a shorter sine table, it does not band-limit the wavetable, and `eFtoL` rounds where the final engine
+truncates (harmonic count, delay milliseconds). Tempo is BPM at 4 rows per beat as in `.tfm`.
+
 ## Memory and tables
 
 - Voices come from the caller pool; each instrument carves an effect pool of `Chain::need(patch)` bytes. Delay needs

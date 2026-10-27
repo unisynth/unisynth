@@ -395,9 +395,9 @@ const col = (...els) => { const d = document.createElement("div"); d.className =
 // (`d.values`, by parameter name); a knob or select writes there, sets the live parameter at once and queues an
 // engine update (structural parameters rebuild the device there). ----
 const status = document.createElement("div"); status.className = "rack-status"; status.setAttribute("aria-live", "polite");
-const INST = () => TABLES.find(t => t.kind === 64);
-const ip = name => INST().params.find(p => p.name === name);
-const vget = (d, p) => d.values[p.name] ?? p.default;
+function INST() { return TABLES.find(t => t.kind === 64); }
+function ip(name) { return INST().params.find(p => p.name === name); } // hoisted: fmtVal may run before this line
+function vget(d, p) { return d.values[p.name] ?? p.default; }
 const trackIndex = t => t.master ? tracks.length : tracks.indexOf(t);
 const engineDev = (t, d) => t.devices.filter(x => !x.bypass).indexOf(d);
 function liveParam(t, d, p, v) {
@@ -447,7 +447,7 @@ const smpShapes = (d, i) => [0, ...(choice(vget(d, ip(`osc${i}.s1`)), 3) && choi
 const OSC_COMMON = ["tracking", "coarse", "fine", "octave", "ratio", "ratio_fine", "fixed_hz", "gain", "mix", "pan", "pm_out", "feedback"];
 const SLOTS = { osc: 3, filt: 4, env: 4, lfo: 2, mod: 12 };
 const slotKeys = (g, i) => INST().params.filter(p => p.name.startsWith(`${g}${i}.`)).map(p => p.name);
-const oscType = (d, i) => choice(vget(d, ip(`osc${i}.type`)), 5);
+function oscType(d, i) { return choice(vget(d, ip(`osc${i}.type`)), 5); }
 function slotUsed(d, g, i) {
   if (g === "osc") return oscType(d, i) !== 0;
   if (g === "filt") return choice(vget(d, ip(`filt${i}.type`)), 9) !== 0;
@@ -503,7 +503,7 @@ function slotRack(t, d, g, label, noun, card, fresh) {
 // Envelope curve as the engine plays it (crates/unisynth/src/env.rs): WaveSabre mode in closed form (linear attack,
 // quadratic decay and release, times `p²·5000 + 1` ms), Tunefish mode integrated per 512-frame block. A note is held
 // for a while after the decay, then released. Redrawn from the knobs (`_draw`), so it follows edits and automation.
-const envMs = p => p * p * 5000 + 1;
+function envMs(p) { return p * p * 5000 + 1; } // hoisted (like ip/vget/INST/oscType): fmtVal runs from the first buildTrack, above
 function envCurve(tf, a, dcy, s, r, slope) {
   const pts = [];
   if (!tf) {
@@ -1793,7 +1793,7 @@ async function save() {
   const r = await api.write(songFile, json);
   if (!r.ok) { if (r.errors) showErrors(r.errors, "Save"); else say(`save failed: ${r.error}`); return false; }
   savedKey = dirtyKey(); savedDepth = undoStack.length; savedAt = new Date(); songs.set(songFile, { path: songFile, kind: "song" });
-  dirtyUpd(); say(`saved ${songFile} (song/1, ${(json.length / 1024).toFixed(1)} kB)`); return true;
+  dirtyUpd(); say(`${api.static ? "downloaded (read-only preview)" : "saved"} ${songFile} (song/1, ${(json.length / 1024).toFixed(1)} kB)`); return true;
 }
 document.getElementById("save").onclick = save;
 window.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); e.stopImmediatePropagation(); save(); } }, true);

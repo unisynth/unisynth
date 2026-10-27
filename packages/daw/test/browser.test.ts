@@ -2,7 +2,7 @@
 // a temporary project/music. Draw a note → heard in the bounce; a knob (keyboard only) changes the output; undo
 // restores it exactly; save round trip; bounce == `song render`; axe accessibility check.
 import { afterAll, beforeAll, expect, test } from "bun:test";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -171,6 +171,16 @@ test("no critical or serious accessibility violations (axe)", async () => {
   if (bad.length) console.error(bad.map((v: any) => `${v.id} (${v.impact}): ${v.nodes.length} × ${v.nodes[0]?.target}`).join("\n"));
   expect(bad.map((v: any) => v.id)).toEqual([]);
 }, 60_000);
+
+test("a song whose first track automates an envelope time opens (lane labels format before the helpers load)", async () => {
+  const d = JSON.parse(readFileSync(join(root, "project/music/demo.song.json"), "utf8"));
+  const t = d.tracks.find((x: any) => x.devices?.[0]?.kind === 64);
+  t.lanes = [{ device: 0, param: "env1.attack", points: [[0, 0.1], [3840, 0.5]] }];
+  writeFileSync(join(root, "project/music/env-lane.song.json"), JSON.stringify(d));
+  await open("project/music/env-lane.song.json");
+  expect(await page.locator("[role=alert]").count()).toBe(0);
+  expect(await page.locator(".lane").count()).toBeGreaterThan(0);
+});
 
 test("no page errors", () => {
   expect(errors).toEqual([]);

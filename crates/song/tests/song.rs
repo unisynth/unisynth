@@ -332,6 +332,39 @@ fn blob_round_trip_keeps_chunks_routing_volumes_and_automation() {
 }
 
 #[test]
+fn automation_after_the_song_end_is_cut_at_the_end_not_stretching_the_song() {
+    let mut v = base();
+    v["length"] = serde_json::json!(7680);
+    v["tracks"][0]["devices"].as_array_mut().unwrap().push(serde_json::json!({ "kind": 68, "values": { "mode": 0.0 } }));
+    v["tracks"][0]["lanes"] = serde_json::json!([{ "device": 1, "param": "feedback", "points": [[0, 0.0], [7680, 1.0]] }]);
+    let mut b = exported(&v);
+    b[8..16].copy_from_slice(&2.0f64.to_le_bytes()); // the blob now ends at 2 s = 3840 ticks, halfway along the lane
+    let s = import(&b).unwrap();
+    assert!(validate(&s).is_empty(), "{:?}", validate(&s));
+    assert_eq!(s.length, 3840);
+    let pts = &s.tracks[0].lanes[0].points;
+    assert_eq!(pts.len(), 2);
+    assert_eq!(pts[1].tick, 3840.0);
+    assert!((pts[1].value - 0.5).abs() < 0.01, "{}", pts[1].value);
+}
+
+#[test]
+fn imported_released_songs_quirks_become_valid_songs() {
+    // velocity 128 in the blob (a byte) imports as 127
+    let mut v = base();
+    v["clips"] = serde_json::json!([{ "id": "a", "length": 3840, "notes": [[0, 480, 60, 99]] }]);
+    v["tracks"][0]["placements"] = serde_json::json!([{ "clip": "a", "start": 0, "length": 3840, "loop": false }]);
+    v["tracks"][0]["devices"].as_array_mut().unwrap().push(serde_json::json!({ "kind": 68, "values": { "mode": 0.0 } }));
+    v["tracks"][0]["lanes"] = serde_json::json!([{ "device": 1, "param": "feedback", "points": [[0, 0.0], [960, 0.5], [1920, 1.0]] }]);
+    let mut b = exported(&v);
+    let k = b.windows(2).position(|w| w == [60, 99]).expect("note-on 60 velocity 99");
+    b[k + 1] = 128;
+    let s = import(&b).unwrap();
+    assert_eq!(s.clips.iter().flat_map(|c| c.notes.iter()).map(|n| n.vel).collect::<Vec<_>>(), vec![127]);
+    assert!(validate(&s).is_empty(), "{:?}", validate(&s));
+}
+
+#[test]
 fn legacy_kinds_point_to_synth_convert() {
     let mut v = base();
     v["tracks"][0]["devices"] = serde_json::json!([]);

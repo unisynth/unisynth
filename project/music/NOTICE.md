@@ -23,6 +23,16 @@ it sounds close to, not identical with, the intro. Composers the
 repositories do not name are not guessed. `elysian` and `engage` are test projects named after logicoma's intros; the WaveSabre README lists those intros as made
 with WaveSabre.
 
+## Released songs (local only, `released/`)
+
+`released/` holds 24 WaveSabre songs taken from released 64K intros and executable music (2018-2026), extracted with
+`tools/ws-extract` and written by `tools/ws-extract/make-demos.py`. **No licence is stated for any of them: the music
+belongs to its authors.** The folder is git-ignored and is rebuilt locally; it is never committed or redistributed.
+Each file's `meta` names the production, its authors and music credit (Demozoo), its release and party placing, a pouet
+or Demozoo link, and says that it is an adapted version (converted to the unified synth, within 0.5 dB loudness and
+~1 dB per octave band of the original engine). Track names are derived from instrument and notes, not the authors'.
+The full list and the productions that could not be extracted are in `research/wavesabre-intros.md`.
+
 ## MIT (WaveSabre)
 
 Copyright 2012-2021 WaveSabre Team
