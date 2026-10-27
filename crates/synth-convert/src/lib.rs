@@ -10,6 +10,7 @@ pub mod instr;
 pub mod legacy;
 pub mod model;
 pub mod patch;
+pub mod rust;
 pub mod tf;
 pub mod tfm;
 

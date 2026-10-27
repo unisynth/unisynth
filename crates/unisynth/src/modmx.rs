@@ -119,6 +119,13 @@ pub mod target {
     }
 }
 
+/// Whether mod slot `i` routes: it has a source and a valid target (what `Matrix::eval` makes active).
+pub fn routes(p: &[f32; COUNT], i: usize) -> bool {
+    let b = pm::modslot(i, 0);
+    let t = law::index(p[b + m::TARGET]);
+    law::choice(p[b + m::SOURCE], source::COUNT) != source::NONE && t != target::NONE && t < target::COUNT
+}
+
 #[derive(Clone, Copy, Debug)]
 struct Slot {
     active: bool,
@@ -153,6 +160,9 @@ impl Matrix {
 
     /// Product of the Scale results aimed at `t` (1 when none).
     pub fn scale(&self, t: u8) -> f32 {
+        if !cfg!(feature = "us-matrix") {
+            return 1.0;
+        }
         let mut r = 1.0;
         for s in &self.slot {
             if s.active && s.scale && s.target == t {
@@ -164,6 +174,9 @@ impl Matrix {
 
     /// Sum of the Offset results aimed at `t` (0 when none).
     pub fn offset(&self, t: u8) -> f32 {
+        if !cfg!(feature = "us-matrix") {
+            return 0.0;
+        }
         let mut r = 0.0;
         for s in &self.slot {
             if s.active && !s.scale && s.target == t {
@@ -174,7 +187,11 @@ impl Matrix {
     }
 
     /// One pass over the slots with the current parameters.
+    /// Without `us-matrix` no patch with a route loads (`instrument::check_voice`): every slot stays off.
     pub fn eval(&mut self, p: &[f32; COUNT], src: &Sources) {
+        if !cfg!(feature = "us-matrix") {
+            return;
+        }
         for i in 0..pm::MOD_SLOTS {
             let b = pm::modslot(i, 0);
             let source = law::choice(p[b + m::SOURCE], source::COUNT);
@@ -234,10 +251,16 @@ pub struct Tab {
 impl Query for Tab {
     #[inline]
     fn scale(&self, t: u8) -> f32 {
+        if !cfg!(feature = "us-matrix") {
+            return 1.0;
+        }
         self.s.get(t as usize).copied().unwrap_or(1.0)
     }
     #[inline]
     fn offset(&self, t: u8) -> f32 {
+        if !cfg!(feature = "us-matrix") {
+            return 0.0;
+        }
         self.o.get(t as usize).copied().unwrap_or(0.0)
     }
 }
@@ -265,5 +288,5 @@ impl Default for Matrix {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "us-matrix"))]
 mod tests;

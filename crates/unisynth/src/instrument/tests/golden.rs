@@ -182,9 +182,18 @@ fn line(name: &str, x: &[f32]) -> String {
     format!("{name} {:016x} peak={peak:.4}", fnv(x))
 }
 
+/// The patches this build can load: a build without an optional voice path skips the patches that use it and must
+/// play every other one bit for bit as the full build does.
+fn loadable() -> Vec<(&'static str, Vec<u8>, Option<Vec<u8>>)> {
+    patches().into_iter().filter(|(_, c, _)| UInstrument::need(c).is_ok()).collect()
+}
+
 #[test]
 fn golden() {
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/golden.txt");
+    let all = patches().len();
+    let patches = loadable;
+    assert!(patches().len() * 2 > all, "most golden patches use no optional voice path");
     let got: Vec<String> = patches().iter().map(|(n, c, b)| line(n, &play(c, b.as_deref()))).collect();
     for l in &got {
         assert!(!l.contains("peak=0.0000") && !l.contains("NaN") && !l.contains("inf"), "{l}");
@@ -200,13 +209,13 @@ fn golden() {
         let w = want.lines().find(|w| w.split(' ').next() == Some(name)).unwrap_or_else(|| panic!("{name} missing from golden.txt"));
         assert_eq!(g, w);
     }
-    assert_eq!(want.lines().count(), got.len(), "golden.txt has patches this test no longer plays");
+    assert_eq!(want.lines().count(), all, "golden.txt has patches this test no longer plays");
 }
 
 /// Every patch plays the same whatever the caller's buffer size (the patches use no automation).
 #[test]
 fn the_patches_do_not_depend_on_the_call_size() {
-    for (n, c, b) in patches() {
+    for (n, c, b) in loadable() {
         let a = with_bank(&c, b.as_deref(), RATE, |ins| render(ins, RATE, &phrase(), FRAMES, 512));
         let z = with_bank(&c, b.as_deref(), RATE, |ins| render(ins, RATE, &phrase(), FRAMES, 77));
         assert!(a == z, "{n}");

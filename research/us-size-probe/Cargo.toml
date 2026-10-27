@@ -11,6 +11,13 @@ license = "MIT"
 synth-core = { path = "../../crates/synth-core" }
 unisynth = { path = "../../crates/unisynth", default-features = false }
 
+[build-dependencies]
+synth-convert = { path = "../../crates/synth-convert" }
+
+[features]
+# the song as Rust (`synth-convert rust`) in a trusted build: no song or chunk validation, no module load checks
+baked = ["unisynth/us-trusted"]
+
 [profile.release]
 opt-level = "z"
 lto = true

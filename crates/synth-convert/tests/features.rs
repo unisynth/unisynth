@@ -141,7 +141,8 @@ fn an_automation_lane_adds_the_filter_types_it_can_step_to_and_the_noise_it_can_
         |p| p[pm::filt(0, pm::f::TYPE)] = unisynth::law::host::inv_choice(ft::SVF_LP, ft::COUNT),
         &[(pm::filt(0, pm::f::TYPE), &[(0, 30), (100, 40)])],
     ));
-    assert_eq!(near, base);
+    // the lane itself needs the automation walk; the filter types stay those of the chunk
+    assert_eq!(near.into_iter().filter(|f| *f != "us-automation").collect::<Vec<_>>(), base);
     // noise: silent in the chunk, raised by a lane
     let raised = of(&unified(|_| {}, &[(v::NOISE_LEVEL, &[(0, 0), (100, 200)])]));
     assert!(raised.contains(&"us-noise"), "{raised:?}");
@@ -223,6 +224,64 @@ fn noise_routed_by_the_matrix_and_gsm_samples_without_a_sampler_are_needed() {
     let mut s = many(1, |_, _| {}, &[]);
     s.devices[0].chunk = unisynth::chunk::encode(&p, &[c.sample_bytes(0).unwrap()]);
     assert!(of(&s).contains(&"us-sample-gsm"), "{:?}", of(&s));
+}
+
+#[test]
+fn the_optional_voice_paths_are_needed_only_when_the_patch_or_a_lane_uses_them() {
+    use unisynth::law::host::{inv_choice, inv_count};
+    use unisynth::modmx::source;
+    let voice = ["us-voice-lfo", "us-voice-glide", "us-voice-mono", "us-voice-unison", "us-voice-oneshot"];
+    let base = of(&unified(|_| {}, &[]));
+    assert!(voice.iter().all(|f| !base.contains(f)), "the default patch uses none: {base:?}");
+    let has = |s: SongM, f: &str| of(&s).contains(&f);
+    // LFO: read by a mod slot, or reachable through a routing lane; an LFO nothing reads costs nothing
+    let lfo_src = pm::modslot(2, pm::m::SOURCE);
+    assert!(has(unified(|p| p[lfo_src] = inv_choice(source::LFO1 + 1, source::COUNT), &[]), "us-voice-lfo"));
+    assert!(!has(unified(|p| p[pm::lfo(0, pm::l::RATE)] = 0.7, &[]), "us-voice-lfo"));
+    assert!(has(unified(|_| {}, &[(lfo_src, &[(0, 0), (100, 255)])]), "us-voice-lfo"));
+    // glide: a glide time, or a lane that raises it; slide only in mono mode
+    assert!(has(unified(|p| p[v::GLIDE] = 0.3, &[]), "us-voice-glide"));
+    assert!(has(unified(|_| {}, &[(v::GLIDE, &[(0, 0), (100, 90)])]), "us-voice-glide"));
+    assert!(!has(unified(|p| p[v::SLIDE] = 0.3, &[]), "us-voice-glide"), "poly: the slide time is never read");
+    let mono = inv_choice(1, 2);
+    let m = of(&unified(|p| {
+        p[v::MODE] = mono;
+        p[v::SLIDE] = 0.3;
+    }, &[]));
+    assert!(m.contains(&"us-voice-mono") && m.contains(&"us-voice-glide"), "{m:?}");
+    let snap = of(&unified(|p| p[v::MODE] = mono, &[]));
+    assert!(snap.contains(&"us-voice-mono") && !snap.contains(&"us-voice-glide"), "{snap:?}");
+    assert!(has(unified(|_| {}, &[(v::MODE, &[(0, 0), (100, 255)])]), "us-voice-mono"));
+    // unison above one voice, one-shot on
+    assert!(has(unified(|p| p[v::UNISON] = inv_count(3, 1, 16), &[]), "us-voice-unison"));
+    assert!(!has(unified(|p| p[v::UNI_DETUNE] = 0.5, &[]), "us-voice-unison"));
+    assert!(has(unified(|p| p[v::ONE_SHOT] = inv_choice(1, 2), &[]), "us-voice-oneshot"));
+}
+
+#[test]
+fn the_mod_matrix_is_needed_when_a_slot_routes_or_a_lane_can_create_a_route() {
+    use unisynth::law::host::{inv_choice, inv_index};
+    use unisynth::modmx::{source, target};
+    assert!(!of(&unified(|_| {}, &[])).contains(&"us-matrix"));
+    let route = |p: &mut [f32; COUNT]| {
+        p[pm::modslot(5, pm::m::SOURCE)] = inv_choice(source::VELOCITY, source::COUNT);
+        p[pm::modslot(5, pm::m::TARGET)] = inv_index(target::PITCH);
+    };
+    assert!(of(&unified(route, &[])).contains(&"us-matrix"));
+    // a source without a target (or a target without a source) routes nothing
+    let half = of(&unified(|p| p[pm::modslot(5, pm::m::SOURCE)] = inv_choice(source::VELOCITY, source::COUNT), &[]));
+    assert!(!half.contains(&"us-matrix"), "{half:?}");
+    let lane = of(&unified(|_| {}, &[(pm::modslot(1, pm::m::TARGET), &[(0, 0), (100, 255)])]));
+    assert!(lane.contains(&"us-matrix"), "{lane:?}");
+}
+
+#[test]
+fn automation_is_needed_when_a_track_has_a_lane() {
+    assert!(!of(&unified(|_| {}, &[])).contains(&"us-automation"));
+    let s = unified(|_| {}, &[(pm::filt(0, pm::f::CUTOFF), &[(0, 10), (100, 200)])]);
+    assert!(of(&s).contains(&"us-automation"), "{:?}", of(&s));
+    let w = why(&s, "us-automation");
+    assert!(w.iter().any(|w| w.contains("track 0") && w.contains("filt1.cutoff")), "{w:?}");
 }
 
 #[test]

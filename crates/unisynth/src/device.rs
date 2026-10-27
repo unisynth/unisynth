@@ -45,6 +45,11 @@ macro_rules! forward {
 }
 
 impl Device for UDevice<'_> {
+    #[inline]
+    fn automation(&self) -> Result<(), u8> {
+        if cfg!(feature = "us-automation") { Ok(()) } else { Err(crate::module::AUTOMATION) }
+    }
+
     fn param_count(&self) -> usize {
         forward!(self, d => d.param_count())
     }

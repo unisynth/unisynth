@@ -63,6 +63,28 @@ parity, goldens (or documented moves) and the feature gate hold.
   both steps: Global Groove 14,336 → 20,992 → 16,384 (+14 %), Elysian 43,520 → 49,152 → 45,568 (+5 %), Engage 36,352 → 42,496 → 38,400 (+6 %),
   Eladamri 30,208 → 34,816 → 31,232 (+3 %), no_remorse 17,920 → 29,184 → 23,552 (+31 %), tf4testsong 17,408 → 27,648 → 22,016 (+26 %).
   The legacy engines still carry their ~10 KB of `libm`; the same replacement would shrink them too.
+- D3.2 (voice paths, `ablate.sh`): `us-voice-lfo`, `-glide`, `-mono`, `-unison`, `-oneshot`, derived from the song by `needs.rs`. Same-tree A/B
+  (song's features plus `us-voice` → song's features; compo configuration, squishy / xz bytes): Global Groove 16,896 → 15,872 / −1,560,
+  Elysian 45,568 → 45,568 / −524, Engage 38,912 → 38,400 / −584, Eladamri 31,232 → 31,232 / −152, no_remorse 23,552 → 23,040 / −808,
+  tf4testsong 22,528 → 21,504 / −804, turtles 26,112 → 25,600 / −608. Every Tunefish song reads LFO 1 (real routes, Scale amount 1),
+  so they keep the largest path. Not features (< 0.5 K raw): pitch bend/wheel, start-phase spread, fine grid, stealing.
+- D3.3 (matrix, `ablate.sh mm-*`): a gate per target group made the player bigger (+0–0.5 K raw, +30–220 B xz: the
+  target is a loop variable at most call sites, so the check is not folded); all targets no reference song reads, gated
+  at their call sites, −0.5 K raw / −0.29 K xz. Not features. The whole matrix (−2 to −2.5 K raw, −1.2 to −1.4 K xz) is `us-matrix`;
+  only Global Groove has no route: 15,872 → 14,848 packed (legacy 14,336), xz −1,044. Every other reference song routes
+  pitch, oscillator gain/pitch, filter cutoff or noise level.
+- D3.4 step 1 (songs as Rust): validation is the only thing the data step can remove (the data and its decoders stay, so
+  the bake keeps the blob's own section bytes; typed tables would grow the data and re-encode floats). Ceiling measured
+  first with a stub (−2 to −3 K raw, −0.9 to −1.6 K xz), then built: `synth-convert rust` (host validation through the real
+  player, `Song::from_sections`, compile-time `module::compiled_all` assert, one id/feature/cfg table) and `us-trusted`.
+  Packed, blob → baked: Global Groove 14,848 → 13,824, Elysian 45,568 → 44,544, Engage 38,400 → 37,888, Eladamri 31,232 →
+  30,720, no_remorse 23,040 → 22,528, tf4testsong 21,504 → 20,992, turtles 25,600 → 25,088. Bit-identical (us-bake-check).
+  Review trade-offs kept: `Song::from_sections` is unchecked (generated code only); embedded data that was edited by hand
+  can abort instead of failing; the probe stands in for the compo player. Step 2 (const facts → folded voice code) is 4.5.
+- D3.5 (4.5, song-wide facts): per-instrument `const` patches rejected (a voice copy per instrument). Ablation of no
+  automation lanes (`--cfg us_ablate="noauto"` in the mixer): −512 B packed, −360 to −510 B xz on Global Groove, no_remorse,
+  tf4testsong, turtles. At the gate (not above it); landed on the user's decision as `us-automation`: Global Groove 13,312,
+  no_remorse 22,016, tf4testsong 20,480, turtles 24,576 (baked). Slot counts and the sample rate do not fold.
 - What is left for the Tunefish songs (about 5.6 KB over legacy): `synth-mix` (the legacy `.tfm` player has no song parser or mixer, about 8 KB raw),
   the generic voice and matrix. D3.2–3.4 decide from here.
 

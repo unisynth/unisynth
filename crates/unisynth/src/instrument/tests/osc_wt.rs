@@ -101,6 +101,7 @@ fn detune_splits_left_and_right_and_spread_spaces_the_layers() {
     }
 }
 
+#[cfg(feature = "us-matrix")]
 #[test]
 fn a_pitch_route_scales_the_detune_with_the_frequency() {
     // velocity (100/128) × 2 = ×1.5625 on every oscillator's frequency, detune included (Tunefish multiplies both)
@@ -127,6 +128,8 @@ fn a_wavetable_slot_can_phase_modulate_the_next_slot() {
     assert!(h3 / h1 > 0.02, "sidebands: {}", h3 / h1);
 }
 
+#[cfg(feature = "us-matrix")]
+#[cfg(feature = "us-voice-lfo")]
 #[test]
 fn a_restarted_voice_counts_its_check_interval_from_the_new_note() {
     with_ins(&patch(&wt(&moving())), 44100.0, |ins| {
@@ -179,12 +182,15 @@ fn drive_clips_the_table_towards_a_square() {
     assert!((h(&mid, 3) / h(&mid, 1) - want).abs() < 0.03, "{} vs {want}", h(&mid, 3) / h(&mid, 1));
 }
 
+#[cfg(all(feature = "us-voice-lfo", feature = "us-matrix"))]
 /// A route from LFO 1 (1 Hz, depth 1) as an Offset on the harmonics value of slot 1.
 fn moving() -> Vec<(usize, f32)> {
     let t = target::osc(0, target::OSC_SHAPE + sp::WT_HARMONICS as u8);
     merged(&[lfo_1hz(0, true), route(0, source::LFO1, t, false, 1.0), vec![(sh(sp::WT_HARMONICS), 0.3)]])
 }
 
+#[cfg(feature = "us-matrix")]
+#[cfg(feature = "us-voice-lfo")]
 #[test]
 fn the_table_is_rebuilt_every_2048_frames_and_only_then() {
     with_ins(&patch(&wt(&moving())), 44100.0, |ins| {
@@ -225,6 +231,8 @@ fn an_unchanged_shape_keeps_its_table() {
     });
 }
 
+#[cfg(feature = "us-matrix")]
+#[cfg(feature = "us-voice-lfo")]
 #[test]
 fn rendering_is_independent_of_the_call_split_and_reset_repeats_it() {
     let e = merged(&[wt(&moving()), vec![(sh(sp::WT_LAYERS), 0.5), (sh(sp::WT_LAYER_DETUNE), 0.4), (sh(sp::WT_MOD), 0.6)]]);

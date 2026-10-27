@@ -10,7 +10,12 @@ use synth_core::pool::Pool;
 use unisynth::device::UDevice;
 use unisynth::rng::Xorshift;
 
+#[cfg(not(feature = "baked"))]
 static SONG: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/song.bin"));
+#[cfg(feature = "baked")]
+mod baked {
+    include!(concat!(env!("OUT_DIR"), "/song.rs"));
+}
 const MEM_BYTES: usize = 32 << 20; // .bss: costs no file size
 static mut MEM: [u8; MEM_BYTES] = [0; MEM_BYTES];
 static mut PCM: [i16; 2 * 4096] = [0; 2 * 4096];
@@ -22,7 +27,10 @@ unsafe extern "system" {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "system" fn start() -> ! {
+    #[cfg(not(feature = "baked"))]
     let Ok(song) = Song::parse(SONG) else { unsafe { ExitProcess(2) } };
+    #[cfg(feature = "baked")]
+    let song = baked::SONG;
     let env = Env::for_song(&song, None);
     let mem = unsafe { &mut *core::ptr::addr_of_mut!(MEM) };
     let mut pool = Pool::new(mem);

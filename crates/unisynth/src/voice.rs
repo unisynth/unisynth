@@ -95,6 +95,10 @@ impl Pitch {
     }
 
     fn advance(&mut self, dt: u32) {
+        if !cfg!(feature = "us-voice-glide") {
+            self.cur = self.target; // without glide/slide every move is a snap
+            return;
+        }
         match self.mv {
             Move::Snap => self.cur = self.target,
             Move::Linear(per_frame) => {
@@ -152,15 +156,20 @@ impl Ctl {
         for (i, e) in self.env.iter_mut().enumerate() {
             e.advance(secs, &fx.envp[i], self.mm.scale(target::ENV_DECAY + i as u8));
         }
-        for (k, l) in self.lfo.iter_mut().enumerate() {
-            l.advance(secs, law::lfo_rate(sh.p[pm::lfo(k, pm::l::RATE)]));
+        if cfg!(feature = "us-voice-lfo") {
+            for (k, l) in self.lfo.iter_mut().enumerate() {
+                l.advance(secs, law::lfo_rate(sh.p[pm::lfo(k, pm::l::RATE)]));
+            }
         }
         self.eval(sh, fx);
     }
 
     /// One mod matrix pass at the current sources.
     fn eval(&mut self, sh: &Shared, fx: &Fixed) {
-        let shape = |k: usize| self.lfo[k].shape(law::choice(sh.p[pm::lfo(k, pm::l::SHAPE)], lfo_shape::COUNT));
+        // without `us-voice-lfo` no patch that reads an LFO loads (`check_modules`): the value is never used
+        let shape = |k: usize| {
+            if cfg!(feature = "us-voice-lfo") { self.lfo[k].shape(law::choice(sh.p[pm::lfo(k, pm::l::SHAPE)], lfo_shape::COUNT)) } else { 0.0 }
+        };
         let src = Sources {
             env: core::array::from_fn(|i| self.env[i].value()),
             lfo_shape: [shape(0), shape(1)],
@@ -534,7 +543,7 @@ impl<'a> Voice<'a> {
     /// Starts a control segment of `len` frames from the committed state.
     fn begin_segment(&mut self, sh: &Shared, len: u32) {
         self.start = self.end;
-        if self.start.env[0].finished() || (law::choice(sh.p[v::ONE_SHOT], 2) == 1 && self.samplers_done()) {
+        if self.start.env[0].finished() || (cfg!(feature = "us-voice-oneshot") && law::choice(sh.p[v::ONE_SHOT], 2) == 1 && self.samplers_done()) {
             self.on = false; // envelope 1 has run out: the voice is free
             return;
         }
@@ -658,7 +667,7 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
         self.rng = Xorshift::new(cx.rng.next_u32());
         let n = note as f32;
         let glide = sh.p[v::GLIDE];
-        let pitch = if glide > 0.0 && self.has_pitch {
+        let pitch = if cfg!(feature = "us-voice-glide") && glide > 0.0 && self.has_pitch {
             let tau = (law::time(glide) * sh.rate).max(1e-3);
             Pitch { cur: self.end.pitch.cur, target: n, mv: Move::Expo(tau) }
         } else {
@@ -673,6 +682,9 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
         let mut env = [Env::new(); pm::ENV_SLOTS];
         env.iter_mut().for_each(Env::trigger);
         let lfo = core::array::from_fn(|k| {
+            if !cfg!(feature = "us-voice-lfo") {
+                return Lfo::new(0.0);
+            }
             let synced = law::choice(sh.p[pm::lfo(k, pm::l::SYNC)], 2) == 1;
             let hz = law::lfo_rate(sh.p[pm::lfo(k, pm::l::RATE)]) as f64;
             // free-running: the phase of an LFO that has run since frame 0, so every voice shares it
@@ -725,7 +737,7 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
     }
 
     fn note_off(&mut self, cx: &mut NoteCx<'c>) {
-        if !cx.force && law::choice(cx.sh.p[v::ONE_SHOT], 2) == 1 {
+        if cfg!(feature = "us-voice-oneshot") && !cx.force && law::choice(cx.sh.p[v::ONE_SHOT], 2) == 1 {
             return;
         }
         let sh = cx.sh;
@@ -737,6 +749,13 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
         let sh = cx.sh;
         let frames = law::time(sh.p[v::SLIDE]) * sh.rate;
         self.note = note;
-        self.edit(&sh, |c| c.pitch.slide_to(note as f32, frames));
+        if cfg!(feature = "us-voice-glide") {
+            self.edit(&sh, |c| c.pitch.slide_to(note as f32, frames));
+        } else {
+            self.edit(&sh, |c| c.pitch = Pitch::snap(note as f32));
+        }
     }
+
+    const MONO: bool = cfg!(feature = "us-voice-mono");
+    const UNISON: bool = cfg!(feature = "us-voice-unison");
 }

@@ -1,67 +1,114 @@
 //! Module ids carried by `LoadError::UnsupportedModule`: what a patch asked for that this build does not contain.
+//! One table gives each id its name, its cargo feature and whether this build has it (`compiled`), so the three cannot
+//! drift apart (`needs::feature` and the generated songs of `synth-convert rust` read it).
 
-pub const OSC_PM: u8 = 1;
-pub const OSC_BLIT: u8 = 2;
-pub const OSC_WAVETABLE: u8 = 3;
-pub const OSC_SAMPLER: u8 = 4;
-pub const SAMPLE_GSM: u8 = 5;
-pub const SAMPLE_DLS: u8 = 6;
-pub const NOISE: u8 = 7;
-pub const FILTER_SVF: u8 = 8;
-pub const FILTER_LADDER: u8 = 9;
-pub const FILTER_RBJ: u8 = 10;
-pub const FILTER_NOTCH: u8 = 11;
-pub const ENV_TIMED: u8 = 12;
-pub const ENV_RATE: u8 = 13;
-// effect (kind, mode) pairs
-pub const FX_DISTORTION_SHAPER: u8 = 16;
-pub const FX_DISTORTION_POWER: u8 = 17;
-pub const FX_CRUSHER: u8 = 18;
-pub const FX_EQ_PARAMETRIC: u8 = 19;
-pub const FX_EQ_3BAND: u8 = 20;
-pub const FX_DELAY_TEMPO: u8 = 21;
-pub const FX_DELAY_MS: u8 = 22;
-pub const FX_CHORUS: u8 = 23;
-pub const FX_FLANGER_PHASER: u8 = 24;
-pub const FX_FLANGER_RING: u8 = 25;
-pub const FX_REVERB_FREEVERB: u8 = 26;
-pub const FX_REVERB_COMPACT: u8 = 27;
-pub const FX_REVERB_ROOMS: u8 = 28;
-pub const FX_COMPRESSOR: u8 = 29;
-pub const FX_FORMANT: u8 = 30;
+macro_rules! modules {
+    ($($id:ident = $n:literal, $feature:literal, $name:literal;)*) => {
+        $(pub const $id: u8 = $n;)*
 
-/// Readable name (host side: messages, converter).
-#[cfg(any(test, feature = "std"))]
-pub fn name(id: u8) -> &'static str {
-    match id {
-        OSC_PM => "phase-mod oscillator",
-        OSC_BLIT => "band-limited saw/pulse oscillator",
-        OSC_WAVETABLE => "wavetable oscillator",
-        OSC_SAMPLER => "sampler oscillator",
-        SAMPLE_GSM => "GSM sample source",
-        SAMPLE_DLS => "GM.DLS sample source",
-        NOISE => "noise source",
-        FILTER_SVF => "state-variable filter",
-        FILTER_LADDER => "ladder filter",
-        FILTER_RBJ => "RBJ filter",
-        FILTER_NOTCH => "resonator notch filter",
-        ENV_TIMED => "timed envelope",
-        ENV_RATE => "rate envelope",
-        FX_DISTORTION_SHAPER => "distortion, shaper mode",
-        FX_DISTORTION_POWER => "distortion, power mode",
-        FX_CRUSHER => "crusher",
-        FX_EQ_PARAMETRIC => "EQ, parametric mode",
-        FX_EQ_3BAND => "EQ, 3band mode",
-        FX_DELAY_TEMPO => "delay, tempo mode",
-        FX_DELAY_MS => "delay, ms mode",
-        FX_CHORUS => "chorus",
-        FX_FLANGER_PHASER => "flanger, phaser mode",
-        FX_FLANGER_RING => "flanger, ring mode",
-        FX_REVERB_FREEVERB => "reverb, freeverb mode",
-        FX_REVERB_COMPACT => "reverb, compact mode",
-        FX_REVERB_ROOMS => "reverb, rooms mode",
-        FX_COMPRESSOR => "compressor",
-        FX_FORMANT => "formant",
-        _ => "unknown module",
+        /// Every module id.
+        pub const ALL: &[u8] = &[$($id),*];
+
+        /// The cargo feature that enables module `id` (empty for an unknown id).
+        pub const fn feature(id: u8) -> &'static str {
+            match id {
+                $($id => $feature,)*
+                _ => "",
+            }
+        }
+
+        /// Whether this build contains module `id` (false for an unknown id).
+        pub const fn compiled(id: u8) -> bool {
+            match id {
+                $($id => cfg!(feature = $feature),)*
+                _ => false,
+            }
+        }
+
+        /// Readable name (host side: messages, converter).
+        #[cfg(any(test, feature = "std"))]
+        pub fn name(id: u8) -> &'static str {
+            match id {
+                $($id => $name,)*
+                _ => "unknown module",
+            }
+        }
+    };
+}
+
+modules! {
+    OSC_PM = 1, "us-osc-pm", "phase-mod oscillator";
+    OSC_BLIT = 2, "us-osc-blit", "band-limited saw/pulse oscillator";
+    OSC_WAVETABLE = 3, "us-osc-wt", "wavetable oscillator";
+    OSC_SAMPLER = 4, "us-osc-sample", "sampler oscillator";
+    SAMPLE_GSM = 5, "us-sample-gsm", "GSM sample source";
+    SAMPLE_DLS = 6, "us-sample-dls", "GM.DLS sample source";
+    NOISE = 7, "us-noise", "noise source";
+    FILTER_SVF = 8, "us-flt-svf", "state-variable filter";
+    FILTER_LADDER = 9, "us-flt-ladder", "ladder filter";
+    FILTER_RBJ = 10, "us-flt-rbj", "RBJ filter";
+    FILTER_NOTCH = 11, "us-flt-notch", "resonator notch filter";
+    ENV_TIMED = 12, "us-env-timed", "timed envelope";
+    ENV_RATE = 13, "us-env-rate", "rate envelope";
+    // effect (kind, mode) pairs
+    FX_DISTORTION_SHAPER = 16, "us-fx-distortion-shaper", "distortion, shaper mode";
+    FX_DISTORTION_POWER = 17, "us-fx-distortion-power", "distortion, power mode";
+    FX_CRUSHER = 18, "us-fx-crusher", "crusher";
+    FX_EQ_PARAMETRIC = 19, "us-fx-eq-parametric", "EQ, parametric mode";
+    FX_EQ_3BAND = 20, "us-fx-eq-3band", "EQ, 3band mode";
+    FX_DELAY_TEMPO = 21, "us-fx-delay-tempo", "delay, tempo mode";
+    FX_DELAY_MS = 22, "us-fx-delay-ms", "delay, ms mode";
+    FX_CHORUS = 23, "us-fx-chorus", "chorus";
+    FX_FLANGER_PHASER = 24, "us-fx-flanger-phaser", "flanger, phaser mode";
+    FX_FLANGER_RING = 25, "us-fx-flanger-ring", "flanger, ring mode";
+    FX_REVERB_FREEVERB = 26, "us-fx-reverb-freeverb", "reverb, freeverb mode";
+    FX_REVERB_COMPACT = 27, "us-fx-reverb-compact", "reverb, compact mode";
+    FX_REVERB_ROOMS = 28, "us-fx-reverb-rooms", "reverb, rooms mode";
+    FX_COMPRESSOR = 29, "us-fx-compressor", "compressor";
+    FX_FORMANT = 30, "us-fx-formant", "formant";
+    // optional voice paths
+    VOICE_LFO = 31, "us-voice-lfo", "voice LFOs";
+    VOICE_GLIDE = 32, "us-voice-glide", "glide and slide";
+    VOICE_MONO = 33, "us-voice-mono", "mono-legato mode";
+    VOICE_UNISON = 34, "us-voice-unison", "unison";
+    VOICE_ONESHOT = 35, "us-voice-oneshot", "one-shot voices";
+    MATRIX = 36, "us-matrix", "mod matrix";
+    AUTOMATION = 37, "us-automation", "automation lanes";
+}
+
+/// Whether this build contains every module in `ids`: generated songs assert it at compile time
+/// (`const _: () = assert!(compiled_all(&[…]))`), so a build that lacks a module the song needs does not compile.
+pub const fn compiled_all(ids: &[u8]) -> bool {
+    let mut i = 0;
+    while i < ids.len() {
+        if !compiled(ids[i]) {
+            return false;
+        }
+        i += 1;
+    }
+    true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_id_has_one_feature_and_a_name_and_the_ids_are_unique() {
+        let mut seen = std::collections::BTreeSet::new();
+        for &id in ALL {
+            assert!(seen.insert(id), "id {id} twice");
+            assert!(feature(id).starts_with("us-") && name(id) != "unknown module", "{id}");
+        }
+        assert_eq!(feature(0), "");
+        assert!(!compiled(0) && !compiled_all(&[0]));
+        assert!(compiled_all(&[]));
+    }
+
+    #[test]
+    fn compiled_follows_the_cargo_features() {
+        assert_eq!(compiled(OSC_PM), cfg!(feature = "us-osc-pm"));
+        assert_eq!(compiled(MATRIX), cfg!(feature = "us-matrix"));
+        assert_eq!(compiled_all(&[NOISE, ENV_TIMED]), cfg!(feature = "us-noise") && cfg!(feature = "us-env-timed"));
     }
 }

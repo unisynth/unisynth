@@ -22,6 +22,10 @@ pub trait Voice<C: ?Sized>: VoiceState {
     fn note_off(&mut self, cx: &mut C);
     /// Mono-legato glide to `note` without retriggering.
     fn slide(&mut self, note: u8, cx: &mut C);
+    /// The engine plays mono-legato; `false` compiles the pool's note log out (the pool then plays every mode poly).
+    const MONO: bool = true;
+    /// The engine plays more than one voice per note; `false` compiles the unison loop down to one voice.
+    const UNISON: bool = true;
 }
 
 /// What to do when no voice is free.
@@ -127,7 +131,7 @@ impl<'a, V: VoiceState> VoicePool<'a, V> {
         V: Voice<C>,
     {
         let note = note & 0x7f;
-        if self.mode == Mode::MonoLegato {
+        if V::MONO && self.mode == Mode::MonoLegato {
             self.held[note as usize] = true;
             if self.count < NOTES {
                 self.log[self.count] = note;
@@ -147,7 +151,7 @@ impl<'a, V: VoiceState> VoicePool<'a, V> {
         V: Voice<C>,
     {
         let limit = self.limit.min(self.voices.len());
-        let u = self.unison.max(1);
+        let u = if V::UNISON { self.unison.max(1) } else { 1 };
         let mut j = u;
         let mut k = 0;
         while j > 0 {
@@ -176,10 +180,7 @@ impl<'a, V: VoiceState> VoicePool<'a, V> {
     {
         let note = note & 0x7f;
         match self.mode {
-            Mode::Poly => {
-                self.voices.iter_mut().filter(|v| v.is_on() && v.note() == note).for_each(|v| v.note_off(cx));
-            }
-            Mode::MonoLegato => {
+            Mode::MonoLegato if V::MONO => {
                 self.held[note as usize] = false;
                 if self.count == 0 || self.log[self.count - 1] != note {
                     return;
@@ -195,6 +196,9 @@ impl<'a, V: VoiceState> VoicePool<'a, V> {
                 if self.count == 0 {
                     self.release_all(cx);
                 }
+            }
+            _ => {
+                self.voices.iter_mut().filter(|v| v.is_on() && v.note() == note).for_each(|v| v.note_off(cx));
             }
         }
     }

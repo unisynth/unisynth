@@ -419,33 +419,41 @@ Engage 162,304 / 42,496 (raw / squishy). Not run on i686 yet (macOS Wine is 64-b
 ### Unified against legacy: packed size under six compile configurations (2026-10-26)
 
 `research/size-compare/compare.sh`, full tables in `tools/unisynth-parity/size-compare.md`. For each reference song the legacy engine
-(only the devices that song uses, playing the original `.bin`/`.tfm`) and the unified synth (only its `synth-convert features`, playing the converted
-song) are built as i686 `no_std` probes and packed with squishy 0.1.3. Squishy bytes, legacy / unified, configuration `bz` (core rebuilt with
-`optimize_for_size`, opt-level z, `panic=immediate-abort`: the compo build):
+(only the devices that song uses, playing the original `.bin`/`.tfm`) and the unified synth (only its `synth-convert features`, the converted
+song built in as Rust by `synth-convert rust` with `us-trusted`: what a compo build ships) are built as i686 `no_std` probes and packed with
+squishy 0.1.3. Squishy bytes, legacy / unified, configuration `bz` (core rebuilt with `optimize_for_size`, opt-level z, `panic=immediate-abort`:
+the compo build). Re-run at the close of `shrink-unified-synth` (2026-10-27; the tree also held uncommitted `add-synth-threads` edits, the legacy
+column is unchanged from the first run):
 
-| song | legacy | unified | unified vs legacy |
-|---|---:|---:|---:|
-| Global Groove | 14,336 | 16,384 | +14 % |
-| Elysian | 43,520 | 45,568 | +5 % |
-| Engage | 36,352 | 38,400 | +6 % |
-| Eladamri | 30,208 | 31,232 | +3 % |
-| no_remorse | 17,920 | 23,552 | +31 % |
-| tf4testsong | 17,408 | 22,016 | +26 % |
+| song | legacy | unified | unified vs legacy | unified before `shrink-unified-synth` |
+|---|---:|---:|---:|---:|
+| Global Groove | 14,336 | 13,312 | −7 % | 20,992 |
+| Elysian | 43,520 | 44,544 | +2 % | 49,152 |
+| Engage | 36,352 | 37,888 | +4 % | 42,496 |
+| Eladamri | 30,208 | 30,720 | +2 % | 34,816 |
+| no_remorse | 17,920 | 22,016 | +23 % | 29,184 |
+| tf4testsong | 17,408 | 20,480 | +18 % | 27,648 |
+| turtles | 18,944 | 24,576 | +30 % | (not measured) |
 
-(After `shrink-unified-synth` steps 1 and 4.1: module arms guarded by `cfg!(feature)` (−0.5 to −2 KB) and `libm` replaced by `unisynth::fm`
-(11.8 KB → 0.3 KB of code, −3 to −4.5 KB packed). Before: Global Groove 20,992, Elysian 49,152, Engage 42,496, Eladamri 34,816, no_remorse 29,184,
-tf4testsong 27,648. The legacy engines still carry their ~10 KB of `libm`.)
+What `shrink-unified-synth` did, in order: module arms guarded by `cfg!(feature)` (−0.5 to −2 KB), `libm` replaced by `unisynth::fm`
+(11.8 KB → 0.3 KB of code, −3 to −4.5 KB), the optional voice paths as features (`us-voice-*`, up to −1 KB), the whole mod matrix as a feature
+(`us-matrix`, −1 KB for a song without routes), the song as Rust with the load-time validation left out (`synth-convert rust` + `us-trusted`,
+−0.5 to −1 KB on every song), automation as a feature (`us-automation`, −0.5 KB for a song without lanes). The legacy engines still carry their
+~10 KB of `libm`. Per-instrument specialization was measured out (one voice copy per instrument), as were matrix target groups (gating them
+grew the code).
 
 - **Compile configuration matters little for the ratio, a lot for the absolute size.** Opt-level z is smallest in all cases; s costs 0–5 %, opt-level 3
   costs 7–29 % for the legacy engines and 9–17 % for the unified synth. Rebuilding core with `optimize_for_size` and immediate-abort saves 0.5–1 KB (about 1–3 %). `-Zmerge-functions=aliases`
   and `-Zinline-mir=no` change nothing. pentium3 and x87-only builds do not compile on i686 (core needs `sse2`).
 - **The gap is code, not song.** The converted songs are 0–2 KB larger packed (no_remorse 3.3 KB against 1.3 KB xz, tf4testsong 1.5 KB against 0.7 KB;
-  WaveSabre songs within 1 KB), the rest is the engine: roughly 25 KB for the unified synth with the WaveSabre feature set against 20 KB for the legacy
-  engine on Elysian; for Tunefish songs about 26 KB against 17 KB (wavetable, both ladder filters and RBJ, both envelope families and the shared matrix
-  are generic; the Tunefish port is purpose-built).
-- **The smallest case shows the fixed cost.** Global Groove (Slaughter only, one filter) is +6.7 KB: oscillator, matrix, voice framework and the
-  generic parameter and chunk code are linked even for a patch that uses a fraction.
-- **A unified build holding both families** (the all-modules probe) is 39,424 B squishy, against 27,648 for WaveSabre with every device plus
+  WaveSabre songs within 1 KB; turtles 7.5 KB against 3.9 KB), the rest is the engine. On the WaveSabre songs the gap is now 0.5–1.5 KB packed;
+  on the Tunefish songs 3–5.6 KB remains: the legacy `.tfm` path plays without the song parser and mixer of `synth-mix` (about 8 KB raw before
+  `shrink-unified-synth`), and the wavetable, both ladder and RBJ filters, both envelope families and the matrix are generic where the Tunefish
+  port is purpose-built.
+- **The smallest case shows the fixed cost, and it is gone.** Global Groove (Slaughter only, one filter) was +6.7 KB: the oscillator, matrix,
+  voice framework and generic parameter and chunk code were linked even for a patch that uses a fraction. With every unused path a feature
+  and the song checked on the host it is now 1 KB under the legacy engine.
+- **A unified build holding both families** (the all-modules probe) is 34,304 B squishy (39,424 before `shrink-unified-synth`), against 27,648 for WaveSabre with every device plus
   about 19 KB for Tunefish: one engine instead of two is smaller than the two together, but not smaller than either alone.
 
 **Where the unified bytes are** (`research/us-size-probe/attr.sh`, no LTO and no inlining, so ranks not totals; no_remorse, 64 KB code): `unisynth` 26.8 KB

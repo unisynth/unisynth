@@ -35,6 +35,13 @@ pub struct Ctx<'r> {
 
 pub trait Device {
     /// Number of normalized parameters. Constant for the device's lifetime.
+    /// Whether this build plays automation lanes: a constant `Err(module id)` (a build for songs without lanes) lets the
+    /// compiler drop the mixer's automation walk, and the player refuses a song with lanes with `UnsupportedModule(id)`.
+    /// A method, not a const, so `Device` stays dyn-compatible.
+    #[inline]
+    fn automation(&self) -> Result<(), u8> {
+        Ok(())
+    }
     fn param_count(&self) -> usize;
     /// Sets parameter `index` to `value` (normally in [0, 1]; not clamped). `index ≥ param_count()` is ignored.
     fn set_param(&mut self, index: usize, value: f32);

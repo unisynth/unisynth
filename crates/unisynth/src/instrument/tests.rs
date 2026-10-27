@@ -128,6 +128,7 @@ fn capacity_and_stealing() {
     with_ins(&patch(&[(v::CAPACITY, 0.0)]), 44100.0, |ins| assert_eq!(ins.voices().len(), 1));
 }
 
+#[cfg(feature = "us-voice-unison")]
 #[test]
 fn unison_starts_several_voices_with_spread() {
     let edits = [(v::UNISON, inv::inv_count(3, 1, 16)), (v::UNI_DETUNE, 0.5), (v::UNI_SPREAD, 1.0)];
@@ -141,6 +142,7 @@ fn unison_starts_several_voices_with_spread() {
     });
 }
 
+#[cfg(all(feature = "us-voice-glide", feature = "us-voice-mono"))]
 #[test]
 fn mono_legato_slides_without_retriggering() {
     let slide = inv::inv_time(0.5); // half a second
@@ -184,6 +186,7 @@ fn render_more(ins: &mut UInstrument, evs: &[Ev], from: usize, n: usize) {
     ins.run(&mut Io { ch: [&mut a, &mut b, &mut c, &mut d] }, n, &mut ctx);
 }
 
+#[cfg(feature = "us-voice-glide")]
 #[test]
 fn glide_approaches_the_new_note_from_the_voice_s_last_pitch() {
     // capacity 1 so the same voice plays both notes; glide time constant 0.1 s
@@ -269,6 +272,7 @@ fn bend_moves_a_released_voice_too_and_the_default_changes_nothing() {
     assert_eq!(pm::DEFAULTS[pm::ctl::BEND_RANGE], inv::inv_bend_range(2.0));
 }
 
+#[cfg(feature = "us-matrix")]
 #[test]
 fn the_wheel_parameter_is_the_live_wheel_and_a_reset_restores_the_loaded_controllers() {
     let level = |setup: &dyn Fn(&mut UInstrument)| {
@@ -402,6 +406,7 @@ fn song_events() -> Vec<Ev> {
     vec![on(0, 60), on(5, 64), on(31, 67), on(32, 55), off(95, 60), on(131, 72), on(250, 48), off(311, 64), off(333, 55)]
 }
 
+#[cfg(feature = "us-voice-unison")]
 #[test]
 fn output_does_not_depend_on_how_the_calls_are_split() {
     let edits = [(v::UNISON, inv::inv_count(2, 1, 16)), (v::UNI_DETUNE, 0.3), (v::UNI_SPREAD, 1.0), (v::MODE, 0.0)];
@@ -414,6 +419,7 @@ fn output_does_not_depend_on_how_the_calls_are_split() {
     }
 }
 
+#[cfg(all(feature = "us-voice-glide", feature = "us-voice-mono"))]
 #[test]
 fn mono_slides_and_glide_are_split_independent() {
     let edits = [(v::MODE, 1.0), (v::SLIDE, inv::inv_time(0.01))];
@@ -440,6 +446,7 @@ fn repeat_render_is_bit_identical() {
     assert!(a == b);
 }
 
+#[cfg(all(feature = "us-voice-glide", feature = "us-voice-unison"))]
 #[test]
 fn reset_equals_a_fresh_load() {
     let evs = song_events();
@@ -468,6 +475,7 @@ fn voice_ages_tick_on_the_grid() {
     });
 }
 
+#[cfg(all(feature = "us-voice-glide", feature = "us-voice-mono"))]
 #[test]
 fn an_event_inside_a_moving_segment_splits_it_exactly() {
     // mono slide over 441 frames: 60 → 72 from frame 100, then (frame 200, inside a control segment, pitch moving)
@@ -483,6 +491,7 @@ fn an_event_inside_a_moving_segment_splits_it_exactly() {
     });
 }
 
+#[cfg(feature = "us-voice-glide")]
 #[test]
 fn a_voice_started_inside_a_block_has_a_short_first_segment() {
     // capacity 1, glide τ = 882 frames; the second note starts at frame 405 (phase 21), so its first segment is 11
@@ -515,6 +524,7 @@ fn all_notes_off_and_events_past_the_call_are_kept() {
     });
 }
 
+#[cfg(all(feature = "us-voice-glide", feature = "us-voice-mono"))]
 #[test]
 fn control_grid_runs_on_absolute_frames() {
     // a voice started at frame 5 has a first segment of 27 frames; its slide must reach the same pitch regardless
@@ -532,6 +542,7 @@ fn control_grid_runs_on_absolute_frames() {
 
 // ---- through the song player ----
 
+#[cfg(all(feature = "us-voice-glide", feature = "us-voice-unison"))]
 #[test]
 fn song_output_is_independent_of_sub_block_and_caller_buffer_size() {
     use crate::testing::{render as play, song, with_player, Track};
@@ -546,6 +557,7 @@ fn song_output_is_independent_of_sub_block_and_caller_buffer_size() {
     }
 }
 
+#[cfg(feature = "us-voice-unison")]
 #[test]
 fn seek_restores_the_loaded_state() {
     use crate::testing::{render as play, song, with_player, Track};
@@ -562,6 +574,8 @@ fn seek_restores_the_loaded_state() {
     });
 }
 
+#[cfg(feature = "us-automation")]
+#[cfg(feature = "us-matrix")]
 #[test]
 fn an_automated_wheel_opens_a_route_and_seeking_gives_what_playing_gives() {
     use crate::testing::{render as play, song, with_player, Track};
@@ -710,6 +724,7 @@ fn route(i: usize, src: usize, tgt: u8, scale: bool, amount: f32) -> Vec<(usize,
     ]
 }
 
+#[cfg(feature = "us-voice-lfo")]
 /// LFO `k` at 1 Hz (rate p = 0.5), depth 1, sine, with the given key sync.
 fn lfo_1hz(k: usize, synced: bool) -> Vec<(usize, f32)> {
     vec![
@@ -724,6 +739,7 @@ fn merged(parts: &[Vec<(usize, f32)>]) -> Vec<(usize, f32)> {
     parts.iter().flatten().copied().collect()
 }
 
+#[cfg(feature = "us-voice-lfo")]
 #[test]
 fn lfo_key_sync_restarts_at_note_on_and_free_running_shares_the_phase() {
     let sr = 44100.0f64;
@@ -747,6 +763,8 @@ fn lfo_key_sync_restarts_at_note_on_and_free_running_shares_the_phase() {
     }
 }
 
+#[cfg(feature = "us-matrix")]
+#[cfg(feature = "us-voice-lfo")]
 #[test]
 fn an_lfo_offset_on_pitch_is_vibrato() {
     let edits = merged(&[lfo_1hz(0, true), route(0, source::LFO1, target::PITCH, false, 0.5)]);
@@ -763,6 +781,7 @@ fn an_lfo_offset_on_pitch_is_vibrato() {
     });
 }
 
+#[cfg(feature = "us-matrix")]
 #[test]
 fn an_envelope_offset_on_pitch_raises_it_by_the_amount() {
     // envelope 2 (sustain 1, 1 ms attack) → pitch +12: one octave up
@@ -781,6 +800,7 @@ fn an_envelope_offset_on_pitch_raises_it_by_the_amount() {
     });
 }
 
+#[cfg(feature = "us-matrix")]
 #[test]
 fn envelope_one_routed_only_shapes_the_oscillator_and_still_ends_the_voice() {
     let mut edits = env_edits(1.0, 5.0, 1.0, 100.0);
@@ -795,6 +815,7 @@ fn envelope_one_routed_only_shapes_the_oscillator_and_still_ends_the_voice() {
     });
 }
 
+#[cfg(feature = "us-matrix")]
 #[test]
 fn mod_wheel_velocity_and_key_are_sources() {
     let level = |edits: &[(usize, f32)], wheel: f32, vel: u8, note: u8| {
@@ -815,6 +836,7 @@ fn mod_wheel_velocity_and_key_are_sources() {
     assert!((level(&off, 0.0, 100, 69) - a).abs() < 0.01);
 }
 
+#[cfg(feature = "us-matrix")]
 #[test]
 fn slot_amounts_can_be_modulated_by_other_slots() {
     // slot 1: velocity → gain (Scale ×1); slot 2: env 2 → slot 1's amount. Env 2 sits at 1.0 (sustain), so the
@@ -829,6 +851,8 @@ fn slot_amounts_can_be_modulated_by_other_slots() {
     });
 }
 
+#[cfg(feature = "us-matrix")]
+#[cfg(feature = "us-voice-lfo")]
 #[test]
 fn modulated_rendering_is_independent_of_the_call_split() {
     let edits = merged(&[
@@ -849,6 +873,7 @@ fn modulated_rendering_is_independent_of_the_call_split() {
     }
 }
 
+#[cfg(feature = "us-matrix")]
 #[test]
 fn the_matrix_is_evaluated_at_the_note_s_first_frame() {
     // velocity (0.5) → gain ×1, velocity sensitivity off, envelope 1 off the output: the first control segment already
@@ -861,6 +886,7 @@ fn the_matrix_is_evaluated_at_the_note_s_first_frame() {
     });
 }
 
+#[cfg(feature = "us-matrix")]
 #[test]
 fn offsets_on_pan_move_the_voice_across_the_field() {
     // envelope 2 (sustain 1) → pan offset +0.5 from the centre: all the way right

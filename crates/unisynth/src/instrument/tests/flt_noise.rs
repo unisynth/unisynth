@@ -119,6 +119,7 @@ fn a_hard_right_voice_pan_moves_the_noise_with_it() {
     assert!(peak(&r) > 0.1);
 }
 
+#[cfg(feature = "us-matrix")]
 #[test]
 fn a_route_can_open_the_noise_level() {
     let e = merged(&[noise_only(0.0, &[]), route(0, source::VELOCITY, target::NOISE_LEVEL, false, 1.0)]);
@@ -222,6 +223,7 @@ fn resonance_is_each_types_original_law_through_the_voice() {
     assert_ne!(clamped(0.2), clamped(0.6));
 }
 
+#[cfg(feature = "us-matrix")]
 #[test]
 fn the_cutoff_routes_scale_and_offset() {
     let base = noise_only(4.0, &[ftype(0, ft::SVF_LP), fcut(0, 700.0)]);

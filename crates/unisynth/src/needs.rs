@@ -117,6 +117,39 @@ pub fn instrument_why(chunk: &[u8], reach: Reach) -> Result<Why, LoadError> {
     if let Some(s) = rerouting {
         add(&mut out, m::NOISE, format!("a lane on mod{} can route to the noise level", s + 1));
     }
+    // the optional voice paths (`instrument::check_voice`)
+    for s in 0..pm::MOD_SLOTS {
+        let t = pm::modslot(s, pm::m::SOURCE);
+        let lfo = source::LFO1..source::LFO1 + pm::LFO_SLOTS;
+        if let Some(k) = choices(t, source::COUNT).find(|c| lfo.contains(c)) {
+            add(&mut out, m::VOICE_LFO, format!("{} reads LFO {}{}", n(t), k - source::LFO1 + 1, lane(t)));
+        }
+    }
+    if let Some(s) = rerouting {
+        add(&mut out, m::VOICE_LFO, format!("a lane on mod{} can route an LFO", s + 1));
+    }
+    let mono = choices(v::MODE, 2).any(|c| c == 1);
+    if mono {
+        add(&mut out, m::VOICE_MONO, format!("{} is mono-legato{}", n(v::MODE), lane(v::MODE)));
+    }
+    if span(v::GLIDE).1 > 0.0 {
+        add(&mut out, m::VOICE_GLIDE, format!("{} is above 0{}", n(v::GLIDE), lane(v::GLIDE)));
+    }
+    if mono && span(v::SLIDE).1 > 0.0 {
+        add(&mut out, m::VOICE_GLIDE, format!("{} is above 0 in mono mode{}", n(v::SLIDE), lane(v::SLIDE)));
+    }
+    if law::count(span(v::UNISON).1, 1, 16) > 1 {
+        add(&mut out, m::VOICE_UNISON, format!("{} is above one voice{}", n(v::UNISON), lane(v::UNISON)));
+    }
+    if let Some(s) = (0..pm::MOD_SLOTS).find(|&s| crate::modmx::routes(&val, s)) {
+        add(&mut out, m::MATRIX, format!("mod{} routes {} to {}", s + 1, n(pm::modslot(s, pm::m::SOURCE)), target::name(law::index(val[pm::modslot(s, pm::m::TARGET)]))));
+    }
+    if let Some(s) = rerouting {
+        add(&mut out, m::MATRIX, format!("a lane on mod{} can create a route", s + 1));
+    }
+    if choices(v::ONE_SHOT, 2).any(|c| c == 1) {
+        add(&mut out, m::VOICE_ONESHOT, format!("{} is on{}", n(v::ONE_SHOT), lane(v::ONE_SHOT)));
+    }
     Ok(out)
 }
 
@@ -125,37 +158,7 @@ pub fn effect(kind: u8, chunk: &[u8]) -> Option<u8> {
     crate::fx::module_of(kind, crate::fx::mode_of(kind, chunk))
 }
 
-/// The cargo feature that enables module `id`.
+/// The cargo feature that enables module `id` (the table lives in `module`).
 pub fn feature(id: u8) -> &'static str {
-    match id {
-        m::OSC_PM => "us-osc-pm",
-        m::OSC_BLIT => "us-osc-blit",
-        m::OSC_WAVETABLE => "us-osc-wt",
-        m::OSC_SAMPLER => "us-osc-sample",
-        m::SAMPLE_GSM => "us-sample-gsm",
-        m::SAMPLE_DLS => "us-sample-dls",
-        m::NOISE => "us-noise",
-        m::FILTER_SVF => "us-flt-svf",
-        m::FILTER_LADDER => "us-flt-ladder",
-        m::FILTER_RBJ => "us-flt-rbj",
-        m::FILTER_NOTCH => "us-flt-notch",
-        m::ENV_TIMED => "us-env-timed",
-        m::ENV_RATE => "us-env-rate",
-        m::FX_DISTORTION_SHAPER => "us-fx-distortion-shaper",
-        m::FX_DISTORTION_POWER => "us-fx-distortion-power",
-        m::FX_CRUSHER => "us-fx-crusher",
-        m::FX_EQ_PARAMETRIC => "us-fx-eq-parametric",
-        m::FX_EQ_3BAND => "us-fx-eq-3band",
-        m::FX_DELAY_TEMPO => "us-fx-delay-tempo",
-        m::FX_DELAY_MS => "us-fx-delay-ms",
-        m::FX_CHORUS => "us-fx-chorus",
-        m::FX_FLANGER_PHASER => "us-fx-flanger-phaser",
-        m::FX_FLANGER_RING => "us-fx-flanger-ring",
-        m::FX_REVERB_FREEVERB => "us-fx-reverb-freeverb",
-        m::FX_REVERB_COMPACT => "us-fx-reverb-compact",
-        m::FX_REVERB_ROOMS => "us-fx-reverb-rooms",
-        m::FX_COMPRESSOR => "us-fx-compressor",
-        m::FX_FORMANT => "us-fx-formant",
-        _ => "",
-    }
+    m::feature(id)
 }

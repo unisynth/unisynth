@@ -3,6 +3,7 @@
 use super::*;
 use crate::chunk::encode;
 use crate::params::shape as sp;
+#[cfg(feature = "us-voice-oneshot")]
 use synth_core::voice::VoiceState;
 
 const N: usize = 2000;
@@ -163,6 +164,7 @@ fn the_pitch_steps_through_the_data_by_two_to_the_note_over_twelve() {
     }
 }
 
+#[cfg(feature = "us-matrix")]
 #[test]
 fn coarse_fine_octave_and_the_ratio_shift_the_pitch() {
     let b = bank(N, None);
@@ -390,6 +392,7 @@ fn a_decoded_sample_is_shared_by_slots_that_use_it() {
     });
 }
 
+#[cfg(feature = "us-voice-oneshot")]
 #[test]
 fn a_one_shot_ignores_note_off_and_ends_with_its_sample() {
     let b = bank(N, None);
@@ -408,6 +411,7 @@ fn a_one_shot_ignores_note_off_and_ends_with_its_sample() {
     });
 }
 
+#[cfg(feature = "us-voice-oneshot")]
 fn render_more_out(ins: &mut UInstrument, from: usize, n: usize) -> Vec<f32> {
     let mut rng = Lcg(1);
     let (mut a, mut b, mut c, mut d) = (vec![0.0; n], vec![0.0; n], vec![0.0; n], vec![0.0; n]);
@@ -416,6 +420,7 @@ fn render_more_out(ins: &mut UInstrument, from: usize, n: usize) -> Vec<f32> {
     a
 }
 
+#[cfg(feature = "us-voice-oneshot")]
 #[test]
 fn a_looped_one_shot_keeps_its_voice_until_all_notes_off() {
     let b = bank(N, None);
@@ -446,6 +451,7 @@ fn playback_is_independent_of_the_call_split_and_reset_repeats_it() {
     });
 }
 
+#[cfg(feature = "us-matrix")]
 #[test]
 fn a_modulated_start_position_is_read_at_note_on() {
     // velocity (100/128) as an Offset on the start value: the wave starts a fraction in

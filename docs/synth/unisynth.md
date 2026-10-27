@@ -503,14 +503,50 @@ build lacks fails at load with `UnsupportedModule(id)` (`module.rs` names the id
 | `us-noise` | noise source | level set above 0, or any matrix slot targeting the noise level |
 | `us-flt-svf`, `-ladder`, `-rbj`, `-notch` | filter families | each filter slot's type |
 | `us-env-timed`, `us-env-rate` | timed (WaveSabre) and rate (Tunefish) envelope modes | the mode of envelope 1, and of any envelope a matrix slot reads |
+| `us-voice-lfo` | the two voice LFOs | any matrix slot whose source is LFO 1 or 2 |
+| `us-voice-glide` | glide and mono slide (pitch moves) | glide above 0, or slide above 0 in mono-legato mode |
+| `us-voice-mono` | mono-legato mode (the pool's note log) | mode is mono-legato |
+| `us-voice-unison` | more than one voice per note | unison above 1 |
+| `us-voice-oneshot` | one-shot voices (sampler runs out, note-off ignored) | one-shot is on |
+| `us-matrix` | the mod matrix | any slot with a source and a target |
+| `us-automation` | the mixer's automation walk (song-level) | any track with an automation lane (refused by `Player::new`) |
 
 Automating a parameter to a module the build lacks does not fail (the song is already loaded): a filter bypasses, an
-envelope runs the mode it has. Groups `us-osc`, `us-flt`, `us-env` and `us-all` exist for convenience.
+envelope runs the mode it has, an LFO reads 0, glide and slide snap, mono and unison play one poly voice, one-shot is off,
+a route created without `us-matrix` does nothing. Groups `us-osc`, `us-flt`, `us-env`, `us-voice` and `us-all` exist for convenience.
 `tools/check-unisynth-features.sh` builds every single-module set for i686 core-only and wasm32 and runs its tests.
 
 **A feature removes the module's code.** The match arms that run an oscillator, the noise source and each filter family
 read `Kind::X if cfg!(feature = "us-…")` with a bypass arm, so the compiler drops the code of a module the build lacks
 (before this, those features only made the load fail: a noise-only song still carried every oscillator and filter).
+
+**Voice paths.** The voice switches are features too (shrink-unified-synth 4.2). An ablation build that stubbed each optional
+path out (`research/us-size-probe/ablate.sh`, `--cfg us_ablate=…` stubs, not committed) measured, compo configuration, raw / xz:
+LFOs 1–1.5 K / 0.4–0.8 K, glide/slide 1 K / 0.5 K, mono-legato 0.5–1 K / 0.3–0.4 K, unison 0.5 K / 0.1–0.2 K, one-shot 0–0.5 K /
+0.2 K; pitch bend and wheel, start-phase spread, the fine control grid and voice stealing under 0.5 K raw each, so those stay
+in every build. Mono and unison live in `synth_core::voice::VoicePool`, shared with the legacy engines: the `Voice` trait carries
+`const MONO` and `const UNISON` (default `true`), which `unisynth` sets from its features, so the pool's note log and unison
+loop fold away without a `synth-core` feature. Songs that use none of a path play bit for bit as before (the golden test plays
+every patch a reduced build can load and compares it with the full build's hash).
+
+**The matrix.** Gating groups of matrix targets (pitch, gain/pan, oscillator fields, noise, filter, envelope decay, LFO depth,
+slot amounts) made the player *bigger* (+0–0.5 K raw): most target ids are computed in loops, so the check stays in the code.
+Even every target no reference song uses, cut at its call site, saves only 0.5 K raw / 0.3 K xz. The whole matrix is
+2–2.5 K raw / 1.2–1.4 K xz: `us-matrix` (shrink-unified-synth 4.3), needed by any slot with a source and a target
+(`modmx::routes`) or a lane on a routing parameter. Without it `Matrix::eval` does nothing and every query reads neutral.
+Of the reference songs only Global Groove routes nothing (−1 KB packed).
+
+**Automation and other song-wide facts** (shrink-unified-synth 4.5). Specializing the voice per instrument (patch values
+as `const`) would need one copy of the ~9.5 K voice per instrument (16–20 in the Tunefish songs): not pursued. Song-wide
+facts were checked instead: fewer used slots changes nothing (a loop's code is there once whatever its count), the
+sample rate is a struct field read at run time (folding it would mean rewriting every use for a few divisions). What
+pays is a song without automation lanes: `us-automation`. `Device::automation()` (default `Ok`, a method so `Device`
+stays dyn-compatible) returns a constant `Err(module::AUTOMATION)` in a `unisynth` build without the feature, so the
+mixer's `automate` call folds away and `Player::new` refuses a song with a lane with `UnsupportedModule(37)`. The legacy
+engines keep the default. Packed (baked, compo configuration): Global Groove 13,824 → 13,312, no_remorse 22,528 → 22,016,
+tf4testsong 20,992 → 20,480, turtles 25,088 → 24,576 (−364 to −464 xz); songs with lanes link the same code as before.
+The parallel path (`mixer/par.rs`, feature `threads`) still calls `automate`; it has nothing to walk, since such a song is
+refused at load.
 
 ### Open filters are not run
 
@@ -539,8 +575,8 @@ and the converter's sampler tests allow 4 dB in the top band. In return a render
 ### The map of a song
 
 `synth-convert features <song>` prints the features the song needs: every module its devices use, plus every module its
-automation can reach (a lane on a filter type, on the noise level, or on a routing parameter, which can create any
-route). The build links exactly these.
+automation can reach (a lane on a filter type, on the noise level, on a voice switch, or on a routing parameter, which can create any
+route and so needs the matrix). The build links exactly these.
 
 ```text
 $ synth-convert features song.song --explain --cost research/us-size-probe/out/marginal.csv
@@ -562,6 +598,34 @@ in the linked player, not a guess. `--json` prints the same as `[{"feature", "wh
 
 `research/us-size-probe/attr.sh <song>` shows where the rest goes (function groups from the linker map of a no-LTO,
 no-inline build: ranks, not totals).
+
+### Songs as Rust (`synth-convert rust`)
+
+`synth-convert rust <song> <out.rs> [bank.dls]` writes a unified song as Rust for a compo build. It first loads the song
+with the real player on the host (every module, the given bank), so every check the player makes at load runs once there:
+the song layout, each instrument and effect chunk, the modules, automation targets, receive cycles. A song the player would
+refuse is refused. The file holds:
+
+```rust
+// Generated by `synth-convert rust` from turtles.song. Do not edit: regenerate from the song.
+// unisynth features: us-osc-wt,us-noise,…
+const _: () = assert!(unisynth::module::compiled_all(&[3, 7, 9, …]), "the build lacks a unisynth module this song needs");
+static S0: [u8; 4021] = [...];   // devices, lanes, tracks: the blob's own bytes
+pub static SONG: synth_core::mix::Song<'static> = synth_core::mix::Song::from_sections(230, 44100, f64::from_bits(0x…), [(41, &S0), (20, &S1), (21, &S2)]);
+```
+
+The sections are byte for byte the blob's (`Song::sections`), so the player's iterators decode them unchanged and the data
+is no larger; the length is written as bits, so the frame count is exact. The assert makes a build that lacks a module
+the song needs fail to compile (`module::compiled_all`; ids, features and `cfg!` come from one table in `module.rs`).
+With that guarantee the build can take `unisynth/us-trusted`: `Chunk::parse` only locates the sections and
+`check_modules` returns at once. `Song::parse` is not linked. Never use `us-trusted` with songs that were not generated:
+an invalid chunk then indexes out of range instead of failing with `BadChunk`.
+
+Size (compo configuration, squishy): blob → baked Global Groove 14,848 → 13,824 (below the legacy 14,336), Elysian
+45,568 → 44,544, Engage 38,400 → 37,888, Eladamri 31,232 → 30,720, no_remorse 23,040 → 22,528, tf4testsong 21,504 →
+20,992, turtles 25,600 → 25,088 (−1.0 to −1.6 K xz each). `research/us-bake-check/check.sh` renders every reference
+song from the blob (full build) and from the generated file (its features + `us-trusted`): f32 from frame 0 and i16 after
+two seeks, sub-blocks 100 and 77, hashes identical. The probe builds it with `--features baked`.
 
 ### Elementary functions (`fm.rs`)
 

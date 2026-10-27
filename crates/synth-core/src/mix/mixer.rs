@@ -175,7 +175,9 @@ impl<'a> Mixer<'a> {
                 st.advance();
             }
             // 2. automations
-            st.automate(n, |d, p, v| devices[d].set_param(p, v));
+            if devices.first().is_some_and(|d| d.automation().is_ok()) {
+                st.automate(n, |d, p, v| devices[d].set_param(p, v));
+            }
             // 3. clear + receives
             for b in tb.ch.iter_mut() {
                 b[..n].fill(0.0);

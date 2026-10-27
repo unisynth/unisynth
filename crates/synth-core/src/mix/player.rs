@@ -226,6 +226,9 @@ impl<'a, K: Kinds<'a>, R: Rng + Clone> Player<'a, K, R> {
         for t in song.tracks() {
             for a in t.automations() {
                 let d = t.devices().nth(a.device).ok_or(LoadError::BadIndex)?;
+                if let Err(id) = devices[d].automation() {
+                    return Err(LoadError::UnsupportedModule(id));
+                }
                 if a.param >= devices[d].param_count() {
                     return Err(LoadError::BadIndex);
                 }

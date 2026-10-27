@@ -32,6 +32,8 @@ pub mod voice;
 pub mod wt;
 
 #[cfg(all(test, feature = "us-osc-pm", feature = "us-env-timed", feature = "us-env-rate"))]
+// the song-level tests that use it are gated on us-matrix or us-voice-glide + us-voice-unison
+#[cfg_attr(not(any(feature = "us-matrix", all(feature = "us-voice-glide", feature = "us-voice-unison"))), allow(dead_code))]
 mod testing;
 
 /// Most unison layers of a wavetable slot.
@@ -59,6 +61,39 @@ pub mod kind {
     pub const REVERB: u8 = 71;
     pub const COMPRESSOR: u8 = 72;
     pub const FORMANT: u8 = 73;
+}
+
+/// A song with an automation lane loads only in a build with `us-automation`; one without lanes loads in any build.
+#[cfg(all(test, feature = "us-osc-pm", feature = "us-env-timed", feature = "us-env-rate"))]
+mod automation_gating {
+    use crate::device::UDevice;
+    use crate::rng::Xorshift;
+    use crate::testing::{song, Track};
+    use synth_core::mix::{Env, LoadError, Player, Song};
+    use synth_core::pool::Pool;
+
+    fn load(autos: Vec<(i32, i32, Vec<(i32, u8)>)>) -> Result<(), LoadError> {
+        let chunk = crate::chunk::encode(&crate::params::DEFAULTS, &[]);
+        let mut t = Track::new(&[0], 0);
+        t.autos = autos;
+        let b = song(44_100, 1.0, &[(crate::kind::INSTRUMENT, chunk)], &[vec![(0, 60, Some(100))]], &[t]);
+        let s = Song::parse(&b).unwrap();
+        let env = Env::for_song(&s, None);
+        let mut mem = vec![0u8; Player::<UDevice, Xorshift>::required_pool(&s, &env, 100)?];
+        let mut pool = Pool::new(&mut mem);
+        Player::<UDevice, Xorshift>::new(s, &env, &mut pool, Xorshift::new(1), 100).map(|_| ())
+    }
+
+    #[test]
+    fn a_lane_needs_the_automation_feature() {
+        assert_eq!(load(vec![]), Ok(()));
+        let r = load(vec![(0, crate::params::v::MASTER as i32, vec![(0, 10), (1000, 200)])]);
+        if cfg!(feature = "us-automation") {
+            assert_eq!(r, Ok(()));
+        } else {
+            assert_eq!(r, Err(LoadError::UnsupportedModule(crate::module::AUTOMATION)));
+        }
+    }
 }
 
 #[cfg(test)]

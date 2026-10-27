@@ -72,6 +72,17 @@ pub fn explain(blob: &[u8], cost: Option<&HashMap<String, (i64, i64)>>) -> Resul
             return Err(bad("not a unified device"));
         }
     }
+    // automation lanes are song-level: any lane needs the mixer's automation walk
+    for (ti, t) in song.tracks.iter().enumerate() {
+        for a in &t.autos {
+            let d = t.devices.get(a.device).copied().unwrap_or(usize::MAX);
+            let param = match song.devices.get(d) {
+                Some(dev) if dev.kind == unisynth::kind::INSTRUMENT => unisynth::params::name(a.param),
+                _ => format!("param {}", a.param),
+            };
+            why.entry(unisynth::module::AUTOMATION).or_default().push(format!("track {ti}: a lane automates device {d} {param}"));
+        }
+    }
     Ok(why
         .into_iter()
         .map(|(id, why)| {

@@ -175,6 +175,19 @@ impl<'a> Song<'a> {
         Ok(Song { tempo, rate, length, devices, lanes, tracks })
     }
 
+    /// A song from sections that [`Song::parse`] already accepted (generated code: `synth-convert rust`). Nothing is
+    /// checked: `tempo`, `rate`, `length` and the `(count, bytes)` sections must come from a parsed song.
+    #[doc(hidden)]
+    pub const fn from_sections(tempo: i32, rate: i32, length: f64, sections: [(usize, &'a [u8]); 3]) -> Song<'a> {
+        let [devices, lanes, tracks] = sections;
+        Song { tempo, rate, length, devices, lanes, tracks }
+    }
+
+    /// The `(count, bytes)` device, lane and track sections ([`Song::from_sections`] takes them back).
+    pub fn sections(&self) -> [(usize, &'a [u8]); 3] {
+        [self.devices, self.lanes, self.tracks]
+    }
+
     pub fn device_count(&self) -> usize {
         self.devices.0
     }

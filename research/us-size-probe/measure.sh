@@ -3,7 +3,7 @@
 # song, every feature) and for each reference song with exactly the features `synth-convert features` lists for it, prints
 # raw size, xz -9e size (packer-independent proxy) and squishy 0.1.3 size when Wine + the tool exist, and writes the
 # table to ../../tools/unisynth-parity/size.md for the parity report.
-#   WS_SONG_DIR=… TF_SONGS=… ./measure.sh      (songs that are not there are skipped; TOOLS, WINE64 as in ../ws-size-probe)
+#   WS_SONG_DIR=… TF_SONGS=… ES4_SONGS=… ./measure.sh      (songs that are not there are skipped; TOOLS, WINE64 as in ../ws-size-probe)
 set -euo pipefail
 cd "$(dirname "$0")"
 ROOT=$(cd ../.. && pwd)
@@ -25,6 +25,7 @@ rows=()
 build() { # name song features
   local name=$1 song=$2 feats=$3 fl=""
   [ -n "$feats" ] && fl=$(echo "$feats" | tr ',' '\n' | sed 's|^|unisynth/|' | paste -sd, -)
+  fl="baked${fl:+,$fl}" # what a compo build ships: the song as Rust (`synth-convert rust`) with `us-trusted`
   US_SONG="$song" RUSTFLAGS="$F" cargo build -q --release ${fl:+--features "$fl"} --target i686-pc-windows-msvc
   local exe="$OUT/us-$name.exe"; cp target/i686-pc-windows-msvc/release/us-size-probe.exe "$exe"
   xz -9e -k -c "$exe" > "$exe.xz"
@@ -50,9 +51,14 @@ if [ -n "${TF_SONGS:-}" ]; then
     rows+=("$(build "${n##*:}" "$OUT/songs/${n##*:}.song" "$("$CONVERT" features "$OUT/songs/${n##*:}.song")")")
   done
 fi
+if [ -f "${ES4_SONGS:-}/zoom.tf4m" ]; then # turtles: 2013 Tunefish 4 (Enigma Studio 4)
+  "$CONVERT" tf4m "$ES4_SONGS/zoom.tf4m" "$OUT/songs/turtles.song" 2>/dev/null
+  rows+=("$(build turtles "$OUT/songs/turtles.song" "$("$CONVERT" features "$OUT/songs/turtles.song")")")
+fi
 {
-  echo "i686 \`no_std\` probe, opt-level z, LTO, static base (\`research/us-size-probe\`, \`measure.sh\`). Raw and packed bytes include the song's own"
-  echo "bytes (the \"song\" column) and the pure-Rust \`libm\`; the build lists exactly the features \`synth-convert features\` names for the song."
+  echo "i686 \`no_std\` probe, opt-level z, LTO, static base (\`research/us-size-probe\`, \`measure.sh\`), the song built in as Rust (\`synth-convert rust\`,"
+  echo "\`us-trusted\`). Raw and packed bytes include the song's own bytes (the \"song\" column); the build lists exactly the features"
+  echo "\`synth-convert features\` names for the song."
   echo
   echo "| build | song B | raw B | xz -9e B | squishy 0.1.3 B | features |"
   echo "|---|---:|---:|---:|---:|---|"

@@ -159,6 +159,7 @@ fn voices_and_slots_start_from_different_phases_and_reset_repeats_them() {
     });
 }
 
+#[cfg(feature = "us-matrix")]
 #[test]
 fn the_modulation_targets_move_waveform_and_pulse_width() {
     // waveform 0 (saw) with an Offset route of +1 on the waveform shape value gives a square: no even harmonics
@@ -172,6 +173,7 @@ fn the_modulation_targets_move_waveform_and_pulse_width() {
 
 // ---- the start phase spread (voice parameter `start_spread`) ----
 
+#[cfg(feature = "us-voice-unison")]
 /// RMS of the first 6000 frames of a unison group of `n` voices at one pitch, for the start-phase spread `p`,
 /// relative to one voice. In phase the voices add up to `n`; with phases spread over the turn they add up to about √n.
 fn unison_gain(slot_type: usize, p: f32, note: u8, voices: usize) -> f32 {
@@ -191,6 +193,7 @@ fn unison_gain(slot_type: usize, p: f32, note: u8, voices: usize) -> f32 {
     (rms(&x) / rms(&one)) as f32
 }
 
+#[cfg(feature = "us-voice-unison")]
 #[test]
 fn a_saw_unison_group_starts_almost_in_phase_when_the_spread_is_small() {
     // Slaughter draws its start phase in samples, not turns: about ±6 samples of a 675-sample period at note 36
@@ -201,6 +204,7 @@ fn a_saw_unison_group_starts_almost_in_phase_when_the_spread_is_small() {
     assert!(full < 3.0, "…and with the whole turn they do not: {full}");
 }
 
+#[cfg(feature = "us-voice-unison")]
 #[test]
 fn the_spread_is_a_number_of_samples_so_high_notes_spread_over_more_of_their_period() {
     let original = inv::inv_start_spread(12.566);
@@ -210,6 +214,7 @@ fn the_spread_is_a_number_of_samples_so_high_notes_spread_over_more_of_their_per
     assert!(high < low - 0.2, "{high} vs {low}");
 }
 
+#[cfg(feature = "us-voice-unison")]
 #[test]
 fn a_phase_mod_unison_group_starts_in_phase_at_the_minimum_and_not_at_the_default() {
     let in_phase = unison_gain(osc_type::PM, 0.0, 60, 4);

@@ -57,6 +57,12 @@ pub struct Chunk<'a> {
 
 impl<'a> Chunk<'a> {
     pub fn parse(b: &'a [u8]) -> Result<Self, LoadError> {
+        // songs checked on the host (`synth-convert rust`): only the sections are located
+        if cfg!(feature = "us-trusted") {
+            let n = b[1] as usize;
+            let pairs = &b[2..2 + n * 5];
+            return Ok(Chunk { pairs, samples: &b[3 + n * 5..], sample_count: b[2 + n * 5] as usize });
+        }
         let mut r = Rd { b, p: 0 };
         if r.u8()? != VERSION {
             return Err(LoadError::BadChunk);

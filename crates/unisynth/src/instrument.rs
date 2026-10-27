@@ -40,6 +40,10 @@ fn wt_slots(kinds: &[Kind; pm::OSC_SLOTS]) -> usize {
 /// The modules a patch asks for that the build lacks: filter types in use, and the noise source when its level is set
 /// or routed.
 pub(crate) fn check_modules(values: &[f32; COUNT]) -> Result<(), LoadError> {
+    // songs checked on the host (`synth-convert rust`), whose build asserts every needed module at compile time
+    if cfg!(feature = "us-trusted") {
+        return Ok(());
+    }
     for i in 0..pm::FILT_SLOTS {
         flt::Kind::check(law::choice(values[pm::filt(i, pm::f::TYPE)], pm::filter_type::COUNT))?;
     }
@@ -57,6 +61,34 @@ pub(crate) fn check_modules(values: &[f32; COUNT]) -> Result<(), LoadError> {
     });
     if !cfg!(feature = "us-noise") && (values[v::NOISE_LEVEL] > 0.0 || routed) {
         return Err(LoadError::UnsupportedModule(crate::module::NOISE));
+    }
+    check_voice(values)
+}
+
+/// The optional voice paths a patch uses (`needs::instrument_why` mirrors this): an LFO a mod slot reads, a glide time
+/// (or a slide time in mono mode), mono-legato mode, unison above one voice, one-shot, any matrix route.
+fn check_voice(values: &[f32; COUNT]) -> Result<(), LoadError> {
+    use crate::modmx::source;
+    let uses = |on: bool, id: u8| if on { Err(LoadError::UnsupportedModule(id)) } else { Ok(()) };
+    let mono = law::choice(values[v::MODE], 2) == 1;
+    if !cfg!(feature = "us-voice-lfo") {
+        let src = |s: usize| law::choice(values[pm::modslot(s, pm::m::SOURCE)], source::COUNT);
+        uses((0..pm::MOD_SLOTS).any(|s| (source::LFO1..source::LFO1 + pm::LFO_SLOTS).contains(&src(s))), crate::module::VOICE_LFO)?;
+    }
+    if !cfg!(feature = "us-voice-glide") {
+        uses(values[v::GLIDE] > 0.0 || (mono && values[v::SLIDE] > 0.0), crate::module::VOICE_GLIDE)?;
+    }
+    if !cfg!(feature = "us-voice-mono") {
+        uses(mono, crate::module::VOICE_MONO)?;
+    }
+    if !cfg!(feature = "us-voice-unison") {
+        uses(law::count(values[v::UNISON], 1, 16) > 1, crate::module::VOICE_UNISON)?;
+    }
+    if !cfg!(feature = "us-voice-oneshot") {
+        uses(law::choice(values[v::ONE_SHOT], 2) == 1, crate::module::VOICE_ONESHOT)?;
+    }
+    if !cfg!(feature = "us-matrix") {
+        uses((0..pm::MOD_SLOTS).any(|s| crate::modmx::routes(values, s)), crate::module::MATRIX)?;
     }
     Ok(())
 }
@@ -233,6 +265,54 @@ impl Device for UInstrument<'_> {
                 render_span(voices, &sh, frame0 + start as u64, &mut l[start..start + len], &mut r[start..start + len]);
             }
         });
+    }
+}
+
+/// A patch that uses an optional voice path loads only in a build that has it.
+#[cfg(all(test, feature = "us-env-timed"))]
+mod voice_gating {
+    use super::*;
+    use crate::law::host::{inv_choice, inv_count};
+    use crate::module as m;
+    use crate::modmx::source;
+
+    #[test]
+    fn each_voice_path_is_refused_without_its_feature_and_loads_with_it() {
+        let cases: [(&[(usize, f32)], u8, bool); 7] = [
+            (&[(pm::modslot(4, pm::m::SOURCE), inv_choice(source::LFO1, source::COUNT))], m::VOICE_LFO, cfg!(feature = "us-voice-lfo")),
+            (&[(pm::modslot(0, pm::m::SOURCE), inv_choice(source::LFO1 + 1, source::COUNT))], m::VOICE_LFO, cfg!(feature = "us-voice-lfo")),
+            (&[(v::GLIDE, 0.2)], m::VOICE_GLIDE, cfg!(feature = "us-voice-glide")),
+            (&[(v::MODE, 1.0), (v::SLIDE, 0.2)], m::VOICE_GLIDE, cfg!(feature = "us-voice-glide")),
+            (&[(v::MODE, 1.0)], m::VOICE_MONO, cfg!(feature = "us-voice-mono")),
+            (&[(v::UNISON, inv_count(2, 1, 16))], m::VOICE_UNISON, cfg!(feature = "us-voice-unison")),
+            (&[(v::ONE_SHOT, 1.0)], m::VOICE_ONESHOT, cfg!(feature = "us-voice-oneshot")),
+        ];
+        for (edits, id, on) in cases {
+            let mut p = pm::DEFAULTS;
+            edits.iter().for_each(|&(i, x)| p[i] = x);
+            let r = check_voice(&p);
+            // glide is checked before mono, so a mono patch with a slide time names glide first
+            if on {
+                assert_ne!(r, Err(LoadError::UnsupportedModule(id)), "{edits:?}");
+            } else {
+                assert_eq!(r, Err(LoadError::UnsupportedModule(id)), "{edits:?}");
+            }
+        }
+        // the matrix: a slot with a source and a target
+        let mut p = pm::DEFAULTS;
+        p[pm::modslot(3, pm::m::SOURCE)] = inv_choice(source::VELOCITY, source::COUNT);
+        let half = check_voice(&p);
+        p[pm::modslot(3, pm::m::TARGET)] = crate::law::host::inv_index(crate::modmx::target::GAIN);
+        assert_eq!(half, Ok(()), "a source without a target routes nothing");
+        let r = check_voice(&p);
+        if cfg!(feature = "us-matrix") { assert_eq!(r, Ok(())) } else { assert_eq!(r, Err(LoadError::UnsupportedModule(m::MATRIX))) }
+        // unused paths: an LFO nothing reads, a slide time in poly mode, unison detune at one voice
+        let mut p = pm::DEFAULTS;
+        p[pm::lfo(0, pm::l::RATE)] = 0.9;
+        p[v::SLIDE] = 0.5;
+        p[v::UNI_DETUNE] = 0.5;
+        assert_eq!(check_voice(&p), Ok(()));
+        assert_eq!(check_voice(&pm::DEFAULTS), Ok(()));
     }
 }
 

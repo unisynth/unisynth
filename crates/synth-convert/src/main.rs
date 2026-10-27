@@ -13,7 +13,7 @@
 use std::process::ExitCode;
 use synth_convert::Converted;
 
-const USAGE: &str = "usage: synth-convert ws <in.song> <out.song>\n       synth-convert tfm <in.tfm> <out.song> [tail-seconds]\n       synth-convert tf4m <in.tf4m> <out.song> [tail-seconds]   (2013 Tunefish 4 of Enigma Studio 4)\n       synth-convert tf4m-tfm <in.tf4m> <out.tfm>   (the same song in the final .tfm layout)\n       synth-convert patch <patch.txt> <phrase.txt> <out.song>\n       synth-convert features <unified.song> [--explain | --json] [--cost <marginal.csv>]";
+const USAGE: &str = "usage: synth-convert ws <in.song> <out.song>\n       synth-convert tfm <in.tfm> <out.song> [tail-seconds]\n       synth-convert tf4m <in.tf4m> <out.song> [tail-seconds]   (2013 Tunefish 4 of Enigma Studio 4)\n       synth-convert tf4m-tfm <in.tf4m> <out.tfm>   (the same song in the final .tfm layout)\n       synth-convert patch <patch.txt> <phrase.txt> <out.song>\n       synth-convert features <unified.song> [--explain | --json] [--cost <marginal.csv>]\n       synth-convert rust <unified.song> <out.rs> [bank.dls]   (compo build: validated song as Rust + module assert)";
 
 fn read(path: &str) -> Result<Vec<u8>, String> {
     std::fs::read(path).map_err(|e| format!("{path}: {e}"))
@@ -103,6 +103,12 @@ fn run(args: &[String]) -> Result<(), String> {
             let needs = f::explain(&read(input)?, table.as_ref()).map_err(|e| format!("{input}: {e}"))?;
             print!("{}", if json { f::render_json(&needs) } else { f::render_text(&needs) });
             Ok(())
+        }
+        ["rust", input, output] | ["rust", input, output, _] => {
+            let bank = args.get(3).map(|b| read(b)).transpose()?;
+            let name = std::path::Path::new(input).file_name().and_then(|n| n.to_str()).unwrap_or(input);
+            let src = synth_convert::rust::generate(&read(input)?, bank.as_deref(), name).map_err(|e| format!("{input}: {e}"))?;
+            std::fs::write(output, src).map_err(|e| format!("{output}: {e}"))
         }
         _ => Err(USAGE.into()),
     }

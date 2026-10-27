@@ -12,7 +12,7 @@ F="-Clinker-flavor=lld-link -Ctarget-cpu=pentium4 -Crelocation-model=static -Zlo
 for a in /ENTRY:start /SUBSYSTEM:WINDOWS /NODEFAULTLIB /DEBUG:NONE /OPT:REF /OPT:ICF /SAFESEH:NO \
          /BASE:0x400000 /DYNAMICBASE:NO /FIXED; do F="$F -Clink-arg=$a"; done
 LEAVES=(us-osc-pm us-osc-blit us-osc-wt us-osc-sample us-sample-gsm us-sample-dls us-noise us-flt-svf us-flt-ladder us-flt-rbj us-flt-notch
-  us-env-timed us-env-rate us-fx-distortion-shaper us-fx-distortion-power us-fx-crusher us-fx-eq-parametric us-fx-eq-3band us-fx-delay-tempo
+  us-env-timed us-env-rate us-voice-lfo us-voice-glide us-voice-mono us-voice-unison us-voice-oneshot us-matrix us-automation us-fx-distortion-shaper us-fx-distortion-power us-fx-crusher us-fx-eq-parametric us-fx-eq-3band us-fx-delay-tempo
   us-fx-delay-ms us-fx-chorus us-fx-flanger-phaser us-fx-flanger-ring us-fx-reverb-freeverb us-fx-reverb-compact us-fx-reverb-rooms
   us-fx-compressor us-fx-formant)
 [ $# -gt 0 ] && LEAVES=("$@")
@@ -24,7 +24,7 @@ build() { # features(csv, without unisynth/ prefix) → raw xz
   echo "$(stat -f%z $exe),$(xz -9e -c $exe | wc -c | tr -d ' ')"
 }
 ALL=$(IFS=,; echo "${LEAVES_ALL:-${LEAVES[*]}}")
-[ -n "${LEAVES_ALL:-}" ] || ALL=$(IFS=,; echo "us-osc-pm,us-osc-blit,us-osc-wt,us-osc-sample,us-sample-gsm,us-sample-dls,us-noise,us-flt-svf,us-flt-ladder,us-flt-rbj,us-flt-notch,us-env-timed,us-env-rate,us-fx-distortion-shaper,us-fx-distortion-power,us-fx-crusher,us-fx-eq-parametric,us-fx-eq-3band,us-fx-delay-tempo,us-fx-delay-ms,us-fx-chorus,us-fx-flanger-phaser,us-fx-flanger-ring,us-fx-reverb-freeverb,us-fx-reverb-compact,us-fx-reverb-rooms,us-fx-compressor,us-fx-formant")
+[ -n "${LEAVES_ALL:-}" ] || ALL=$(IFS=,; echo "us-osc-pm,us-osc-blit,us-osc-wt,us-osc-sample,us-sample-gsm,us-sample-dls,us-noise,us-flt-svf,us-flt-ladder,us-flt-rbj,us-flt-notch,us-env-timed,us-env-rate,us-voice-lfo,us-voice-glide,us-voice-mono,us-voice-unison,us-voice-oneshot,us-matrix,us-automation,us-fx-distortion-shaper,us-fx-distortion-power,us-fx-crusher,us-fx-eq-parametric,us-fx-eq-3band,us-fx-delay-tempo,us-fx-delay-ms,us-fx-chorus,us-fx-flanger-phaser,us-fx-flanger-ring,us-fx-reverb-freeverb,us-fx-reverb-compact,us-fx-reverb-rooms,us-fx-compressor,us-fx-formant")
 echo "feature,raw,xz" > "$OUT/marginal.csv"
 echo "all,$(build "$ALL")" >> "$OUT/marginal.csv"; tail -1 "$OUT/marginal.csv"
 for f in "${LEAVES[@]}"; do

@@ -440,8 +440,10 @@ mod gating {
     use super::*;
     use crate::chunk::encode;
     use crate::instrument::UInstrument;
+    #[cfg(feature = "us-matrix")]
     use crate::law::host as inv;
     use crate::module;
+    #[cfg(feature = "us-matrix")]
     use crate::modmx::{source, target};
     use synth_core::mix::LoadError;
 
@@ -464,6 +466,7 @@ mod gating {
         expect_rate(need(&[(pm::env(0, e::MODE), 1.0)]));
     }
 
+    #[cfg(feature = "us-matrix")]
     #[test]
     fn another_envelope_counts_only_when_the_matrix_reads_it() {
         assert!(need(&[(pm::env(2, e::MODE), 1.0)]).is_ok(), "not read: its mode is irrelevant");
