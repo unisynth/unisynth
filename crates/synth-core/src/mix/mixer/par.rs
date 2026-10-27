@@ -142,6 +142,9 @@ impl<'a> Mixer<'a> {
         assert!(parts.len() == self.tracks.len());
         let n = self.sub;
         let frame = self.frame;
+        // as the serial step: a build without automation (constant `Err`) skips the walk; read here, before any job
+        // holds a device
+        let automate = devices.first().is_some_and(|d| d.automation().is_ok());
         let parts = Shared(parts.as_mut_ptr());
         let devs = Shared(devices.as_mut_ptr());
         let ndev = devices.len();
@@ -157,7 +160,7 @@ impl<'a> Mixer<'a> {
                 // `unsafe trait SplitSource`) the devices listed on track `ti`. Receives read buffers of lower levels,
                 // which no job of this level writes. `ti` < track count (`assert` above); `step` range-checks device
                 // and receive indices.
-                unsafe { step(ti, &mut *parts.get().add(ti), devs.get(), ndev, bufs.get(), nt, n, frame, rate, tempo) }
+                unsafe { step(ti, &mut *parts.get().add(ti), devs.get(), ndev, bufs.get(), nt, n, frame, rate, tempo, automate) }
             };
             if level.len() == 1 {
                 job(0);
@@ -189,6 +192,7 @@ unsafe fn step<D: Device, T: TrackSource>(
     frame: u64,
     rate: f64,
     tempo: i32,
+    automate: bool,
 ) {
     let _g = crate::denormal::Guard::new();
     let dev = |d: usize| {
@@ -215,7 +219,9 @@ unsafe fn step<D: Device, T: TrackSource>(
         st.advance();
     }
     // 2. automations
-    st.automate(n, |d, p, v| dev(d).set_param(p, v));
+    if automate {
+        st.automate(n, |d, p, v| dev(d).set_param(p, v));
+    }
     // 3. clear + receives
     for b in tb.ch.iter_mut() {
         b[..n].fill(0.0);
