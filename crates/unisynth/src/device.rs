@@ -14,6 +14,10 @@ pub enum UDevice<'a> {
 }
 
 impl<'a> Kinds<'a> for UDevice<'a> {
+    /// Instruments and effects draw only from their own generators while rendering (seeded at load).
+    #[cfg(feature = "threads")]
+    const RENDER_RNG: bool = false;
+
     fn need(k: u8, chunk: &'a [u8], env: &Env<'a>) -> Result<usize, LoadError> {
         match k {
             kind::INSTRUMENT => UInstrument::need(chunk),

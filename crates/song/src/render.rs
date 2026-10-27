@@ -22,6 +22,24 @@ pub fn render(blob: &[u8], bank: Option<&[u8]>) -> Result<Vec<f32>, String> {
     Ok(out)
 }
 
+/// [`render`] with `threads ≥ 1` workers (the calling thread plus `threads − 1` helpers): bit-identical output;
+/// 1 = the single-thread path.
+#[cfg(feature = "threads")]
+pub fn render_threads(blob: &[u8], bank: Option<&[u8]>, threads: usize) -> Result<Vec<f32>, String> {
+    if threads <= 1 {
+        return render(blob, bank);
+    }
+    let s = Song::parse(blob).map_err(|e| format!("not a valid song blob: {e:?}"))?;
+    let env = Env::for_song(&s, bank);
+    let need = Player::<UDevice, Xorshift>::required_pool(&s, &env, DEFAULT_SUB).map_err(|e| format!("cannot load: {e:?}"))?;
+    let mut mem = vec![0u8; need];
+    let mut pool = Pool::new(&mut mem);
+    let mut p = Player::<UDevice, Xorshift>::new(s, &env, &mut pool, Xorshift::new(SEED), DEFAULT_SUB).map_err(|e| format!("cannot load: {e:?}"))?;
+    let mut out = vec![0.0f32; p.length_frames() as usize * 2];
+    crate::workers::with_workers(threads, |w| p.render_f32_par(&mut out, w));
+    Ok(out)
+}
+
 /// A WAV file of interleaved stereo samples: 16-bit PCM (`clamp(trunc(x·32767))`, the player's conversion) or
 /// 32-bit float.
 pub fn wav(samples: &[f32], rate: u32, float: bool) -> Vec<u8> {

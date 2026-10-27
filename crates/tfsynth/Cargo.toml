@@ -14,6 +14,8 @@ wavesabre = { workspace = true, features = ["ws-slaughter"] }
 
 [features]
 default = ["tf-fx-all"]
+# Multi-threaded rendering (change add-synth-threads): declares no render-time draws from the song random source.
+threads = ["synth-core/threads"]
 tf-fx-all = ["tf-fx-distortion", "tf-fx-delay", "tf-fx-chorus", "tf-fx-flanger", "tf-fx-reverb", "tf-fx-formant", "tf-fx-eq"]
 tf-fx-distortion = []
 tf-fx-delay = []

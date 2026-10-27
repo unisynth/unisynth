@@ -12,6 +12,8 @@ pub mod preset;
 pub mod render;
 pub mod tables;
 pub mod validate;
+#[cfg(feature = "threads")]
+pub mod workers;
 
 pub use export::{export, export_model, tick_to_sample};
 pub use import::{apply_meta, import, import_one_clip};

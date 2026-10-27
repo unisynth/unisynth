@@ -19,6 +19,8 @@ required-features = ["std"]
 default = ["us-all"]
 # host-side only: chunk encoder (task 1.4), requires std
 std = []
+# Multi-threaded rendering (change add-synth-threads): declares no render-time draws from the song random source.
+threads = ["synth-core/threads"]
 
 # --- instrument modules (a patch that uses a disabled module fails at load with UnsupportedModule) ---
 us-osc-pm = []

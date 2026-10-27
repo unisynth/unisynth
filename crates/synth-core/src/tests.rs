@@ -1338,6 +1338,345 @@ mod player_tests {
         let b = song(&[], &[vec![]], &[t(&[], 0)]);
         with_player(&b, 100, |p| assert_eq!(p.length_frames(), 44100));
     }
+
+    /// Parallel rendering (change add-synth-threads).
+    #[cfg(feature = "threads")]
+    mod par {
+        use super::*;
+
+        struct Zero;
+        impl Rng for Zero {
+            fn next_f32(&mut self) -> f32 {
+                0.0
+            }
+        }
+
+        /// `TD` without render-time draws from the song random source (kinds 1–3), plus kind 4: a tone that halves
+        /// every frame from 2⁻¹⁰⁰ after a note-on, into the subnormal range, written ×2¹⁰⁰ to main L/R.
+        enum PD {
+            Td(TD),
+            Decay { z: f32 },
+        }
+
+        impl Device for PD {
+            fn param_count(&self) -> usize {
+                match self {
+                    PD::Td(d) => d.param_count(),
+                    PD::Decay { .. } => 0,
+                }
+            }
+            fn set_param(&mut self, i: usize, v: f32) {
+                if let PD::Td(d) = self {
+                    d.set_param(i, v)
+                }
+            }
+            fn note_on(&mut self, note: u8, vel: u8, off: u32) {
+                match self {
+                    PD::Td(d) => d.note_on(note, vel, off),
+                    PD::Decay { z } => *z = f32::from_bits(27 << 23), // 2⁻¹⁰⁰
+                }
+            }
+            fn note_off(&mut self, note: u8, off: u32) {
+                if let PD::Td(d) = self {
+                    d.note_off(note, off)
+                }
+            }
+            fn event_lookahead(&self) -> u32 {
+                match self {
+                    PD::Td(d) => d.event_lookahead(),
+                    PD::Decay { .. } => 0,
+                }
+            }
+            fn reset(&mut self) {
+                match self {
+                    PD::Td(d) => d.reset(),
+                    PD::Decay { z } => *z = 0.0,
+                }
+            }
+            fn run(&mut self, io: &mut Io, n: usize, ctx: &mut Ctx) {
+                match self {
+                    PD::Td(d) => {
+                        let mut zero = Zero;
+                        let mut c = Ctx { rate: ctx.rate, tempo: ctx.tempo, frame: ctx.frame, rng: &mut zero };
+                        d.run(io, n, &mut c)
+                    }
+                    PD::Decay { z } => {
+                        for i in 0..n {
+                            let v = *z * f32::from_bits(227 << 23); // ×2¹⁰⁰
+                            io.ch[MAIN_L][i] = v;
+                            io.ch[MAIN_R][i] = v;
+                            *z *= 0.5;
+                        }
+                    }
+                }
+            }
+        }
+
+        impl<'a> Kinds<'a> for PD {
+            const RENDER_RNG: bool = false;
+            fn need(kind: u8, c: &'a [u8], e: &Env<'a>) -> Result<usize, LoadError> {
+                if kind == 4 { Ok(0) } else { TD::need(kind, c, e) }
+            }
+            fn load(kind: u8, c: &'a [u8], e: &Env<'a>, p: &mut Pool<'a>, rng: &mut dyn Rng) -> Result<Self, LoadError> {
+                if kind == 4 { Ok(PD::Decay { z: 0.0 }) } else { TD::load(kind, c, e, p, rng).map(PD::Td) }
+            }
+        }
+
+        /// Runs the jobs in index order on the calling thread.
+        struct Serial;
+        impl Par for Serial {
+            fn run(&self, jobs: usize, job: &(dyn Fn(usize) + Sync)) {
+                (0..jobs).for_each(job)
+            }
+        }
+
+        /// `w` scoped threads per call, job `i` on thread `i mod w`, the last thread's jobs in reverse order.
+        struct Threads(usize);
+        impl Par for Threads {
+            fn run(&self, jobs: usize, job: &(dyn Fn(usize) + Sync)) {
+                let w = self.0;
+                std::thread::scope(|s| {
+                    for k in 0..w {
+                        s.spawn(move || {
+                            let mine = (0..jobs).filter(|i| i % w == k);
+                            if k == w - 1 { mine.rev().for_each(job) } else { mine.for_each(job) }
+                        });
+                    }
+                });
+            }
+        }
+
+        fn with<K: for<'a> Kinds<'a>, R>(bytes: &[u8], sub: usize, f: impl FnOnce(&mut Player<'_, K, Lcg>) -> R) -> R {
+            let s = Song::parse(bytes).unwrap();
+            let env = Env::for_song(&s, None);
+            let need = Player::<K, Lcg>::required_pool(&s, &env, sub).unwrap();
+            let mut mem = vec![0u8; need];
+            let mut pool = Pool::new(&mut mem);
+            let mut p = Player::new(s, &env, &mut pool, Lcg(1), sub).unwrap();
+            f(&mut p)
+        }
+
+        /// 4 instruments; 0+1 → bus A (probe), 2 → bus B (probe, sidechain from 3), A + B + 3 → master; a
+        /// decaying tone track (kind 4) also into the master. Notes across sub-blocks, automation on bus A.
+        fn dense() -> Vec<u8> {
+            let lanes = [
+                vec![(0, 60, Some(100)), (130, 60, None), (77, 64, Some(90)), (301, 64, None)],
+                vec![(50, 48, Some(70)), (400, 48, None), (10, 50, Some(20))],
+                vec![(3, 40, Some(127)), (1000, 40, None)],
+                vec![(777, 41, Some(1)), (1, 41, None), (1, 42, Some(64))],
+                vec![(5, 1, Some(1)), (900, 1, Some(1))],
+                vec![],
+            ];
+            let mut a = t(&[4], 5);
+            a.recv = vec![(0, 0, 0.5), (1, 0, 0.25)];
+            a.autos.push((0, 0, vec![(0, 0), (700, 255), (1500, 10)]));
+            let mut b = t(&[5], 5);
+            b.recv = vec![(2, 0, 1.0), (3, 2, 0.75)];
+            b.vol = 0.9;
+            let mut master = t(&[], 5);
+            master.recv = vec![(6, 0, 1.0), (5, 0, 1.0), (3, 0, 0.125), (4, 0, 1.0)];
+            master.vol = 0.8;
+            let tracks = [t(&[0], 0), t(&[1], 1), t(&[2], 2), t(&[3], 3), t(&[6], 4), a, b, master];
+            song(&[1, 1, 1, 1, 2, 2, 4], &lanes, &tracks)
+        }
+
+        fn serial(bytes: &[u8], frames: usize, sub: usize) -> Vec<f32> {
+            with::<PD, _>(bytes, sub, |p| {
+                let mut out = vec![0.0f32; 2 * frames];
+                p.render_f32(&mut out);
+                out
+            })
+        }
+
+        fn levels<K: for<'a> Kinds<'a> + Send>(bytes: &[u8]) -> Vec<Vec<usize>> {
+            with::<K, _>(bytes, 100, |p| p.mixer().levels().map(<[usize]>::to_vec).collect())
+        }
+
+        #[test]
+        fn levels_group_independent_tracks() {
+            assert_eq!(levels::<PD>(&dense()), vec![vec![0, 1, 2, 3, 4], vec![5, 6], vec![7]]);
+            // master only
+            assert_eq!(levels::<PD>(&song(&[1], &[vec![]], &[t(&[0], 0)])), vec![vec![0]]);
+            // chain 2 → 0 → 1 → master
+            let mut a = t(&[], 0);
+            a.recv.push((2, 0, 1.0));
+            let mut b = t(&[], 0);
+            b.recv.push((0, 0, 1.0));
+            let mut m = t(&[], 0);
+            m.recv.push((1, 0, 1.0));
+            assert_eq!(levels::<PD>(&song(&[], &[vec![]], &[a, b, t(&[], 0), m])), vec![vec![2], vec![0], vec![1], vec![3]]);
+            // fan-in at the master + a track nobody receives from (still rendered: it comes before the master)
+            let mut m = t(&[], 0);
+            m.recv = vec![(0, 0, 1.0), (1, 2, 1.0)];
+            let mut c = t(&[], 0);
+            c.recv.push((0, 0, 1.0));
+            assert_eq!(levels::<PD>(&song(&[], &[vec![]], &[t(&[], 0), t(&[], 0), c, m])), vec![vec![0, 1], vec![2], vec![3]]);
+        }
+
+        #[test]
+        fn render_rng_kind_or_shared_device_falls_back() {
+            let tracks = || [t(&[0], 0), t(&[1], 0)];
+            let b = song(&[1, 2], &[note_at_0()], &tracks());
+            with::<TD, _>(&b, 100, |p| assert!(p.mixer().parallel_safe() && !p.parallel(), "TD draws while rendering"));
+            with::<PD, _>(&b, 100, |p| assert!(p.parallel()));
+            with::<PD, _>(&dense(), 100, |p| assert!(p.parallel()));
+            // device 0 on two rendered tracks
+            let mut m = t(&[0], 0);
+            m.recv.push((0, 0, 1.0));
+            let shared = song(&[1], &[note_at_0()], &[t(&[0], 0), m]);
+            with::<PD, _>(&shared, 100, |p| assert!(!p.parallel()));
+            // ... yet both still render the serial output through the parallel entry
+            for bytes in [&b, &shared] {
+                let want = serial(bytes, 500, 100);
+                let got = with::<PD, _>(bytes, 100, |p| {
+                    let mut out = vec![0.0f32; 1000];
+                    p.render_f32_par(&mut out, &Threads(3));
+                    out
+                });
+                assert_eq!(got, want);
+            }
+            let want = with::<TD, _>(&b, 100, |p| {
+                let mut out = vec![0.0f32; 1000];
+                p.render_f32(&mut out);
+                out
+            });
+            let got = with::<TD, _>(&b, 100, |p| {
+                let mut out = vec![0.0f32; 1000];
+                p.render_f32_par(&mut out, &Threads(3));
+                out
+            });
+            assert_eq!(got, want);
+        }
+
+        // SAFETY: one part per track, routing never changes in the test, no automation.
+        unsafe impl SplitSource for VecSource {
+            type Part = VTrack;
+            fn parts(&mut self) -> &mut [VTrack] {
+                &mut self.tracks
+            }
+        }
+
+        #[test]
+        fn owned_source_parallel_equals_serial_step() {
+            let b = dense();
+            let s = Song::parse(&b).unwrap();
+            let env = Env::for_song(&s, None);
+            let run = |par: bool| {
+                let mut mem = vec![0u8; 1 << 16];
+                let mut pool = Pool::new(&mut mem);
+                let mut rng = Lcg(1);
+                let devices = load_devices::<PD>(&s, &env, &mut pool, &mut rng).unwrap();
+                let mut src = vec_source(&s);
+                let mut m = Mixer::new(&mut src, &mut pool, 37).unwrap();
+                m.update_look(devices, &mut src);
+                assert!(m.parallel_safe());
+                let mut out = vec![];
+                for _ in 0..60 {
+                    if par {
+                        m.render_sub_par(devices, &mut src, 44100.0, 120, &Threads(3));
+                    } else {
+                        m.render_sub(devices, &mut src, 44100.0, 120, &mut rng);
+                    }
+                    out.extend((0..37).map(|i| m.master_frame(i)));
+                }
+                out
+            };
+            let want = run(false);
+            assert!(want.iter().filter(|x| x.0.abs() > 0.1).count() > 500);
+            assert_eq!(run(true), want);
+        }
+
+        #[test]
+        fn serial_par_equals_render() {
+            let b = dense();
+            for sub in [1, 37, 100] {
+                let want = serial(&b, 3000, sub);
+                assert!(want.iter().filter(|x| x.abs() > 0.1).count() > 1000, "audible reference");
+                let got = with::<PD, _>(&b, sub, |p| {
+                    let mut out = vec![0.0f32; 6000];
+                    p.render_f32_par(&mut out, &Serial);
+                    out
+                });
+                assert_eq!(got, want, "sub {sub}");
+            }
+        }
+
+        #[test]
+        fn threads_equal_serial_any_worker_count_and_call_size() {
+            let b = dense();
+            let want = serial(&b, 5000, 100);
+            for w in [1, 2, 3, 8] {
+                for call in [1, 77, 100, 4096] {
+                    let got = with::<PD, _>(&b, 100, |p| {
+                        let mut out = vec![];
+                        while out.len() < 2 * 5000 {
+                            let mut c = vec![0.0f32; 2 * call];
+                            p.render_f32_par(&mut c, &Threads(w));
+                            out.extend(c);
+                        }
+                        out.truncate(2 * 5000);
+                        out
+                    });
+                    assert_eq!(got, want, "{w} workers, calls of {call}");
+                }
+            }
+        }
+
+        #[test]
+        fn threads_after_seek_and_i16() {
+            let b = dense();
+            let want = serial(&b, 4000, 100);
+            for f in [0usize, 777, 1000, 3999] {
+                let got = with::<PD, _>(&b, 100, |p| {
+                    let mut warm = vec![0.0f32; 2 * 2500];
+                    p.render_f32_par(&mut warm, &Threads(4));
+                    p.seek(f as u64);
+                    let mut out = vec![0.0f32; 2 * (4000 - f)];
+                    p.render_f32_par(&mut out, &Threads(4));
+                    out
+                });
+                assert_eq!(got, want[2 * f..], "seek {f}");
+            }
+            let want = with::<PD, _>(&b, 100, |p| {
+                let mut out = vec![0i16; 2000];
+                p.render_i16(&mut out);
+                out
+            });
+            let got = with::<PD, _>(&b, 100, |p| {
+                let mut out = vec![0i16; 2000];
+                p.render_i16_par(&mut out, &Threads(3));
+                out
+            });
+            assert_eq!(got, want);
+        }
+
+        #[test]
+        #[cfg_attr(miri, ignore = "Miri has no float-mode control (the denormal guard is a no-op there)")]
+        fn workers_flush_subnormals_like_the_caller() {
+            // kind 4 alone on a track: the tone crosses 2⁻¹²⁶ after 26 frames; flushed it is exactly 0 from there
+            let b = dense();
+            let want = serial(&b, 2000, 100);
+            let tone_only = {
+                let mut m = t(&[], 0);
+                m.recv.push((0, 0, 1.0));
+                song(&[4], &[vec![(0, 1, Some(1))]], &[t(&[0], 0), t(&[], 0), m])
+            };
+            let reference = serial(&tone_only, 200, 100);
+            assert!(reference[2 * 20] > 0.0 && reference[2 * 40] == 0.0, "flush active in the serial reference");
+            let tone = with::<PD, _>(&tone_only, 100, |p| {
+                let mut out = vec![0.0f32; 400];
+                p.render_f32_par(&mut out, &Threads(2));
+                out
+            });
+            assert_eq!(tone, reference);
+            let got = with::<PD, _>(&b, 100, |p| {
+                let mut out = vec![0.0f32; 4000];
+                p.render_f32_par(&mut out, &Threads(5));
+                out
+            });
+            assert_eq!(got, want);
+        }
+    }
 }
 
 /// Loads every `$WS_SONG_DIR` song into the player with a pass-through stand-in for every kind and renders 1 s.

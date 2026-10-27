@@ -8,6 +8,8 @@ mod registry;
 mod song;
 
 pub use mixer::{Mixer, Source, TrackSource};
+#[cfg(feature = "threads")]
+pub use mixer::{Par, SplitSource};
 pub use player::{BlobSource, Player, TrackSrc, DEFAULT_SUB};
 pub use registry::{devices_need, load_devices, Either, Env, Kinds};
 pub use song::{Automation, DeviceRec, Lane, LaneEvents, Points, Receive, Song, Track};

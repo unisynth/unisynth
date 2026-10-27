@@ -90,6 +90,7 @@ packages/daw (served at /daw by packages/cli)
 | Equal to the intro | Bit-identical from frame 0 when nothing was edited since play (tested at call sizes 1–4096, and wasm vs native on the demo song) | Always (the WAV equals `song render` byte for byte) |
 | After edits | Applied per track at the next 100-frame sub-block: values via `set_param`, structural changes rebuild that track's devices, note edits swap that track's schedule, routing rebuilds the mixer; the transport shows "edited since play" | — |
 | Seek / loop | Devices reset at the target, held notes re-triggered ("chase"); no silent pre-roll | Renders from frame 0 |
+| Threads | One (AudioWorklet) | `song render --threads <n>` renders independent tracks on `n` threads, same WAV byte for byte (change add-synth-threads); the browser bounce stays single-threaded |
 
 Load (task 3.7, Chrome, main-thread timing of the same exports the worklet calls, `packages/daw/bench/dense.ts`):
 the demo song needs 0.1 ms per 128 frames on average, 0.7 ms worst case (24 % of the 2.9 ms budget). Stress songs

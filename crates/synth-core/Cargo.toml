@@ -6,3 +6,7 @@ license.workspace = true
 
 [dependencies]
 libm.workspace = true
+
+[features]
+# Opt-in multi-threaded song rendering (change add-synth-threads). Off: no thread code is compiled.
+threads = []

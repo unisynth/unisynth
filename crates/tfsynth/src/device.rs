@@ -264,6 +264,10 @@ fn effect_enabled(k: u8) -> bool {
 }
 
 impl<'a> Kinds<'a> for TfDevice<'a> {
+    /// Every device owns its generator; the song random source is not used at all.
+    #[cfg(feature = "threads")]
+    const RENDER_RNG: bool = false;
+
     fn need(k: u8, chunk: &'a [u8], _: &Env<'a>) -> Result<usize, LoadError> {
         match k {
             kind::INSTRUMENT => Ok(TfInstrument::need(chunk)),

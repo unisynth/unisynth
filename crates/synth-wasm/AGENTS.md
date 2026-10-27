@@ -4,7 +4,7 @@ std cdylib + rlib (change add-synth-daw, spec synth-live-host; not in default-me
 
 | File | Purpose |
 |---|---|
-| `Cargo.toml` | Deps `song`, `synth-core`, `unisynth` (`std`), `serde`, `serde_json` (`preserve_order`). |
+| `Cargo.toml` | Deps `song`, `synth-core`, `unisynth` (`std`), `serde`, `serde_json` (`preserve_order`). `song` with `default-features = false` (no `threads` in the wasm module, change add-synth-threads). |
 | `examples/livecmp.rs` | Diagnostic: live `Host` in 128-frame calls vs offline song render; prints first differing frame and max |Δ| (no-remorse 60 s: identical). |
 | `examples/spikes.rs` | Diagnostics: times every 128-frame `render` over 3 passes; slow calls in all passes = engine work, in one = machine. engage/elysian: median-of-3 max 1.6 ms (budget 2.9); all > 2.9 ms calls were OS pauses. |
 | `examples/stuck.rs` | Diagnostics: 15 loop wraps, 10 seeks, 10 live edits while playing, then stop; prints CPU and voices each step (voices must not accumulate; 0 after stop). |

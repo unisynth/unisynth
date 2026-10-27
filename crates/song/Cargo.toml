@@ -12,6 +12,11 @@ serde_path_to_error = "0.1"
 synth-core.workspace = true
 unisynth = { path = "../unisynth", features = ["std"] }
 
+[features]
+default = ["threads"]
+# Multi-threaded rendering (change add-synth-threads): `render::render_threads`, `song render --threads <n>`.
+threads = ["synth-core/threads", "unisynth/threads"]
+
 [[bin]]
 name = "song"
 path = "src/main.rs"

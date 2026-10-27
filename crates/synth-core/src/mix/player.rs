@@ -157,6 +157,17 @@ impl<'a> Source for BlobSource<'a> {
     }
 }
 
+#[cfg(feature = "threads")]
+// SAFETY: one `TrackSrc` per track; routing comes from the immutable blob; automation devices are resolved within the
+// track's own device list (`BlobSource::new`).
+unsafe impl<'a> super::SplitSource for BlobSource<'a> {
+    type Part = TrackSrc<'a>;
+
+    fn parts(&mut self) -> &mut [TrackSrc<'a>] {
+        self.tracks
+    }
+}
+
 impl TrackSource for &mut TrackSrc<'_> {
     fn devices(&self) -> impl Iterator<Item = usize> + '_ {
         self.track.devices()
@@ -293,5 +304,57 @@ impl<'a, K: Kinds<'a>, R: Rng + Clone> Player<'a, K, R> {
 
     fn render_sub(&mut self) {
         self.mixer.render_sub(self.devices, &mut self.src, self.song.rate as f64, self.song.tempo, &mut self.rng);
+    }
+}
+
+/// Multi-threaded rendering (change add-synth-threads): same output as [`Player::render_f32`] /
+/// [`Player::render_i16`], with the tracks of each dependency level rendered as jobs on `par`.
+#[cfg(feature = "threads")]
+impl<'a, K: Kinds<'a> + Send, R: Rng + Clone> Player<'a, K, R> {
+    /// Whether the `_par` renders use `par`: no device on two rendered tracks and no device kind that draws from the
+    /// song random source while rendering. Otherwise they render on the single-thread path (same output).
+    pub fn parallel(&self) -> bool {
+        !K::RENDER_RNG && self.mixer.parallel_safe()
+    }
+
+    /// [`Player::render_f32`] through `par`.
+    pub fn render_f32_par(&mut self, out: &mut [f32], par: &dyn super::Par) {
+        let _g = crate::denormal::Guard::new();
+        for f in out.chunks_exact_mut(2) {
+            let (l, r) = self.next_frame_par(par);
+            f[0] = l;
+            f[1] = r;
+        }
+    }
+
+    /// [`Player::render_i16`] through `par`.
+    pub fn render_i16_par(&mut self, out: &mut [i16], par: &dyn super::Par) {
+        let _g = crate::denormal::Guard::new();
+        for f in out.chunks_exact_mut(2) {
+            let (l, r) = self.next_frame_par(par);
+            f[0] = ((l * 32767.0) as i32).clamp(-32768, 32767) as i16;
+            f[1] = ((r * 32767.0) as i32).clamp(-32768, 32767) as i16;
+        }
+    }
+
+    #[inline]
+    fn next_frame_par(&mut self, par: &dyn super::Par) -> (f32, f32) {
+        if self.read == self.mixer.sub() {
+            if self.parallel() {
+                let (rate, tempo) = (self.song.rate as f64, self.song.tempo);
+                self.mixer.render_sub_par(self.devices, &mut self.src, rate, tempo, par);
+            } else {
+                self.render_sub();
+            }
+            self.read = 0;
+        }
+        let i = self.read;
+        self.read += 1;
+        self.mixer.master_frame(i)
+    }
+
+    /// The mixer (dependency levels, parallel safety).
+    pub fn mixer(&self) -> &Mixer<'a> {
+        &self.mixer
     }
 }

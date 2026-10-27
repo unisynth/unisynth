@@ -1,5 +1,5 @@
 //! Flush subnormals to zero for the duration of a render call (x86 MXCSR FTZ+DAZ, AArch64 FPCR.FZ), restoring the
-//! caller's mode on drop. Other targets (wasm) do nothing.
+//! caller's mode on drop. Other targets (wasm) and Miri (no inline asm) do nothing.
 
 /// Current floating-point control word (0 where not applicable).
 #[inline]
@@ -28,7 +28,7 @@ impl Drop for Guard {
     }
 }
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), not(miri)))]
 mod imp {
     use core::arch::asm;
     /// FTZ (bit 15) | DAZ (bit 6).
@@ -46,7 +46,7 @@ mod imp {
     }
 }
 
-#[cfg(target_arch = "aarch64")]
+#[cfg(all(target_arch = "aarch64", not(miri)))]
 mod imp {
     use core::arch::asm;
     /// FPCR.FZ (bit 24).
@@ -63,7 +63,7 @@ mod imp {
     }
 }
 
-#[cfg(not(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64")))]
+#[cfg(any(miri, not(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))))]
 mod imp {
     pub const FLUSH: u64 = 0;
     pub fn get() -> u64 {

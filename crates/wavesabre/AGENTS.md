@@ -4,7 +4,7 @@ no_std f32 port of the WaveSabre devices (change add-wavesabre-rs). Upstream log
 
 | File | Purpose |
 |---|---|
-| `Cargo.toml` | Features `ws-{falcon,slaughter,thunder,scissor,leveller,crusher,echo,smasher,chamber,twister,cathedral,adultery,specimen}`, `ws-all`. Optional deps `dls` (`ws-adultery`) and `gsm` (`ws-specimen`, `ws-thunder`). |
+| `Cargo.toml` | Features `ws-{falcon,slaughter,thunder,scissor,leveller,crusher,echo,smasher,chamber,twister,cathedral,adultery,specimen}`, `ws-all`. Optional deps `dls` (`ws-adultery`) and `gsm` (`ws-specimen`, `ws-thunder`). Dev-dep `synth-core` with `threads` (tests/threads.rs only). |
 | `LICENSE-WaveSabre` | Upstream MIT notice (Copyright 2012-2021 WaveSabre Team). |
 | `examples/render.rs` | `render <song.bin> <out.wav> [bank.dls]`: Rust-port render (WsRng, `DEFAULT_SUB` 100-frame steps, `render_i16`) → 16-bit stereo WAV; prints speed, peak, pool size. Parity reference = lab `wsmac/render_ws` with `WS_STEP=100`. |
 | `examples/render_device.rs` | `render_device <outdir> [bank.dls]`: writes each `tests/songs.rs` song (`all()` minus Adultery; `bank_songs()` with a bank) as `<name>.bin` + our `<name>_rust.wav` for `tools/ws-parity`. |
@@ -31,4 +31,5 @@ no_std f32 port of the WaveSabre devices (change add-wavesabre-rs). Upstream log
 | `src/twister.rs` | `Twister` (kind 9, 9 params): types 0/1 flanger (± feedback, read `at(⌊p⌋)`→`at(⌊p⌋−1)` by frac, p = 2..134), 2/3 6-stage first-order allpass phaser; vibrato FastSin, spread mono/full/mod invert; 1 s ring. |
 | `tests/golden.rs` | Self-golden: FNV-1a 64 of each `songs::all()` f32 output (rendered in odd 777-frame caller chunks) vs `tests/golden.txt`; `UPDATE_GOLDEN=1` rewrites; asserts non-silence (except `adultery_no_bank`) and two renders bit-identical; spec scenarios on real devices: `reset_equals_fresh_load_for_every_device` (seek(0) re-render identical), `two_songs_interleaved_equal_alone` (Echo song at 120 vs 90 BPM, 333-frame alternation), `pool_one_byte_short_is_out_of_memory` (measured use − 1 → `OutOfMemory`). |
 | `tests/golden.txt` | Golden lines `name hash peak rms` (15 songs). Review diffs before committing a rewrite. |
+| `tests/threads.rs` | With `synth-core/threads`: `WsDevice::RENDER_RNG` is true; every `songs::all()` song → `parallel()` false, `render_f32_par` (3 threads) == `render_f32` (1 s). See change: add-synth-threads. |
 | `tests/songs.rs` | Synthetic blob writer (`song`, `Track::recv`, `chunk`, `gsm_chunk` over `../gsm/testdata` vectors, `melody`, `hits`) + `all()`: every device kind, automation, unison, mono legato, sends, Smasher sidechain keyed by Thunder; `showcase()` (all 13 kinds in one song, size probe); `bank_songs()` (Adultery repeat loop; ping-pong + reverse + manual bounds into Chamber) for parity with a bank. |

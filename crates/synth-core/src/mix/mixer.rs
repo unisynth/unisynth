@@ -12,6 +12,11 @@ use crate::device::{Ctx, Device, EventKind, Io};
 use crate::pool::Pool;
 use crate::rng::Rng;
 
+#[cfg(feature = "threads")]
+mod par;
+#[cfg(feature = "threads")]
+pub use par::{Par, SplitSource};
+
 /// What the mixer renders: one [`TrackSource`] per track. Device indices are song-level (into the `devices` slice
 /// passed to [`Mixer::render_sub`]).
 pub trait Source {
@@ -50,13 +55,18 @@ pub struct Mixer<'a> {
     sub: usize,
     /// Song frame of the next sub-block.
     frame: u64,
+    #[cfg(feature = "threads")]
+    levels: par::Levels<'a>,
 }
 
 impl<'a> Mixer<'a> {
     /// Pool bytes [`Mixer::new`] needs for `tracks` tracks (upper bound).
     pub fn need(tracks: usize, sub: usize) -> usize {
-        Pool::need::<Bufs>(tracks) + tracks * 4 * Pool::need::<f32>(sub.max(1)) + Pool::need::<usize>(tracks)
-            + Pool::need::<u8>(tracks)
+        let need = Pool::need::<Bufs>(tracks) + tracks * 4 * Pool::need::<f32>(sub.max(1)) + Pool::need::<usize>(tracks)
+            + Pool::need::<u8>(tracks);
+        #[cfg(feature = "threads")]
+        let need = need + par::Levels::need(tracks);
+        need
     }
 
     /// Checks that `src` is safe to mix with `devices` song-level devices: at least one track, device indices in
@@ -84,13 +94,22 @@ impl<'a> Mixer<'a> {
         let sub = sub.max(1);
         let nt = src.track_count();
         let order = order(src, pool)?;
+        #[cfg(feature = "threads")]
+        let levels = par::Levels::new(src, order, pool)?;
         let slots = pool.uninit::<Bufs>(nt)?;
         for slot in slots.iter_mut() {
             slot.write(Bufs { ch: [pool.slice(sub)?, pool.slice(sub)?, pool.slice(sub)?, pool.slice(sub)?], look: 0 });
         }
         // SAFETY: all `nt` slots written above; MaybeUninit<T> has T's layout.
         let tracks = unsafe { &mut *(slots as *mut [core::mem::MaybeUninit<Bufs>] as *mut [Bufs]) };
-        Ok(Mixer { tracks, order, sub, frame: 0 })
+        Ok(Mixer {
+            tracks,
+            order,
+            sub,
+            frame: 0,
+            #[cfg(feature = "threads")]
+            levels,
+        })
     }
 
     /// Sets every track's lookahead to the maximum [`Device::event_lookahead`] of its devices (after loading or

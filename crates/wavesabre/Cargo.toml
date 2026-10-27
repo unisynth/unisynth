@@ -30,4 +30,5 @@ ws-adultery = ["dep:dls"]
 ws-specimen = ["dep:gsm"]
 
 [dev-dependencies]
-synth-core.workspace = true
+# `threads` only for tests/threads.rs (WaveSabre songs fall back to the single-thread path, change add-synth-threads)
+synth-core = { workspace = true, features = ["threads"] }

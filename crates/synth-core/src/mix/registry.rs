@@ -29,6 +29,11 @@ pub trait Kinds<'a>: Device + Sized {
     /// constructors) come from the song random source `rng`, in song device order.
     fn load(kind: u8, chunk: &'a [u8], env: &Env<'a>, pool: &mut Pool<'a>, rng: &mut dyn Rng)
         -> Result<Self, LoadError>;
+    /// Whether a device of this registry draws from the shared song random source (`Ctx::rng`) while rendering.
+    /// Such songs render on the single-thread path only, because parallel tracks would reorder the draws. Engines
+    /// whose devices own their render-time random state set it to `false` (change add-synth-threads).
+    #[cfg(feature = "threads")]
+    const RENDER_RNG: bool = true;
 }
 
 /// Pool bytes [`load_devices`] needs for `song`.
@@ -71,6 +76,9 @@ pub enum Either<A, B> {
 }
 
 impl<'a, A: Kinds<'a>, B: Kinds<'a>> Kinds<'a> for Either<A, B> {
+    #[cfg(feature = "threads")]
+    const RENDER_RNG: bool = A::RENDER_RNG || B::RENDER_RNG;
+
     fn need(kind: u8, chunk: &'a [u8], env: &Env<'a>) -> Result<usize, LoadError> {
         match A::need(kind, chunk, env) {
             Err(LoadError::UnsupportedKind(_)) => B::need(kind, chunk, env),

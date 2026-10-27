@@ -167,3 +167,25 @@ fn import_patterns_by_default_one_clip_on_request_and_names_from_the_meta_file()
     assert!(String::from_utf8_lossy(&o.stderr).contains("0 entries for 1 tracks"), "{}", String::from_utf8_lossy(&o.stderr));
     assert!(!bad.exists());
 }
+
+/// `--threads n` (change add-synth-threads): same WAV as the single-thread render; bad counts fail, nothing written.
+#[cfg(feature = "threads")]
+#[test]
+fn render_threads_writes_the_same_wav_and_rejects_bad_counts() {
+    let demo = concat!(env!("CARGO_MANIFEST_DIR"), "/../../project/music/demo.song.json");
+    let one = tmp("t1.wav");
+    assert!(bin().args(["render", demo, "-o", one.to_str().unwrap()]).status().unwrap().success());
+    for n in ["1", "4"] {
+        let w = tmp(&format!("t{n}x.wav"));
+        assert!(bin().args(["render", demo, "-o", w.to_str().unwrap(), "--threads", n]).status().unwrap().success());
+        assert_eq!(std::fs::read(&w).unwrap(), std::fs::read(&one).unwrap(), "--threads {n}");
+    }
+    for bad in [&["--threads", "0"][..], &["--threads", "x"], &["--threads"]] {
+        let w = tmp("bad-threads.wav");
+        let _ = std::fs::remove_file(&w);
+        let o = bin().args(["render", demo, "-o", w.to_str().unwrap()]).args(bad).output().unwrap();
+        assert!(!o.status.success(), "{bad:?}");
+        assert!(String::from_utf8_lossy(&o.stderr).contains("--threads"), "{bad:?}");
+        assert!(!w.exists(), "{bad:?}");
+    }
+}

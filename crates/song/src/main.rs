@@ -4,7 +4,8 @@
 //! song export <song.json> -o <blob>           validate + export the synth-mix blob
 //! song import <blob> -o <song.json> [--meta <meta.json>] [--one-clip]   blob → song/1 (lanes cut into patterns, or
 //!                                             one clip per lane), with authorship, track names and descriptions
-//! song render <song.json|blob> -o <wav> [--f32] [--bank gm.dls]   through the song player (16-bit default)
+//! song render <song.json|blob> -o <wav> [--f32] [--bank gm.dls] [--threads <n>]   through the song player (16-bit
+//!                                             default); n ≥ 2 renders independent tracks on n threads, same output
 //! song info <song.json|blob>                  tracks, devices, length, required cargo features
 //! song check <song.json>                      validate only (exit 0 = valid)
 //! ```
@@ -52,7 +53,7 @@ fn main() {
     let flag = |name: &str| args.iter().any(|a| a == name);
     let cmd = args.first().map(String::as_str).filter(|c| ["export", "import", "render", "info", "check"].contains(c));
     if cmd.is_none() {
-        eprintln!("usage: song export|import|render|info|check <file> [-o <out>] [--meta meta.json] [--one-clip] [--f32] [--bank gm.dls]");
+        eprintln!("usage: song export|import|render|info|check <file> [-o <out>] [--meta meta.json] [--one-clip] [--f32] [--bank gm.dls] [--threads n]");
         exit(if matches!(args.first().map(String::as_str), Some("help" | "--help" | "-h")) { 0 } else { 2 });
     }
     let input = args.get(1).cloned().unwrap_or_else(|| die("missing input file (see `song help`)"));
@@ -80,9 +81,17 @@ fn main() {
             write(&out(), song::to_json(&s).as_bytes());
         }
         Some("render") => {
+            let threads = match opt("--threads") {
+                None if flag("--threads") => die("--threads needs a count"),
+                None => 1,
+                Some(n) => n.parse::<usize>().ok().filter(|&n| n >= 1).unwrap_or_else(|| die(format!("--threads {n}: expected a whole number ≥ 1"))),
+            };
             let b = blob_of(&input);
             let bank = opt("--bank").or_else(|| std::env::var("GM_DLS").ok()).filter(|p| !p.is_empty()).map(|p| read(&p)); // empty GM_DLS = no bank
-            let pcm = song::render::render(&b, bank.as_deref()).unwrap_or_else(|e| die(e));
+            #[cfg(feature = "threads")]
+            let pcm = song::render::render_threads(&b, bank.as_deref(), threads).unwrap_or_else(|e| die(e));
+            #[cfg(not(feature = "threads"))]
+            let pcm = if threads == 1 { song::render::render(&b, bank.as_deref()).unwrap_or_else(|e| die(e)) } else { die("built without the `threads` feature") };
             let rate = synth_core::mix::Song::parse(&b).map(|s| s.rate as u32).unwrap_or(44_100);
             write(&out(), &song::render::wav(&pcm, rate, flag("--f32")));
         }
@@ -113,7 +122,7 @@ fn main() {
             println!("{input}: valid");
         }
         _ => {
-            eprintln!("usage: song export|import|render|info|check <file> [-o <out>] [--f32] [--bank gm.dls]");
+            eprintln!("usage: song export|import|render|info|check <file> [-o <out>] [--f32] [--bank gm.dls] [--threads n]");
             exit(2)
         }
     }

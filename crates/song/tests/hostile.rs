@@ -98,3 +98,77 @@ fn hostile_json_is_rejected_without_panics() {
         }
     }
 }
+
+/// Parallel render of hostile blobs (change add-synth-threads): whatever loads renders through the threaded entry
+/// without panicking and equal to the single-thread render; shared devices fall back to the single-thread path.
+#[cfg(feature = "threads")]
+mod threads {
+    use synth_core::mix::{Env, Player, Song, DEFAULT_SUB};
+    use synth_core::pool::Pool;
+    use unisynth::rng::Xorshift;
+    use unisynth::UDevice;
+
+    /// `(parallel, output)` of 4410 frames, or `None` when the blob does not load (or wants > 64 MB of pool).
+    fn render(b: &[u8], threads: usize) -> Option<(bool, Vec<f32>)> {
+        let s = Song::parse(b).ok()?;
+        let env = Env::for_song(&s, None);
+        let need = Player::<UDevice, Xorshift>::required_pool(&s, &env, DEFAULT_SUB).ok().filter(|&n| n < 64 << 20)?;
+        let mut mem = vec![0u8; need];
+        let mut pool = Pool::new(&mut mem);
+        let mut p = Player::<UDevice, Xorshift>::new(s, &env, &mut pool, Xorshift::new(song::render::SEED), DEFAULT_SUB).ok()?;
+        let mut out = vec![0.0f32; 2 * 4410];
+        if threads == 0 {
+            p.render_f32(&mut out);
+        } else {
+            song::workers::with_workers(threads, |w| p.render_f32_par(&mut out, w));
+        }
+        Some((p.parallel(), out))
+    }
+
+    fn same(a: &[f32], b: &[f32]) -> bool {
+        a.len() == b.len() && a.iter().zip(b).all(|(x, y)| x.to_bits() == y.to_bits())
+    }
+
+    #[test]
+    fn mutated_blobs_render_in_parallel_like_serial() {
+        let b = super::demo_blob();
+        let (parallel, want) = render(&b, 0).unwrap();
+        assert!(parallel && same(&render(&b, 4).unwrap().1, &want));
+        let mut x = 0x2545_f491u32;
+        let mut rnd = || {
+            x ^= x << 13;
+            x ^= x >> 17;
+            x ^= x << 5;
+            x
+        };
+        let mut loaded = 0;
+        for _ in 0..1500 {
+            let mut m = b.clone();
+            for _ in 0..1 + rnd() % 3 {
+                let i = rnd() as usize % m.len();
+                m[i] = match rnd() % 3 {
+                    0 => rnd() as u8,
+                    1 => m[i].wrapping_add(1),
+                    _ => m[i] ^ (1 << (rnd() % 8)),
+                };
+            }
+            if let Some((_, want)) = render(&m, 0) {
+                loaded += 1;
+                let (_, got) = render(&m, 4).unwrap();
+                assert!(same(&got, &want), "mutated blob differs in parallel");
+            }
+        }
+        assert!(loaded > 100, "only {loaded} mutations loaded");
+    }
+
+    #[test]
+    fn device_on_two_tracks_falls_back() {
+        let mut m = song::blob::BlobM::read(&super::demo_blob()).unwrap();
+        let d = m.tracks[0].devices[0];
+        m.tracks[1].devices.push(d); // the lead instrument also runs on the pump track
+        let b = m.write();
+        let (parallel, want) = render(&b, 0).unwrap();
+        assert!(!parallel);
+        assert!(same(&render(&b, 4).unwrap().1, &want));
+    }
+}

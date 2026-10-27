@@ -9,7 +9,7 @@ description = "Live host for the DAW: the song player's mixer over an editable s
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-song = { path = "../song" }
+song = { path = "../song", default-features = false }
 dls.workspace = true
 gsm.workspace = true
 synth-core.workspace = true
