@@ -847,14 +847,23 @@ impl<'a> Voice<'a> {
     /// Adds this voice's output for `l.len()` frames (never across a control grid frame). `aux` is the device's aux
     /// input (V2 aux oscillators), `None` when it has none.
     /// `tap` (`probe` builds only): the instrument's filter-tap ring for this call and the ring frame of `l[0]`.
-    pub fn render(&mut self, l: &mut [f32], r: &mut [f32], #[cfg(feature = "probe")] tap: Option<(&mut crate::probe::Ring, usize)>) {
+    /// `aux` (`us-chan`): the instrument's extra input pairs (aux A l/r, aux B l/r, or none) and the offset of `l[0]`
+    /// in them, for the V2 aux oscillators.
+    pub fn render(
+        &mut self,
+        l: &mut [f32],
+        r: &mut [f32],
+        #[cfg(feature = "probe")] tap: Option<(&mut crate::probe::Ring, usize)>,
+        #[cfg(feature = "us-chan")] aux: (&[&mut [f32]], usize),
+    ) {
         // the editor's taps: one loop-invariant branch, so the player's loop is unchanged
         #[cfg(feature = "probe")]
         let (mut tap, mut at) = match tap {
             Some((t, a)) => (Some(t), a),
             None => (None, 0),
         };
-        for (lo, ro) in l.iter_mut().zip(r.iter_mut()) {
+        #[cfg_attr(not(feature = "us-chan"), allow(unused_variables))]
+        for (j, (lo, ro)) in l.iter_mut().zip(r.iter_mut()).enumerate() {
             let amp = self.amp.next();
             let (mut bl, mut br, mut send, mut mono) = (0.0f32, 0.0f32, 0.0f32, 0.0f32);
             for (((slot, ramps), wt), smp) in
@@ -866,7 +875,14 @@ impl<'a> Voice<'a> {
                 }
                 if cfg!(feature = "us-osc-v2") && slot.kind == Kind::V2 {
                     // V2 works on the voice's running sum: add, multiply (ring) or replace (FM, aux)
-                    match osc::v2_sample(slot, ramps, mono, (0.0, 0.0)) {
+                    #[cfg(feature = "us-chan")]
+                    let ax = match aux.0 {
+                        [al, ar, bl, br] => [(al[aux.1 + j], ar[aux.1 + j]), (bl[aux.1 + j], br[aux.1 + j])],
+                        _ => [(0.0, 0.0); 2],
+                    };
+                    #[cfg(not(feature = "us-chan"))]
+                    let ax = [(0.0, 0.0); 2];
+                    match osc::v2_sample(slot, ramps, mono, ax) {
                         osc::V2Out::Add(y) => (bl, br, mono) = (bl + y, br + y, mono + y),
                         osc::V2Out::Mul(y) => (bl, br, mono) = (bl * y, br * y, mono * y),
                         osc::V2Out::Set(y) => (bl, br, mono) = (y, y, y),

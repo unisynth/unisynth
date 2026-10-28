@@ -33,3 +33,11 @@ test("the report lists every song with its worst band and the listening state", 
   expect(md).toContain("| kkrieger | 5 | ERROR |");
   expect(md).toContain("Pending:");
 });
+
+test("aux-bus corpus songs get their own section", () => {
+  const md = formatRun({ rows: [{ name: "fr08", report: report(true) }, { name: "debris_ost", version: 6, report: report(true) }], signoff: { decision: "pending" }, generated: "2026-10-28" });
+  const [main, aux] = md.split("## Aux buses (corpus songs)");
+  expect(main).toContain("| fr08 |");
+  expect(main).not.toContain("debris_ost");
+  expect(aux).toContain("| debris_ost | 6 | PASS |");
+});

@@ -253,6 +253,13 @@ pub fn needs_add(p: &[f32; COUNT], i: usize) -> bool {
 }
 
 /// Whether mod slot `i` routes: it has a source and a valid target (what `Matrix::eval` makes active).
+/// Whether mod slot `i` is an Add route to parameter `param` (host: which levels a patch's routes can open).
+pub fn adds_to(p: &[f32; COUNT], i: usize, param: usize) -> bool {
+    let b = pm::modslot(i, 0);
+    let t = law::index(p[b + m::TARGET]);
+    routes(p, i) && op::decode(p[b + m::OPERATION]) == op::ADD && t >= target::PARAM && target::PARAMS.get((t - target::PARAM) as usize) == Some(&param)
+}
+
 pub fn routes(p: &[f32; COUNT], i: usize) -> bool {
     let b = pm::modslot(i, 0);
     let t = law::index(p[b + m::TARGET]);

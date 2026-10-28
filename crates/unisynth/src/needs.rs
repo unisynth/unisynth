@@ -191,6 +191,9 @@ pub fn instrument_why(chunk: &[u8], reach: Reach) -> Result<Why, LoadError> {
             add(&mut out, id, format!("{} is on ({what}){}", n(i), lane(i)));
         }
     }
+    if let Some(i) = (0..pm::OSC_SLOTS).find(|&i| crate::osc::v2_aux(&val, i)) {
+        add(&mut out, m::CHAN, format!("osc{} reads an aux bus (the extra input pairs)", i + 1));
+    }
     if choices(v::ONE_SHOT, 2).any(|c| c == 1) {
         add(&mut out, m::VOICE_ONESHOT, format!("{} is on{}", n(v::ONE_SHOT), lane(v::ONE_SHOT)));
     }

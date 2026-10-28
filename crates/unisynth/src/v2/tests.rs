@@ -79,6 +79,21 @@ fn moog_low_and_high_split_the_signal() {
     }
 }
 
+/// The Moog low-pass passes a tone well under its cutoff and cuts one well over it (V2's 4-pole, 2× oversampled);
+/// the sum check above holds for any filter, so this one pins the response.
+#[test]
+fn moog_low_pass_passes_lows_and_cuts_highs() {
+    let c = flt_coefs(fmode::MOOG_L, 64.0, 0.0, 44_100.0);
+    let rms = |hz: f32| {
+        let mut f = Flt::default();
+        let y: Vec<f32> = (0..8820).map(|i| f.run(fmode::MOOG_L, &c, 0.25 * (core::f32::consts::TAU * hz * i as f32 / 44_100.0).sin())).collect();
+        (y[4410..].iter().map(|v| v * v).sum::<f32>() / 4410.0).sqrt() / (0.25 * core::f32::consts::FRAC_1_SQRT_2)
+    };
+    let (low, high) = (rms(60.0), rms(12_000.0));
+    assert!(low > 0.7 && low < 1.3, "60 Hz passes: {low}");
+    assert!(high < 0.05, "12 kHz is cut: {high}");
+}
+
 #[test]
 fn distortion_modes() {
     let od = DistP::new(1.0, 40.0, 128.0, 64.0, 44_100.0); // gain 1.41: V2's atan is right below 2

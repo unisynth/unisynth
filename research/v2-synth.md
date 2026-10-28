@@ -155,8 +155,16 @@ Open decisions at the time of the survey (answered above):
   year-2000 envelope laws and the 4× box-filtered oscillators below version 3; the MSVC LCG noise below version 5;
   Ronan; and `fistp` rounding with the integer-indefinite collapse in the pre-v6 FM. kkrieger matches the default
   (Auto) engine profile, not `kkrieger2004`.
-- **Not done.** The aux-input oscillator modes (aux A/B are master-bus only; 11 of 359 songs use them, none of the
-  acceptance set). Bulk Modland fetch. The A/B listening is pending (`v2-signoff.json`).
+- **Aux buses** (task 5.2). V2 clears aux A/B every frame and renders channels in order, voices before the channel
+  stage. So an aux oscillator or aux receive on channel c hears exactly the aux sends of the lower channels. The
+  converter wires each reader straight to those senders' output pairs, with no bus track and no cycle. A send or
+  receive level counts as used when it is above 0 or an Add route moves it (often CC7). Of the 12 version 6 corpus
+  songs with aux readers or aux oscillators, 11 pass (`v2-report.md` lists debris_ost, fr-052_platinum and stars).
+  Testing them found a broken V2 Moog filter (feedback sign, double un-bias), now fixed. No acceptance song uses the
+  Moog filters.
+- **Known gap.** `Quickyman--tristar_bp2008-unsuspecting` fails: −1.7 dB, 63 Hz −5.5 dB. Its aux use is
+  self-send/receive only, so the cause is elsewhere (channels 5 and 6, FM and noise patches). A follow-up.
+- **Not done.** Bulk Modland fetch. The A/B listening is pending (`v2-signoff.json`).
 - **Size.** V2 songs build to 27.6–35.3 KB squishy (`tools/unisynth-parity/size.md`). Next to the build before the V2
   work, songs without V2 first cost up to +1.8 KB xz. After gating (design D11) they cost +180 to +470 B xz, and
   squishy is +0 or +512 B.

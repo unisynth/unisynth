@@ -914,6 +914,17 @@ mod osc_dls_instrument;
 #[cfg(all(feature = "us-osc-pm", feature = "us-noise", feature = "us-flt"))]
 mod flt_noise;
 
+/// Without the channel stage's build an aux oscillator has no extra input pairs: the patch does not load.
+#[cfg(all(feature = "us-osc-v2", feature = "us-env-timed", not(feature = "us-chan")))]
+#[test]
+fn an_aux_oscillator_needs_the_channel_stage_build() {
+    let mut p = pm::DEFAULTS;
+    p[pm::osc(0, o::TYPE)] = osc_type::encode(osc_type::V2);
+    p[pm::osc(0, o::SHAPE + pm::shape::V2_MODE)] = 7.0 / 128.0;
+    let c = crate::chunk::encode(&p, &[]);
+    assert_eq!(UInstrument::need(&c).err(), Some(LoadError::UnsupportedModule(crate::module::CHAN)));
+}
+
 // V2 modules (change add-v2-import)
 #[cfg(all(feature = "us-osc-v2", feature = "us-flt-v2", feature = "us-flt-route", feature = "us-vdist", feature = "us-env-v2", feature = "us-lfo-v2", feature = "us-v2-voice", feature = "us-chan", feature = "us-matrix-add", feature = "us-voice-lfo"))]
 mod v2;

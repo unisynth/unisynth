@@ -33,7 +33,7 @@
 ## 5. Song model: extra pairs
 
 - [x] 5.1 Run `doubt-driven-review` on the receive-field encoding (design D6), then implement it in `synth-core`: `Device::outputs()/inputs()` (default 0), receive decode (byte 0 receiving pair 0/2/4/6, byte 1 sending pair 0–4), buffers per track sized from the devices, threads-level dependencies, errors for missing pairs. Kind 64 declares 4 outputs and 2 inputs only when the patch uses sends or aux. Verify: the "Old blob unchanged", "Send output into a reverb bus", "Pair out of range" and "Aux input" scenarios; `research/size-threads/hashes.sh` and `research/us-bake-check/check.sh` unchanged
-- [ ] 5.2 V2 aux input mode of the V2 oscillator, and aux receive levels. Verify: an aux-A oscillator patch fed by a sine track outputs that sine through its filter; parity on one corpus song that uses aux A
+- [x] 5.2 V2 aux input mode of the V2 oscillator, and aux receive levels. Verify: an aux-A oscillator patch fed by a sine track outputs that sine through its filter; parity on one corpus song that uses aux A Done: aux oscillators read extra input pairs 1–2 (`us-chan`; test `an_aux_oscillator_plays_its_aux_bus`); readers receive from lower-channel senders (V2 frame order; Add-routed levels count); debris_ost, fr-052_platinum, stars pass (`v2-report.md`); found and fixed the V2 Moog filter.
 - [x] 5.3 Update `openspec`-referenced docs (`docs/synth/README.md` song model, `crates/synth-core/AGENTS.md`). Verify: `kb_search "receive output pair"` returns them
 
 ## 6. Song mapping and parity

@@ -169,3 +169,48 @@ fn the_channel_stage_volume_and_the_newest_voice_s_routes() {
     });
     assert!(db(rms(&x[24000..44100]), rms(&x[2000..22000])) < -10.0, "the quiet note sets the channel volume");
 }
+
+/// V2's aux oscillator (format version 6, `us-chan`): it plays the aux bus it reads, (l + r) · gain · 0.6, through the
+/// voice; aux A and aux B are the instrument's extra input pairs 1 and 2.
+#[cfg(feature = "us-chan")]
+#[test]
+fn an_aux_oscillator_plays_its_aux_bus() {
+    use synth_core::device::{EXT_CH, OUT_PAIRS};
+    let n = 8192;
+    let sine: Vec<f32> = (0..n).map(|i| (2.0 * std::f32::consts::PI * 300.0 * i as f32 / 44100.0).sin() * 0.25).collect();
+    // render with `bus` (0 = A, 1 = B) carrying the sine on both channels
+    let run = |mode: u8, bus: usize| {
+        with_ins(&v2patch(&[(mode, 0, 64, 64)], &[]), 44100.0, |ins| {
+            ins.note_on(60, 100, 0);
+            let mut ext: Vec<Vec<f32>> = vec![vec![0.0; n]; EXT_CH];
+            ext[2 * OUT_PAIRS + 2 * bus] = sine.clone();
+            ext[2 * OUT_PAIRS + 2 * bus + 1] = sine.clone();
+            let (mut a, mut b, mut c, mut d) = (vec![0.0; n], vec![0.0; n], vec![0.0; n], vec![0.0; n]);
+            let mut refs: Vec<&mut [f32]> = ext.iter_mut().map(|x| x.as_mut_slice()).collect();
+            let mut rng = Lcg(1);
+            let mut ctx = Ctx { rate: 44100.0, tempo: 120, frame: 0, rng: &mut rng };
+            ins.run_ext(&mut Io { ch: [&mut a, &mut b, &mut c, &mut d] }, &mut refs, n, &mut ctx);
+            a
+        })
+    };
+    let a = run(6, 0);
+    // past the attack: (sine + sine) · 0.6 · envelope 1 · V2's centre pan (√½), the DC filter barely touching 300 Hz
+    let (got, want) = (mag(&a[2048..n], 300.0), mag(&sine[2048..n], 300.0) * 2.0 * 0.6 * std::f64::consts::FRAC_1_SQRT_2);
+    assert!(db(got, want).abs() < 0.5, "{got} vs {want}");
+    assert!(mag(&run(7, 1)[2048..n], 300.0) > 0.9 * got, "aux B reads input pair 2");
+    assert!(mag(&run(6, 1)[2048..n], 300.0) < 1e-6, "aux A ignores aux B");
+}
+
+/// An aux oscillator needs the extra input pairs, so `needs` names the channel stage's module for it.
+#[cfg(feature = "std")]
+#[test]
+fn an_aux_oscillator_needs_the_channel_stage() {
+    let c = v2patch(&[(6, 0, 64, 64)], &[]);
+    let p = crate::chunk::Chunk::parse(&c).unwrap().values();
+    assert!(crate::osc::v2_aux(&p, 0));
+    let why = crate::needs::instrument_why(&c, &|_| None).unwrap();
+    assert!(why.contains_key(&crate::module::CHAN), "{why:?}");
+    // before version 6 V2 had no aux buses: the mode is silent and needs nothing
+    let old = v2patch(&[(6, 0, 64, 64)], &[(v2::ERA, pm::kinds::encode(5, 7))]);
+    assert!(!crate::osc::v2_aux(&crate::chunk::Chunk::parse(&old).unwrap().values(), 0));
+}

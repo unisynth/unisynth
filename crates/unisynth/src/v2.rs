@@ -176,17 +176,19 @@ impl Moog {
     #[inline]
     pub fn step(&mut self, real: f32, f: f32, p: f32, q: f32) -> f32 {
         let b = &mut self.b;
+        // V2Moog::step: the biased input minus the feedback, four poles `(in + prev)·p + state·f`, the cubic clip,
+        // un-biased once (the feedback state keeps that value)
         let x = real + DC_OFFSET - q * b[4];
         let t1 = b[1];
-        b[1] = (x + b[0]) * p - b[1] * f;
+        b[1] = (x + b[0]) * p + b[1] * f;
         let t2 = b[2];
-        b[2] = (t1 + b[1]) * p - b[2] * f;
+        b[2] = (t1 + b[1]) * p + b[2] * f;
         let t3 = b[3];
-        b[3] = (t2 + b[2]) * p - b[3] * f;
-        let mut b4 = (t3 + b[3]) * p - b[4] * f;
+        b[3] = (t2 + b[2]) * p + b[3] * f;
+        let mut b4 = (t3 + b[3]) * p + b[4] * f;
         b4 -= b4 * b4 * b4 * (1.0 / 6.0);
         b4 -= DC_OFFSET;
-        b[4] = b4 - DC_OFFSET;
+        b[4] = b4;
         b[0] = real;
         b4
     }
@@ -213,8 +215,12 @@ pub fn flt_coefs(mode: u8, cutoff: f32, reso: f32, rate: f32) -> [f32; 3] {
     } else {
         let f = f * 0.25;
         let t = 1.0 - f;
-        let p = f + 0.8 * f * t;
-        [1.0 - p - p, p, 4.0 * r * (1.0 + 0.5 * t * (1.0 - t + 5.6 * t * t))]
+        // `syFltSet`'s operand order: p = f + 0.8·(f·t), q = 4·r·(1 + 0.5·(t·(5.6·t² + (1 − t))))
+        let p = f + 0.8 * (f * t);
+        let qx = 5.6 * (t * t) + (1.0 - t);
+        let qb = r * (1.0 + 0.5 * (t * qx));
+        let q2 = qb + qb;
+        [1.0 - (p + p), p, q2 + q2]
     }
 }
 

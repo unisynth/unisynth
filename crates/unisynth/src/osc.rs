@@ -191,6 +191,15 @@ pub mod v2mode {
     pub const AUX_B: u8 = 7;
 }
 
+/// Whether oscillator slot `i` of patch `p` is a V2 aux oscillator (mode aux A or aux B, format version 6): it reads
+/// the aux buses through the instrument's extra input pairs, which only the channel stage's build has (`us-chan`).
+pub fn v2_aux(p: &[f32; crate::params::COUNT], i: usize) -> bool {
+    use crate::params as pm;
+    pm::osc_type::decode(p[pm::osc(i, pm::o::TYPE)]) == pm::osc_type::V2
+        && (pm::v2_raw(p[pm::osc(i, pm::o::SHAPE + pm::shape::V2_MODE)]) as i32 & 7) as u8 >= v2mode::AUX_A
+        && pm::era(p).0 >= 6
+}
+
 /// What a V2 slot does to the voice's running sum this sample.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum V2Out {
@@ -337,10 +346,10 @@ pub fn sample(slot: &mut Slot, wt: Option<&mut Wt>, src: &smp::Source, r: &mut S
 const TWO_32: f32 = 4_294_967_296.0;
 
 /// One sample of a V2 slot (`V2Osc::render*`, v2redux's assembly-faithful versions). `mono` is the voice's running sum
-/// (the FM modulator), `aux` the aux input pair of the selected bus. The counter advances by the ramped increment
+/// (the FM modulator), `aux` the aux A and aux B input pairs at this sample (the bus mixes so far in the frame). The counter advances by the ramped increment
 /// as V2's integer `freq`.
 #[inline]
-pub fn v2_sample(slot: &mut Slot, r: &mut SlotRamps, mono: f32, aux: (f32, f32)) -> V2Out {
+pub fn v2_sample(slot: &mut Slot, r: &mut SlotRamps, mono: f32, aux: [(f32, f32); 2]) -> V2Out {
     let mut st = slot.v2s.get();
     let y = v2_step(&mut st, r, mono, aux);
     slot.v2s.set(st);
@@ -348,7 +357,7 @@ pub fn v2_sample(slot: &mut Slot, r: &mut SlotRamps, mono: f32, aux: (f32, f32))
 }
 
 #[inline(always)]
-fn v2_step(slot: &mut V2Slot, r: &mut SlotRamps, mono: f32, aux: (f32, f32)) -> V2Out {
+fn v2_step(slot: &mut V2Slot, r: &mut SlotRamps, mono: f32, aux: [(f32, f32); 2]) -> V2Out {
     use crate::v2::{fastsin, fastsinrc, utof23};
     let inc = r.inc.next();
     let gain = r.gain.next() * r.mix.next();
@@ -470,7 +479,9 @@ fn v2_step(slot: &mut V2Slot, r: &mut SlotRamps, mono: f32, aux: (f32, f32)) -> 
             if t.ring { V2Out::Mul(y) } else { V2Out::Set(y) }
         }
         v2mode::AUX_A | v2mode::AUX_B => {
-            let a = (aux.0 + aux.1) * gain * 0.6;
+            // V2's `renderAux`: the bus's (l + r) · gain · 0.6 (fcgain), replacing the sum or ring-multiplying it
+            let (l, r) = aux[(t.mode - v2mode::AUX_A) as usize];
+            let a = (l + r) * gain * 0.6;
             V2Out::Set(if t.ring { a * mono } else { a })
         }
         _ => V2Out::Add(0.0),

@@ -35,6 +35,16 @@ export interface V2Run {
 
 export const passes = (r: V2Row) => !r.error && !!r.report?.pass;
 
+/** Corpus songs (not acceptance songs) that exercise the aux buses (task 5.2), relative to `$V2_SONGS`; skipped when absent. */
+export const AUX_SONGS: Record<string, string> = {
+  debris_ost: "fr_public/werkkzeug3__data__debris__debris_ost.v2m",
+  "fr-052_platinum": "modland/KB--fr-052_platinum.v2m",
+  stars: "modland/Jandor--stars.v2m",
+};
+
+/** The `.v2m` of a song: an acceptance song, or one of [`AUX_SONGS`]. */
+export const songPath = (name: string) => (AUX_SONGS[name] ? join(SONGS, AUX_SONGS[name]) : acceptancePath(name));
+
 /** Both renders cut to the shorter one. */
 export function cut(a: Audio, b: Audio): [Audio, Audio] {
   const n = Math.min(a.ch[0].length, b.ch[0].length);
@@ -57,7 +67,7 @@ export function formatRun(run: V2Run): string {
     "",
   ];
   if (run.skipped) L.push(`Skipped: ${run.skipped}.`, "");
-  const rows = run.rows;
+  const section = (rows: V2Row[]) => {
   L.push(`${rows.filter(passes).length} of ${rows.length} pass.`, "", "| song | ver | result | loudness Δ dB | worst band Δ dB | alignment corr | × real time | notes |", "|---|---:|---|---:|---:|---:|---:|---|");
   for (const r of rows) {
     if (r.error || !r.report) {
@@ -70,6 +80,13 @@ export function formatRun(run: V2Run): string {
     L.push(
       `| ${r.name} | ${r.version ?? ""} | ${rep.pass ? "PASS" : "FAIL"} | ${f2(rep.loudness.diff)} | ${f2(worst.diff)} @ ${worst.fc} | ${rep.onsets.corr === undefined ? "" : f2(rep.onsets.corr)} | ${rt} | ${(r.warnings ?? []).length ? `${r.warnings!.length} converter warning(s)` : ""} |`,
     );
+  }
+  };
+  section(run.rows.filter((r) => !AUX_SONGS[r.name]));
+  const aux = run.rows.filter((r) => AUX_SONGS[r.name]);
+  if (aux.length) {
+    L.push("", "## Aux buses (corpus songs)", "", "Songs outside the acceptance set that use V2's aux A/B buses (aux oscillators, aux receives).", "");
+    section(aux);
   }
   L.push("", "## A/B listening", "", run.signoff.decision === "pending" ? "Pending: the acceptance songs are rendered both ways (`--renders`) for the user to compare." : `Decision: **${run.signoff.decision}**${run.signoff.by ? ` by ${run.signoff.by}` : ""}${run.signoff.date ? ` on ${run.signoff.date}` : ""}.`);
   if (run.signoff.notes) L.push("", run.signoff.notes);
@@ -87,7 +104,7 @@ const ex = (n: string) => join(ROOT, "target", PROFILE, "examples", n);
 /** Reference → convert → render → compare, for one acceptance song. */
 export function runSong(name: string, work: string, reuse = false): V2Row {
   const row: V2Row = { name };
-  const v2m = acceptancePath(name);
+  const v2m = songPath(name);
   const conv = join(work, `${name}.song`), ours = join(work, `${name}_unisynth.wav`), cache = join(work, `${name}.json`);
   try {
     const ref = reference(v2m);
@@ -116,11 +133,11 @@ function main() {
   const opt = (k: string) => (a.includes(k) ? a.splice(a.indexOf(k), 2)[1] : undefined);
   const reportPath = opt("--report") ?? join(import.meta.dir, "v2-report.md");
   const renders = flag("--renders"), reuse = flag("--reuse");
-  const names = a.length ? a : [...ACCEPTANCE];
+  const names = a.length ? a : [...ACCEPTANCE, ...Object.keys(AUX_SONGS)];
   const signoffPath = join(import.meta.dir, "v2-signoff.json");
   const signoff = existsSync(signoffPath) ? JSON.parse(readFileSync(signoffPath, "utf8")) : { decision: "pending" };
   const run: V2Run = { rows: [], signoff, generated: new Date().toISOString().slice(0, 10) };
-  const missing = names.filter((n) => !existsSync(acceptancePath(n)));
+  const missing = names.filter((n) => !existsSync(songPath(n)));
   if (!existsSync(join(V2REDUX, "build/v2dump")) || missing.length === names.length) {
     run.skipped = `the V2 songs or v2redux are absent (V2_SONGS=${SONGS}, V2REDUX=${V2REDUX}; run tools/v2-extract/v2.ts gather)`;
     console.log(`skip: ${run.skipped}`);
@@ -134,7 +151,7 @@ function main() {
   mkdirSync(work, { recursive: true });
   for (const n of names.filter((x) => !missing.includes(x))) {
     const row = runSong(n, work, reuse);
-    row.version = JSON.parse(Bun.spawnSync([join(SONGS, ".bin/v2dumpjson"), acceptancePath(n)]).stdout.toString() || "{}").version;
+    row.version = JSON.parse(Bun.spawnSync([join(SONGS, ".bin/v2dumpjson"), songPath(n)]).stdout.toString() || "{}").version;
     run.rows.push(row);
     console.log(`${n}: ${passes(row) ? "PASS" : "FAIL"} ${row.error ?? ""}`);
     if (renders && !row.error) {
@@ -145,7 +162,7 @@ function main() {
       Bun.spawnSync(["ffmpeg", "-y", "-loglevel", "error", "-i", wav, "-b:a", "192k", wav.replace(/\.wav$/, ".mp3")]);
     }
   }
-  if (names.length === ACCEPTANCE.length) writeFileSync(reportPath, formatRun(run));
+  if (!a.length) writeFileSync(reportPath, formatRun(run));
   process.exit(run.rows.every(passes) ? 0 : 1);
 }
 

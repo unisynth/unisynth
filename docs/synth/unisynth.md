@@ -585,6 +585,10 @@ The channel stage runs once per instrument on the sum of its voices, in V2's ord
 (peak or RMS, 5700-frame lookahead, shared body with compressor `v2`), bass boost (150 Hz shelf), then distortion and
 chorus/flanger in `ch.fxroute` order, DC filter, ×0.6 · volume. The reverb, delay and aux A/B sends leave on extra
 output pairs 1–4 (reverb and delay mono, copied to both sides). The aux receives come in on extra input pairs 1–2.
+The same input pairs feed the V2 aux oscillators (modes aux A/B, format version 6): `(l + r) · gain · 0.6`,
+replacing the voice sum or ring-multiplying it. An aux oscillator needs `us-chan`, and `needs` names it. V2 clears
+the aux buses every frame and renders channels in order, so `synth-convert v2m` wires each reader to the aux sends
+of the lower MIDI channels only (`v2-report.md`, "Aux buses").
 Channel parameters (`ch.*`, targets 118–141) are modulated from the newest voice. A muted V2 channel still renders
 but feeds no bus. Without sends, `run` behaves as before and writes no extra pair.
 

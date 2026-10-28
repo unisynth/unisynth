@@ -87,3 +87,26 @@ fn events_land_on_v2_frames_and_old_versions_use_their_frame() {
     let (m1, _) = convert(&s);
     assert_eq!((first(&m6), first(&m1)), (768, 768)); // 689 frames: 768 both (6 × 128, 3 × 256)
 }
+
+#[test]
+fn an_aux_reader_hears_only_the_lower_channels_sends() {
+    // V2 clears the aux buses every frame and mixes the channels in order: channel 2's aux oscillator hears channel
+    // 1's aux A send, never channel 3's
+    let mut sender = patch(&[]);
+    sender.params[62] = 100; // aux A send
+    let mut reader = patch(&[]);
+    reader.params[2] = 6; // osc 1: aux A
+    let mut s = SongW::new(vec![sender.clone(), reader, sender]);
+    for (c, pg) in [(0usize, 0u8), (1, 1), (2, 2)] {
+        // notes after the program change (V2's patch count skips a note on the program change's tick)
+        s.chans[c] = ChanW { notes: vec![(10, 60, 100), (96, 60, 0)], programs: vec![(0, pg)], ..Default::default() };
+    }
+    let (m, warnings) = convert(&s);
+    assert!(warnings.iter().all(|w| !w.contains("aux")), "{warnings:?}");
+    let aux_in: Vec<Vec<(usize, usize)>> =
+        (0..3).map(|t| m.tracks[t].receives.iter().filter(|r| synth_core::device::recv::to(r.1) == 4).map(|r| (r.0, r.1)).collect()).collect();
+    let a_send = synth_core::device::recv::encode(3, 4);
+    assert_eq!(aux_in, [vec![], vec![(0, a_send)], vec![]]);
+    // no aux bus track: three instruments, reverb, delay, master
+    assert_eq!(m.tracks.len(), 6);
+}

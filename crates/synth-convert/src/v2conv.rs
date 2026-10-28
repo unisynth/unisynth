@@ -294,6 +294,8 @@ pub fn song_opts(s: &V2m, opts: Opts, warnings: &mut Vec<String>) -> Result<Song
         }
     }
     let mut m = SongM { tempo: 120, rate: RATE as i32, length: t.end_frame as f64 / RATE as f64 + tail, devices: vec![], lanes: vec![], tracks: vec![] };
+    // the MIDI channel of each instrument track (V2 mixes the aux buses in channel order)
+    let mut tch: Vec<u8> = vec![];
     for (&(c, pr), part) in parts.iter().filter(|(k, p)| mask & (1 << k.0) != 0 && p.notes.iter().any(|n| n.2.is_some())) {
         let Some(patch_v2) = s.patches.get(pr as usize) else {
             warnings.push(format!("channel {} plays program {pr}, which the song does not have; skipped", c + 1));
@@ -326,6 +328,7 @@ pub fn song_opts(s: &V2m, opts: Opts, warnings: &mut Vec<String>) -> Result<Song
             autos.extend(speech_autos(&speech_ctl[c as usize]));
         }
         m.tracks.push(Trk { volume: 1.0, receives: vec![], devices: vec![dev], lane: m.lanes.len() - 1, autos });
+        tch.push(c);
     }
     let n = m.tracks.len();
     let g = &s.globals;
@@ -346,31 +349,22 @@ pub fn song_opts(s: &V2m, opts: Opts, warnings: &mut Vec<String>) -> Result<Song
         m.tracks.len() - 1
     };
     use synth_core::device::recv;
-    // aux A/B: a bus per used aux, fed by the instruments' aux sends and read back by the ones that receive it (V2
-    // mixes them in channel order within a frame; an instrument that both sends and receives the same aux cannot do
-    // both here without a cycle, so its receive is dropped)
+    // a send or receive level is in use when it is above 0 or an Add route moves it (a controller often opens it)
+    let used = |v: &[f32; COUNT], i: usize| v[i] > 0.0 || (0..pm::MOD_SLOTS).any(|k| unisynth::modmx::adds_to(v, k, i));
+    // aux A/B. V2 clears both buses every frame and renders the channels in order, each one's voices (aux
+    // oscillators) and receive before its sends: a reader hears exactly the sends of the lower channels in the same
+    // frame. So each reader receives straight from those senders' aux output pair (no bus track, no cycle).
     let vals: Vec<[f32; COUNT]> = (0..n).map(|t| unisynth::chunk::Chunk::parse(&m.devices[m.tracks[t].devices[0]].chunk).unwrap().values()).collect();
-    let p = |t: usize| -> &[f32; COUNT] { &vals[t] };
     for (k, (send, rcv)) in [(ch::SEND_AUXA, ch::RECV_AUXA), (ch::SEND_AUXB, ch::RECV_AUXB)].into_iter().enumerate() {
-        let senders: Vec<usize> = (0..n).filter(|&t| p(t)[send] > 0.0).collect();
-        let readers: Vec<usize> = (0..n)
-            .filter(|&t| {
-                let v = p(t);
-                v[rcv] > 0.0 || (0..3).any(|i| {
-                    osc_type::decode(v[pm::osc(i, o::TYPE)]) == osc_type::V2 && (v[pm::osc(i, o::SHAPE + shape::V2_MODE)] * 128.0) as i32 & 7 == 6 + k as i32
-                })
-            })
-            .collect();
-        if senders.is_empty() || readers.is_empty() {
-            continue;
-        }
-        let b = bus(&mut m, None, senders.iter().map(|&t| (t, recv::encode(3 + k, 0), 1.0)).collect());
-        for &t in &readers {
-            if senders.contains(&t) {
-                warnings.push(format!("track {t} sends to and receives aux {}: its receive is dropped", ["A", "B"][k]));
+        let aux_mode = unisynth::osc::v2mode::AUX_A + k as u8;
+        for t in 0..n {
+            let v = &vals[t];
+            let osc = (0..3).any(|i| unisynth::osc::v2_aux(v, i) && (pm::v2_raw(v[pm::osc(i, o::SHAPE + shape::V2_MODE)]) as i32 & 7) as u8 == aux_mode);
+            if !used(v, rcv) && !osc {
                 continue;
             }
-            m.tracks[t].receives.push((b, recv::encode(0, 4 + 2 * k), 1.0));
+            let from: Vec<usize> = (0..n).filter(|&u| tch[u] < tch[t] && used(&vals[u], send)).collect();
+            m.tracks[t].receives.extend(from.into_iter().map(|u| (u, recv::encode(3 + k, 4 + 2 * k), 1.0)));
         }
     }
     let rvb = bus(&mut m, Some(fx(unisynth::kind::REVERB, 3, &g[0..4])), (0..n).map(|t| (t, recv::encode(1, 0), 1.0)).collect());

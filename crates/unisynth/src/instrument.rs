@@ -120,7 +120,7 @@ fn check_v2(values: &[f32; COUNT]) -> Result<(), LoadError> {
         uses(law::choice(values[pm::v2::VOICE], 2) == 1, m::V2_VOICE)?;
     }
     if !cfg!(feature = "us-chan") {
-        uses(law::choice(values[pm::ch::ON], 2) == 1, m::CHAN)?;
+        uses(law::choice(values[pm::ch::ON], 2) == 1 || (0..pm::OSC_SLOTS).any(|i| crate::osc::v2_aux(values, i)), m::CHAN)?;
     }
     Ok(())
 }
@@ -277,7 +277,17 @@ fn v2_frame(rate: f32) -> u64 {
 /// Renders the frames `l.len()` from absolute frame `abs`, ticking the control grid.
 /// `base` = frame of `l[0]` in the device call (where the editor's taps write).
 #[cfg_attr(not(feature = "probe"), allow(unused_variables))]
-fn render_span(voices: &mut VoicePool<Voice>, sh: &Shared, abs: u64, l: &mut [f32], r: &mut [f32], base: usize, #[cfg(feature = "probe")] mut tap: Option<&mut crate::probe::Ring>) {
+#[allow(clippy::too_many_arguments)]
+fn render_span(
+    voices: &mut VoicePool<Voice>,
+    sh: &Shared,
+    abs: u64,
+    l: &mut [f32],
+    r: &mut [f32],
+    base: usize,
+    #[cfg(feature = "probe")] mut tap: Option<&mut crate::probe::Ring>,
+    #[cfg(feature = "us-chan")] aux: &[&mut [f32]],
+) {
     let mut pos = 0;
     while pos < l.len() {
         let at = abs + pos as u64;
@@ -295,10 +305,14 @@ fn render_span(voices: &mut VoicePool<Voice>, sh: &Shared, abs: u64, l: &mut [f3
         let seg = voices.voices_mut().iter().filter(|v| v.is_on()).map(|v| v.left()).fold(to_grid, u32::min).max(1) as usize;
         let seg = seg.min(l.len() - pos);
         for v in voices.voices_mut().iter_mut().filter(|v| v.is_on()) {
-            #[cfg(feature = "probe")]
-            v.render(&mut l[pos..pos + seg], &mut r[pos..pos + seg], tap.as_deref_mut().map(|t| (t, base + pos)));
-            #[cfg(not(feature = "probe"))]
-            v.render(&mut l[pos..pos + seg], &mut r[pos..pos + seg]);
+            v.render(
+                &mut l[pos..pos + seg],
+                &mut r[pos..pos + seg],
+                #[cfg(feature = "probe")]
+                tap.as_deref_mut().map(|t| (t, base + pos)),
+                #[cfg(feature = "us-chan")]
+                (aux, base + pos),
+            );
         }
         pos += seg;
     }
@@ -319,6 +333,7 @@ fn play(
     r: &mut [f32],
     #[cfg(feature = "probe")] mut tap: Option<&mut crate::probe::Ring>,
     #[cfg(feature = "us-speech")] mut speech: Option<&mut crate::speech::Ronan>,
+    #[cfg(feature = "us-chan")] aux: &[&mut [f32]],
 ) {
     events.run(n, |step| match step {
         Step::Event { at, kind } => {
@@ -344,7 +359,18 @@ fn play(
             }
         }
         Step::Render { start, len } => {
-            render_span(voices, &sh, frame0 + start as u64, &mut l[start..start + len], &mut r[start..start + len], start, #[cfg(feature = "probe")] tap.as_deref_mut());
+            render_span(
+                voices,
+                &sh,
+                frame0 + start as u64,
+                &mut l[start..start + len],
+                &mut r[start..start + len],
+                start,
+                #[cfg(feature = "probe")]
+                tap.as_deref_mut(),
+                #[cfg(feature = "us-chan")]
+                aux,
+            );
         }
     });
 }
@@ -459,7 +485,26 @@ impl UInstrument<'_> {
         if let Some(t) = taps.as_mut() {
             t.begin(n);
         }
-        play(events, voices, rng, seq, sh, ctx.frame, n, l, r, #[cfg(feature = "probe")] taps.as_mut(), #[cfg(feature = "us-speech")] speech.as_mut());
+        // the aux A/B input pairs, which V2's aux oscillators read (`us-chan`: only it brings the extra pairs)
+        #[cfg(feature = "us-chan")]
+        let aux: &[&mut [f32]] = if ext.len() >= synth_core::device::EXT_CH { &ext[2 * synth_core::device::OUT_PAIRS..] } else { &[] };
+        play(
+            events,
+            voices,
+            rng,
+            seq,
+            sh,
+            ctx.frame,
+            n,
+            l,
+            r,
+            #[cfg(feature = "probe")]
+            taps.as_mut(),
+            #[cfg(feature = "us-speech")]
+            speech.as_mut(),
+            #[cfg(feature = "us-chan")]
+            aux,
+        );
         #[cfg(feature = "probe")]
         if let Some(t) = taps.as_mut() {
             t.end();

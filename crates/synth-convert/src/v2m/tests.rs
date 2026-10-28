@@ -166,7 +166,8 @@ fn upgrade_matches_v2redux_on_the_corpus() {
 fn timeline_matches_the_v2_sequencer() {
     let (Some(dump), Some(seq)) = (oracle("v2dumpjson"), oracle("v2events")) else { return };
     let tmp = std::env::temp_dir().join(format!("v2seq-{}", std::process::id()));
-    for p in corpus(&["acceptance"]) {
+    let extra: Vec<PathBuf> = std::env::var("V2_TIMELINE_EXTRA").map(|v| v.split(':').map(PathBuf::from).collect()).unwrap_or_default();
+    for p in corpus(&["acceptance"]).into_iter().chain(extra) {
         Command::new(&dump).arg(&p).arg("--canon").arg(&tmp).output().unwrap();
         let out = String::from_utf8(Command::new(&seq).arg(&tmp).output().unwrap().stdout).unwrap();
         let s = parse(&std::fs::read(&p).unwrap()).unwrap();
