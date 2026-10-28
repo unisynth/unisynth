@@ -7,8 +7,16 @@
 //!   with one Euler step per control segment. Quirks: the decay can rise when `d·M` is above ≈ 1.02 (here it then holds
 //!   at the peak instead of growing past 1), and the sustain level is fixed at note-on (no chase).
 //!
-//! Parameters are snapshotted at note-on ([`EnvP`]), like the original envelopes.
+//! - V2 mode (change add-v2-import, `us-env-v2`): V2's per-frame envelope (344.53 frames per second at every rate):
+//!   attack adds `2^(7 − 0.09375·ar)` per frame up to 128, decay multiplies by `1 − 2^(−11·dr/128)` down to the
+//!   sustain level, sustain multiplies by `2^(0.0019375·(sr − 64))` (the sustain time: falls below 64, rises above,
+//!   clamped at 128), release multiplies by `1 − 2^(−11·rr/128)`; below `2^-13` it stops. Output `val/128 · amplify`.
+//!   Integrated in closed form over fractional frames. V2 fields are raw / 128.
+//!
+//! Parameters are snapshotted at note-on ([`EnvP`]), like the original envelopes, except V2 mode, which V2 re-reads
+//! every frame (the voice passes the current, matrix-modulated values).
 
+#[cfg(feature = "us-env-timed")]
 use crate::law;
 use crate::params::{self as pm, e};
 
@@ -35,6 +43,12 @@ pub enum Stage {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct EnvP {
     pub by_rate: bool,
+    /// V2 mode (`env_mode::V2`); `a, d, s, slope, r` are then raw / 128 and `amp` is the amplify.
+    pub v2: bool,
+    pub amp: f32,
+    /// V2 format version below 2: 256-sample frames and the year-2000 curves (v2redux `DELTA_FRAME256`,
+    /// `DELTA_ENV_CURVES`).
+    pub v2_old: bool,
     pub a: f32,
     pub d: f32,
     pub s: f32,
@@ -52,6 +66,14 @@ const fn of_mode(by_rate: bool) -> bool {
     }
 }
 
+/// Fails with `UnsupportedModule(ENV_V2)` for a V2-mode envelope in a build without `us-env-v2`.
+pub fn check_v2(v2: bool) -> Result<(), synth_core::mix::LoadError> {
+    if v2 && !cfg!(feature = "us-env-v2") {
+        return Err(synth_core::mix::LoadError::UnsupportedModule(crate::module::ENV_V2));
+    }
+    Ok(())
+}
+
 /// Fails with `UnsupportedModule` when the build lacks the mode `by_rate` asks for.
 pub fn check(by_rate: bool) -> Result<(), synth_core::mix::LoadError> {
     let (have, id) = if by_rate {
@@ -67,11 +89,15 @@ pub fn check(by_rate: bool) -> Result<(), synth_core::mix::LoadError> {
 }
 
 impl EnvP {
-    pub const DEFAULT: EnvP = EnvP { by_rate: false, a: 0.0, d: 0.3, s: 1.0, r: 0.1, slope: 0.5 };
+    pub const DEFAULT: EnvP = EnvP { by_rate: false, v2: false, amp: 1.0, v2_old: false, a: 0.0, d: 0.3, s: 1.0, r: 0.1, slope: 0.5 };
 
     pub fn read(p: &[f32; pm::COUNT], i: usize) -> Self {
+        let mode = pm::env_mode::decode(p[pm::env(i, e::MODE)]);
         EnvP {
-            by_rate: of_mode(law::choice(p[pm::env(i, e::MODE)], 2) == 1),
+            by_rate: of_mode(mode == pm::env_mode::RATE),
+            v2: cfg!(feature = "us-env-v2") && mode == pm::env_mode::V2,
+            amp: if cfg!(feature = "us-env-v2") { p[pm::env_amp(i)] } else { 1.0 },
+            v2_old: cfg!(feature = "us-env-v2") && pm::era(p).0 < 2,
             a: p[pm::env(i, e::ATTACK)],
             d: p[pm::env(i, e::DECAY)],
             s: p[pm::env(i, e::SUSTAIN)],
@@ -96,15 +122,18 @@ pub struct Env {
     /// Current value; at note-off, the value the release starts from.
     v: f32,
     from: f32,
+    /// V2 mode: V2's `val` (0..128).
+    #[cfg_attr(not(feature = "us-env-v2"), allow(dead_code))]
+    val: crate::v2::Opt<f32>,
 }
 
 impl Env {
     pub const fn new() -> Self {
-        Env { stage: Stage::Finished, pos: 0.0, v: 0.0, from: 0.0 }
+        Env { stage: Stage::Finished, pos: 0.0, v: 0.0, from: 0.0, val: crate::v2::Opt::new(0.0) }
     }
 
     pub fn trigger(&mut self) {
-        *self = Env { stage: Stage::Attack, pos: 0.0, v: 0.0, from: 0.0 };
+        *self = Env { stage: Stage::Attack, pos: 0.0, v: 0.0, from: 0.0, val: crate::v2::Opt::new(0.0) };
     }
 
     /// Starts the release from the current value (no effect before the note or once released).
@@ -121,6 +150,11 @@ impl Env {
         self.v
     }
 
+    /// V2 mode: note-on restarts the attack from the current level (V2 keeps `val` unless the key sync is full).
+    pub fn trigger_v2(&mut self) {
+        self.stage = Stage::Attack;
+    }
+
     #[inline]
     pub fn stage(&self) -> Stage {
         self.stage
@@ -133,6 +167,10 @@ impl Env {
 
     /// Advances by `dt` seconds. `decay_mod` scales the rate-mode decay (mod matrix `M(decay)`; 1 = none).
     pub fn advance(&mut self, dt: f32, ep: &EnvP, decay_mod: f32) {
+        #[cfg(feature = "us-env-v2")]
+        if cfg!(feature = "us-env-v2") && ep.v2 {
+            return self.advance_v2(dt, ep);
+        }
         #[cfg(feature = "us-env-rate")]
         if ep.by_rate {
             return self.advance_tf(dt, ep, decay_mod);
@@ -239,6 +277,74 @@ impl Env {
     }
 }
 
+#[cfg(feature = "us-env-v2")]
+impl Env {
+    /// V2 mode: `val` is V2's `val` (0..128), `v` the output `val/128 · amplify`.
+    fn advance_v2(&mut self, dt: f32, ep: &EnvP) {
+        use crate::fm::{exp2f, log2, powf};
+        use crate::v2::{calcfreq, calcfreq2, FRAMES_PER_S, LOWEST};
+        let raw = |x: f32| x * 128.0;
+        // format versions below 2 step every 256 samples with the year-2000 laws
+        let (per_s, amul, rate) = if ep.v2_old { (FRAMES_PER_S * 0.5, -0.085_937_5, calcfreq as fn(f32) -> f32) } else { (FRAMES_PER_S, -0.093_75, calcfreq2 as fn(f32) -> f32) };
+        let mut n = dt * per_s;
+        let mut val = self.val.get();
+        loop {
+            match self.stage {
+                Stage::Attack => {
+                    let atd = exp2f(raw(ep.a) * amul + 7.0);
+                    let need = (128.0 - val) / atd;
+                    if n >= need {
+                        n -= need;
+                        val = 128.0;
+                        self.stage = Stage::Decay;
+                    } else {
+                        val += atd * n;
+                        break;
+                    }
+                }
+                Stage::Decay => {
+                    let dcf = 1.0 - rate(1.0 - ep.d);
+                    let sul = raw(ep.s);
+                    if val <= sul || dcf <= 0.0 {
+                        val = val.min(sul).max(if dcf <= 0.0 { sul } else { 0.0 });
+                        self.stage = Stage::Sustain;
+                        continue;
+                    }
+                    // frames until val·dcfⁿ reaches sul
+                    let need = (log2((sul.max(1e-30) / val) as f64) / log2(dcf as f64)) as f32;
+                    if n >= need {
+                        n -= need;
+                        val = sul;
+                        self.stage = Stage::Sustain;
+                    } else {
+                        val *= powf(dcf, n);
+                        break;
+                    }
+                }
+                Stage::Sustain => {
+                    val = (val * exp2f(0.001_937_5 * (raw(ep.slope) - 64.0) * n)).min(128.0);
+                    break;
+                }
+                Stage::Release => {
+                    let rf = 1.0 - rate(1.0 - ep.r);
+                    val *= powf(rf.max(0.0), n);
+                    break;
+                }
+                Stage::Finished => {
+                    val = 0.0;
+                    break;
+                }
+            }
+        }
+        if val <= LOWEST {
+            *self = Env::new();
+            return;
+        }
+        self.val.set(val);
+        self.v = val / 128.0 * ep.amp;
+    }
+}
+
 impl Default for Env {
     fn default() -> Self {
         Env::new()
@@ -249,7 +355,7 @@ impl Default for Env {
 mod tests {
     use super::*;
 
-    const WS: EnvP = EnvP { by_rate: false, a: 0.0, d: 0.0, s: 0.5, r: 0.0, slope: 0.5 };
+    const WS: EnvP = EnvP { by_rate: false, v2: false, amp: 1.0, v2_old: false, a: 0.0, d: 0.0, s: 0.5, r: 0.0, slope: 0.5 };
 
     /// Advances `t` seconds in steps of `step`, returns the value.
     fn run(e: &mut Env, ep: &EnvP, t: f32, step: f32) -> f32 {
@@ -262,7 +368,7 @@ mod tests {
 
     fn ep_ms(a_ms: f32, d_ms: f32, s: f32, r_ms: f32) -> EnvP {
         let inv = |ms: f32| crate::law::host::inv_env_ms(ms);
-        EnvP { by_rate: false, a: inv(a_ms), d: inv(d_ms), s, r: inv(r_ms), slope: 0.5 }
+        EnvP { by_rate: false, v2: false, amp: 1.0, v2_old: false, a: inv(a_ms), d: inv(d_ms), s, r: inv(r_ms), slope: 0.5 }
     }
 
     #[test]
@@ -317,7 +423,7 @@ mod tests {
     }
 
     fn tf(a: f32, d: f32, s: f32, r: f32, slope: f32) -> EnvP {
-        EnvP { by_rate: true, a, d, s, r, slope }
+        EnvP { by_rate: true, v2: false, amp: 1.0, v2_old: false, a, d, s, r, slope }
     }
 
     /// The original per-block recurrence, step 1 block, as an independent model.

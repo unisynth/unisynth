@@ -3,6 +3,7 @@
 //! ```text
 //! synth-convert ws    <in.song> <out.song>             synth-mix song, legacy device kinds → unified kinds
 //! synth-convert tfm   <in.tfm> <out.song> [tail-s]     .tfm song → unified song (tail: seconds after the last event, default 4)
+//! synth-convert v2m   <in.v2m> <out.song> [tail-s]     Farbrausch V2 song (format versions 0–6) → unified song
 //! synth-convert patch <patch.txt> <phrase.txt> <out.song>
 //!                                                       one Tunefish patch (112 numbers) played by a phrase (`block note velocity` lines)
 //! synth-convert features <song>                          the unisynth cargo features the unified song needs (comma separated)
@@ -13,7 +14,7 @@
 use std::process::ExitCode;
 use synth_convert::Converted;
 
-const USAGE: &str = "usage: synth-convert ws <in.song> <out.song>\n       synth-convert tfm <in.tfm> <out.song> [tail-seconds]\n       synth-convert tf4m <in.tf4m> <out.song> [tail-seconds]   (2013 Tunefish 4 of Enigma Studio 4)\n       synth-convert tf4m-tfm <in.tf4m> <out.tfm>   (the same song in the final .tfm layout)\n       synth-convert patch <patch.txt> <phrase.txt> <out.song>\n       synth-convert features <unified.song> [--explain | --json] [--cost <marginal.csv>]\n       synth-convert rust <unified.song> <out.rs> [bank.dls]   (compo build: validated song as Rust + module assert)";
+const USAGE: &str = "usage: synth-convert ws <in.song> <out.song>\n       synth-convert tfm <in.tfm> <out.song> [tail-seconds]\n       synth-convert v2m <in.v2m> <out.song> [tail-seconds] [--channels hex] [--era auto|kkrieger2004]   (Farbrausch V2, format versions 0-6)\n       synth-convert tf4m <in.tf4m> <out.song> [tail-seconds]   (2013 Tunefish 4 of Enigma Studio 4)\n       synth-convert tf4m-tfm <in.tf4m> <out.tfm>   (the same song in the final .tfm layout)\n       synth-convert patch <patch.txt> <phrase.txt> <out.song>\n       synth-convert features <unified.song> [--explain | --json] [--cost <marginal.csv>]\n       synth-convert rust <unified.song> <out.rs> [bank.dls]   (compo build: validated song as Rust + module assert)";
 
 fn read(path: &str) -> Result<Vec<u8>, String> {
     std::fs::read(path).map_err(|e| format!("{path}: {e}"))
@@ -63,6 +64,25 @@ fn run(args: &[String]) -> Result<(), String> {
                 None => 4.0,
             };
             finish(synth_convert::tfm::convert_tfm(&read(input)?, tail).map_err(|e| format!("{input}: {e}"))?, output)
+        }
+        ["v2m", input, output, ..] => {
+            let mut o = synth_convert::v2conv::Opts::default();
+            let mut rest = args[3..].iter();
+            while let Some(a) = rest.next() {
+                match a.as_str() {
+                    // channels to keep, hex mask (bit 0 = MIDI channel 1): a parity aid
+                    "--channels" => {
+                        let m = rest.next().ok_or("--channels needs a hex mask")?;
+                        o.mask = u16::from_str_radix(m.trim_start_matches("0x"), 16).map_err(|_| format!("channel mask `{m}` is not hex"))?;
+                    }
+                    "--era" => {
+                        let e = rest.next().ok_or("--era needs a profile")?;
+                        o.profile = synth_convert::v2conv::Profile::parse(e).ok_or_else(|| format!("unknown engine profile `{e}` (auto, kkrieger2004)"))?;
+                    }
+                    t => o.tail = t.parse::<f64>().ok().filter(|t| *t >= 0.0).ok_or_else(|| format!("tail `{t}` is not a number of seconds"))?,
+                }
+            }
+            finish(synth_convert::v2conv::convert(&read(input)?, o).map_err(|e| format!("{input}: {e}"))?, output)
         }
         ["tf4m-tfm", input, output] => {
             let (tfm, warnings) = synth_convert::tfm::tf4m_to_tfm(&read(input)?).map_err(|e| format!("{input}: {e}"))?;

@@ -39,6 +39,10 @@ pub enum Law {
     ModAmount,
     /// Stored as is (sample index).
     Raw,
+    /// An expanded choice (`params::kinds`): `old` kinds of chunk v1, `all` kinds now; the value is the kind id.
+    Kinds { old: usize, all: usize },
+    /// A V2 field: `raw = 128·p` (design D4a).
+    V2Raw,
 }
 
 impl Law {
@@ -62,6 +66,8 @@ impl Law {
             Law::Choice(n) => law::choice(p, n) as f32,
             Law::Count(lo, hi) => law::count(p, lo, hi) as f32,
             Law::Index => law::index(p) as f32,
+            Law::Kinds { old, all } => kinds::decode(p, old, all - old, 0) as f32,
+            Law::V2Raw => v2_raw(p),
             Law::Pan | Law::Unit | Law::EnvTime | Law::Shape | Law::ModAmount | Law::Raw => p,
         }
     }
@@ -85,6 +91,13 @@ impl Law {
             Law::Choice(n) => inv::inv_choice(v as usize, n),
             Law::Count(lo, hi) => inv::inv_count(v as u32, lo, hi),
             Law::Index => inv::inv_index(v as u8),
+            Law::Kinds { old, all } => {
+                if v as usize >= all {
+                    return None;
+                }
+                kinds::encode(v as usize, old)
+            }
+            Law::V2Raw => v / 128.0,
             Law::Unit => v,
             Law::RatioFine | Law::Pan | Law::EnvTime | Law::Shape | Law::ModAmount | Law::Raw => return None,
         })
@@ -111,7 +124,7 @@ pub fn law_of(i: usize) -> Law {
     }
     if let Some(fld) = group(OSC, o::LEN, OSC_SLOTS) {
         return match fld {
-            o::TYPE => Choice(osc_type::COUNT),
+            o::TYPE => Kinds { old: osc_type::COUNT, all: osc_type::ALL },
             o::TRACKING => Choice(2),
             o::COARSE => Coarse,
             o::FINE => Fine,
@@ -136,14 +149,14 @@ pub fn law_of(i: usize) -> Law {
     }
     if let Some(fld) = group(FILT, f::LEN, FILT_SLOTS) {
         return match fld {
-            f::TYPE => Choice(filter_type::COUNT),
+            f::TYPE => Kinds { old: filter_type::COUNT, all: filter_type::ALL },
             f::CUTOFF => Cutoff,
             _ => Unit,
         };
     }
     if let Some(fld) = group(ENV, e::LEN, ENV_SLOTS) {
         return match fld {
-            e::MODE => Choice(2),
+            e::MODE => Kinds { old: env_mode::COUNT, all: env_mode::ALL },
             e::ATTACK | e::DECAY | e::RELEASE => EnvTime,
             _ => Unit,
         };
@@ -156,13 +169,24 @@ pub fn law_of(i: usize) -> Law {
             _ => Unit,
         };
     }
-    if let Some(fld) = group(MOD, m::LEN, MOD_SLOTS) {
+    let modfld = if let Some(f) = group(MOD, m::LEN, MOD_SLOTS1) { Some(f) } else { group(MOD2, m::LEN, MOD_SLOTS - MOD_SLOTS1) };
+    if let Some(fld) = modfld {
+        use crate::modmx::{op, source};
         return match fld {
-            m::SOURCE => Choice(10),
+            m::SOURCE => Kinds { old: source::COUNT, all: source::ALL },
             m::TARGET => Index,
             m::AMOUNT => ModAmount,
-            _ => Choice(2),
+            _ => Kinds { old: op::COUNT, all: op::ALL },
         };
+    }
+    if i == v2::VOICE || i == ch::ON || i == ch::SPEECH || i == lfo_ext(0, lx::MODE) || i == lfo_ext(1, lx::MODE) {
+        return Choice(2);
+    }
+    if i == v2::ERA {
+        return Kinds { old: 7, all: 8 };
+    }
+    if i >= V2G && i < COUNT {
+        return V2Raw;
     }
     if is_raw(i) {
         return Raw;
@@ -212,6 +236,33 @@ pub fn name(i: usize) -> String {
         String::from(["ctl.wheel", "ctl.bend", "ctl.bend_range"][i - CTL])
     } else if i == ext::NOISE_WIDTH {
         String::from("noise.width")
+    } else if i < VDIST {
+        String::from(["v2.voice", "v2.keysync", "v2.era", "v2.routing", "v2.balance"][i - V2G])
+    } else if i < ENV_AMP {
+        format!("vdist.{}", ["mode", "gain", "p1", "p2"][i - VDIST])
+    } else if i < LFO_EXT {
+        format!("env{}.amplify", i - ENV_AMP + 1)
+    } else if i < MOD2 {
+        let r = i - LFO_EXT;
+        format!("lfo{}.{}", r / lx::LEN + 1, ["mode", "phase", "polarity", "eg"][r % lx::LEN])
+    } else if i < CC {
+        slot(MOD2 - MOD_SLOTS1 * m::LEN, m::LEN, &M, "mod")
+    } else if i < CH {
+        format!("ctl.cc{}", i - CC + 2)
+    } else if i < CH + ch::LEN {
+        format!(
+            "ch.{}",
+            ["on", "volume", "boost", "fx_order", "send_reverb", "send_delay", "send_aux_a", "send_aux_b", "recv_aux_a", "recv_aux_b", "speech", "speech_ctl4", "speech_ctl5"][i - CH]
+        )
+    } else if i >= ch::DIST && i < ch::CHORUS {
+        format!("ch.dist_{}", ["mode", "gain", "p1", "p2"][i - ch::DIST])
+    } else if i >= ch::CHORUS && i < ch::COMP {
+        format!("ch.chorus_{}", ["amount", "feedback", "delay_l", "delay_r", "rate", "depth", "phase"][i - ch::CHORUS])
+    } else if i >= ch::COMP && i < COUNT {
+        format!(
+            "ch.comp_{}",
+            ["mode", "couple", "auto_gain", "lookahead", "threshold", "ratio", "attack", "release", "out_gain"][i - ch::COMP]
+        )
     } else {
         format!("param{i}")
     }

@@ -26,6 +26,10 @@ pub enum Kind {
     RbjHp,
     RbjBp,
     Notch,
+    /// V2's LRC filter (2× oversampled) in a `v2::fmode` (low, band, high, notch, all-pass); cutoff and resonance are
+    /// V2 raw / 128 ([`coefs_v2`]). Only in builds with `us-flt-v2` (the payload would cost every match).
+    #[cfg(feature = "us-flt-v2")]
+    V2(u8),
 }
 
 impl Kind {
@@ -40,6 +44,10 @@ impl Kind {
             ft::RBJ_HP => (Kind::RbjHp, module::FILTER_RBJ, cfg!(feature = "us-flt-rbj")),
             ft::RBJ_BP => (Kind::RbjBp, module::FILTER_RBJ, cfg!(feature = "us-flt-rbj")),
             ft::NOTCH => (Kind::Notch, module::FILTER_NOTCH, cfg!(feature = "us-flt-notch")),
+            #[cfg(feature = "us-flt-v2")]
+            ft::V2_LP..=ft::V2_MOOG_HP => (Kind::V2((ty - ft::V2_LP) as u8 + 1), module::FILTER_V2, true),
+            #[cfg(not(feature = "us-flt-v2"))]
+            ft::V2_LP..=ft::V2_MOOG_HP => return Err(LoadError::UnsupportedModule(module::FILTER_V2)),
             _ => return Ok(Kind::Off),
         };
         if on { Ok(kind) } else { Err(LoadError::UnsupportedModule(id)) }
@@ -58,6 +66,10 @@ impl Kind {
             Kind::Ladder => 2,
             Kind::RbjHp | Kind::RbjBp => 3,
             Kind::Notch => 4,
+            #[cfg(feature = "us-flt-v2")]
+            Kind::V2(m) if m >= crate::v2::fmode::MOOG_L => 6,
+            #[cfg(feature = "us-flt-v2")]
+            Kind::V2(_) => 5,
         }
     }
 }
@@ -126,6 +138,22 @@ pub fn coefs(kind: Kind, hz: f32, res: f32, rate: f32) -> [f32; NC] {
     }
 }
 
+/// The coefficients of V2 filter `kind` (`Kind::V2`) from cutoff and resonance (V2 raw / 128) at `rate`. Format
+/// versions below 6 have no Moog filter (`old_moog`): those modes then pass the signal (v2redux `DELTA_NO_MOOG`).
+#[cfg(feature = "us-flt-v2")]
+pub fn coefs_v2(kind: Kind, cutoff: f32, reso: f32, rate: f32, old_moog: bool) -> (Kind, [f32; NC]) {
+    match kind {
+        Kind::V2(m) => {
+            if old_moog && m >= crate::v2::fmode::MOOG_L {
+                return (Kind::Off, [0.0; NC]);
+            }
+            let c = crate::v2::flt_coefs(m, cutoff * 128.0, reso * 128.0, rate);
+            (kind, [c[0], c[1], c[2], 0.0, 0.0])
+        }
+        _ => (Kind::Off, [0.0; NC]),
+    }
+}
+
 /// One filter slot of a voice (or of the noise band): stereo state and the ramped coefficients.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Slot {
@@ -178,6 +206,8 @@ impl Slot {
                 Kind::SvfHp | Kind::SvfBp | Kind::SvfNotch => s[2] = x,
                 Kind::Ladder => s.iter_mut().for_each(|v| *v = x),
                 Kind::RbjHp | Kind::RbjBp | Kind::Notch => s.iter_mut().for_each(|v| *v = x),
+                #[cfg(feature = "us-flt-v2")]
+                Kind::V2(_) => {}
                 Kind::Off => {}
             }
         }
@@ -281,6 +311,18 @@ fn run(kind: Kind, c: &[f32; NC], s: &mut [f32; NS], x: f32) -> f32 {
         Kind::Notch if cfg!(feature = "us-flt-notch") => {
             let y = biquad(c, s, s[4]);
             s[4] = x;
+            y
+        }
+        #[cfg(feature = "us-flt-v2")]
+        Kind::V2(m) => {
+            use crate::v2::{fmode, Flt, Lrc, Moog};
+            let mut f = Flt { lrc: Lrc { l: s[0], b: s[1] }, moog: Moog { b: [s[0], s[1], s[2], s[3], s[4]] } };
+            let y = f.run(m, &[c[0], c[1], c[2]], x);
+            if m >= fmode::MOOG_L {
+                s[..5].copy_from_slice(&f.moog.b);
+            } else {
+                (s[0], s[1]) = (f.lrc.l, f.lrc.b);
+            }
             y
         }
         _ => x,

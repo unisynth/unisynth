@@ -7,11 +7,12 @@ cd "$(dirname "$0")/.."
 export PATH="$HOME/.cargo/bin:$PATH"
 MODULES="us-osc-pm us-osc-blit us-osc-wt us-osc-sample us-sample-gsm us-sample-dls us-noise
          us-flt-svf us-flt-ladder us-flt-rbj us-flt-notch us-env-timed us-env-rate
-         us-voice-lfo us-voice-glide us-voice-mono us-voice-unison us-voice-oneshot us-matrix us-automation"
+         us-voice-lfo us-voice-glide us-voice-mono us-voice-unison us-voice-oneshot us-matrix us-matrix-add us-speech us-automation
+         us-osc-v2 us-flt-v2 us-flt-route us-vdist us-env-v2 us-lfo-v2 us-v2-voice us-chan us-chunk-wide"
 FX="us-fx-distortion-shaper us-fx-distortion-curve us-fx-distortion-power us-fx-crusher us-fx-eq-parametric us-fx-eq-3band us-fx-delay-tempo
     us-fx-delay-ms us-fx-chorus us-fx-flanger-phaser us-fx-flanger-ring us-fx-reverb-freeverb us-fx-reverb-compact
-    us-fx-reverb-rooms us-fx-compressor us-fx-formant"
-SETS=("" $MODULES $FX "us-osc" "us-flt" "us-env" "us-voice" "us-fx" "us-all"
+    us-fx-reverb-rooms us-fx-compressor us-fx-formant us-fx-eq-cut us-fx-delay-v2 us-fx-reverb-v2 us-fx-compressor-v2"
+SETS=("" $MODULES $FX "us-osc" "us-flt" "us-env" "us-voice" "us-fx" "us-v2" "us-all"
       "us-osc,us-noise,us-flt,us-env,us-fx" "us-osc,us-noise,us-flt,us-env,us-voice,us-fx" "us-osc,us-noise,us-flt,us-env,us-voice,us-matrix,us-fx")  # the last three: everything but the voice paths / the matrix / automation (gated tests, goldens)
 fail=0
 run() { # name, args...

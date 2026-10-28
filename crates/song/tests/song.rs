@@ -416,7 +416,7 @@ fn cutoff_at_half_reads_5015_hz() {
     assert_eq!(p.unit, "Hz");
     assert!(t.param("capacity").unwrap().structural);
     let tg = t.param("mod1.target").unwrap();
-    assert_eq!((tg.options[0].as_str(), tg.options[5].as_str(), tg.options.len()), ("none", "osc1.gain", 78));
+    assert_eq!((tg.options[0].as_str(), tg.options[5].as_str(), tg.options.len()), ("none", "osc1.gain", unisynth::modmx::target::COUNT as usize));
 }
 
 #[test]
@@ -426,7 +426,7 @@ fn effect_tables_match_the_engine_parameter_counts() {
     use synth_core::pool::Pool;
     for &(kind, mode) in tables::EFFECT_MODES {
         let t = tables::table(kind, mode).unwrap_or_else(|| panic!("no table for {kind}/{mode}"));
-        let mut vals = vec![unisynth::law::host::inv_choice(mode, unisynth::fx::mode_count(kind))];
+        let mut vals = vec![unisynth::fx::mode_value(kind, mode)];
         vals.extend(t.params.iter().skip(1).map(|p| p.default));
         let chunk = unisynth::fx::encode(&vals);
         let env = Env { rate: 44100.0, tempo: 120, bank: None };

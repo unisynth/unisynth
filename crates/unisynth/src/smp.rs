@@ -183,6 +183,12 @@ pub struct State {
 }
 
 impl State {
+    /// Play position in source frames (the editor's probe).
+    #[cfg(feature = "probe")]
+    pub fn pos(&self) -> f64 {
+        self.pos
+    }
+
     pub const fn new() -> Self {
         State { pos: 0.0, rev: false, active: false }
     }
@@ -269,7 +275,7 @@ pub fn choice_of(v: &[f32; COUNT], slot: usize) -> (usize, u32) {
 }
 
 fn is_sampler(v: &[f32; COUNT], slot: usize) -> bool {
-    law::choice(v[osc(slot, o::TYPE)], osc_type::COUNT) == osc_type::SAMPLER
+    osc_type::decode(v[osc(slot, o::TYPE)]) == osc_type::SAMPLER
 }
 
 /// Pool bytes the decoded GSM samples of the sampler slots need (each distinct sample once).

@@ -16,7 +16,7 @@ fn set(p: &mut [f32; COUNT], i: usize, src: usize, tgt: u8, scale: bool, amount:
 }
 
 fn sources() -> Sources {
-    Sources { env: [1.0, 0.5, 0.0, 0.25], lfo_shape: [1.0, 0.0], wheel: 0.75, velocity: 0.5, key: 0.25 }
+    Sources { env: [1.0, 0.5, 0.0, 0.25], lfo_shape: [1.0, 0.0], lfo_add: [1.0, 0.0], wheel: 0.75, velocity: 0.5, key: 0.25, cc: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6], note: 60.0 }
 }
 
 #[test]
@@ -146,7 +146,11 @@ fn target_table() {
     assert_eq!((osc(0, OSC_PITCH), osc(0, OSC_SHAPE + 8), osc(1, OSC_PITCH), osc(2, OSC_SHAPE + 8)), (4, 18, 19, 48));
     assert_eq!(filter_cutoff(3), 58);
     assert_eq!(filter_resonance(3), 59);
-    assert_eq!(SLOT + 11, COUNT - 1);
+    assert_eq!(SLOT + 11, PARAM - 1);
+    assert_eq!(COUNT, PARAM + 64);
+    assert_eq!(param(PARAM), Some(crate::params::v::PAN));
+    assert_eq!(param(PARAM - 1), None);
+    assert!(!is_channel(PARAM + 39) && is_channel(PARAM + 40), "lfo2.depth is the last voice target, ch.volume the first channel one");
     for t in [PITCH, GAIN, NOISE_LEVEL, osc(0, OSC_PITCH), osc(2, OSC_GAIN), SLOT, SLOT + 11] {
         assert!(scales_physical(t), "{}", name(t));
     }
@@ -185,4 +189,64 @@ fn the_table_gives_every_target_what_scanning_the_slots_gives() {
     assert!(mm.scale(cutoff) != 1.0 && mm.offset(cutoff) != 0.0, "the case has something to compare");
     // a target past the table asks for nothing
     assert_eq!((tab.scale(200), tab.offset(200)), (1.0, 0.0));
+}
+
+#[cfg(feature = "us-matrix-add")]
+fn set_add(p: &mut [f32; COUNT], i: usize, src: usize, t: u8, amount: f32) {
+    p[modslot(i, m::SOURCE)] = source::encode(src);
+    p[modslot(i, m::TARGET)] = inv::inv_index(t);
+    p[modslot(i, m::OPERATION)] = op::encode(op::ADD);
+    p[modslot(i, m::AMOUNT)] = (amount + 1.0) / 2.0;
+}
+
+#[cfg(feature = "us-matrix-add")]
+#[test]
+fn add_slots_clamp_after_each_slot_in_order() {
+    // V2: cutoff 0.75, +0.5·velocity then −0.125·velocity at velocity 1 → clamp(1.25) = 1, then 0.875
+    let cut = crate::params::filt(0, crate::params::f::CUTOFF);
+    let t = target::PARAM + target::PARAMS.iter().position(|&i| i == cut).unwrap() as u8;
+    let mut p = DEFAULTS;
+    p[cut] = 0.75;
+    set_add(&mut p, 0, source::VELOCITY, t, 0.5);
+    set_add(&mut p, 13, source::VELOCITY, t, -0.125); // slots 13–16 count too
+    let mut mm = Matrix::new();
+    mm.eval(&p, &Sources { velocity: 1.0, ..sources() });
+    assert!(mm.has_adds());
+    let mut v = p;
+    mm.apply(&mut v, false);
+    assert_eq!(v[cut], 0.875);
+    // Scale and Offset do not see Add slots
+    assert_eq!((mm.scale(t), mm.offset(t)), (1.0, 0.0));
+    let tab = mm.tab();
+    assert_eq!((tab.scale(target::filter_cutoff(0)), tab.offset(target::filter_cutoff(0))), (1.0, 0.0));
+}
+
+#[cfg(feature = "us-matrix-add")]
+#[test]
+fn controller_and_v2_note_sources_and_legacy_targets() {
+    let vol = crate::params::ch::VOL;
+    let t = target::PARAM + target::PARAMS.iter().position(|&i| i == vol).unwrap() as u8;
+    let mut p = DEFAULTS;
+    p[vol] = 0.5;
+    set_add(&mut p, 0, source::CC2 + 5, t, -1.0); // volume controller: 0.6 in `src()`
+    let mut mm = Matrix::new();
+    mm.eval(&p, &sources());
+    let mut v = p;
+    mm.apply(&mut v, false);
+    assert_eq!(v[vol], 0.5, "a channel target is not a voice target");
+    mm.apply(&mut v, true);
+    assert!(near(v[vol], 0.0), "0.5 − 0.6, clamped");
+    // V2 note source: 2·(60 − 48)/128 at note 60
+    let pan = target::PARAM;
+    let mut p = DEFAULTS;
+    set_add(&mut p, 0, source::V2_NOTE, pan, 1.0);
+    mm.eval(&p, &sources());
+    let mut v = p;
+    mm.apply(&mut v, false);
+    assert!(near(v[crate::params::v::PAN], 0.5 + 24.0 / 128.0));
+    // an Add slot on a legacy target, and a Scale slot on a parameter target, do not route
+    let mut p = DEFAULTS;
+    set_add(&mut p, 0, source::VELOCITY, target::filter_cutoff(0), 1.0);
+    set(&mut p, 1, source::VELOCITY, target::PARAM, true, 1.0);
+    assert!(!routes(&p, 0) && !routes(&p, 1));
 }

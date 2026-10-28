@@ -189,6 +189,12 @@ fn device(cx: &mut Cx, p: &str, d: &Device) -> Option<&'static Table> {
             cx.err(vp, format!("value {v} must be a whole number"));
         }
     }
+    if !d.speech.is_empty() && k != unisynth::kind::INSTRUMENT {
+        cx.err(format!("{p}/speech"), "only the instrument speaks");
+    }
+    if d.speech.iter().map(|t| t.len() + 1).sum::<usize>() > u16::MAX as usize {
+        cx.err(format!("{p}/speech"), "the speech texts are longer than 65 535 bytes");
+    }
     if !d.samples.is_empty() && k != unisynth::kind::INSTRUMENT {
         cx.err(format!("{p}/samples"), "only the instrument holds samples");
     }

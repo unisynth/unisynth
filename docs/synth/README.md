@@ -96,6 +96,13 @@ songs of both legacy engines after `synth-convert`. The legacy crates stay until
 **READY** (every device and reference song within tolerance, and the A/B listening signed off); then the change
 `retire-legacy-synths` removes them.
 
+Farbrausch V2 songs (`.v2m`, format versions 0–6) import too (`synth-convert v2m`, change add-v2-import). The V2 voice,
+channel stage, Ronan speech and global effects are `unisynth` modules (`us-v2`). There is no legacy V2 crate: the
+reference is the external v2redux player, and `tools/unisynth-parity/v2-report.md` holds the parity of the 15
+acceptance songs. The channel stage's reverb, delay and aux sends travel on extra output pairs. A receive's channel
+field selects the sending and the receiving pair (`synth-core` feature `pairs`; old blobs are unchanged). See
+[unisynth.md](unisynth.md#v2-voice-change-add-v2-import) and [synth-core.md](synth-core.md#channels).
+
 | | Legacy engines | Unified (`unisynth`) |
 |---|---|---|
 | Kinds | 0–12 (WaveSabre), 32–39 (Tunefish) | 64 (instrument), 65–73 (effects, a mode per legacy effect) |

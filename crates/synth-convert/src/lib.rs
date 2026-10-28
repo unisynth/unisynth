@@ -13,6 +13,8 @@ pub mod patch;
 pub mod rust;
 pub mod tf;
 pub mod tfm;
+pub mod v2conv;
+pub mod v2m;
 
 use model::{Auto, Dev, SongM};
 use std::fmt;

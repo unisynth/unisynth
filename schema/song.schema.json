@@ -81,6 +81,7 @@
         "kind": { "type": "integer", "minimum": 64, "maximum": 73, "description": "64 instrument, 65–73 effects" },
         "values": { "type": "object", "additionalProperties": { "type": "number" }, "description": "parameter name → normalized value (raw sampler index 0..65535); effects: mode selects the parameter set" },
         "samples": { "type": "array", "maxItems": 255, "items": { "type": "string", "contentEncoding": "base64" } },
+        "speech": { "type": "array", "items": { "type": "string" }, "description": "Ronan speech texts (V2 phonemes), kind 64 only" },
         "bypass": { "type": "boolean" },
         "preset": { "type": "string" },
         "trailer": { "type": "integer" }

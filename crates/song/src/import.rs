@@ -28,7 +28,7 @@ fn device(k: u8, c: &[u8]) -> Result<Device, String> {
     if k <= 39 {
         return Err(format!("kind {k} is a legacy device; convert the song with synth-convert first"));
     }
-    let mut d = Device { kind: k, values: Values::default(), samples: vec![], bypass: false, preset: None, trailer: None };
+    let mut d = Device { kind: k, values: Values::default(), samples: vec![], speech: vec![], bypass: false, preset: None, trailer: None };
     if k == kind::INSTRUMENT {
         let ch = Chunk::parse(c).map_err(|e| format!("instrument chunk: {e:?}"))?;
         let t = tables::table(k, 0).ok_or("no instrument table")?;
@@ -38,6 +38,9 @@ fn device(k: u8, c: &[u8]) -> Result<Device, String> {
             }
         }
         d.samples = (0..ch.sample_count()).filter_map(|i| ch.sample_bytes(i)).map(crate::b64::encode).collect();
+        if !ch.text().is_empty() {
+            d.speech = ch.text().split(|&c| c == 0).map(|t| String::from_utf8_lossy(t).into_owned()).collect();
+        }
         return Ok(d);
     }
     if !fx::is_effect(k) {

@@ -70,7 +70,9 @@ flowchart LR
 
 ## Parameters
 
-184 values in groups: 181 normalized (0..1), the three sample indices (raw whole numbers) and the three controllers. A value outside its group's law is clamped, and NaN reads as 0.
+260 values in groups: everything normalized (0..1) except the three sample indices (raw whole numbers). Indices
+184–259 are the V2 part (change add-v2-import, below). A value outside its group's law is clamped, and NaN reads as
+0.
 
 | Group | Indices | Count | Fields |
 |---|---|---:|---|
@@ -83,7 +85,29 @@ flowchart LR
 | mod slot ×12 | 129–176 | 4 each | source, target, amount, operation |
 | sample index ×3 | 177–179 | 1 each | raw: the GSM sample number (1-based, 0 = none), DLS wave index or packed DLS instrument of oscillator slot 1–3 (`osc1.sample` …) |
 | controllers | 180–182 | 3 | `ctl.wheel` (0..1), `ctl.bend` (0..1, centre 0.5), `ctl.bend_range` (0..24 semitones, default 2) |
+| ext | 183 | 1 | `noise.width` |
+| V2 voice | 184–188 | 5 | `v2.voice` (off/on), `v2.keysync`, `v2.era` (`count 0..6`, default 6), `v2.routing`, `v2.balance` |
+| voice distortion | 189–192 | 4 | `vdist.mode/gain/p1/p2` |
+| envelope amplify ×4 | 193–196 | 1 each | `envN.amplify` (V2 envelope mode) |
+| LFO extras ×2 | 197–204 | 4 each | `lfoN.mode` (unisynth / V2 laws), `phase`, `polarity`, `eg` (one-shot) |
+| mod slot 13–16 | 205–220 | 4 each | as slots 1–12 (`us-matrix-add`) |
+| controllers 2–7 | 221–226 | 6 | `ctl.cc2` … `ctl.cc7` (breath, 3–6, volume; default CC7 = 127/128) |
+| channel stage | 227–237 | 11 | `ch.on`, `volume`, `boost`, `fx_order`, `send_reverb/delay/aux_a/aux_b`, `recv_aux_a/b`, `speech` |
+| free | 238–239 | 2 | |
+| channel stage, two-byte | 240–259 | 20 | `ch.dist_*` ×4, `ch.chorus_*` ×7, `ch.comp_*` ×9 |
 
+**V2 fields** store `V2 raw / 128` (`params::v2_raw`); the V2 code runs on the raw value plus its Add routes. That
+holds for every appended V2 parameter and for the existing fields that a V2 type or mode reads: oscillator
+coarse/fine/gain/shape, filter cutoff/resonance, envelope fields, LFO fields, and voice pan/transpose with `v2.voice`
+on. The defaults are V2's initial patch values with the stage switches off, so an older patch is unchanged.
+
+**Expanded choices.** Oscillator type, filter type, envelope mode, mod source and mod operation gained kinds without
+moving stored values. A choice of `n` kinds is read as `choice(p, 2n − 1)` (`params::kinds`): the old kind `k`
+(stored `k/(n − 1)`) lands on position `2k`, and the later kinds take the odd positions. Unused positions are off.
+Ids in code are semantic (`osc_type::V2 = 5`, `filter_type::V2_LP..V2_MOOG_HP = 9..15`, `env_mode::V2 = 2`,
+`source::CC2..CC2+5 = 10..15`, `source::V2_NOTE = 16`, `op::ADD = 2`). Use `decode`/`encode`, never `choice` on these
+fields. `inv_choice(k, n_old)` still encodes an old kind. The song tables list one option per stored position (`—` for
+unused positions).
 `shape[9]` means different things per oscillator type:
 
 | Type | shape[0..9] |
@@ -126,11 +150,21 @@ amount ≤ 0.1 semitone per byte). Tests: `crates/unisynth/src/params/tests.rs`.
 ## Chunk v1
 
 ```text
-u8 version = 1
-u8 n, n × { u8 index, f32 value }        only values that differ from the defaults, indices strictly increasing
+u8 version = 1 (2: + speech text)
+count n, n × { index, f32 value }        only values that differ from the defaults, indices strictly increasing
 u8 s,  s × { u32 size, GSM sample chunk } header + WAVEFORMATEX + blocks, nothing after the blocks
+version 2 only: u16 len ≥ 1, len bytes    Ronan speech text
 (end)
 ```
+
+Escapes (change add-v2-import), like UTF-8 lead bytes. A count byte `c < 0xFF` is the count, and `0xFF` is followed
+by a `u16` count of 255 or more. An index byte `b < 0xF0` is the index, and `0xF0 + k` is followed by a byte `x`:
+index `240 + 256k + x` (up to 4335). Chunks written before the escapes have the same bytes and the same meaning. The
+encoder writes the shortest form, and the reader rejects an escaped count below 255. A two-byte index is always 240 or
+more, so every index has one form. A version 2 chunk without `us-speech` fails with `UnsupportedModule(SPEECH)`. Reading
+escapes is module `us-chunk-wide` (implied by `us-chan`). Without it, an escape fails with
+`UnsupportedModule(CHUNK_WIDE)`, and the reader steps through 5-byte pairs as before, so a song without V2 pays
+nothing here (design D4, D11).
 
 ```mermaid
 flowchart TD
@@ -255,18 +289,21 @@ cycle). `sync` on restarts the phase at note-on, off joins the free-running phas
 
 ## Mod matrix
 
-12 slots `(source, target, amount, operation)`; `modmx.rs`.
+16 slots `(source, target, amount, operation)`; `modmx.rs`. Slots 13–16, the Add operation and the sources added after
+chunk v1 need `us-matrix-add` (change add-v2-import).
 
 ```mermaid
 flowchart TD
     subgraph sources
         e["envelopes 1–4"]
-        l["LFOs 1–2<br/>(scale or offset view)"]
-        w["wheel · velocity · key"]
+        l["LFOs 1–2<br/>(scale, offset or add view)"]
+        w["wheel · velocity · key · CC2–CC7 · V2 note"]
     end
     sources --> slot["slot i: res = amount × source × own_i"]
-    own["own_i = Π Scale results aimed at 'slot i amount'<br/>from the previous pass"] --> slot
+    own["own_i = Π Scale results aimed at 'slot i amount'<br/>from the previous pass (slots 1–12)"] --> slot
     slot --> op{"operation"}
+    op -->|Add| add["parameter target: v = clamp(v + res, 0, 1)<br/>in slot order, before every law"]
+    add --> base["the voice (or, for channel targets, the channel stage)<br/>reads the added parameters"]
     op -->|Scale| prod["scale(t) = Π res"]
     op -->|Offset| sum["offset(t) = Σ res"]
     prod --> norm["normalized space:<br/>f(base · scale) — cutoff, pan, shapes, decay, LFO depth"]
@@ -284,11 +321,19 @@ flowchart TD
 | 52–59 | filter `i` cutoff and resonance | normalized | ±19 980 Hz / ±1 |
 | 60–63, 64–65 | envelope decay, LFO depth | normalized | ±1 |
 | 66–77 | mod slot `i` own amount | physical (multiplies the slot result) | ±1 |
+| 78–141 | parameter targets (Add only): `target::PARAMS[t − 78]`, the 64 V2 parameters `sounddef.h` marks as destinations, in V2's order; 118–141 (`ch.*`) are channel targets | | |
+
+**Add** (V2's rule, design D3). The amount is `2p − 1` (V2's `(val − 64)/64`), and the sources are 0..1 (V2's value /
+128). Each Add slot adds `amount · source` to the normalized value of its parameter target and clamps to 0..1, in slot
+order, as V2's `storeV2Values` does per entry. Voice targets are applied where the voice reads its parameters
+(`voice::added`, before laws, envelopes and LFOs). Channel targets are applied by the channel stage from the newest
+voice. An Add slot on a target below 78, and a Scale or Offset slot on a parameter target, do not route.
 
 Sources: 0 none, 1–4 envelopes, 5–6 LFOs, 7 wheel (live input via `UInstrument::mod_wheel`), 8 velocity, 9 key
-(`note/127`). Evaluation order matters and mirrors Tunefish: slots run in order; a slot sees this pass's results of
+(`note/127`), 10–15 controllers 2–7 (`ctl.cc2..7`), 16 V2 note (`2·(note − 48)/128`). An Add slot reads an LFO as
+`depth · shape`, or as a V2-mode LFO's own output. Evaluation order matters and mirrors Tunefish: slots run in order; a slot sees this pass's results of
 earlier slots and the previous pass's results of later ones (the one-segment slot delay), which makes self-modulation
-and slot-to-slot depth modulation possible. The target ids are frozen with chunk v1.
+and slot-to-slot depth modulation possible. The target ids are frozen with chunk v1 (78–141 with change add-v2-import).
 
 ## Oscillator slots
 
@@ -491,6 +536,66 @@ are re-mapped by the converter). The matrix reaches it as Scale (on the normaliz
 to `0..19 980` Hz after the sum, as Slaughter does. All coefficients are computed for the song rate (cutoff clamped to
 0.49 · rate) once per control segment and ramp linearly across it.
 
+## V2 voice (change add-v2-import)
+
+`v2.voice` on switches a kind-64 instrument to Farbrausch V2's voice: its laws, its 128-frame control frame and its
+mono-then-pan output. The code ports V2's `synth_core.cpp` (public domain) and follows v2redux's `v2core.cpp` where the
+x87 assembly's rounding and bugs matter (fast sine below −π, the atan table path, `fistp` round-to-nearest, the
+integer-indefinite FM collapse). Every field below stores `V2 raw / 128`. `v2.era` holds the song's format version
+(0–6, 7 = the 2004 kkrieger build). Behaviour that changed between V2 builds is chosen from it, following v2redux's
+`v2eras.h` ledger.
+
+```mermaid
+flowchart LR
+    o1["osc 1–3<br/>(type V2)"] -->|"Add / Mul / Set"| sum["voice sum<br/>(mono)"]
+    sum --> route{"v2.routing"}
+    route -->|single| f1["filter 1"]
+    route -->|serial| f12["filter 1 → filter 2"]
+    route -->|parallel| fp["filter 1 ‖ filter 2<br/>(v2.balance)"]
+    f1 --> vd["voice distortion"]
+    f12 --> vd
+    fp --> vd
+    vd --> dc["DC filter (era ≥ 6)"] --> amp["× amp EG"] --> pan["pan → L/R"]
+    pan --> vs["channel sum<br/>(all voices)"]
+    vs --> sp["Ronan speech<br/>(us-speech)"] --> ch["channel stage<br/>(us-chan)"] --> out["main L/R"]
+    ch -.->|"reverb, delay, aux A/B"| ext["extra output pairs 1–4"]
+    auxin["extra input pairs 1–2"] -.-> ch
+```
+
+| Module | Feature | What it is |
+|---|---|---|
+| oscillator type `V2` | `us-osc-v2` | modes tri/saw (`shape` morphs), pulse (`shape` = width), sine, noise (LRC-filtered; `v2.color`), FM (from the previous slot), aux A/B; `v2.mode` Add/Mul/Set into the sum; `v2.ring` multiplies by the running sum. Coarse/fine as V2 transpose/detune. Format < 3: 4× box-averaged tri/saw and pulse; < 5: the MSVC LCG noise and the native-sine FM |
+| filter types `V2_LP`…`V2_MOOG_HP` | `us-flt-v2` | V2's state-variable low/band/high/notch/all-pass and the 4-pole Moog low/high (bypass below format 6, as V2 then) |
+| `v2.routing`, `v2.balance` | `us-flt-route` | single, serial, parallel with V2's balance law |
+| voice distortion | `us-vdist` | V2's dist modes: off, overdrive (atan), clip, bitcrusher, decimator, LP/BP/HP/notch/all-pass/Moog; `vdist.*` in/out gain, param 1/2 |
+| envelope mode V2 | `us-env-v2` | per-frame (344.5 /s) attack/decay/sustain/release in V2's 0..128 space, sustain time slope, `envN.amplify`; format < 2: the year-2000 laws and 256-frame frame |
+| LFO mode V2 | `us-lfo-v2` | saw/tri/pulse/sine/S&H, `lfoN.polarity` (+, −, ±), `eg` one-shot hold, phase, keysync reseed |
+| V2 voice | `us-v2-voice` | the voice path above (sum, DC filter, keysync, pan after distortion) |
+| channel stage | `us-chan` | see below; needs `synth-core/pairs` |
+| speech | `us-speech` | Ronan; text in chunk version 2 |
+| matrix Add | `us-matrix-add` | V2's mod rule, CC2–CC7 and V2 note sources, slots 13–16 |
+
+`us-v2` enables them all. A V2 oscillator outputs the same mono signal to both channels and ignores the slot pan; the
+voice pan applies after the distortion, as V2 does. A patch can still mix V2 and unisynth slots; only the V2 path is
+checked against V2.
+
+### Channel stage
+
+The channel stage runs once per instrument on the sum of its voices, in V2's order: aux receive, DC filter, compressor
+(peak or RMS, 5700-frame lookahead, shared body with compressor `v2`), bass boost (150 Hz shelf), then distortion and
+chorus/flanger in `ch.fxroute` order, DC filter, ×0.6 · volume. The reverb, delay and aux A/B sends leave on extra
+output pairs 1–4 (reverb and delay mono, copied to both sides). The aux receives come in on extra input pairs 1–2.
+Channel parameters (`ch.*`, targets 118–141) are modulated from the newest voice. A muted V2 channel still renders
+but feeds no bus. Without sends, `run` behaves as before and writes no extra pair.
+
+### Speech (Ronan)
+
+`us-speech` ports V2's Ronan formant speech synth (`ronan.cpp`, public domain). The chunk's text section (version 2)
+holds V2's speech texts, separated by NUL. The phoneme strings use V2's syntax (phoneme names, durations, `!` waits for
+a note-on, `_` for a note-off). Ronan runs on the voice sum before the channel stage. `speech_ctl4` selects the text
+and sets the rate (V2 CC4), and `speech_ctl5` sets the pitch (CC5). Note-ons and note-offs advance the waits. The table is V2's 69
+phonemes and 52 syllables, decoded at build time.
+
 ## Module features
 
 Every module sits behind a Cargo feature, so a build carries only what its songs use. A patch that needs a module the
@@ -510,6 +615,8 @@ build lacks fails at load with `UnsupportedModule(id)` (`module.rs` names the id
 | `us-voice-oneshot` | one-shot voices (sampler runs out, note-off ignored) | one-shot is on |
 | `us-matrix` | the mod matrix | any slot with a source and a target |
 | `us-automation` | the mixer's automation walk (song-level) | any track with an automation lane (refused by `Player::new`) |
+| `us-chunk-wide` | chunk escapes (index ≥ 240, ≥ 255 pairs); implied by `us-chan` | a chunk that uses an escape, at parse |
+| `us-matrix-add`, `us-speech`, `us-osc-v2`, `us-flt-v2`, `us-flt-route`, `us-vdist`, `us-env-v2`, `us-lfo-v2`, `us-v2-voice`, `us-chan` | the V2 modules ([V2 voice](#v2-voice-change-add-v2-import)) | an Add or controller route; non-empty speech text; the slot, filter, routing, distortion, envelope, LFO mode; `v2.voice`; any channel field off its default |
 
 Automating a parameter to a module the build lacks does not fail (the song is already loaded): a filter bypasses, an
 envelope runs the mode it has, an LFO reads 0, glide and slide snap, mono and unison play one poly voice, one-shot is off,
@@ -646,6 +753,17 @@ overlapping notes, releases, a late note). It pins the numbers: a changed law co
 hash. After an intended change run `UPDATE_GOLDEN=1 cargo test -p unisynth golden` and review the diff. The same patches
 are rendered at two caller block sizes and must match bit for bit.
 
+### Editor probe (`probe`, host only)
+
+The DAW's live view reads the instrument through the feature `probe` (implies `std`; never enabled in a player or
+size build): `UInstrument::probe()` returns each sounding voice (`VoiceSnap`: note-on id, note, amplitude, released,
+age, envelope levels and stages, LFO phases, sampler positions, cutoffs as normalized value + Offset Hz, see
+`probe::cutoff_hz`) and, after `set_taps(true)`, each active filter slot's mono input and output summed over the voices
+and scaled by each voice's amplitude (`probe::Ring`, the last 2048 frames). It only reads: with the feature on, the
+goldens run with taps on and must match. The tap code sits behind `cfg(feature = "probe")` in `Voice::render`, so the
+player's loop is unchanged (same i686 size); in the DAW build it is one branch per filter slot per frame (about 5 %
+render time with nothing watched). Change: `add-device-live-view`.
+
 ## Memory
 
 The instrument allocates nothing: the caller gives it a pool, and `UInstrument::need(chunk)` (also
@@ -697,6 +815,17 @@ flowchart LR
 | 71 reverb | freeverb (8): freeze, room, damp, width, low cut, high cut, dry/wet, pre-delay | compact (4): room, damp, wet, width | rooms (6): room size, feedback, low cut, high cut, dry/wet, pre-delay |
 | 72 compressor | compressor (7): sidechain key, input gain, threshold, ratio, attack, release, output gain | | |
 | 73 formant | formant (2): vowel, wet | | |
+
+V2 modes (change add-v2-import, features `us-fx-eq-cut`, `-delay-v2`, `-reverb-v2`, `-compressor-v2`) port V2's global
+effects. Their parameters store `V2 raw / 128` in V2's order, with `era` (format version) last. Their mode values
+sit between the old ones (`fx::mode_value`), so old stored modes are unchanged.
+
+| Kind | V2 mode |
+|---|---|
+| 67 EQ | cut (3): low cut, high cut, era (V2's post filters) |
+| 68 delay | v2 (8): volume, feedback, delay L, delay R, mod rate, mod depth, mod phase, era |
+| 71 reverb | v2 (5): time, high cut, low cut (no effect below format 4), volume, era; wet only, mono input |
+| 72 compressor | v2 (10): detect (off/peak/RMS), couple (stereo link), auto gain, lookahead, threshold, ratio, attack, release, out gain, era |
 
 Properties that hold for every mode:
 
@@ -765,6 +894,32 @@ its automation keeps the points and moves to parameter index + 1 (index 0 is the
 is copied: tempo, rate, length, lanes, track volumes, receives with their channel (main or sidechain) and volume,
 device order and automation timing. The output is written only when every device converted, so an error never leaves a
 partial file.
+
+### V2 songs (`.v2m`, change add-v2-import)
+
+Farbrausch's V2 synth (kb, 2000–2008; public domain) stores songs as `.v2m`. "v1/v2/v3" are its **format versions
+0–6**. Each version adds patch or global parameters: v1 compressors and boost, v2 transpose and ring mod, v3 filter
+balance, v4 reverb low cut, v5 LFO polarity, v6 aux sends. `src/v2m.rs` reads every version. It finds the version
+from the globals size and the patch sizes, and upgrades the file to the version 6 layout exactly as V2's own
+`ConvertV2M` does. The output is byte-identical to the v2redux loader on all 359 local songs.
+
+```text
+u32 timediv, u32 maxtime, u32 gdnum, gdnum × {time 3 planes, usecs u32, num, den, tpq}  (planar)
+16 × channel: u32 notes [+ notes 5 B, u32 pcs + 4 B, u32 bends + 5 B, 7 × (u32 ctls + 4 B)]   (3 delta-time planes, then
+              one plane per value, each value a wrapping delta of the previous one)
+u32 23 + globals, u32 size + patch block (u32 offsets, patches: 89 params, modnum, modnum × (source, amount, dest))
+u32 size + speech block (u32 n, n × u32 offset, zero-terminated phoneme strings)
+```
+
+`V2m::timeline(rate)` replays V2's sequencer: one tick per distinct event time, per channel in the order program,
+controllers 1–7, bend, notes. The first tick is at frame 0, and frames advance by V2's integer `UpdateSampleDelta`.
+Its remainder carries only on u32 overflow, so each segment is in effect truncated. The test against v2redux's
+sequencer is event-identical on the 15 acceptance songs. V2 reads bend values at the *program-change* plane width, so
+bends decode correctly only when a channel has as many program changes as bends. The timeline keeps this, because
+it is what the songs play.
+
+Songs, references and oracles live outside the repo: `tools/v2-extract` and `research/v2-intros.md`. The songs are
+© their authors and never committed.
 
 ### WaveSabre instruments
 
@@ -880,6 +1035,11 @@ $SC features /tmp/uni/tf.song
 $SC patch crates/synth-convert/examples/patch.txt crates/synth-convert/examples/phrase.txt /tmp/uni/pad.song
 cargo run -q --release -p unisynth --features std --example render -- /tmp/uni/pad.song /tmp/uni/pad.wav   # listen
 
+# a V2 song (no songs in the repo: `bun tools/v2-extract/v2.ts gather` fills $V2_SONGS); tail seconds, then
+# --channels <hex mask> / --era auto|kkrieger2004 for debugging
+V2=${V2_SONGS:-$HOME/Downloads/64k-tools/synth-lab/v2songs}/acceptance/fr08.v2m
+[ -f "$V2" ] && $SC v2m "$V2" /tmp/uni/fr08.song 4 && $SC features /tmp/uni/fr08.song
+
 # errors name the problem, exit non-zero and write nothing
 $SC ws /tmp/uni/slaughter.song /tmp/uni/again.song; echo "exit $?"      # already unified
 ```
@@ -983,7 +1143,14 @@ flowchart LR
   alike; the report also gives the shipped size profile (`release`, opt-level z). The unified synth is more generic
   than the legacy engines and depends more on the optimiser: at opt-level z it is slower relative to them.
 - **Size.** `research/us-size-probe/measure.sh` builds the i686 probe for the all-modules build and for each song's
-  feature list and writes `tools/unisynth-parity/size.md`, which the report includes.
+  feature list and writes `tools/unisynth-parity/size.md`, which the report includes (`V2_SONGS` adds V2 rows).
+- **V2.** `bun tools/unisynth-parity/v2.ts [--renders]` runs the 15 V2 acceptance songs: v2redux renders against
+  `synth-convert v2m` → unisynth, with the same song metrics and both renders cut to the shorter one. It writes
+  `v2-report.md` (15 of 15 pass) and reads the listening decision from `v2-signoff.json`. Without songs it skips.
+  V2 voice state sits in `v2::Opt` (zero-sized without a V2 voice feature, via the internal `us-v2-any`), so a build
+  without V2 does not carry it. A trusted build without a kind's V2 feature decodes that choice with the old law
+  (`params::kinds::decode_in`). Songs without V2 now cost +180 to +470 B xz over the build before V2 (`size.md`,
+  design D11).
 
 What the first full run found and fixed (task 7.2), in the order it was found:
 

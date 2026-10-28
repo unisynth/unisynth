@@ -15,6 +15,7 @@ use crate::smp::{self, Sample};
 use crate::params::{self as pm, v};
 use crate::ramp::Ramp;
 use crate::rng::Xorshift;
+use crate::v2::Opt;
 use synth_core::rng::Rng;
 use crate::law;
 use synth_core::voice::{Voice as PoolVoice, VoiceState};
@@ -42,10 +43,49 @@ pub const FINE: u32 = 8;
 /// 1.7 dB quieter than the original per-sample envelope).
 const FINE_SPAN: u32 = 256;
 
-/// The voice-wide pitch offset in semitones: transpose plus the pitch bend.
+/// The voice-wide pitch offset in semitones: transpose (V2's `raw − 64` with the V2 voice on) plus the pitch bend.
 fn tuning(p: &[f32; pm::COUNT]) -> f32 {
-    law::transpose(p[v::TRANSPOSE]) + law::bend_semitones(p[pm::ctl::BEND], p[pm::ctl::BEND_RANGE])
+    let tr = if v2_voice(p) { pm::v2_raw(p[v::TRANSPOSE]) - 64.0 } else { law::transpose(p[v::TRANSPOSE]) };
+    tr + law::bend_semitones(p[pm::ctl::BEND], p[pm::ctl::BEND_RANGE])
 }
+
+/// The V2 voice is on (`v2::VOICE`, `us-v2-voice`).
+#[inline]
+fn v2_voice(p: &[f32; pm::COUNT]) -> bool {
+    cfg!(feature = "us-v2-voice") && law::choice(p[pm::v2::VOICE], 2) == 1
+}
+
+/// The V2 format version the patch came from (`v2::ERA`, 6 for patches that are not V2's).
+#[inline]
+fn era(p: &[f32; pm::COUNT]) -> u32 {
+    pm::era(p).0
+}
+
+/// Version 6 sine, FM and arctangent (version 6, or the 2004 engine's version 5).
+#[inline]
+fn new_math(p: &[f32; pm::COUNT]) -> bool {
+    pm::era(p).1
+}
+
+/// LFO `k` runs V2's laws (`lfo_ext(k, MODE)`, `us-lfo-v2`).
+#[inline]
+fn lfo_v2(p: &[f32; pm::COUNT], k: usize) -> bool {
+    cfg!(feature = "us-lfo-v2") && law::choice(p[pm::lfo_ext(k, pm::lx::MODE)], 2) == 1
+}
+
+/// A V2-mode LFO's settings.
+fn lfo_v2p(p: &[f32; pm::COUNT], k: usize) -> crate::lfo::V2P {
+    crate::lfo::V2P::new(
+        p[pm::lfo(k, pm::l::SHAPE)],
+        p[pm::lfo(k, pm::l::RATE)],
+        p[pm::lfo(k, pm::l::DEPTH)],
+        p[pm::lfo_ext(k, pm::lx::POLARITY)],
+        p[pm::lfo_ext(k, pm::lx::EG)],
+    )
+}
+
+/// V2's noise seeds of the three oscillators (format version 6; earlier versions seed 0).
+const V2_SEEDS: [u32; 3] = [0xdead_beef, 0xbaad_f00d, 0xd3ad_c0de];
 
 /// What every voice call sees of its instrument.
 #[derive(Clone, Copy)]
@@ -63,6 +103,8 @@ pub struct NoteCx<'c> {
     pub frame: u64,
     /// An all-notes-off: releases even a one-shot voice.
     pub force: bool,
+    /// Note-on counter of the instrument: the voice with the highest is the newest (the channel stage reads it).
+    pub seq: u32,
 }
 
 impl NoteCx<'_> {
@@ -138,6 +180,8 @@ struct Fixed {
     vel: f32,
     /// Note `0..1` (mod source 9).
     key: f32,
+    /// Note number (V2's note source).
+    note: f32,
 }
 
 /// The part of the voice that advances with time at control rate.
@@ -149,33 +193,78 @@ struct Ctl {
     mm: Matrix,
 }
 
+/// The parameters with the Add slots of `mm` applied (V2's rule, before any law), or `None` when no Add slot routes.
+fn added(mm: &Matrix, p: &[f32; pm::COUNT]) -> Option<[f32; pm::COUNT]> {
+    if !cfg!(feature = "us-matrix-add") || !mm.has_adds() {
+        return None;
+    }
+    let mut v = *p;
+    mm.apply(&mut v, false);
+    Some(v)
+}
+
 impl Ctl {
     fn advance(&mut self, dt: u32, sh: &Shared, fx: &Fixed) {
+        let eff = added(&self.mm, sh.p);
+        let base = sh;
+        let sh = &Shared { p: eff.as_ref().unwrap_or(sh.p), rate: sh.rate };
         self.pitch.advance(dt);
         let secs = dt as f32 / sh.rate;
         for (i, e) in self.env.iter_mut().enumerate() {
-            e.advance(secs, &fx.envp[i], self.mm.scale(target::ENV_DECAY + i as u8));
+            // V2 re-reads its envelope every frame (the matrix may move it); the other modes keep the note-on values
+            let live;
+            let ep = if cfg!(feature = "us-env-v2") && fx.envp[i].v2 {
+                live = EnvP::read(sh.p, i);
+                &live
+            } else {
+                &fx.envp[i]
+            };
+            e.advance(secs, ep, self.mm.scale(target::ENV_DECAY + i as u8));
         }
         if cfg!(feature = "us-voice-lfo") {
             for (k, l) in self.lfo.iter_mut().enumerate() {
-                l.advance(secs, law::lfo_rate(sh.p[pm::lfo(k, pm::l::RATE)]));
+                if lfo_v2(sh.p, k) {
+                    l.advance_v2(secs, &lfo_v2p(sh.p, k));
+                } else {
+                    l.advance(secs, law::lfo_rate(sh.p[pm::lfo(k, pm::l::RATE)]));
+                }
             }
         }
-        self.eval(sh, fx);
+        self.eval(base, fx);
     }
 
     /// One mod matrix pass at the current sources.
     fn eval(&mut self, sh: &Shared, fx: &Fixed) {
         // without `us-voice-lfo` no patch that reads an LFO loads (`check_modules`): the value is never used
+        let native = !new_math(sh.p);
         let shape = |k: usize| {
-            if cfg!(feature = "us-voice-lfo") { self.lfo[k].shape(law::choice(sh.p[pm::lfo(k, pm::l::SHAPE)], lfo_shape::COUNT)) } else { 0.0 }
+            if !cfg!(feature = "us-voice-lfo") {
+                0.0
+            } else if lfo_v2(sh.p, k) {
+                self.lfo[k].shape_v2(lfo_v2p(sh.p, k).shape, native)
+            } else {
+                self.lfo[k].shape(law::choice(sh.p[pm::lfo(k, pm::l::SHAPE)], lfo_shape::COUNT))
+            }
+        };
+        let lfo_shape = [shape(0), shape(1)];
+        let add_view = |k: usize| {
+            if lfo_v2(sh.p, k) {
+                let q = lfo_v2p(sh.p, k);
+                lfo_shape[k] * q.gain + q.dc
+            } else {
+                sh.p[pm::lfo(k, pm::l::DEPTH)] * lfo_shape[k]
+            }
         };
         let src = Sources {
             env: core::array::from_fn(|i| self.env[i].value()),
-            lfo_shape: [shape(0), shape(1)],
+            lfo_shape,
+            // only Add slots read these (`us-matrix-add`)
+            lfo_add: if cfg!(feature = "us-matrix-add") { core::array::from_fn(add_view) } else { [0.0; pm::LFO_SLOTS] },
             wheel: sh.p[pm::ctl::WHEEL],
             velocity: fx.vel,
             key: fx.key,
+            cc: if cfg!(feature = "us-matrix-add") { core::array::from_fn(|k| sh.p[pm::CC + k]) } else { [0.0; pm::CC_COUNT] },
+            note: fx.note,
         };
         self.mm.eval(sh.p, &src);
     }
@@ -199,6 +288,18 @@ struct Targets {
     noise_hp: [f32; flt::NC],
     /// Kind and coefficients of the filter slots.
     flt: [(flt::Kind, [f32; flt::NC], bool); pm::FILT_SLOTS],
+    /// Filter slots 1–2 in parallel: their gains (`v2::ROUTING`, `us-flt-route`).
+    par: Opt<Option<(f32, f32)>>,
+    /// The voice distortion (`us-vdist`).
+    dist: Opt<crate::v2::DistP>,
+    /// The V2 voice output stage: left/right volume and whether the DC filter runs (format version 6).
+    v2out: Opt<Option<(f32, f32, bool)>>,
+}
+
+/// A filter cutoff in Hz after the matrix: Scale on the normalized value, Offset in Hz.
+#[inline(always)]
+fn cut_hz(mm: &impl Query, base: f32, t: u8) -> f32 {
+    (law::cutoff((base * mm.scale(t)).max(0.0).min(1.0)) + mm.offset(t)).max(0.0).min(19_980.0)
 }
 
 pub struct Voice<'a> {
@@ -239,6 +340,14 @@ pub struct Voice<'a> {
     lvl: f32,
     lvl_n: u32,
     ramps: [SlotRamps; pm::OSC_SLOTS],
+    par: Opt<Option<(f32, f32)>>,
+    dist_p: Opt<crate::v2::DistP>,
+    dist: Opt<crate::v2::Dist>,
+    v2out: Opt<Option<(f32, f32, bool)>>,
+    dcf: Opt<crate::v2::Dcf>,
+    dcf_r: Opt<f32>,
+    /// Note-on order (`NoteCx::seq`).
+    pub seq: u32,
     #[cfg(test)]
     pub(crate) starts: u32,
 }
@@ -255,7 +364,7 @@ impl<'a> Voice<'a> {
             pan: 0.5,
             rng: Xorshift::new(1),
             has_pitch: false,
-            fx: Fixed { envp: [EnvP::DEFAULT; pm::ENV_SLOTS], vel: 0.0, key: 0.0 },
+            fx: Fixed { envp: [EnvP::DEFAULT; pm::ENV_SLOTS], vel: 0.0, key: 0.0, note: 0.0 },
             start: c,
             end: c,
             seg_pos: 0,
@@ -278,6 +387,13 @@ impl<'a> Voice<'a> {
             lvl: 0.0,
             lvl_n: 0,
             ramps: [SlotRamps::default(); pm::OSC_SLOTS],
+            par: Opt::default(),
+            dist_p: Opt::default(),
+            dist: Opt::default(),
+            v2out: Opt::default(),
+            dcf: Opt::default(),
+            dcf_r: Opt::new(1.0),
+            seq: 0,
             #[cfg(test)]
             starts: 0,
         }
@@ -319,6 +435,49 @@ impl<'a> Voice<'a> {
         self.slots[i].phase
     }
 
+    /// The probe's snapshot of this voice at the end of its control segment (read only).
+    #[cfg(feature = "probe")]
+    pub fn snap(&self, sh: &Shared) -> crate::probe::VoiceSnap {
+        // the matrix is read directly (not through `added`/`tab`): a second caller of those would change how the
+        // compiler inlines them into `targets`, which costs render time even when nothing is watched. Cutoffs that V2
+        // Add routes move are reported without that move.
+        let (c, p) = (&self.end, sh.p);
+        crate::probe::VoiceSnap {
+            id: self.seq,
+            note: self.note,
+            amp: self.amp.end(),
+            released: matches!(c.env[0].stage(), Stage::Release | Stage::Finished),
+            age_s: self.age as f32 / sh.rate,
+            env: core::array::from_fn(|i| (c.env[i].value(), c.env[i].stage())),
+            lfo: core::array::from_fn(|k| c.lfo[k].phase as f32),
+            smp: core::array::from_fn(|i| {
+                (self.slots[i].kind == Kind::Sampler).then(|| {
+                    let n = self.smp[i].src.len();
+                    if n > 0 { (self.slots[i].smp.pos() / n as f64) as f32 } else { 0.0 }
+                })
+            }),
+            cutoff: core::array::from_fn(|i| match flt::Kind::of(pm::filter_type::decode(p[pm::filt(i, pm::f::TYPE)])) {
+                flt::Kind::Off => None,
+                #[cfg(feature = "us-flt-v2")]
+                flt::Kind::V2(_) => None,
+                _ => {
+                    // normalized cutoff after the Scale routes and the Offset routes in Hz: `law::cutoff` is applied by
+                    // the reader (`probe::cutoff_hz`), so the render path's call of it stays the only one
+                    let t = target::filter_cutoff(i);
+                    Some(((p[pm::filt(i, pm::f::CUTOFF)] * c.mm.scale(t)).max(0.0).min(1.0), c.mm.offset(t)))
+                }
+            }),
+        }
+    }
+
+    /// Applies this voice's channel Add routes to `v` (the channel stage of the newest voice, V2's
+    /// `storeChanValues`).
+    pub fn apply_channel(&self, v: &mut [f32; pm::COUNT]) {
+        // before format version 5 the channel routes read only velocity and the controllers (v2redux
+        // `DELTA_CHANMOD_NO_VOICE_SRC`)
+        self.end.mm.apply_from(v, true, era(v) >= 5);
+    }
+
     pub fn velocity(&self) -> f32 {
         self.vel
     }
@@ -330,15 +489,39 @@ impl<'a> Voice<'a> {
 
     /// Control values at control state `c`.
     fn targets(&self, c: &Ctl, sh: &Shared) -> Targets {
+        let eff = added(&c.mm, sh.p);
+        let sh = &Shared { p: eff.as_ref().unwrap_or(sh.p), rate: sh.rate };
         let tab = c.mm.tab();
         let (p, mm) = (sh.p, &tab);
         let key = c.pitch.cur + self.detune + tuning(p) + mm.offset(target::PITCH);
         let sens = p[v::VELOCITY];
         let env1 = if law::choice(p[v::ENV1_AT_OUTPUT], 2) == 1 { c.env[0].value() } else { 1.0 };
         let gain = (law::gain(p[v::MASTER]) * mm.scale(target::GAIN) + mm.offset(target::GAIN)).max(0.0);
-        let amp = gain * (1.0 - sens + sens * self.vel) * env1;
-        // the unison pan and the voice pan move every slot
-        let shift = (self.pan - 0.5) + (p[v::PAN] * mm.scale(target::PAN) + mm.offset(target::PAN) - 0.5);
+        let v2v = v2_voice(p);
+        // the V2 voice: envelope 1's V2 output is the amplitude, the pan comes after the voice stages
+        let amp = if v2v { c.env[0].value() } else { gain * (1.0 - sens + sens * self.vel) * env1 };
+        let vpan = p[v::PAN] * mm.scale(target::PAN) + mm.offset(target::PAN);
+        // the unison pan and the voice pan move every slot (the V2 voice pans its output instead)
+        let shift = (self.pan - 0.5) + if v2v { 0.0 } else { vpan - 0.5 };
+        let v2out = if v2v {
+            let (l, r) = law::pan((vpan.max(0.0).min(1.0) + self.pan - 0.5).max(0.0).min(1.0));
+            Some((l, r, era(p) >= 6))
+        } else {
+            None
+        };
+        let raw = |i: usize| pm::v2_raw(p[i]);
+        let par = if cfg!(feature = "us-flt-route") && raw(pm::v2::ROUTING) as i32 == 2 {
+            let x = (raw(pm::v2::BALANCE) - 64.0) / 64.0;
+            Some(if x >= 0.0 { (1.0 - x, 1.0) } else { (1.0, 1.0 + x) })
+        } else {
+            None
+        };
+        let dist = if cfg!(feature = "us-vdist") {
+            let d = pm::VDIST;
+            crate::v2::DistP::new(raw(d), raw(d + pm::dist::GAIN), raw(d + pm::dist::P1), raw(d + pm::dist::P2), sh.rate).native_atan(!new_math(p))
+        } else {
+            crate::v2::DistP::default()
+        };
         // a slot that is off (its type is structural) is never rendered: nothing to compute for it
         let slot = core::array::from_fn(|i| if self.slots[i].kind == Kind::Off { SlotT::default() } else { self.slot_targets(c, mm, sh, i, key, shift) });
         // noise: level through the matrix, the voice's pan, the optional band
@@ -348,7 +531,7 @@ impl<'a> Voice<'a> {
             0.0
         };
         let noise_pan = law::pan((0.5 + shift).max(0.0).min(1.0));
-        let cut = |base: f32, t: u8| (law::cutoff((base * mm.scale(t)).max(0.0).min(1.0)) + mm.offset(t)).max(0.0).min(19_980.0);
+        let cut = |base: f32, t: u8| cut_hz(mm, base, t);
         let band_p = |k: usize| p[pm::NOISE + k];
         let noise_band = law::choice(band_p(pm::n::BAND_ON), 2) == 1;
         let band = |kind, k, t| if noise_band { flt::coefs(kind, cut(band_p(k), t), noise::BAND_RES, sh.rate) } else { [0.0; flt::NC] };
@@ -356,9 +539,18 @@ impl<'a> Voice<'a> {
         let noise_hp = band(noise::HP, pm::n::HP, target::NOISE_HP);
         // filter slots: cutoff (Scale on the normalized value, Offset in Hz) and resonance
         let flt = core::array::from_fn(|i| {
-            let kind = flt::Kind::of(law::choice(p[pm::filt(i, pm::f::TYPE)], pm::filter_type::COUNT));
+            let kind = flt::Kind::of(pm::filter_type::decode(p[pm::filt(i, pm::f::TYPE)]));
             if kind == flt::Kind::Off {
                 return (kind, [0.0; flt::NC], false);
+            }
+            #[cfg(feature = "us-flt-v2")]
+            if let flt::Kind::V2(_) = kind {
+                // V2 laws on the raw values (after the Add routes); a Scale route still multiplies the normalized value
+                let (tc, tr) = (target::filter_cutoff(i), target::filter_resonance(i));
+                let cut = (p[pm::filt(i, pm::f::CUTOFF)] * mm.scale(tc)).max(0.0).min(1.0);
+                let res = (p[pm::filt(i, pm::f::RESONANCE)] * mm.scale(tr)).max(0.0).min(1.0);
+                let (k, c) = flt::coefs_v2(kind, cut, res, sh.rate, era(p) < 6);
+                return (k, c, false);
             }
             let hz = cut(p[pm::filt(i, pm::f::CUTOFF)], target::filter_cutoff(i));
             let tr = target::filter_resonance(i);
@@ -366,7 +558,7 @@ impl<'a> Voice<'a> {
             (kind, flt::coefs(kind, hz, res, sh.rate), flt::transparent(kind, hz, res))
         });
         let noise_width = sh.p[pm::ext::NOISE_WIDTH];
-        Targets { amp, slot, noise_level: level, noise_pan, noise_band, noise_width, noise_lp, noise_hp, flt }
+        Targets { amp, slot, noise_level: level, noise_pan, noise_band, noise_width, noise_lp, noise_hp, flt, par: Opt::new(par), dist: Opt::new(dist), v2out: Opt::new(v2out) }
     }
 
     /// Control values of oscillator slot `i`. `key` is the voice pitch in semitones, `shift` the voice's pan offset.
@@ -374,6 +566,9 @@ impl<'a> Voice<'a> {
         let p = sh.p;
         let f = |fld: usize| pm::osc(i, fld);
         let t = |fld: u8| target::osc(i, fld);
+        if cfg!(feature = "us-osc-v2") && self.slots[i].kind == Kind::V2 {
+            return self.v2_slot_targets(mm, sh, i, key);
+        }
         let semis = key
             + law::coarse(p[f(pm::o::COARSE)])
             + law::fine(p[f(pm::o::FINE)])
@@ -415,7 +610,45 @@ impl<'a> Voice<'a> {
             hz / sh.rate
         };
         let smp = smp::Cfg::from_shape(&core::array::from_fn(|k| self.shape_value(mm, sh, i, k)), &self.smp[i]);
-        SlotT { inc, gain, mix, pan_l, pan_r, pm_out, feedback, wf, pw, leak, det, spread, drive, layers: layers as usize, smp }
+        SlotT { inc, gain, mix, pan_l, pan_r, pm_out, feedback, wf, pw, leak, det, spread, drive, layers: layers as usize, smp, v2: Opt::default() }
+    }
+
+    /// Control values of a V2 oscillator slot (`V2Osc::set` / `chgPitch`): transpose `raw − 64`, detune `(raw − 64)/128`
+    /// semitones, volume `raw/128`, colour as the break point and the noise filter, V2's base frequency (note 60 =
+    /// 130.8 Hz).
+    fn v2_slot_targets(&self, mm: &impl Query, sh: &Shared, i: usize, key: f32) -> SlotT {
+        use crate::v2::{calcfreq, ftou32, linfreq, OSC_BASE_HZ};
+        let p = sh.p;
+        let f = |fld: usize| pm::osc(i, fld);
+        let t = |fld: u8| target::osc(i, fld);
+        let raw = |x: f32| x * 128.0;
+        let pitch = (raw(p[f(pm::o::COARSE)]) - 64.0) + (raw(p[f(pm::o::FINE)]) - 64.0) / 128.0;
+        let semis = key + pitch + mm.offset(t(target::OSC_PITCH));
+        let hz_scale = mm.scale(target::PITCH) * mm.scale(t(target::OSC_PITCH));
+        let hz = OSC_BASE_HZ * crate::fm::exp2f((semis - 60.0) / 12.0) * hz_scale;
+        let gain = (p[f(pm::o::GAIN)] * mm.scale(t(target::OSC_GAIN)) + mm.offset(t(target::OSC_GAIN))).max(0.0);
+        let mix = (p[f(pm::o::MIX)] * mm.scale(t(target::OSC_MIX)) + mm.offset(t(target::OSC_MIX))).max(0.0).min(1.0);
+        let col = self.shape_value(mm, sh, i, pm::shape::V2_COLOR);
+        let old = era(p) < 6;
+        let native_sin = !new_math(p);
+        let mut mode = (raw(self.shape_value(mm, sh, i, pm::shape::V2_MODE)) as i32 & 7) as u8;
+        if old && mode >= crate::osc::v2mode::AUX_A {
+            mode = crate::osc::v2mode::OFF; // no aux busses before version 6
+        }
+        if era(p) < 4 && mode == crate::osc::v2mode::FM {
+            mode = crate::osc::v2mode::OFF; // no FM oscillator before version 4 (v2redux `DELTA_NO_FM_OSC`)
+        }
+        let v2 = crate::osc::V2T {
+            mode,
+            ring: raw(self.shape_value(mm, sh, i, pm::shape::V2_RING)) as i32 & 1 != 0,
+            brpt: ftou32(col),
+            nffrq: linfreq(sh.rate) * calcfreq((pitch + 64.0) / 128.0),
+            nfres: 1.0 - libm::sqrtf(col),
+            native_sin,
+            box4: era(p) < 3,
+            old_noise: era(p) < 5,
+        };
+        SlotT { inc: hz / sh.rate, gain, mix, pan_l: 1.0, pan_r: 1.0, v2: Opt::new(v2), ..SlotT::default() }
     }
 
     /// Type-dependent shape value `k` of slot `i` after the matrix, clamped to `0..=1`.
@@ -473,6 +706,9 @@ impl<'a> Voice<'a> {
     }
 
     fn ramps_set(&mut self, t: &Targets) {
+        self.par = t.par;
+        self.dist_p = t.dist;
+        self.v2out = t.v2out;
         self.amp.set(t.amp);
         self.noise_level.set(t.noise_level);
         self.noise_pan[0].set(t.noise_pan.0);
@@ -491,6 +727,9 @@ impl<'a> Voice<'a> {
     }
 
     fn ramps_to(&mut self, t: &Targets, frames: u32) {
+        self.par = t.par;
+        self.dist_p = t.dist;
+        self.v2out = t.v2out;
         self.amp.to(t.amp, frames);
         self.noise_level.to(t.noise_level, frames);
         self.noise_pan[0].to(t.noise_pan.0, frames);
@@ -509,6 +748,9 @@ impl<'a> Voice<'a> {
     }
 
     fn ramps_retarget(&mut self, t: &Targets, frames: u32) {
+        self.par = t.par;
+        self.dist_p = t.dist;
+        self.v2out = t.v2out;
         self.amp.retarget(t.amp, frames);
         self.noise_level.retarget(t.noise_level, frames);
         self.noise_pan[0].retarget(t.noise_pan.0, frames);
@@ -602,11 +844,19 @@ impl<'a> Voice<'a> {
         self.ramps_retarget(&t, self.seg_len);
     }
 
-    /// Adds this voice's output for `l.len()` frames (never across a control grid frame).
-    pub fn render(&mut self, l: &mut [f32], r: &mut [f32]) {
+    /// Adds this voice's output for `l.len()` frames (never across a control grid frame). `aux` is the device's aux
+    /// input (V2 aux oscillators), `None` when it has none.
+    /// `tap` (`probe` builds only): the instrument's filter-tap ring for this call and the ring frame of `l[0]`.
+    pub fn render(&mut self, l: &mut [f32], r: &mut [f32], #[cfg(feature = "probe")] tap: Option<(&mut crate::probe::Ring, usize)>) {
+        // the editor's taps: one loop-invariant branch, so the player's loop is unchanged
+        #[cfg(feature = "probe")]
+        let (mut tap, mut at) = match tap {
+            Some((t, a)) => (Some(t), a),
+            None => (None, 0),
+        };
         for (lo, ro) in l.iter_mut().zip(r.iter_mut()) {
             let amp = self.amp.next();
-            let (mut bl, mut br, mut send) = (0.0f32, 0.0f32, 0.0f32);
+            let (mut bl, mut br, mut send, mut mono) = (0.0f32, 0.0f32, 0.0f32, 0.0f32);
             for (((slot, ramps), wt), smp) in
                 self.slots.iter_mut().zip(self.ramps.iter_mut()).zip(self.wt.iter_mut()).zip(self.smp.iter())
             {
@@ -614,9 +864,20 @@ impl<'a> Voice<'a> {
                     send = 0.0;
                     continue;
                 }
+                if cfg!(feature = "us-osc-v2") && slot.kind == Kind::V2 {
+                    // V2 works on the voice's running sum: add, multiply (ring) or replace (FM, aux)
+                    match osc::v2_sample(slot, ramps, mono, (0.0, 0.0)) {
+                        osc::V2Out::Add(y) => (bl, br, mono) = (bl + y, br + y, mono + y),
+                        osc::V2Out::Mul(y) => (bl, br, mono) = (bl * y, br * y, mono * y),
+                        osc::V2Out::Set(y) => (bl, br, mono) = (y, y, y),
+                    }
+                    send = 0.0;
+                    continue;
+                }
                 let (sl, sr, next) = osc::sample(slot, wt.as_deref_mut(), &smp.src, ramps, send);
                 bl += sl;
                 br += sr;
+                mono += (sl + sr) * 0.5;
                 send = next;
             }
             let level = self.noise_level.next();
@@ -626,10 +887,68 @@ impl<'a> Voice<'a> {
                 bl += nl * pl;
                 br += nr * pr;
             }
-            for f in self.flt.iter_mut() {
-                (bl, br) = f.process(bl, br);
+            if let Some((g1, g2)) = self.par.get().filter(|_| cfg!(feature = "us-flt-route")) {
+                let (a, b) = self.flt[0].process(bl, br);
+                let (c, d) = self.flt[1].process(bl, br);
+                #[cfg(feature = "probe")]
+                if let Some(t) = tap.as_deref_mut() {
+                    let m = |x: f32, y: f32| (x + y) * 0.5 * amp;
+                    if self.flt[0].kind != flt::Kind::Off {
+                        t.add(at, 0, m(bl, br), m(a, b));
+                    }
+                    if self.flt[1].kind != flt::Kind::Off {
+                        t.add(at, 1, m(bl, br), m(c, d));
+                    }
+                }
+                (bl, br) = (a * g1 + c * g2, b * g1 + d * g2);
+                #[cfg(feature = "probe")]
+                let mut j = 2;
+                for f in self.flt[2..].iter_mut() {
+                    #[cfg(feature = "probe")]
+                    let x1 = (bl, br);
+                    (bl, br) = f.process(bl, br);
+                    #[cfg(feature = "probe")]
+                    {
+                        if let Some(t) = tap.as_deref_mut().filter(|_| f.kind != flt::Kind::Off) {
+                            t.add(at, j, (x1.0 + x1.1) * 0.5 * amp, (bl + br) * 0.5 * amp);
+                        }
+                        j += 1;
+                    }
+                }
+            } else {
+                #[cfg(feature = "probe")]
+                let mut j = 0;
+                for f in self.flt.iter_mut() {
+                    #[cfg(feature = "probe")]
+                    let x1 = (bl, br);
+                    (bl, br) = f.process(bl, br);
+                    #[cfg(feature = "probe")]
+                    {
+                        if let Some(t) = tap.as_deref_mut().filter(|_| f.kind != flt::Kind::Off) {
+                            t.add(at, j, (x1.0 + x1.1) * 0.5 * amp, (bl + br) * 0.5 * amp);
+                        }
+                        j += 1;
+                    }
+                }
             }
-            let (ol, or) = (bl * amp, br * amp);
+            #[cfg(feature = "probe")]
+            {
+                at += 1;
+            }
+            if cfg!(feature = "us-vdist") && self.dist_p.get().mode != 0 {
+                let dp = self.dist_p.get();
+                (bl, br) = self.dist.with(|d| d.run(&dp, bl, br));
+            }
+            let (ol, or) = match self.v2out.get().filter(|_| cfg!(feature = "us-v2-voice")) {
+                // the V2 voice: DC filter (format version 6) on the mono voice, the envelope, then V2's pan
+                Some((lv, rv, dcf)) => {
+                    let r = self.dcf_r.get();
+                    let m = if dcf { self.dcf.with(|f| f.step(bl, r)) } else { bl };
+                    let out = m * amp;
+                    (lv * out, rv * out)
+                }
+                None => (bl * amp, br * amp),
+            };
             *lo += ol;
             *ro += or;
             self.lvl += ol.abs() + or.abs();
@@ -655,6 +974,7 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
     fn note_on(&mut self, note: u8, velocity: u8, detune: f32, pan: f32, cx: &mut NoteCx<'c>) {
         let sh = cx.sh;
         self.on = true;
+        self.seq = cx.seq;
         self.note = note;
         self.vel = velocity as f32 / 128.0;
         self.detune = detune;
@@ -678,12 +998,58 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
             envp: core::array::from_fn(|i| EnvP::read(sh.p, i)),
             vel: self.vel,
             key: note as f32 / 127.0,
+            note: note as f32,
         };
+        // V2: key sync none keeps the counters, 1 zeros them, 2 (version 6) also resets the voice's state
+        let p = sh.p;
+        let sync = if cfg!(feature = "us-osc-v2") || cfg!(feature = "us-v2-voice") { (pm::v2_raw(p[pm::v2::KEYSYNC]) as i32).clamp(0, 2) } else { 0 };
+        let full = cfg!(feature = "us-v2-voice") && sync == 2 && era(p) >= 6;
+        for (i, s) in self.slots.iter_mut().enumerate() {
+            if !cfg!(feature = "us-osc-v2") || s.kind != Kind::V2 {
+                continue;
+            }
+            s.v2s.with(|s| {
+                if !s.init || full {
+                    s.nseed = if era(p) >= 6 { V2_SEEDS[i] } else { 0 };
+                    s.nf = crate::v2::Lrc::default();
+                    s.init = true;
+                }
+                if sync >= 1 {
+                    s.cnt = 0;
+                }
+            });
+        }
+        if full {
+            self.flt = [flt::Slot::new(); pm::FILT_SLOTS];
+            self.dist = Opt::default();
+        }
+        if cfg!(feature = "us-v2-voice") {
+            self.dcf = Opt::default();
+            self.dcf_r = Opt::new(crate::v2::dcf_r(sh.rate));
+        }
         let mut env = [Env::new(); pm::ENV_SLOTS];
-        env.iter_mut().for_each(Env::trigger);
+        for (i, e) in env.iter_mut().enumerate() {
+            let v2 = cfg!(feature = "us-env-v2") && self.fx.envp[i].v2;
+            if v2 && !full {
+                *e = self.end.env[i]; // V2 restarts the attack from where the envelope is
+                e.trigger_v2();
+            } else if v2 {
+                e.trigger_v2();
+            } else {
+                e.trigger();
+            }
+        }
+        let prev_lfo = self.end.lfo;
         let lfo = core::array::from_fn(|k| {
             if !cfg!(feature = "us-voice-lfo") {
                 return Lfo::new(0.0);
+            }
+            if lfo_v2(p, k) {
+                let mut l = prev_lfo[k];
+                if pm::v2_raw(p[pm::lfo(k, pm::l::SYNC)]) as i32 != 0 {
+                    l.sync_v2(p[pm::lfo_ext(k, pm::lx::PHASE)], self.rng.next_u32());
+                }
+                return l;
             }
             let synced = law::choice(sh.p[pm::lfo(k, pm::l::SYNC)], 2) == 1;
             let hz = law::lfo_rate(sh.p[pm::lfo(k, pm::l::RATE)]) as f64;

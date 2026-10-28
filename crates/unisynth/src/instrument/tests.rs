@@ -349,7 +349,7 @@ fn structural_and_bad_parameters_are_ignored() {
         assert_eq!(ins.p[v::MASTER], 1.0, "out of range clamps");
         ins.set_param(v::MASTER, -3.0);
         assert_eq!(ins.p[v::MASTER], 0.0);
-        assert_eq!(ins.param_count(), 184);
+        assert_eq!(ins.param_count(), pm::COUNT);
     });
 }
 
@@ -396,8 +396,8 @@ fn registry_builds_the_instrument_and_rejects_other_kinds() {
     let mut mem = vec![0u8; 1 << 16];
     let mut pool = Pool::new(&mut mem);
     let d = UDevice::load(64, &chunk, &env, &mut pool, &mut Lcg(1)).unwrap();
-    assert_eq!((d.param_count(), d.event_lookahead()), (184, 0));
-    assert_eq!(UDevice::need(64, &[1, 255, 0], &env).err(), Some(LoadError::BadChunk));
+    assert_eq!((d.param_count(), d.event_lookahead()), (pm::COUNT, 0));
+    assert_eq!(UDevice::need(64, &[1, 0, 0, 7], &env).err(), Some(LoadError::BadChunk)); // a trailing byte
 }
 
 // ---- 2.2: the control grid ----
@@ -913,6 +913,13 @@ mod osc_dls_instrument;
 
 #[cfg(all(feature = "us-osc-pm", feature = "us-noise", feature = "us-flt"))]
 mod flt_noise;
+
+// V2 modules (change add-v2-import)
+#[cfg(all(feature = "us-osc-v2", feature = "us-flt-v2", feature = "us-flt-route", feature = "us-vdist", feature = "us-env-v2", feature = "us-lfo-v2", feature = "us-v2-voice", feature = "us-chan", feature = "us-matrix-add", feature = "us-voice-lfo"))]
+mod v2;
+
+#[cfg(all(feature = "probe", feature = "us-osc-pm", feature = "us-osc-sample", feature = "us-sample-dls", feature = "us-sample-gsm", feature = "us-flt-svf", feature = "us-voice-lfo"))]
+mod probe;
 
 #[cfg(all(
     feature = "us-osc-pm",

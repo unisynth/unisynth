@@ -20,14 +20,22 @@ fn groups_are_contiguous_and_fill_the_patch() {
     assert_eq!(ENV, FILT + 4 * 3);
     assert_eq!(LFO, ENV + 4 * 6);
     assert_eq!(MOD, LFO + 2 * 4);
-    assert_eq!(MOD + MOD_SLOTS * m::LEN, SMP);
+    assert_eq!(MOD + MOD_SLOTS1 * m::LEN, SMP);
     assert_eq!(SMP + OSC_SLOTS, CTL);
     assert_eq!(CTL + ctl::LEN, EXT);
-    assert_eq!(EXT + ext::LEN, COUNT);
     assert_eq!(ext::NOISE_WIDTH, 183);
     assert_eq!((ctl::WHEEL, ctl::BEND, ctl::BEND_RANGE), (180, 181, 182));
-    assert_eq!(COUNT, 184);
-    assert!(COUNT <= 256, "chunk indices are u8");
+    // the V2 part (design D4a, frozen)
+    assert_eq!((v2::VOICE, v2::KEYSYNC, v2::ERA, v2::ROUTING, v2::BALANCE), (184, 185, 186, 187, 188));
+    assert_eq!((VDIST, ENV_AMP, LFO_EXT, MOD2, CC, CH), (189, 193, 197, 205, 221, 227));
+    assert_eq!((ch::SPEECH, ch::SPEECH_CTL4, ch::SPEECH_CTL5, ch::DIST, ch::CHORUS, ch::COMP), (237, 238, 239, 240, 244, 251));
+    assert_eq!(modslot(12, 0), MOD2);
+    assert_eq!(modslot(15, m::LEN - 1) + 1, CC);
+    assert_eq!(cc(7) + 1, CH);
+    assert_eq!(ch::COMP + ch::COMP_LEN, COUNT);
+    assert_eq!(COUNT, 260);
+    assert!(COUNT <= crate::chunk::MAX_INDEX + 1);
+    assert_eq!(CH2, crate::chunk::SHORT, "the second channel part starts at the two-byte indices");
     // the last field of the last slot of each group is the one before the next group
     assert_eq!(osc(2, o::LEN - 1) + 1, NOISE);
     assert_eq!(filt(3, f::LEN - 1) + 1, ENV);
@@ -52,6 +60,10 @@ fn names_are_unique_and_readable() {
     assert_eq!(names[lfo(1, l::RATE)], "lfo2.rate");
     assert_eq!(names[modslot(6, m::AMOUNT)], "mod7.amount");
     assert_eq!(names[NOISE + n::LP], "noise.lp");
+    assert_eq!(names[modslot(13, m::TARGET)], "mod14.target");
+    assert_eq!(names[cc(7)], "ctl.cc7");
+    assert_eq!(names[lfo_ext(1, lx::POLARITY)], "lfo2.polarity");
+    assert_eq!(names[ch::COMP + 4], "ch.comp_threshold");
     assert!(names.iter().all(|n| !n.starts_with("param")), "every index has a real name");
 }
 
@@ -61,18 +73,24 @@ fn every_index_has_a_law_of_the_right_kind() {
     assert_eq!(law_of(v::MASTER), Gain);
     assert_eq!(law_of(v::CAPACITY), Count(1, 64));
     assert_eq!(law_of(v::UNISON), Count(1, 16));
-    assert_eq!(law_of(osc(2, o::TYPE)), Choice(5));
+    assert_eq!(law_of(osc(2, o::TYPE)), Kinds { old: 5, all: 6 });
     assert_eq!(law_of(osc(0, o::SHAPE + 4)), Shape);
     assert_eq!(law_of(osc(1, o::FEEDBACK)), Feedback);
     assert_eq!(law_of(NOISE + n::HP), Cutoff);
     assert_eq!(law_of(filt(2, f::CUTOFF)), Cutoff);
-    assert_eq!(law_of(filt(2, f::TYPE)), Choice(9));
+    assert_eq!(law_of(filt(2, f::TYPE)), Kinds { old: 9, all: 16 });
+    assert_eq!(law_of(env(1, e::MODE)), Kinds { old: 2, all: 3 });
     assert_eq!(law_of(env(0, e::ATTACK)), EnvTime);
     assert_eq!(law_of(env(0, e::SUSTAIN)), Unit);
     assert_eq!(law_of(lfo(0, l::RATE)), LfoRate);
     assert_eq!(law_of(modslot(0, m::TARGET)), Index);
     assert_eq!(law_of(modslot(0, m::AMOUNT)), ModAmount);
-    assert_eq!(law_of(modslot(11, m::SOURCE)), Choice(10));
+    assert_eq!(law_of(modslot(11, m::SOURCE)), Kinds { old: 10, all: 17 });
+    assert_eq!(law_of(modslot(15, m::OPERATION)), Kinds { old: 2, all: 3 });
+    assert_eq!(law_of(v2::VOICE), Choice(2));
+    assert_eq!(law_of(v2::ERA), Kinds { old: 7, all: 8 });
+    assert_eq!(law_of(ch::COMP + 4), V2Raw);
+    assert_eq!(law_of(cc(3)), V2Raw);
     assert_eq!(law_of(COUNT + 5), Unit);
 }
 
@@ -110,10 +128,45 @@ fn defaults_are_neutral_and_audible() {
         assert_eq!(law::env_ms(d[env(i, e::ATTACK)]), 1.0, "instant attack");
     }
     for i in 0..MOD_SLOTS {
-        assert_eq!(law::choice(d[modslot(i, m::SOURCE)], 10), 0, "no source");
+        assert_eq!(crate::modmx::source::decode(d[modslot(i, m::SOURCE)]), 0, "no source");
     }
     assert_eq!(law::cutoff(d[NOISE + n::HP]), 20.0);
     assert_eq!(law::cutoff(d[NOISE + n::LP]), 20_000.0);
+    // the V2 part is switched off and holds V2's initial patch values
+    assert_eq!((d[v2::VOICE], d[ch::ON], d[ch::SPEECH]), (0.0, 0.0, 0.0));
+    assert_eq!(era(&d), (6, true));
+    let mut p = d;
+    p[v2::ERA] = kinds::encode(v2::ERA_V5_2004, 7);
+    assert_eq!(era(&p), (5, true));
+    p[v2::ERA] = law::host::inv_count(5, 0, 6);
+    assert_eq!(era(&p), (5, false));
+    assert_eq!(v2_raw(d[cc(7)]), 127.0);
+    assert_eq!(v2_raw(d[ch::COMP + 4]), 90.0);
+}
+
+#[test]
+fn expanded_choices_keep_every_old_stored_value() {
+    // a value written by chunk v1 (`k/(n − 1)`) decodes to the same kind; new kinds sit between them
+    for (old, all, dec, enc) in [
+        (osc_type::COUNT, osc_type::ALL, osc_type::decode as fn(f32) -> usize, osc_type::encode as fn(usize) -> f32),
+        (filter_type::COUNT, filter_type::ALL, filter_type::decode, filter_type::encode),
+        (env_mode::COUNT, env_mode::ALL, env_mode::decode, env_mode::encode),
+        (crate::modmx::source::COUNT, crate::modmx::source::ALL, crate::modmx::source::decode, crate::modmx::source::encode),
+        (crate::modmx::op::COUNT, crate::modmx::op::ALL, crate::modmx::op::decode, crate::modmx::op::encode),
+    ] {
+        for k in 0..old {
+            let v1 = inv::inv_choice(k, old);
+            assert_eq!(dec(v1), k);
+            assert_eq!(enc(k).to_bits(), v1.to_bits(), "same stored value");
+        }
+        for k in 0..all {
+            assert_eq!(dec(enc(k)), k);
+        }
+        // every byte of an automation lane decodes to some kind
+        assert!(bytes().all(|p| dec(p) < all));
+    }
+    assert_eq!(osc_type::encode(osc_type::V2), 1.0 / 8.0);
+    assert_eq!(crate::modmx::op::encode(crate::modmx::op::ADD), 0.5);
 }
 
 // ---- law spot values ----

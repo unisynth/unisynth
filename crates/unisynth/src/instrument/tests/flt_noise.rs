@@ -280,3 +280,29 @@ fn a_low_pass_at_the_top_of_its_range_is_passed_through() {
     let d2: Vec<f32> = off.iter().zip(&shut).map(|(a, b)| a - b).collect();
     assert!(rms(&d2[4000..]) > rms(&diff[4000..]), "{} vs {}", rms(&d2[4000..]), rms(&diff[4000..]));
 }
+
+#[cfg(feature = "us-matrix-add")]
+#[test]
+fn an_add_route_moves_the_normalized_cutoff_before_its_law() {
+    use crate::modmx::op;
+    let base = noise_only(4.0, &[ftype(0, ft::SVF_LP), fcut(0, 700.0)]);
+    let hf = |edits: &[(usize, f32)]| {
+        let (l, _) = play(edits, 30_000);
+        band(&l, 3000.0, 5000.0)
+    };
+    let plain = hf(&base);
+    let cut = pm::filt(0, pm::f::CUTOFF);
+    let t = target::PARAM + target::PARAMS.iter().position(|&i| i == cut).unwrap() as u8;
+    let add = |amount: f32| {
+        let mut e = base.clone();
+        e.extend([
+            (pm::modslot(13, pm::m::SOURCE), source::encode(source::VELOCITY)),
+            (pm::modslot(13, pm::m::TARGET), crate::law::host::inv_index(t)),
+            (pm::modslot(13, pm::m::OPERATION), op::encode(op::ADD)),
+            (pm::modslot(13, pm::m::AMOUNT), (amount + 1.0) / 2.0),
+        ]);
+        e
+    };
+    assert!(db(hf(&add(1.0)), plain) > 15.0, "velocity opens the filter: {}", db(hf(&add(1.0)), plain));
+    assert!(db(hf(&add(-1.0)), plain) < -6.0, "and closes it: {}", db(hf(&add(-1.0)), plain));
+}

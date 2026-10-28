@@ -136,10 +136,11 @@ fn an_automation_lane_adds_the_filter_types_it_can_step_to_and_the_noise_it_can_
     for want in ["us-flt-svf", "us-flt-ladder", "us-flt-rbj", "us-flt-notch"] {
         assert!(swept.contains(&want), "{want} missing from {swept:?}");
     }
-    // a lane that stays between two svf types adds nothing
+    // a lane that stays on one svf type adds nothing (the V2 kinds sit between the old ones: 30..38 of 255 rounds to
+    // stored position 2 of 17)
     let near = of(&unified(
         |p| p[pm::filt(0, pm::f::TYPE)] = unisynth::law::host::inv_choice(ft::SVF_LP, ft::COUNT),
-        &[(pm::filt(0, pm::f::TYPE), &[(0, 30), (100, 40)])],
+        &[(pm::filt(0, pm::f::TYPE), &[(0, 30), (100, 38)])],
     ));
     // the lane itself needs the automation walk; the filter types stay those of the chunk
     assert_eq!(near.into_iter().filter(|f| *f != "us-automation").collect::<Vec<_>>(), base);

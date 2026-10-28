@@ -80,6 +80,10 @@ pub const EFFECT_MODES: &[(u8, usize)] = &[
     (kind::REVERB, 2),
     (kind::COMPRESSOR, 0),
     (kind::FORMANT, 0),
+    (kind::EQ, 2),
+    (kind::DELAY, 2),
+    (kind::REVERB, 3),
+    (kind::COMPRESSOR, 1),
 ];
 
 pub fn kind_name(k: u8) -> &'static str {
@@ -102,12 +106,12 @@ pub fn mode_names(k: u8) -> &'static [&'static str] {
     match k {
         kind::DISTORTION => &["Shaper", "Curve", "Power"],
         kind::CRUSHER => &["Crusher"],
-        kind::EQ => &["Parametric", "3-band"],
-        kind::DELAY => &["Tempo", "Ms"],
+        kind::EQ => &["Parametric", "3-band", "Cut"],
+        kind::DELAY => &["Tempo", "Ms", "V2"],
         kind::CHORUS => &["Chorus"],
         kind::FLANGER => &["Phaser", "Ring"],
-        kind::REVERB => &["Freeverb", "Compact", "Rooms"],
-        kind::COMPRESSOR => &["Compressor"],
+        kind::REVERB => &["Freeverb", "Compact", "Rooms", "V2"],
+        kind::COMPRESSOR => &["Compressor", "V2"],
         kind::FORMANT => &["Formant"],
         _ => &[],
     }
@@ -162,14 +166,53 @@ fn effect_params(k: u8, mode: usize) -> Vec<(&'static str, f32)> {
             ("release", env_ms(200.0)), ("output_gain", 0.5),
         ],
         (kind::FORMANT, 0) => vec![("vowel", 0.0), ("wet", 0.0)],
+        // V2 modes (change add-v2-import): V2 raw / 128, then the source format version (`count(0, 6)`, 1 = v6)
+        (kind::EQ, 2) => vec![("low_cut", 0.0), ("high_cut", 127.0 / 128.0), ("era", 1.0)],
+        (kind::DELAY, 2) => vec![
+            ("volume", 100.0 / 128.0), ("feedback", 80.0 / 128.0), ("delay_l", 0.5), ("delay_r", 0.5), ("mod_rate", 0.0),
+            ("mod_depth", 0.0), ("mod_phase", 0.5), ("era", 1.0),
+        ],
+        (kind::REVERB, 3) => vec![("time", 0.5), ("high_cut", 0.5), ("low_cut", 0.25), ("volume", 127.0 / 128.0), ("era", 1.0)],
+        (kind::COMPRESSOR, 1) => vec![
+            ("detect", 0.0), ("couple", 0.0), ("auto_gain", 1.0 / 128.0), ("lookahead", 2.0 / 128.0), ("threshold", 90.0 / 128.0),
+            ("ratio", 0.25), ("attack", 20.0 / 128.0), ("release", 0.5), ("out_gain", 0.5), ("era", 1.0),
+        ],
         _ => vec![],
     }
 }
 
 fn choice_options(i: usize, law: Law) -> Vec<String> {
     // mod-matrix targets: id = index(p) (p = id / 255), names from unisynth (`osc2.gain`, `filt1.cutoff`, …)
-    if matches!(law, Law::Index) && i >= params::MOD && (i - params::MOD) % params::m::LEN == params::m::TARGET {
+    let target_field = (0..params::MOD_SLOTS).any(|s| params::modslot(s, params::m::TARGET) == i);
+    if matches!(law, Law::Index) && target_field {
         return (0..unisynth::modmx::target::COUNT).map(unisynth::modmx::target::name).collect();
+    }
+    // expanded choices (`params::kinds`): one option per stored position, old kinds at the even ones, later kinds at the
+    // odd ones (unused positions are "—"), so `choice(v, options.len())` picks the position as before
+    if let Law::Kinds { old, all } = law {
+        let names: &[&str] = if old == params::osc_type::COUNT {
+            &["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "V2"]
+        } else if old == params::filter_type::COUNT {
+            &[
+                "Off", "SVF low-pass", "SVF high-pass", "SVF band-pass", "SVF notch", "Ladder low-pass", "RBJ high-pass", "RBJ band-pass",
+                "Resonator notch", "V2 low-pass", "V2 band-pass", "V2 high-pass", "V2 notch", "V2 all-pass", "V2 Moog low-pass", "V2 Moog high-pass",
+            ]
+        } else if old == params::env_mode::COUNT {
+            &["WaveSabre", "Tunefish", "V2"]
+        } else if old == unisynth::modmx::source::COUNT {
+            &[
+                "None", "Env 1", "Env 2", "Env 3", "Env 4", "LFO 1", "LFO 2", "Mod wheel", "Velocity", "Key", "Breath (CC2)", "CC3", "CC4", "CC5",
+                "CC6", "Volume (CC7)", "V2 note",
+            ]
+        } else {
+            &["Scale", "Offset", "Add"]
+        };
+        return (0..2 * old - 1)
+            .map(|c| {
+                let id = params::kinds::at(c, old, all - old, usize::MAX);
+                names.get(id).map_or("—".to_string(), |n| n.to_string())
+            })
+            .collect();
     }
     let names: &[&str] = match law {
         Law::Choice(n) => {
@@ -182,8 +225,6 @@ fn choice_options(i: usize, law: Law) -> Vec<String> {
                 &["WaveSabre", "Tunefish"]
             } else if base(params::LFO, params::l::LEN, params::LFO_SLOTS) {
                 &["Sine", "Ramp up", "Ramp down", "Square", "Random"]
-            } else if base(params::MOD, params::m::LEN, params::MOD_SLOTS) {
-                &["None", "Env 1", "Env 2", "Env 3", "Env 4", "LFO 1", "LFO 2", "Mod wheel", "Velocity", "Key"]
             } else if i == params::v::MODE {
                 &["Poly", "Mono legato"]
             } else if i == params::v::STEAL {
@@ -219,6 +260,8 @@ fn unit_range(law: Law) -> (&'static str, f32, f32) {
         Law::Index => ("", 0.0, 255.0),
         Law::EnvTime => ("ms", 1.0, 5001.0),
         Law::Raw => ("", 0.0, 65_535.0),
+        Law::Kinds { old, .. } => ("", 0.0, (2 * old - 2) as f32),
+        Law::V2Raw => ("V2", 0.0, 128.0),
         Law::Unit | Law::Pan | Law::Shape | Law::ModAmount => ("", 0.0, 1.0),
     }
 }
@@ -254,16 +297,19 @@ fn instrument() -> Table {
 
 fn effect(k: u8, mode: usize) -> Table {
     let modes = mode_names(k);
+    // one option per stored position: the V2 modes sit between the old ones (`fx::mode_value`), free positions "—"
+    let positions = unisynth::fx::mode_positions(k);
+    let _ = inv_choice;
     let mut ps = vec![Param {
         index: 0,
         name: "mode".into(),
         group: "fx".into(),
-        default: inv_choice(mode, modes.len()),
-        law: Law::Choice(modes.len()),
+        default: unisynth::fx::mode_value(k, mode),
+        law: Law::Choice(positions),
         unit: "",
         min: 0.0,
-        max: modes.len().saturating_sub(1) as f32,
-        options: modes.iter().map(|s| s.to_string()).collect(),
+        max: positions.saturating_sub(1) as f32,
+        options: (0..positions).map(|p| unisynth::fx::mode_at(k, p).and_then(|m| modes.get(m)).map_or("—".to_string(), |s| s.to_string())).collect(),
         structural: true,
         raw: false,
     }];
@@ -308,11 +354,10 @@ pub fn tables() -> &'static [Table] {
 
 /// The mode an effect's values select (`mode` value, default 0), or 0 for the instrument.
 pub fn mode_of(kind: u8, values: &crate::model::Values) -> usize {
-    let n = unisynth::fx::mode_count(kind);
-    if n == 0 {
+    if unisynth::fx::mode_total(kind) == 0 {
         return 0;
     }
-    unisynth::law::choice(values.get("mode").unwrap_or(0.0), n)
+    unisynth::fx::mode_of_value(kind, values.get("mode").unwrap_or(0.0))
 }
 
 /// The table for a device (kind + its `mode` value).

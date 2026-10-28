@@ -19,6 +19,8 @@ required-features = ["std"]
 default = ["us-all"]
 # host-side only: chunk encoder (task 1.4), requires std
 std = []
+# host-only read-only voice probe for the editor (change add-device-live-view): voice snapshots and filter taps
+probe = ["std"]
 # Multi-threaded rendering (change add-synth-threads): declares no render-time draws from the song random source.
 threads = ["synth-core/threads"]
 
@@ -48,6 +50,24 @@ us-voice-oneshot = []
 us-trusted = []
 # the mod matrix (4.3): without it no slot routes; target groups were measured and are not worth a feature
 us-matrix = []
+# V2 modules (change add-v2-import): oscillator type, filter types, parallel filter routing, voice distortion,
+# envelope mode, LFO mode, the V2 voice output stage (V2 laws, DC filter, pan), the channel stage
+us-osc-v2 = ["us-v2-any"]
+us-flt-v2 = ["us-v2-any"]
+us-flt-route = ["us-v2-any"]
+us-vdist = ["us-v2-any"]
+us-env-v2 = ["us-v2-any"]
+us-lfo-v2 = ["us-v2-any"]
+us-v2-voice = ["us-v2-any"]
+# internal: the voice keeps V2 state (`v2::Opt`) only with one of the V2 voice features
+us-v2-any = []
+us-chan = ["synth-core/pairs", "us-chunk-wide"]
+# chunk escapes: an index of 240 or more (the V2 channel stage's two-byte part) or 255 or more pairs
+us-chunk-wide = []
+# V2's Ronan speech stage (change add-v2-import): chunk version 2 text section and the formant speech synthesizer
+us-speech = []
+# V2's matrix extensions (change add-v2-import): the Add operation, the controller and V2-note sources, slots 13–16
+us-matrix-add = ["us-matrix"]
 # automation lanes (4.5): without it the mixer skips the automation walk and a song with lanes fails to load
 us-automation = []
 
@@ -57,27 +77,32 @@ us-fx-distortion-shaper = []
 us-fx-distortion-power = []
 us-fx-distortion-curve = []
 us-fx-crusher = []
-us-fx-eq = ["us-fx-eq-parametric", "us-fx-eq-3band"]
+us-fx-eq = ["us-fx-eq-parametric", "us-fx-eq-3band", "us-fx-eq-cut"]
+us-fx-eq-cut = []
 us-fx-eq-parametric = []
 us-fx-eq-3band = []
-us-fx-delay = ["us-fx-delay-tempo", "us-fx-delay-ms"]
+us-fx-delay = ["us-fx-delay-tempo", "us-fx-delay-ms", "us-fx-delay-v2"]
+us-fx-delay-v2 = []
 us-fx-delay-tempo = []
 us-fx-delay-ms = []
 us-fx-chorus = []
 us-fx-flanger = ["us-fx-flanger-phaser", "us-fx-flanger-ring"]
 us-fx-flanger-phaser = []
 us-fx-flanger-ring = []
-us-fx-reverb = ["us-fx-reverb-freeverb", "us-fx-reverb-compact", "us-fx-reverb-rooms"]
+us-fx-reverb = ["us-fx-reverb-freeverb", "us-fx-reverb-compact", "us-fx-reverb-rooms", "us-fx-reverb-v2"]
+us-fx-reverb-v2 = []
 us-fx-reverb-freeverb = []
 us-fx-reverb-compact = []
 us-fx-reverb-rooms = []
 us-fx-compressor = []
+us-fx-compressor-v2 = []
 us-fx-formant = []
 
-us-osc = ["us-osc-pm", "us-osc-blit", "us-osc-wt", "us-osc-sample", "us-sample-gsm", "us-sample-dls"]
-us-flt = ["us-flt-svf", "us-flt-ladder", "us-flt-rbj", "us-flt-notch"]
-us-env = ["us-env-timed", "us-env-rate"]
+us-osc = ["us-osc-pm", "us-osc-blit", "us-osc-wt", "us-osc-sample", "us-sample-gsm", "us-sample-dls", "us-osc-v2"]
+us-flt = ["us-flt-svf", "us-flt-ladder", "us-flt-rbj", "us-flt-notch", "us-flt-v2", "us-flt-route"]
+us-env = ["us-env-timed", "us-env-rate", "us-env-v2"]
+us-v2 = ["us-osc-v2", "us-flt-v2", "us-flt-route", "us-vdist", "us-env-v2", "us-lfo-v2", "us-v2-voice", "us-chan", "us-chunk-wide", "us-speech", "us-matrix-add"]
 us-fx = ["us-fx-distortion", "us-fx-crusher", "us-fx-eq", "us-fx-delay", "us-fx-chorus", "us-fx-flanger",
-         "us-fx-reverb", "us-fx-compressor", "us-fx-formant"]
+         "us-fx-reverb", "us-fx-compressor", "us-fx-compressor-v2", "us-fx-formant"]
 us-voice = ["us-voice-lfo", "us-voice-glide", "us-voice-mono", "us-voice-unison", "us-voice-oneshot"]
-us-all = ["us-osc", "us-noise", "us-flt", "us-env", "us-voice", "us-matrix", "us-automation", "us-fx"]
+us-all = ["us-osc", "us-noise", "us-flt", "us-env", "us-voice", "us-matrix", "us-matrix-add", "us-speech", "us-v2", "us-automation", "us-fx"]

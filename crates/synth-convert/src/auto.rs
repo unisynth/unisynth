@@ -90,7 +90,7 @@ impl Dec {
         if let Some(&(_, n)) = choices.iter().find(|c| c.0 == j) {
             return Some(Dec::Choice(n));
         }
-        matches!(law_of(j), Law::Choice(_) | Law::Count(..) | Law::Index | Law::Coarse | Law::Ratio).then(|| Dec::Law(law_of(j)))
+        matches!(law_of(j), Law::Choice(_) | Law::Kinds { .. } | Law::Count(..) | Law::Index | Law::Coarse | Law::Ratio).then(|| Dec::Law(law_of(j)))
     }
 
     /// The decoded value of byte-quantised `p`, as bits.

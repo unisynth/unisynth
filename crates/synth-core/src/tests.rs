@@ -892,6 +892,10 @@ mod player_tests {
         Inst { ev: Events<64>, gate: bool, p: [f32; 2], log: Vec<(u64, EventKind)> },
         Probe { p: [f32; 2], main: Vec<f32>, side: Vec<f32>, params: Vec<(u64, f32)> },
         Look { log: Vec<(u64, u32, EventKind)> },
+        /// Kind 4 (feature `pairs`): main 1.0, extra output pair 1 = 0.5.
+        Pairs,
+        /// Kind 5 (feature `pairs`): main = extra input pair 1.
+        AuxIn,
     }
 
     impl Device for TD {
@@ -934,6 +938,22 @@ mod player_tests {
                     params.clear();
                 }
                 TD::Look { log } => log.clear(),
+                TD::Pairs | TD::AuxIn => {}
+            }
+        }
+        fn run_ext(&mut self, io: &mut Io, ext: &mut [&mut [f32]], n: usize, ctx: &mut Ctx) {
+            match self {
+                TD::Pairs => {
+                    io.ch[MAIN_L][..n].fill(1.0);
+                    io.ch[MAIN_R][..n].fill(1.0);
+                    ext[0][..n].fill(0.5);
+                    ext[1][..n].fill(0.5);
+                }
+                TD::AuxIn => {
+                    io.ch[MAIN_L][..n].copy_from_slice(&ext[2 * crate::device::OUT_PAIRS][..n]);
+                    io.ch[MAIN_R][..n].copy_from_slice(&ext[2 * crate::device::OUT_PAIRS + 1][..n]);
+                }
+                _ => self.run(io, n, ctx),
             }
         }
         fn run(&mut self, io: &mut Io, n: usize, ctx: &mut Ctx) {
@@ -968,6 +988,7 @@ mod player_tests {
                         e.0 = ctx.frame;
                     }
                 }
+                TD::Pairs | TD::AuxIn => {}
             }
         }
     }
@@ -975,7 +996,7 @@ mod player_tests {
     impl<'a> Kinds<'a> for TD {
         fn need(kind: u8, _: &'a [u8], _: &Env<'a>) -> Result<usize, LoadError> {
             match kind {
-                1..=3 => Ok(0),
+                1..=5 => Ok(0),
                 k => Err(LoadError::UnsupportedKind(k)),
             }
         }
@@ -985,6 +1006,8 @@ mod player_tests {
                 1 => TD::Inst { ev: Events::default(), gate: false, p: [0.0; 2], log: vec![] },
                 2 => TD::Probe { p: [0.0; 2], main: vec![], side: vec![], params: vec![] },
                 3 => TD::Look { log: vec![] },
+                4 => TD::Pairs,
+                5 => TD::AuxIn,
                 k => return Err(LoadError::UnsupportedKind(k)),
             })
         }
@@ -1167,7 +1190,7 @@ mod player_tests {
         assert_eq!(bad(&|_| {}), Ok(()));
         assert_eq!(bad(&|v| v.tracks.clear()), Err(LoadError::Malformed));
         assert_eq!(bad(&|v| v.tracks[1].receives.push(Receive { track: 7, channel: 0, volume: 1.0 })), Err(LoadError::BadIndex));
-        for ch in [1, 3, 4] {
+        for ch in [1, 3, if cfg!(feature = "pairs") { 5 } else { 4 }, 0x500] {
             assert_eq!(bad(&|v| v.tracks[1].receives.push(Receive { track: 0, channel: ch, volume: 1.0 })), Err(LoadError::BadIndex), "channel {ch}");
         }
         assert_eq!(bad(&|v| v.tracks[1].receives.push(Receive { track: 1, channel: 0, volume: 1.0 })), Err(LoadError::BadIndex), "self receive");
@@ -1193,6 +1216,35 @@ mod player_tests {
                 assert_eq!(out[2 * i], s);
             }
         });
+    }
+
+    /// Extra output and input pairs (feature `pairs`, change add-v2-import): a send output into a bus, a bus into an aux
+    /// input, a missing pair rejected; old channel values keep their meaning.
+    #[cfg(feature = "pairs")]
+    #[test]
+    fn extra_pairs_carry_sends_and_aux_inputs() {
+        use crate::device::recv;
+        // track 0: Pairs; track 1 (bus): main ← track 0's pair 1; track 2: AuxIn reading track 1 into input pair 1;
+        // master ← track 2
+        let mut bus = t(&[], 1);
+        bus.recv.push((0, recv::encode(1, 0) as i32, 1.0));
+        let mut aux = t(&[1], 1);
+        aux.recv.push((1, recv::encode(0, 4) as i32, 2.0));
+        let mut master = t(&[], 1);
+        master.recv.push((2, 0, 1.0));
+        let b = song(&[4, 5], &[vec![], vec![]], &[t(&[0], 0), bus, aux, master]);
+        with_player(&b, 100, |p| {
+            let mut out = vec![0.0f32; 200];
+            p.render_f32(&mut out);
+            assert!(out.iter().all(|&x| x == 1.0), "0.5 (pair 1) through the bus, ×2 into the aux input: {:?}", &out[..4]);
+        });
+        // a pair the receiving side does not have, or a sending pair past the last one, does not load
+        for c in [recv::encode(5, 0), 8, 0x1_0000] {
+            let mut bad = t(&[], 1);
+            bad.recv.push((0, c as i32, 1.0));
+            assert!(Song::parse(&song(&[4], &[vec![], vec![]], &[t(&[0], 0), bad])).is_err(), "channel {c:#x}");
+        }
+        assert!(recv::valid(0, true) && recv::valid(2, true) && !recv::valid(1, true));
     }
 
     #[test]

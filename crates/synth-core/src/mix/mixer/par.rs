@@ -226,30 +226,37 @@ unsafe fn step<D: Device, T: TrackSource>(
     for b in tb.ch.iter_mut() {
         b[..n].fill(0.0);
     }
+    #[cfg(feature = "pairs")]
+    for b in tb.ext.iter_mut() {
+        b[..n].fill(0.0);
+    }
     for r in st.receives() {
         assert!(r.track != ti && r.track < nt, "receive out of range");
         // SAFETY: a sending track is in a lower level and finished; nobody writes it now.
         let s = unsafe { &*bufs.add(r.track) };
-        for j in 0..2 {
-            for (d, s) in tb.ch[r.channel + j][..n].iter_mut().zip(&s.ch[j][..n]) {
-                *d += s * r.volume;
-            }
-        }
+        super::add_receive(tb, s, r.channel, r.volume, n);
     }
     // 4. devices in chain order
     let [a, b, c, d] = &mut tb.ch;
     let mut io = Io { ch: [&mut a[..n], &mut b[..n], &mut c[..n], &mut d[..n]] };
     let mut rng = NoRng;
     let mut ctx = Ctx { rate, tempo, frame, rng: &mut rng };
+    #[cfg(feature = "pairs")]
+    {
+        let mut ext: [&mut [f32]; crate::device::EXT_CH] = Default::default();
+        for (e, b) in ext.iter_mut().zip(tb.ext.iter_mut()) {
+            *e = &mut b[..n];
+        }
+        for di in st.devices() {
+            dev(di).run_ext(&mut io, &mut ext, n, &mut ctx);
+            crate::denormal::flush_io(&mut io.ch);
+        }
+    }
+    #[cfg(not(feature = "pairs"))]
     for di in st.devices() {
         dev(di).run(&mut io, n, &mut ctx);
         crate::denormal::flush_io(&mut io.ch);
     }
     // 5. volume
-    let volume = st.volume();
-    if volume != 1.0 {
-        for b in tb.ch.iter_mut() {
-            b[..n].iter_mut().for_each(|x| *x *= volume);
-        }
-    }
+    super::scale(tb, st.volume(), n);
 }

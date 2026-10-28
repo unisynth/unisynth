@@ -11,6 +11,43 @@ pub const MAIN_R: usize = 1;
 pub const SIDE_L: usize = 2;
 pub const SIDE_R: usize = 3;
 
+/// Extra output pairs a device may write (V2's reverb, delay, aux A and aux B sends) and extra input pairs it may
+/// read (aux A, aux B), feature `pairs` (change add-v2-import, design D6). The mixer clears a track's extra pairs every
+/// sub-block; the track's devices share them (a later device's write replaces an earlier one's); a pair nobody writes
+/// reads as silence.
+pub const OUT_PAIRS: usize = 4;
+pub const IN_PAIRS: usize = 2;
+/// Buffers of the extra pairs of a track: outputs `2·k`, `2·k + 1` for pair `k + 1`, inputs after them.
+pub const EXT_CH: usize = 2 * (OUT_PAIRS + IN_PAIRS);
+
+/// The receive channel field (design D6): byte 0 is the receiving pair (0 main, 2 sidechain, 4 input pair 1, 6 input
+/// pair 2), byte 1 the sending pair (0 the track's main output, 1–4 an extra output pair). Old songs hold 0 or 2.
+pub mod recv {
+    /// Receiving buffer index: 0/2 into `ch`, 4/6 into the extra input pairs.
+    pub const fn to(channel: usize) -> usize {
+        channel & 0xff
+    }
+    /// Sending pair: 0 main, 1–4 an extra output pair.
+    pub const fn from(channel: usize) -> usize {
+        (channel >> 8) & 0xff
+    }
+    /// A valid channel field.
+    pub const fn valid(channel: usize, pairs: bool) -> bool {
+        let to = to(channel);
+        let from = from(channel);
+        if channel >> 16 != 0 {
+            return false;
+        }
+        if !pairs {
+            return channel == 0 || channel == 2;
+        }
+        (to == 0 || to == 2 || to == 4 || to == 6) && from <= super::OUT_PAIRS
+    }
+    pub const fn encode(from: usize, to: usize) -> usize {
+        from << 8 | to
+    }
+}
+
 /// The 4 channel buffers of a track, processed in place: `ch[MAIN_L]`, `ch[MAIN_R]`, `ch[SIDE_L]`, `ch[SIDE_R]`.
 /// Each slice holds ≥ `n` frames; frames past `n` are untouched.
 ///
@@ -34,6 +71,13 @@ pub struct Ctx<'r> {
 }
 
 pub trait Device {
+    /// Runs with the track's extra pairs (feature `pairs`): `ext[2k..2k+2]` is output pair `k + 1` (cleared by the
+    /// mixer before the track's devices run), `ext[8..12]` input pairs 1 and 2 (filled by receives). The default
+    /// ignores them.
+    #[inline]
+    fn run_ext(&mut self, io: &mut Io, _ext: &mut [&mut [f32]], n: usize, ctx: &mut Ctx) {
+        self.run(io, n, ctx);
+    }
     /// Number of normalized parameters. Constant for the device's lifetime.
     /// Whether this build plays automation lanes: a constant `Err(module id)` (a build for songs without lanes) lets the
     /// compiler drop the mixer's automation walk, and the player refuses a song with lanes with `UnsupportedModule(id)`.
@@ -121,6 +165,11 @@ impl<const N: usize> Events<N> {
 
     pub fn is_empty(&self) -> bool {
         self.slots.iter().all(Option::is_none)
+    }
+
+    /// Whether a note-on is queued for the first `n` frames.
+    pub fn has_note_on(&self, n: usize) -> bool {
+        self.slots.iter().flatten().any(|e| (e.offset as usize) < n && matches!(e.kind, EventKind::NoteOn { .. }))
     }
 
     /// Splits a call of `n` frames at event offsets: fires due events (slot order), then renders up to the next

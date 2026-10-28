@@ -33,11 +33,12 @@ fn with(edits: &[(usize, f32)]) -> [f32; pm::COUNT] {
     v
 }
 
-/// Hand-built chunk: pairs and raw sample entries.
-fn raw(version: u8, pairs: &[(u8, f32)], samples: &[Vec<u8>]) -> Vec<u8> {
-    let mut c = vec![version, pairs.len() as u8];
+/// Hand-built chunk: pairs (indices in their escaped form) and raw sample entries.
+fn raw(version: u8, pairs: &[(usize, f32)], samples: &[Vec<u8>]) -> Vec<u8> {
+    let mut c = vec![version];
+    push_count(&mut c, pairs.len());
     for &(i, v) in pairs {
-        c.push(i);
+        push_index(&mut c, i);
         c.extend(v.to_le_bytes());
     }
     c.push(samples.len() as u8);
@@ -50,6 +51,24 @@ fn raw(version: u8, pairs: &[(u8, f32)], samples: &[Vec<u8>]) -> Vec<u8> {
 
 fn bad(c: &[u8]) {
     assert_eq!(Chunk::parse(c).err(), Some(LoadError::BadChunk), "{c:?}");
+}
+
+/// [`bad`] for a chunk that uses an escape: without `us-chunk-wide` the escape itself is refused first.
+fn bad_wide(c: &[u8]) {
+    let want = if cfg!(feature = "us-chunk-wide") { LoadError::BadChunk } else { LoadError::UnsupportedModule(crate::module::CHUNK_WIDE) };
+    assert_eq!(Chunk::parse(c).err(), Some(want), "{c:?}");
+}
+
+#[test]
+#[cfg(not(feature = "us-chunk-wide"))]
+fn escapes_need_the_wide_module() {
+    let hi = with(&[(pm::COUNT - 10, 0.75)]);
+    assert_eq!(Chunk::parse(&encode(&hi, &[])).err(), Some(LoadError::UnsupportedModule(crate::module::CHUNK_WIDE)));
+    let mut many = defaults();
+    many.iter_mut().take(255).for_each(|x| *x = 0.123);
+    assert_eq!(Chunk::parse(&encode(&many, &[])).err(), Some(LoadError::UnsupportedModule(crate::module::CHUNK_WIDE)));
+    // a chunk without escapes (every chunk written before them) still loads
+    assert!(Chunk::parse(&encode(&with(&[(pm::COUNT - 30, 0.75)]), &[])).is_ok());
 }
 
 #[test]
@@ -71,12 +90,14 @@ fn sparse_chunk_sets_only_what_differs() {
     assert_eq!(ch.sample_count(), 0);
 }
 
+#[cfg(feature = "us-chunk-wide")]
 fn lcg(s: &mut u32) -> f32 {
     *s = s.wrapping_mul(1664525).wrapping_add(1013904223);
     (*s >> 8) as f32 / (1u32 << 24) as f32
 }
 
 #[test]
+#[cfg(feature = "us-chunk-wide")]
 fn round_trip_is_bit_exact_and_canonical() {
     let mut s = 7;
     for _ in 0..50 {
@@ -103,13 +124,62 @@ fn round_trip_is_bit_exact_and_canonical() {
 }
 
 #[test]
-fn worst_case_size_is_923_bytes() {
+#[cfg(feature = "us-chunk-wide")]
+fn worst_case_size_is_1325_bytes() {
     let mut v = defaults();
     v.iter_mut().for_each(|x| *x = 0.123); // every value differs from its default
     assert!(v.iter().zip(defaults()).all(|(a, b)| *a != b));
     let c = encode(&v, &[]);
-    assert_eq!(c.len(), 3 + 5 * pm::COUNT);
+    // version, escaped count (3), 240 one-byte pairs, 20 two-byte pairs, sample count
+    assert_eq!(c.len(), 1 + 3 + 5 * SHORT + 6 * (pm::COUNT - SHORT) + 1);
+    assert_eq!(c.len(), 1325);
     assert_eq!(Chunk::parse(&c).unwrap().values(), v);
+}
+
+#[test]
+#[cfg(feature = "us-chunk-wide")]
+fn high_indices_take_two_bytes_and_round_trip() {
+    let hi = pm::COUNT - 10; // 250
+    let v = with(&[(190, 0.3), (hi, 0.75)]);
+    let c = encode(&v, &[]);
+    assert_eq!(c[..3], [VERSION, 2, 190]);
+    assert_eq!(c[7..9], [ESC, (hi - SHORT) as u8], "250 = bank 0, byte 10");
+    assert_eq!(c.len(), 1 + 1 + 5 + 6 + 1);
+    let ch = Chunk::parse(&c).unwrap();
+    assert_eq!(ch.values(), v);
+    assert_eq!(ch.pairs().collect::<Vec<_>>(), [(190, 0.3), (hi, 0.75)]);
+    // a chunk written before the escapes (indices ≤ 183, fewer than 255 pairs) has the same bytes as before
+    let old = with(&[(osc(0, o::TYPE), 0.5), (pm::ext::NOISE_WIDTH, 0.0)]);
+    let mut want = vec![VERSION, 2, osc(0, o::TYPE) as u8];
+    want.extend(0.5f32.to_le_bytes());
+    want.push(pm::ext::NOISE_WIDTH as u8);
+    want.extend(0.0f32.to_le_bytes());
+    want.push(0);
+    assert_eq!(encode(&old, &[]), want);
+}
+
+#[test]
+#[cfg(feature = "us-chunk-wide")]
+fn escaped_counts_are_canonical_and_escapes_at_the_end_are_errors() {
+    // 255 or more pairs need the escaped count; fewer must not use it
+    let mut v = defaults();
+    v.iter_mut().take(255).for_each(|x| *x = 0.123);
+    let c = encode(&v, &[]);
+    assert_eq!(c[..4], [VERSION, COUNT_ESC, 255, 0]);
+    assert_eq!(Chunk::parse(&c).unwrap().values(), v);
+    let mut short = vec![VERSION, COUNT_ESC, 1, 0, 5];
+    short.extend(0.5f32.to_le_bytes());
+    short.push(0);
+    bad(&short);
+    // the chunk ends right after a bank prefix, or inside an escaped count
+    bad(&[VERSION, 1, ESC]);
+    bad(&[VERSION, COUNT_ESC]);
+    bad(&[VERSION, COUNT_ESC, 255]);
+    // a bank prefix past the parameters
+    let mut past = vec![VERSION, 1, ESC + 15, 0];
+    past.extend(0.5f32.to_le_bytes());
+    past.push(0);
+    bad(&past);
 }
 
 #[test]
@@ -126,27 +196,27 @@ fn truncation_at_every_byte_is_an_error() {
 
 #[test]
 fn rejects_version_index_order_values_and_trailing_bytes() {
-    for ver in [0u8, 2, 255] {
+    for ver in [0u8, 3, 255] {
         bad(&raw(ver, &[], &[]));
     }
-    bad(&raw(VERSION, &[(pm::COUNT as u8, 0.5)], &[]));
-    assert!(Chunk::parse(&raw(VERSION, &[(pm::COUNT as u8 - 1, 0.5)], &[])).is_ok(), "the last controller decodes");
-    bad(&raw(VERSION, &[(pm::ctl::BEND_RANGE as u8, 1.5)], &[]));
-    bad(&raw(VERSION, &[(255, 0.5)], &[]));
+    bad(&raw(VERSION_TEXT, &[], &[])); // version 2 needs its text section
+    bad_wide(&raw(VERSION, &[(pm::COUNT, 0.5)], &[]));
+    assert_eq!(Chunk::parse(&raw(VERSION, &[(pm::COUNT - 1, 0.5)], &[])).is_ok(), cfg!(feature = "us-chunk-wide"), "the last parameter decodes");
+    bad(&raw(VERSION, &[(pm::ctl::BEND_RANGE, 1.5)], &[]));
     bad(&raw(VERSION, &[(5, 0.1), (5, 0.9)], &[]));
     bad(&raw(VERSION, &[(9, 0.1), (5, 0.9)], &[]));
     for x in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY, 1.0001, -0.0001, 1e30] {
         bad(&raw(VERSION, &[(5, x)], &[]));
     }
     // raw (sample index) range: 0..=65535 on the three sample index values only; shape[8] is normalized
-    let idx = pm::smp_index(1) as u8;
+    let idx = pm::smp_index(1);
     assert!(Chunk::parse(&raw(VERSION, &[(idx, 65535.0)], &[])).is_ok());
     bad(&raw(VERSION, &[(idx, 65536.0)], &[]));
     bad(&raw(VERSION, &[(idx, -1.0)], &[]));
     bad(&raw(VERSION, &[(idx, f32::NAN)], &[]));
-    bad(&raw(VERSION, &[(osc(1, o::SHAPE + 8) as u8, 5.0)], &[]));
-    bad(&raw(VERSION, &[(pm::smp_index(0) as u8 - 1, 5.0)], &[])); // the last mod slot value
-    assert!(Chunk::parse(&raw(VERSION, &[(pm::smp_index(0) as u8, 5.0)], &[])).is_ok());
+    bad(&raw(VERSION, &[(osc(1, o::SHAPE + 8), 5.0)], &[]));
+    bad(&raw(VERSION, &[(pm::smp_index(0) - 1, 5.0)], &[])); // the last mod slot value
+    assert!(Chunk::parse(&raw(VERSION, &[(pm::smp_index(0), 5.0)], &[])).is_ok());
     let mut ok = raw(VERSION, &[(5, 0.5)], &[]);
     ok.push(0);
     bad(&ok);
@@ -196,7 +266,7 @@ fn hostile_sizes_do_not_overflow() {
     c.extend([0u8; 16]);
     assert!(Chunk::parse(&c).is_err());
     // a count that cannot fit
-    bad(&[VERSION, 255, 0]);
+    bad_wide(&[VERSION, 255, 0]);
 }
 
 #[test]
@@ -240,4 +310,44 @@ fn sample_indices_read_like_int_cast() {
 fn samples_need_the_gsm_module() {
     let c = raw(VERSION, &[], &[entry(VEC_GSM)]);
     assert_eq!(Chunk::parse(&c).err(), Some(LoadError::UnsupportedModule(crate::module::SAMPLE_GSM)));
+}
+
+#[test]
+fn speech_text_makes_a_version_2_chunk() {
+    let v = with(&[(osc(0, o::TYPE), 0.5)]);
+    let text = b"!hEl@U wOrld";
+    let c = encode_text(&v, &[], text);
+    assert_eq!(c[0], VERSION_TEXT);
+    assert_eq!(encode_text(&v, &[], &[]), encode(&v, &[]), "no text: version 1");
+    assert_eq!(encode(&v, &[])[0], VERSION);
+    if cfg!(feature = "us-speech") {
+        let ch = Chunk::parse(&c).unwrap();
+        assert_eq!(ch.text(), text);
+        assert_eq!(ch.values(), v);
+        assert_eq!(Chunk::parse(&encode(&v, &[])).unwrap().text(), b"");
+        for n in 0..c.len() {
+            assert!(Chunk::parse(&c[..n]).is_err(), "cut at {n}");
+        }
+        let mut extra = c.clone();
+        extra.push(0);
+        bad(&extra);
+        // an empty text section is not canonical (that chunk is version 1)
+        let mut empty = encode(&v, &[]);
+        empty[0] = VERSION_TEXT;
+        empty.extend([0, 0]);
+        bad(&empty);
+    } else {
+        assert_eq!(Chunk::parse(&c).err(), Some(LoadError::UnsupportedModule(crate::module::SPEECH)));
+    }
+}
+
+#[test]
+#[cfg(all(feature = "us-sample-gsm", feature = "us-speech"))]
+fn speech_text_follows_the_samples() {
+    let e = entry(VEC_GSM);
+    let v = with(&[(osc(0, o::TYPE), 1.0)]);
+    let c = encode_text(&v, &[&e, &e], b"abc");
+    let ch = Chunk::parse(&c).unwrap();
+    assert_eq!((ch.sample_count(), ch.text()), (2, &b"abc"[..]));
+    assert_eq!(ch.sample(1).unwrap().blocks, VEC_GSM);
 }

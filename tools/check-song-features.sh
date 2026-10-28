@@ -26,6 +26,8 @@ fail=0
 IFS=, read -ra list <<<"$feats"
 for f in "${list[@]}"; do
   [ "$f" = us-osc-sample ] && continue # implied by the sample sources
+  [ "$f" = us-matrix ] && [[ ",$feats," == *",us-matrix-add,"* ]] && continue # implied by us-matrix-add
+  [ "$f" = us-chunk-wide ] && [[ ",$feats," == *",us-chan,"* ]] && continue # implied by us-chan
   rest=$(printf '%s\n' "${list[@]}" | grep -vx -- "$f" | paste -sd, -)
   if render "$rest" "$tmp/less.wav" 2>/dev/null && cmp -s "$tmp/full.wav" "$tmp/less.wav"; then
     echo "FAIL  $f is listed but the song plays the same without it"; fail=1

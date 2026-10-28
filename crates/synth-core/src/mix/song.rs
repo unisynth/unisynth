@@ -5,7 +5,8 @@
 //! devices: n i32, n × { kind u8, size i32, chunk[size] }
 //! lanes:   n i32, n × { events i32, events × { delta i32, note u8 (bit 7 = note-off), [velocity u8 if note-on] } }
 //! tracks:  n i32, n × { volume f32,
-//!                       receives i32 × { track i32, channel i32 (0 main | 2 sidechain), volume f32 },
+//!                       receives i32 × { track i32, channel i32 (0 main | 2 sidechain; feature `pairs`: see
+//!                       `device::recv`), volume f32 },
 //!                       devices i32 × { device index i32 }, lane i32,
 //!                       automations i32 × { device (index into this track's devices) i32, param i32,
 //!                                           points i32 × { delta i32 (signed), value u8 } } }
@@ -84,7 +85,7 @@ pub struct DeviceRec<'a> {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Receive {
     pub track: usize,
-    /// Receiving channel pair: 0 = main, 2 = sidechain.
+    /// Receiving channel pair: 0 = main, 2 = sidechain (feature `pairs`: [`crate::device::recv`]).
     pub channel: usize,
     pub volume: f32,
 }
@@ -149,7 +150,8 @@ impl<'a> Song<'a> {
             r.f32()?;
             for _ in 0..r.count(12)? {
                 r.index(nt)?;
-                if !matches!(r.i32()?, 0 | 2) {
+                let c = r.i32()?;
+                if c < 0 || !crate::device::recv::valid(c as usize, cfg!(feature = "pairs")) {
                     return Err(LoadError::BadIndex);
                 }
                 r.f32()?;
@@ -178,6 +180,7 @@ impl<'a> Song<'a> {
     /// A song from sections that [`Song::parse`] already accepted (generated code: `synth-convert rust`). Nothing is
     /// checked: `tempo`, `rate`, `length` and the `(count, bytes)` sections must come from a parsed song.
     #[doc(hidden)]
+    /// The sections must come from a parsed [`Song`] (they are not validated again).
     pub const fn from_sections(tempo: i32, rate: i32, length: f64, sections: [(usize, &'a [u8]); 3]) -> Song<'a> {
         let [devices, lanes, tracks] = sections;
         Song { tempo, rate, length, devices, lanes, tracks }

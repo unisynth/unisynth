@@ -76,6 +76,21 @@ modules! {
     AUTOMATION = 37, "us-automation", "automation lanes";
     // added after the first release of the table: ids are never renumbered
     FX_DISTORTION_CURVE = 38, "us-fx-distortion-curve", "distortion, curve mode";
+    MATRIX_ADD = 39, "us-matrix-add", "mod matrix Add operation, controller sources, slots 13–16";
+    SPEECH = 40, "us-speech", "Ronan speech stage";
+    ENV_V2 = 41, "us-env-v2", "V2 envelope";
+    OSC_V2 = 42, "us-osc-v2", "V2 oscillator";
+    FILTER_V2 = 43, "us-flt-v2", "V2 filter";
+    FILTER_ROUTE = 44, "us-flt-route", "parallel filter routing";
+    VDIST = 45, "us-vdist", "voice distortion";
+    LFO_V2 = 46, "us-lfo-v2", "V2 LFO";
+    V2_VOICE = 47, "us-v2-voice", "V2 voice output stage";
+    CHAN = 48, "us-chan", "channel stage";
+    FX_EQ_CUT = 49, "us-fx-eq-cut", "EQ, cut mode (V2 post filters)";
+    FX_DELAY_V2 = 50, "us-fx-delay-v2", "delay, v2 mode";
+    FX_REVERB_V2 = 51, "us-fx-reverb-v2", "reverb, v2 mode";
+    FX_COMPRESSOR_V2 = 52, "us-fx-compressor-v2", "compressor, v2 mode";
+    CHUNK_WIDE = 53, "us-chunk-wide", "chunk escapes (index 240 or more, 255 or more pairs)";
 }
 
 /// Whether this build contains every module in `ids`: generated songs assert it at compile time

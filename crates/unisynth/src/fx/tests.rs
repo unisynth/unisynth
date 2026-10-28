@@ -206,7 +206,7 @@ fn parameters_past_the_end_are_ignored_and_the_count_is_one_more_than_the_mode_h
 fn a_mode_the_build_lacks_is_named_at_load() {
     let env = env(44100.0, 120);
     for &(k, i, id) in MODES.iter() {
-        let chunk = encode(&[mode(i, mode_count(k))]);
+        let chunk = encode(&[mode_value(k, i)]);
         let r = UFx::need(k, &chunk, &env);
         let built = match id {
             m::FX_DISTORTION_SHAPER => cfg!(feature = "us-fx-distortion-shaper"),
@@ -225,6 +225,10 @@ fn a_mode_the_build_lacks_is_named_at_load() {
             m::FX_REVERB_ROOMS => cfg!(feature = "us-fx-reverb-rooms"),
             m::FX_COMPRESSOR => cfg!(feature = "us-fx-compressor"),
             m::FX_FORMANT => cfg!(feature = "us-fx-formant"),
+            m::FX_EQ_CUT => cfg!(feature = "us-fx-eq-cut"),
+            m::FX_DELAY_V2 => cfg!(feature = "us-fx-delay-v2"),
+            m::FX_REVERB_V2 => cfg!(feature = "us-fx-reverb-v2"),
+            m::FX_COMPRESSOR_V2 => cfg!(feature = "us-fx-compressor-v2"),
             _ => false,
         };
         if built {
@@ -712,4 +716,32 @@ fn the_random_parameter_sets_cover_the_range_of_each_parameter() {
         let v: Vec<f32> = (0..24).map(|s| values(s, 14)[pos]).collect();
         assert!(v.iter().any(|x| *x < 0.35) && v.iter().any(|x| *x > 0.65), "position {pos}: {v:?}");
     }
+}
+
+#[test]
+fn v2_modes_sit_between_the_old_ones() {
+    // every old stored value keeps its mode; the V2 modes have their own values
+    for &(k, n) in OLD_MODES.iter() {
+        for i in 0..n {
+            assert_eq!(mode_of_value(k, mode(i, n)), i, "kind {k} mode {i}");
+            assert_eq!(mode_value(k, i).to_bits(), mode(i, n).to_bits(), "kind {k} mode {i}: same stored value");
+        }
+    }
+    for &(k, i, _) in MODES.iter() {
+        assert_eq!(mode_of_value(k, mode_value(k, i)), i, "kind {k} mode {i}");
+    }
+    assert_eq!((mode_total(kind::REVERB), mode_count(kind::REVERB)), (4, 3));
+    assert_eq!(mode_of(kind::COMPRESSOR, &encode(&[1.0])), 1);
+}
+
+#[test]
+#[cfg(feature = "us-fx-reverb-v2")]
+fn the_v2_reverb_has_no_low_cut_before_version_4() {
+    let (l, r) = noise(9, 8000);
+    let render = |lowcut: f32, era: u32| {
+        let p = [mode_value(kind::REVERB, 3), 64.0 / 128.0, 64.0 / 128.0, lowcut, 127.0 / 128.0, crate::law::host::inv_count(era, 0, 6)];
+        with_fx(kind::REVERB, &p, 44100.0, 120, |fx| run(fx, 44100.0, 120, &l, &r, 512))
+    };
+    assert_eq!(render(0.0, 3), render(1.0, 3), "version 3: the low cut does nothing");
+    assert_ne!(render(0.0, 4), render(1.0, 4), "version 4: it cuts");
 }

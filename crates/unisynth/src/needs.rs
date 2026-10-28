@@ -43,16 +43,23 @@ pub fn instrument_why(chunk: &[u8], reach: Reach) -> Result<Why, LoadError> {
         let (lo, hi) = span(i);
         law::choice(lo, n)..=law::choice(hi, n)
     };
+    // the kinds an expanded choice (`params::kinds`) can take over its span
+    let kinds = |i: usize, old: usize, all: usize, none: usize| {
+        let (lo, hi) = span(i);
+        let n = 2 * old - 1;
+        (law::choice(lo, n)..=law::choice(hi, n)).map(move |c| pm::kinds::at(c, old, all - old, none))
+    };
     let n = name;
     let lane = |i: usize| if reach(i).is_some() { " (automated)" } else { "" };
     let mut out = Why::new();
     for i in 0..pm::OSC_SLOTS {
         let t = pm::osc(i, pm::o::TYPE);
-        let ty = law::choice(val[t], osc_type::COUNT);
+        let ty = osc_type::decode(val[t]);
         let kind = |what: &str| format!("{} is {what}", n(t));
         match ty {
             osc_type::PM => add(&mut out, m::OSC_PM, kind("phase-mod")),
             osc_type::BLIT => add(&mut out, m::OSC_BLIT, kind("saw/pulse")),
+            osc_type::V2 => add(&mut out, m::OSC_V2, kind("a V2 oscillator")),
             osc_type::WAVETABLE => add(&mut out, m::OSC_WAVETABLE, kind("wavetable")),
             osc_type::SAMPLER => {
                 add(&mut out, m::OSC_SAMPLER, kind("sampler"));
@@ -71,12 +78,13 @@ pub fn instrument_why(chunk: &[u8], reach: Reach) -> Result<Why, LoadError> {
     }
     for i in 0..pm::FILT_SLOTS {
         let t = pm::filt(i, pm::f::TYPE);
-        for ty in choices(t, ft::COUNT) {
+        for ty in kinds(t, ft::COUNT, ft::ALL, ft::OFF) {
             let (id, what) = match ty {
                 ft::SVF_LP | ft::SVF_HP | ft::SVF_BP | ft::SVF_NOTCH => (m::FILTER_SVF, "a state-variable filter"),
                 ft::LADDER_LP => (m::FILTER_LADDER, "the ladder filter"),
                 ft::RBJ_HP | ft::RBJ_BP => (m::FILTER_RBJ, "an RBJ filter"),
                 ft::NOTCH => (m::FILTER_NOTCH, "the notch filter"),
+                ft::V2_LP..=ft::V2_MOOG_HP => (m::FILTER_V2, "a V2 filter"),
                 _ => continue,
             };
             add(&mut out, id, format!("{} can be {what}{}", n(t), lane(t)));
@@ -87,7 +95,7 @@ pub fn instrument_why(chunk: &[u8], reach: Reach) -> Result<Why, LoadError> {
         reach(pm::modslot(s, pm::m::SOURCE)).is_some() || reach(pm::modslot(s, pm::m::TARGET)).is_some()
     });
     let reads = |env: usize| {
-        let direct = (0..pm::MOD_SLOTS).find(|&s| law::choice(val[pm::modslot(s, pm::m::SOURCE)], source::COUNT) == source::ENV1 + env);
+        let direct = (0..pm::MOD_SLOTS).find(|&s| source::decode(val[pm::modslot(s, pm::m::SOURCE)]) == source::ENV1 + env);
         match (direct, rerouting) {
             (Some(s), _) => Some(format!("{} reads envelope {}", n(pm::modslot(s, pm::m::SOURCE)), env + 1)),
             (None, Some(s)) => Some(format!("a lane on mod{} can route envelope {}", s + 1, env + 1)),
@@ -98,14 +106,18 @@ pub fn instrument_why(chunk: &[u8], reach: Reach) -> Result<Why, LoadError> {
         let why = if i == 0 { Some("envelope 1 ends the voice".to_string()) } else { reads(i) };
         if let Some(why) = why {
             let mt = pm::env(i, pm::e::MODE);
-            for mode in choices(mt, 2) {
-                let (id, what) = if mode == 1 { (m::ENV_RATE, "rate") } else { (m::ENV_TIMED, "timed") };
+            for mode in kinds(mt, pm::env_mode::COUNT, pm::env_mode::ALL, pm::env_mode::TIMED) {
+                let (id, what) = match mode {
+                    pm::env_mode::RATE => (m::ENV_RATE, "rate"),
+                    pm::env_mode::V2 => (m::ENV_V2, "V2"),
+                    _ => (m::ENV_TIMED, "timed"),
+                };
                 add(&mut out, id, format!("{} is {what} mode, {why}{}", n(mt), lane(mt)));
             }
         }
     }
     let routed = (0..pm::MOD_SLOTS).find(|&s| {
-        law::choice(val[pm::modslot(s, pm::m::SOURCE)], source::COUNT) != source::NONE
+        source::decode(val[pm::modslot(s, pm::m::SOURCE)]) != source::NONE
             && law::index(val[pm::modslot(s, pm::m::TARGET)]) == target::NOISE_LEVEL
     });
     if span(v::NOISE_LEVEL).1 > 0.0 {
@@ -121,7 +133,7 @@ pub fn instrument_why(chunk: &[u8], reach: Reach) -> Result<Why, LoadError> {
     for s in 0..pm::MOD_SLOTS {
         let t = pm::modslot(s, pm::m::SOURCE);
         let lfo = source::LFO1..source::LFO1 + pm::LFO_SLOTS;
-        if let Some(k) = choices(t, source::COUNT).find(|c| lfo.contains(c)) {
+        if let Some(k) = kinds(t, source::COUNT, source::ALL, source::NONE).find(|c| lfo.contains(c)) {
             add(&mut out, m::VOICE_LFO, format!("{} reads LFO {}{}", n(t), k - source::LFO1 + 1, lane(t)));
         }
     }
@@ -146,6 +158,38 @@ pub fn instrument_why(chunk: &[u8], reach: Reach) -> Result<Why, LoadError> {
     }
     if let Some(s) = rerouting {
         add(&mut out, m::MATRIX, format!("a lane on mod{} can create a route", s + 1));
+        add(&mut out, m::MATRIX_ADD, format!("a lane on mod{} can create an Add route", s + 1));
+    }
+    if let Some(s) = (0..pm::MOD_SLOTS).find(|&s| crate::modmx::needs_add(&val, s)) {
+        add(&mut out, m::MATRIX_ADD, format!("mod{} is a slot 13–16, an Add route or reads a controller", s + 1));
+    }
+    if c.wide() {
+        add(&mut out, m::CHUNK_WIDE, "the chunk has an index of 240 or more, or 255 or more pairs".into());
+    }
+    if !c.text().is_empty() {
+        add(&mut out, m::SPEECH, format!("the chunk holds {} bytes of speech text", c.text().len()));
+    }
+    // the V2 modules (`instrument::check_v2`)
+    let raw_hi = |i: usize| (pm::v2_raw(span(i).1) as i32, pm::v2_raw(span(i).0) as i32);
+    for k in 0..pm::LFO_SLOTS {
+        let t = pm::lfo_ext(k, pm::lx::MODE);
+        let read = (0..pm::MOD_SLOTS).any(|s| source::decode(val[pm::modslot(s, pm::m::SOURCE)]) == source::LFO1 + k) || rerouting.is_some();
+        if read && choices(t, 2).any(|c| c == 1) {
+            add(&mut out, m::LFO_V2, format!("{} is V2 mode and read{}", n(t), lane(t)));
+        }
+    }
+    let vd = pm::VDIST + pm::dist::MODE;
+    if raw_hi(vd).0 != 0 || raw_hi(vd).1 != 0 {
+        add(&mut out, m::VDIST, format!("{} is on{}", n(vd), lane(vd)));
+    }
+    let (rhi, rlo) = raw_hi(pm::v2::ROUTING);
+    if rhi >= 2 && rlo <= 2 {
+        add(&mut out, m::FILTER_ROUTE, format!("{} is parallel{}", n(pm::v2::ROUTING), lane(pm::v2::ROUTING)));
+    }
+    for (i, id, what) in [(pm::v2::VOICE, m::V2_VOICE, "the V2 voice"), (pm::ch::ON, m::CHAN, "the channel stage")] {
+        if choices(i, 2).any(|c| c == 1) {
+            add(&mut out, id, format!("{} is on ({what}){}", n(i), lane(i)));
+        }
     }
     if choices(v::ONE_SHOT, 2).any(|c| c == 1) {
         add(&mut out, m::VOICE_ONESHOT, format!("{} is on{}", n(v::ONE_SHOT), lane(v::ONE_SHOT)));

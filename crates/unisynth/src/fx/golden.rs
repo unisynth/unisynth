@@ -13,8 +13,7 @@ fn fnv(x: &[f32]) -> u64 {
 
 /// Parameter sets: a few settings that make each mode audible, by seed.
 fn params(k: u8, i: usize) -> Vec<f32> {
-    let n = mode_count(k);
-    let mut p = vec![mode(i, n)];
+    let mut p = vec![mode_value(k, i)];
     p.extend(values(500 + 10 * (k as u32 - 65) + i as u32, 14));
     p
 }

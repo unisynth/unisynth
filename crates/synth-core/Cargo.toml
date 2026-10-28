@@ -10,3 +10,6 @@ libm.workspace = true
 [features]
 # Opt-in multi-threaded song rendering (change add-synth-threads). Off: no thread code is compiled.
 threads = []
+# Extra device output/input pairs carried by receives (change add-v2-import, design D6). Off: receive channels are
+# main (0) or sidechain (2) only and the mixer has no extra buffers.
+pairs = []

@@ -7,6 +7,7 @@
 #[cfg(feature = "std")]
 extern crate std;
 
+pub mod chan;
 pub mod chunk;
 pub mod device;
 pub mod env;
@@ -23,10 +24,16 @@ pub mod noise;
 pub mod osc;
 pub mod module;
 pub mod params;
+#[cfg(feature = "probe")]
+pub mod probe;
 pub mod ramp;
 pub mod smp;
+#[cfg(feature = "us-speech")]
+pub mod speech;
 pub mod rng;
 pub mod tables;
+pub mod v2;
+pub mod v2fx;
 pub mod voice;
 #[cfg(feature = "us-osc-wt")]
 pub mod wt;

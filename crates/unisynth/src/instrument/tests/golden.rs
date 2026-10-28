@@ -172,6 +172,9 @@ use crate::params::{f as fp, filt, filter_type as ft, n, NOISE};
 
 fn play(chunk: &[u8], bank: Option<&[u8]>) -> Vec<f32> {
     with_bank(chunk, bank, RATE, |ins| {
+        // with the probe built in, the goldens play with the filter taps on: they must not change a sample
+        #[cfg(feature = "probe")]
+        ins.set_taps(true);
         let (l, r) = render(ins, RATE, &phrase(), FRAMES, 512);
         l.iter().zip(&r).flat_map(|(a, b)| [*a, *b]).collect()
     })

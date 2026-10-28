@@ -3,7 +3,9 @@
 # song, every feature) and for each reference song with exactly the features `synth-convert features` lists for it, prints
 # raw size, xz -9e size (packer-independent proxy) and squishy 0.1.3 size when Wine + the tool exist, and writes the
 # table to ../../tools/unisynth-parity/size.md for the parity report.
-#   WS_SONG_DIR=… TF_SONGS=… ES4_SONGS=… ./measure.sh      (songs that are not there are skipped; TOOLS, WINE64 as in ../ws-size-probe)
+#   WS_SONG_DIR=… TF_SONGS=… ES4_SONGS=… V2_SONGS=… ./measure.sh      (songs that are not there are skipped; TOOLS, WINE64 as in ../ws-size-probe)
+#   turtles: from $ES4_SONGS/zoom.tf4m, else exported from project/music/turtles.song.json
+#   V2_LIST="fr08 candytron …" picks the V2 acceptance songs ($V2_SONGS/acceptance/<name>.v2m; default: four of them)
 set -euo pipefail
 cd "$(dirname "$0")"
 ROOT=$(cd ../.. && pwd)
@@ -51,8 +53,18 @@ if [ -n "${TF_SONGS:-}" ]; then
     rows+=("$(build "${n##*:}" "$OUT/songs/${n##*:}.song" "$("$CONVERT" features "$OUT/songs/${n##*:}.song")")")
   done
 fi
+if [ -n "${V2_SONGS:-}" ]; then # Farbrausch V2 (change add-v2-import)
+  for n in ${V2_LIST:-fr08 brullwurfel candytron kkrieger}; do
+    [ -f "$V2_SONGS/acceptance/$n.v2m" ] || continue
+    "$CONVERT" v2m "$V2_SONGS/acceptance/$n.v2m" "$OUT/songs/v2-$n.song" 2>/dev/null
+    rows+=("$(build "v2-$n" "$OUT/songs/v2-$n.song" "$("$CONVERT" features "$OUT/songs/v2-$n.song")")")
+  done
+fi
 if [ -f "${ES4_SONGS:-}/zoom.tf4m" ]; then # turtles: 2013 Tunefish 4 (Enigma Studio 4)
   "$CONVERT" tf4m "$ES4_SONGS/zoom.tf4m" "$OUT/songs/turtles.song" 2>/dev/null
+  rows+=("$(build turtles "$OUT/songs/turtles.song" "$("$CONVERT" features "$OUT/songs/turtles.song")")")
+elif [ -f "$ROOT/project/music/turtles.song.json" ]; then # without the module: the repo's demo song (song export)
+  (cd "$ROOT" && cargo run -q --release -p song --bin song -- export project/music/turtles.song.json -o "$PWD/research/us-size-probe/$OUT/songs/turtles.song")
   rows+=("$(build turtles "$OUT/songs/turtles.song" "$("$CONVERT" features "$OUT/songs/turtles.song")")")
 fi
 {

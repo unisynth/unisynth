@@ -14,6 +14,8 @@
 //! | 72 compressor | 0 compressor (WaveSabre Smasher) |
 //! | 73 formant | 0 formant (Tunefish) |
 //!
+//! V2 modes (change add-v2-import, `fx/v2.rs`): 67 EQ 2 cut, 68 delay 2 v2, 71 reverb 3 v2, 72 compressor 1 v2.
+//!
 //! Every (kind, mode) is a Cargo feature (`us-fx-*`); a chunk that selects a mode the build lacks fails at load with
 //! `UnsupportedModule` naming it. The mode is chosen by the chunk only (`set_param(0, …)` is ignored): it sizes the
 //! effect's memory. Effects transform main L/R in place, never write the sidechain pair, take the rate and tempo from
@@ -72,6 +74,8 @@ mod ring;
 mod formant;
 #[cfg(feature = "us-fx-reverb-compact")]
 mod compact;
+#[cfg(any(feature = "us-fx-eq-cut", feature = "us-fx-delay-v2", feature = "us-fx-reverb-v2", feature = "us-fx-compressor-v2"))]
+mod v2;
 
 /// The effect's own parameters of a chunk (the values after the mode), for sizing memory before the effect exists.
 pub struct Params<'c>(&'c [u8]);
@@ -107,8 +111,9 @@ trait Effect<'a>: Sized {
 
 /// `(kind, mode, module id)` for every mode of every kind, in mode order.
 // Distortion: curve sits between shaper and power so the stored mode values keep their meaning (0 = shaper,
-// 1.0 = power, as before curve existed; curve = 0.5).
-const MODES: [(u8, usize, u8); 16] = [
+// 1.0 = power, as before curve existed; curve = 0.5). The V2 modes (change add-v2-import) come after the modes of
+// chunk v1 ([`OLD_MODES`]) and are stored between them (`params::kinds`), so old values keep their meaning too.
+const MODES: [(u8, usize, u8); 20] = [
     (kind::DISTORTION, 0, m::FX_DISTORTION_SHAPER),
     (kind::DISTORTION, 1, m::FX_DISTORTION_CURVE),
     (kind::DISTORTION, 2, m::FX_DISTORTION_POWER),
@@ -125,16 +130,88 @@ const MODES: [(u8, usize, u8); 16] = [
     (kind::REVERB, 2, m::FX_REVERB_ROOMS),
     (kind::COMPRESSOR, 0, m::FX_COMPRESSOR),
     (kind::FORMANT, 0, m::FX_FORMANT),
+    (kind::EQ, 2, m::FX_EQ_CUT),
+    (kind::DELAY, 2, m::FX_DELAY_V2),
+    (kind::REVERB, 3, m::FX_REVERB_V2),
+    (kind::COMPRESSOR, 1, m::FX_COMPRESSOR_V2),
 ];
 
-/// Number of modes of effect kind `k` (0 for a kind that is not an effect).
+/// Modes per kind before change add-v2-import (`inv_choice(mode, mode_count(k))` still encodes them).
+const OLD_MODES: [(u8, usize); 9] = [
+    (kind::DISTORTION, 3),
+    (kind::CRUSHER, 1),
+    (kind::EQ, 2),
+    (kind::DELAY, 2),
+    (kind::CHORUS, 1),
+    (kind::FLANGER, 2),
+    (kind::REVERB, 3),
+    (kind::COMPRESSOR, 1),
+    (kind::FORMANT, 1),
+];
+
+/// Number of modes of effect kind `k` that chunk v1 had (0 for a kind that is not an effect): `inv_choice(mode,
+/// mode_count(k))` encodes those. [`mode_total`] counts the later ones too; [`mode_value`] encodes any mode.
 pub fn mode_count(k: u8) -> usize {
+    OLD_MODES.iter().find(|e| e.0 == k).map_or(0, |e| e.1)
+}
+
+/// Number of modes of effect kind `k`, the V2 ones included.
+pub fn mode_total(k: u8) -> usize {
     MODES.iter().filter(|e| e.0 == k).count()
+}
+
+/// The mode a stored mode value selects: an expanded choice (`params::kinds`) when the kind gained modes.
+#[inline]
+pub fn mode_of_value(k: u8, p: f32) -> usize {
+    // a trusted build without the V2 modes reads only old ones (see `params::kinds::decode_in`)
+    let v2 = cfg!(feature = "us-fx-eq-cut") || cfg!(feature = "us-fx-delay-v2") || cfg!(feature = "us-fx-reverb-v2") || cfg!(feature = "us-fx-compressor-v2");
+    if cfg!(feature = "us-trusted") && !v2 {
+        return plaw::choice(p, mode_count(k));
+    }
+    let (old, later) = (mode_count(k), mode_total(k) - mode_count(k));
+    if later == 0 || old == 0 {
+        plaw::choice(p, old.max(1))
+    } else if old == 1 {
+        plaw::choice(p, 1 + later)
+    } else {
+        crate::params::kinds::decode(p, old, later, 0)
+    }
+}
+
+/// The stored value of mode `mode` of kind `k`.
+pub fn mode_value(k: u8, mode: usize) -> f32 {
+    let (old, later) = (mode_count(k), mode_total(k) - mode_count(k));
+    if later == 0 {
+        if old > 1 { mode as f32 / (old - 1) as f32 } else { 0.0 }
+    } else if old == 1 {
+        mode as f32 / later as f32
+    } else {
+        crate::params::kinds::encode(mode, old)
+    }
+}
+
+/// Stored positions of kind `k`'s mode value (`choice(p, positions)`): the modes and, between the old ones, room
+/// for the later ones.
+pub fn mode_positions(k: u8) -> usize {
+    let (old, later) = (mode_count(k), mode_total(k) - mode_count(k));
+    if later == 0 {
+        old
+    } else if old == 1 {
+        1 + later
+    } else {
+        2 * old - 1
+    }
+}
+
+/// The mode at stored position `pos`, or `None` for a free position.
+pub fn mode_at(k: u8, pos: usize) -> Option<usize> {
+    let m = mode_of_value(k, if mode_positions(k) > 1 { pos as f32 / (mode_positions(k) - 1) as f32 } else { 0.0 });
+    (mode_value(k, m) == if mode_positions(k) > 1 { pos as f32 / (mode_positions(k) - 1) as f32 } else { 0.0 }).then_some(m)
 }
 
 /// The mode a chunk selects.
 pub fn mode_of(k: u8, chunk: &[u8]) -> usize {
-    plaw::choice(value(chunk, 0).unwrap_or(0.0), mode_count(k))
+    mode_of_value(k, value(chunk, 0).unwrap_or(0.0))
 }
 
 /// The module id of mode `mode` of effect kind `k`.
@@ -144,7 +221,7 @@ pub fn module_of(k: u8, mode: usize) -> Option<u8> {
 
 /// True for the effect kinds 65–73.
 pub fn is_effect(k: u8) -> bool {
-    mode_count(k) > 0
+    mode_total(k) > 0
 }
 
 fn missing(k: u8, mode: usize) -> LoadError {
@@ -218,6 +295,10 @@ modes! {
     "us-fx-reverb-rooms" REVERB 2 Rooms rooms::Rooms<'a>,
     "us-fx-compressor" COMPRESSOR 0 Compressor compressor::Compressor<'a>,
     "us-fx-formant" FORMANT 0 Formant formant::Formant,
+    "us-fx-eq-cut" EQ 2 Cut v2::Cut,
+    "us-fx-delay-v2" DELAY 2 DelayV2 v2::DelayV2<'a>,
+    "us-fx-reverb-v2" REVERB 3 ReverbV2 v2::ReverbV2<'a>,
+    "us-fx-compressor-v2" COMPRESSOR 1 CompressorV2 v2::CompressorV2<'a>,
 }
 
 /// An effect device (kinds 65–73).

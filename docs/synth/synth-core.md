@@ -76,6 +76,11 @@ flowchart LR
 - Instruments **overwrite** main L/R. Whatever a receive put into main before the instrument is replaced.
 - Effects transform main L/R and may read the sidechain pair.
 - No device writes the sidechain pair; only track receives fill it.
+- **Extra pairs** (feature `pairs`, change add-v2-import). With `run_ext` a device may also write up to 4 extra
+  stereo output pairs and read 2 extra input pairs (`device::OUT_PAIRS`, `IN_PAIRS`). The V2 channel stage writes its
+  reverb, delay and aux A/B sends there and reads the aux receives there. The mixer clears them every sub-block. The
+  devices of a track share them, so a later device's write replaces an earlier one's. A pair nobody writes reads as
+  silence. The default `run_ext` calls `run`, so a device without extra pairs is unchanged.
 
 ### Context
 
@@ -168,7 +173,7 @@ tempo i32, rate i32, length f64 (seconds)
 devices: n i32, n × { kind u8, size i32, chunk[size] }
 lanes:   n i32, n × { events i32, events × { delta i32, note u8 (bit 7 = note-off), [velocity u8 if note-on] } }
 tracks:  n i32, n × { volume f32,
-                      receives i32 × { track i32, channel i32 (0 main | 2 sidechain), volume f32 },
+                      receives i32 × { track i32, channel i32 (0 main | 2 sidechain; `pairs`: recv field), volume f32 },
                       devices  i32 × { device index i32 },
                       lane i32,
                       automations i32 × { device (index into this track's devices) i32, param i32,
@@ -212,9 +217,14 @@ erDiagram
 ```
 
 `Song::parse` validates once: counts against remaining bytes (a count is rejected before any loop if it cannot fit),
-every index, receive channels 0/2, trailing bytes, tempo and rate > 0. After that the views (`devices()`, `lanes()`,
+every index, receive channels 0/2 (with `pairs`, a valid receive-pair field), trailing bytes, tempo and rate > 0. After that the views (`devices()`, `lanes()`,
 `tracks()`, `automations()`) read the borrowed bytes without failing. Note deltas are ≥ 0; automation times are signed.
 Automation values are `byte/255`.
+
+**Receive pairs** (feature `pairs`, `device::recv`). The channel field is split into bytes. Byte 0 is the receiving
+pair: 0 main, 2 sidechain, 4 and 6 extra input pairs 1 and 2. Byte 1 is the sending pair: 0 the sender's main
+output, 1–4 an extra output pair. The higher bytes are 0. Old blobs (0 and 2) mean what they did and render
+bit-identically. Any other value fails `Song::parse` with `BadIndex`.
 
 Device chunks follow upstream `Device::SetChunk`: `(size − 4)/4` little-endian f32 parameters, then the i32 size. A
 short chunk leaves the remaining parameters at their defaults. Sample devices put their sample data first.
@@ -256,7 +266,7 @@ flowchart TD
     T --> E1["1. events: deliver lane events with frame < t0 + sub + lookahead<br/>to every device on the track (note_on/off with offset)"]
     E1 --> E2["2. automations: value at t0 (linear between points,<br/>held after the last) → device.set_param"]
     E2 --> E3["3. clear the 4 track buffers"]
-    E3 --> E4["4. receives: sender main L/R × volume<br/>→ channel 0 (main) or 2 (sidechain)"]
+    E3 --> E4["4. receives: sender main L/R (or extra output pair) × volume<br/>→ channel 0 (main), 2 (sidechain) or an extra input pair"]
     E4 --> E5["5. devices in chain order: run(io, sub, ctx)"]
     E5 --> E6["6. × track volume"]
     E6 --> T

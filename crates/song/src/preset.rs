@@ -35,7 +35,7 @@ pub fn save(d: &Device, name: &str) -> Preset {
 
 /// A fresh device holding the preset.
 pub fn load(p: &Preset) -> Device {
-    Device { kind: p.kind, values: p.values.clone(), samples: p.samples.clone(), bypass: false, preset: Some(p.name.clone()), trailer: None }
+    Device { kind: p.kind, values: p.values.clone(), samples: p.samples.clone(), speech: vec![], bypass: false, preset: Some(p.name.clone()), trailer: None }
 }
 
 /// Parses and validates a preset (format, kind, names, ranges).

@@ -44,8 +44,11 @@ pub trait TrackSource {
 }
 
 /// A track's 4 buffers (main L/R, side L/R) and its event lookahead.
-struct Bufs<'a> {
+pub(crate) struct Bufs<'a> {
     ch: [&'a mut [f32]; 4],
+    /// Extra pairs (feature `pairs`): `device::EXT_CH` buffers, outputs then inputs.
+    #[cfg(feature = "pairs")]
+    ext: [&'a mut [f32]; crate::device::EXT_CH],
     look: u32,
 }
 
@@ -62,7 +65,8 @@ pub struct Mixer<'a> {
 impl<'a> Mixer<'a> {
     /// Pool bytes [`Mixer::new`] needs for `tracks` tracks (upper bound).
     pub fn need(tracks: usize, sub: usize) -> usize {
-        let need = Pool::need::<Bufs>(tracks) + tracks * 4 * Pool::need::<f32>(sub.max(1)) + Pool::need::<usize>(tracks)
+        let chans = if cfg!(feature = "pairs") { 4 + crate::device::EXT_CH } else { 4 };
+        let need = Pool::need::<Bufs>(tracks) + tracks * chans * Pool::need::<f32>(sub.max(1)) + Pool::need::<usize>(tracks)
             + Pool::need::<u8>(tracks);
         #[cfg(feature = "threads")]
         let need = need + par::Levels::need(tracks);
@@ -70,7 +74,8 @@ impl<'a> Mixer<'a> {
     }
 
     /// Checks that `src` is safe to mix with `devices` song-level devices: at least one track, device indices in
-    /// range, receives from another existing track on channel 0 or 2. A receive cycle feeding the master is rejected by
+    /// range, receives from another existing track on channel 0 or 2 (feature `pairs`: a valid `device::recv` field). A
+    /// receive cycle feeding the master is rejected by
     /// [`Mixer::new`]. Blob sources are checked by `Song::parse`; other sources (the live host) call this before
     /// [`Mixer::new`], which assumes a checked source.
     pub fn check(src: &mut impl Source, devices: usize) -> Result<(), LoadError> {
@@ -80,7 +85,9 @@ impl<'a> Mixer<'a> {
         }
         for t in 0..nt {
             let st = src.track(t);
-            if st.devices().any(|d| d >= devices) || st.receives().any(|r| r.track >= nt || r.track == t || (r.channel != 0 && r.channel != 2)) {
+            if st.devices().any(|d| d >= devices)
+                || st.receives().any(|r| r.track >= nt || r.track == t || !crate::device::recv::valid(r.channel, cfg!(feature = "pairs")))
+            {
                 return Err(LoadError::BadIndex);
             }
         }
@@ -89,7 +96,7 @@ impl<'a> Mixer<'a> {
 
     /// Orders the tracks of `src` and allocates their buffers. `sub` is the sub-block size (≥ 1). Lookaheads start
     /// at 0 (see [`Mixer::update_look`]). The source must be valid: at least one track, receive tracks in range,
-    /// channels 0 or 2 (`Song::parse` checks this for blobs).
+    /// channels 0 or 2, or with feature `pairs` a valid `device::recv` field (`Song::parse` checks this for blobs).
     pub fn new(src: &mut impl Source, pool: &mut Pool<'a>, sub: usize) -> Result<Self, LoadError> {
         let sub = sub.max(1);
         let nt = src.track_count();
@@ -98,7 +105,18 @@ impl<'a> Mixer<'a> {
         let levels = par::Levels::new(src, order, pool)?;
         let slots = pool.uninit::<Bufs>(nt)?;
         for slot in slots.iter_mut() {
-            slot.write(Bufs { ch: [pool.slice(sub)?, pool.slice(sub)?, pool.slice(sub)?, pool.slice(sub)?], look: 0 });
+            slot.write(Bufs {
+                ch: [pool.slice(sub)?, pool.slice(sub)?, pool.slice(sub)?, pool.slice(sub)?],
+                #[cfg(feature = "pairs")]
+                ext: {
+                    let mut e: [&mut [f32]; crate::device::EXT_CH] = Default::default();
+                    for b in e.iter_mut() {
+                        *b = pool.slice(sub)?;
+                    }
+                    e
+                },
+                look: 0,
+            });
         }
         // SAFETY: all `nt` slots written above; MaybeUninit<T> has T's layout.
         let tracks = unsafe { &mut *(slots as *mut [core::mem::MaybeUninit<Bufs>] as *mut [Bufs]) };
@@ -133,6 +151,10 @@ impl<'a> Mixer<'a> {
     pub fn reset(&mut self, frame: u64) {
         for t in self.tracks.iter_mut() {
             for b in t.ch.iter_mut() {
+                b.fill(0.0);
+            }
+            #[cfg(feature = "pairs")]
+            for b in t.ext.iter_mut() {
                 b.fill(0.0);
             }
         }
@@ -182,6 +204,10 @@ impl<'a> Mixer<'a> {
             for b in tb.ch.iter_mut() {
                 b[..n].fill(0.0);
             }
+            #[cfg(feature = "pairs")]
+            for b in tb.ext.iter_mut() {
+                b[..n].fill(0.0);
+            }
             for r in st.receives() {
                 let (dst, s) = if r.track < ti {
                     let (a, b) = self.tracks.split_at_mut(ti);
@@ -190,30 +216,71 @@ impl<'a> Mixer<'a> {
                     let (a, b) = self.tracks.split_at_mut(r.track);
                     (&mut a[ti], &b[0])
                 };
-                for j in 0..2 {
-                    for (d, s) in dst.ch[r.channel + j][..n].iter_mut().zip(&s.ch[j][..n]) {
-                        *d += s * r.volume;
-                    }
-                }
+                add_receive(dst, s, r.channel, r.volume, n);
             }
             // 4. devices in chain order
             let tb = &mut self.tracks[ti];
             let [a, b, c, d] = &mut tb.ch;
             let mut io = Io { ch: [&mut a[..n], &mut b[..n], &mut c[..n], &mut d[..n]] };
             let mut ctx = Ctx { rate, tempo, frame: self.frame, rng: &mut *rng };
+            #[cfg(feature = "pairs")]
+            {
+                let mut ext: [&mut [f32]; crate::device::EXT_CH] = Default::default();
+                for (e, b) in ext.iter_mut().zip(tb.ext.iter_mut()) {
+                    *e = &mut b[..n];
+                }
+                for di in st.devices() {
+                    devices[di].run_ext(&mut io, &mut ext, n, &mut ctx);
+                    crate::denormal::flush_io(&mut io.ch);
+                }
+            }
+            #[cfg(not(feature = "pairs"))]
             for di in st.devices() {
                 devices[di].run(&mut io, n, &mut ctx);
                 crate::denormal::flush_io(&mut io.ch);
             }
             // 5. volume
-            let volume = st.volume();
-            if volume != 1.0 {
-                for b in tb.ch.iter_mut() {
-                    b[..n].iter_mut().for_each(|x| *x *= volume);
-                }
-            }
+            scale(tb, st.volume(), n);
         }
         self.frame += n as u64;
+    }
+}
+
+/// Scales a track's outputs (main, sidechain and the extra output pairs) by its volume.
+#[inline]
+pub(crate) fn scale(tb: &mut Bufs, volume: f32, n: usize) {
+    if volume == 1.0 {
+        return;
+    }
+    for b in tb.ch.iter_mut() {
+        b[..n].iter_mut().for_each(|x| *x *= volume);
+    }
+    #[cfg(feature = "pairs")]
+    for b in tb.ext[..2 * crate::device::OUT_PAIRS].iter_mut() {
+        b[..n].iter_mut().for_each(|x| *x *= volume);
+    }
+}
+
+/// Adds a receive from `s` into `dst`: the selected pair of the sending track into the selected receiving pair.
+#[inline]
+pub(crate) fn add_receive(dst: &mut Bufs, s: &Bufs, channel: usize, volume: f32, n: usize) {
+    use crate::device::recv;
+    for j in 0..2 {
+        #[cfg(feature = "pairs")]
+        let src: &[f32] = match recv::from(channel) {
+            0 => &s.ch[j],
+            k => &s.ext[2 * (k - 1) + j],
+        };
+        #[cfg(not(feature = "pairs"))]
+        let src: &[f32] = &s.ch[j];
+        let to = recv::to(channel);
+        #[cfg(feature = "pairs")]
+        let d: &mut [f32] = if to >= 4 { &mut dst.ext[2 * crate::device::OUT_PAIRS + (to - 4) + j] } else { &mut dst.ch[to + j] };
+        #[cfg(not(feature = "pairs"))]
+        let d: &mut [f32] = &mut dst.ch[to + j];
+        for (d, s) in d[..n].iter_mut().zip(&src[..n]) {
+            *d += s * volume;
+        }
     }
 }
 

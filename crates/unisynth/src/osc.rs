@@ -33,6 +33,8 @@ pub enum Kind {
     /// Spectral wavetable: needs a [`crate::wt::Wt`] from the pool.
     #[cfg(feature = "us-osc-wt")]
     Wt,
+    /// V2's oscillator (change add-v2-import): mono, works on the voice's running sum ([`v2_sample`]).
+    V2,
 }
 
 impl Kind {
@@ -46,6 +48,8 @@ impl Kind {
             osc_type::SAMPLER if cfg!(feature = "us-osc-sample") => Ok(Kind::Sampler),
             osc_type::BLIT if cfg!(feature = "us-osc-blit") => Ok(Kind::Blit),
             osc_type::BLIT => missing(module::OSC_BLIT),
+            osc_type::V2 if cfg!(feature = "us-osc-v2") => Ok(Kind::V2),
+            osc_type::V2 => missing(module::OSC_V2),
             #[cfg(feature = "us-osc-wt")]
             osc_type::WAVETABLE => Ok(Kind::Wt),
             #[cfg(not(feature = "us-osc-wt"))]
@@ -58,7 +62,7 @@ impl Kind {
     pub fn all(values: &[f32; COUNT]) -> Result<[Kind; pm::OSC_SLOTS], LoadError> {
         let mut k = [Kind::Off; pm::OSC_SLOTS];
         for (i, slot) in k.iter_mut().enumerate() {
-            *slot = Kind::from_type(crate::law::choice(values[osc(i, o::TYPE)], osc_type::COUNT))?;
+            *slot = Kind::from_type(osc_type::decode(values[osc(i, o::TYPE)]))?;
         }
         Ok(k)
     }
@@ -78,12 +82,32 @@ pub struct Slot {
     pub smp: smp::State,
     /// Saw/pulse: no note has started it yet, so `phase` is still the unscaled draw.
     pub fresh: bool,
+    /// V2: wave counter, noise filter and seed (`v2::Opt`: absent without the V2 voice features).
+    pub v2s: crate::v2::Opt<V2Slot>,
+}
+
+/// A V2 slot's running state: wave counter (one turn = 2³²), noise filter and noise seed; `init` once the seed was
+/// set.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct V2Slot {
+    pub cnt: u32,
+    pub nf: crate::v2::Lrc,
+    pub nseed: u32,
+    pub init: bool,
 }
 
 impl Slot {
     /// `phase` is the slot's start phase (turns), drawn once when the voice is built.
     pub const fn new(kind: Kind, phase: f64) -> Self {
-        Slot { kind, phase, prev: 0.0, integral: 0.0, smp: smp::State::new(), fresh: true }
+        Slot {
+            kind,
+            phase,
+            prev: 0.0,
+            integral: 0.0,
+            smp: smp::State::new(),
+            fresh: true,
+            v2s: crate::v2::Opt::new(V2Slot { cnt: 0, nf: crate::v2::Lrc { l: 0.0, b: 0.0 }, nseed: 0, init: false }),
+        }
     }
 
     /// Voice start. The phase-mod operator restarts from `phase`; the saw/pulse keeps its phase and integrator, which
@@ -132,6 +156,49 @@ pub struct SlotT {
     pub layers: usize,
     /// Sampler: loop, interpolation and loop bounds.
     pub smp: smp::Cfg,
+    /// V2: waveform, ring, break point, noise filter and the format-version switches.
+    pub v2: crate::v2::Opt<V2T>,
+}
+
+/// A V2 slot's settings for a control segment (V2 keeps them for a frame; they are not ramped).
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct V2T {
+    /// V2 mode 0..7 (`V2Osc::Mode`).
+    pub mode: u8,
+    pub ring: bool,
+    /// Break point (colour) as 0.32 fixed point.
+    pub brpt: u32,
+    pub nffrq: f32,
+    pub nfres: f32,
+    /// Format version below 6: native sine for the sine and FM modes.
+    pub native_sin: bool,
+    /// Format version below 3: saw/triangle and pulse are the year-2000 4× oversampled box filter (v2redux
+    /// `DELTA_OSC_BOXFILTER`).
+    pub box4: bool,
+    /// Format version below 5: the older noise (MSVC LCG, its own filter recurrence; `DELTA_NOISE_LCG_MSVC`).
+    pub old_noise: bool,
+}
+
+/// V2 oscillator modes (`V2Osc::Mode`).
+pub mod v2mode {
+    pub const OFF: u8 = 0;
+    pub const TRI_SAW: u8 = 1;
+    pub const PULSE: u8 = 2;
+    pub const SIN: u8 = 3;
+    pub const NOISE: u8 = 4;
+    pub const FM: u8 = 5;
+    pub const AUX_A: u8 = 6;
+    pub const AUX_B: u8 = 7;
+}
+
+/// What a V2 slot does to the voice's running sum this sample.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum V2Out {
+    Add(f32),
+    /// Ring mode: multiplies the running sum.
+    Mul(f32),
+    /// FM and the aux input replace it.
+    Set(f32),
 }
 
 /// The ramps that carry a slot's control values across a segment.
@@ -152,6 +219,7 @@ pub struct SlotRamps {
     leak: f32,
     layers: usize,
     smp: smp::Cfg,
+    v2: crate::v2::Opt<V2T>,
 }
 
 impl SlotRamps {
@@ -171,6 +239,9 @@ impl SlotRamps {
         self.leak = t.leak;
         self.layers = t.layers;
         self.smp = t.smp;
+        if cfg!(feature = "us-osc-v2") {
+            self.v2 = t.v2;
+        }
     }
 
     pub fn to(&mut self, t: &SlotT, frames: u32) {
@@ -189,6 +260,9 @@ impl SlotRamps {
         self.leak = t.leak;
         self.layers = t.layers;
         self.smp = t.smp;
+        if cfg!(feature = "us-osc-v2") {
+            self.v2 = t.v2;
+        }
     }
 
     pub fn retarget(&mut self, t: &SlotT, frames: u32) {
@@ -207,6 +281,9 @@ impl SlotRamps {
         self.leak = t.leak;
         self.layers = t.layers;
         self.smp = t.smp;
+        if cfg!(feature = "us-osc-v2") {
+            self.v2 = t.v2;
+        }
     }
 }
 
@@ -254,6 +331,149 @@ pub fn sample(slot: &mut Slot, wt: Option<&mut Wt>, src: &smp::Source, r: &mut S
         }
         // a type of a module this build lacks is rejected at load; the guards let the compiler drop its code
         _ => (0.0, 0.0, 0.0),
+    }
+}
+
+const TWO_32: f32 = 4_294_967_296.0;
+
+/// One sample of a V2 slot (`V2Osc::render*`, v2redux's assembly-faithful versions). `mono` is the voice's running sum
+/// (the FM modulator), `aux` the aux input pair of the selected bus. The counter advances by the ramped increment
+/// as V2's integer `freq`.
+#[inline]
+pub fn v2_sample(slot: &mut Slot, r: &mut SlotRamps, mono: f32, aux: (f32, f32)) -> V2Out {
+    let mut st = slot.v2s.get();
+    let y = v2_step(&mut st, r, mono, aux);
+    slot.v2s.set(st);
+    y
+}
+
+#[inline(always)]
+fn v2_step(slot: &mut V2Slot, r: &mut SlotRamps, mono: f32, aux: (f32, f32)) -> V2Out {
+    use crate::v2::{fastsin, fastsinrc, utof23};
+    let inc = r.inc.next();
+    let gain = r.gain.next() * r.mix.next();
+    let _ = (r.pan_l.next(), r.pan_r.next(), r.pm_out.next(), r.feedback.next(), r.wf.next(), r.pw.next());
+    let _ = (r.det.next(), r.spread.next(), r.drive.next());
+    let t = &r.v2.get();
+    let freq = (inc * TWO_32) as i64 as u32;
+    let out = |y: f32| if t.ring { V2Out::Mul(y) } else { V2Out::Add(y) };
+    match t.mode {
+        v2mode::TRI_SAW | v2mode::PULSE if t.box4 => {
+            // four sub-steps of a quarter increment, averaged
+            let step = freq / 4;
+            let col = utof23(t.brpt);
+            let bg = gain * 0.25;
+            let mut acc = 0.0f32;
+            let mut c = slot.cnt;
+            for _ in 0..4 {
+                if t.mode == v2mode::TRI_SAW {
+                    let p = f32::from_bits((c >> 9) | 0x3f80_0000);
+                    acc += if c < t.brpt {
+                        p * (2.0 / col.max(1e-9)) + (-1.0 - 2.0 / col.max(1e-9))
+                    } else {
+                        p * (-2.0 / (1.0 - col).max(1e-9)) + (4.0 / (1.0 - col).max(1e-9) - 1.0)
+                    };
+                } else if c >= t.brpt {
+                    acc += 2.0;
+                }
+                c = c.wrapping_add(step);
+            }
+            slot.cnt = c;
+            out(if t.mode == v2mode::TRI_SAW { acc * bg } else { (acc - 4.0) * bg })
+        }
+        v2mode::TRI_SAW | v2mode::PULSE => {
+            let cnt = slot.cnt;
+            let brpt = t.brpt;
+            let old_up = cnt.wrapping_sub(freq) < brpt;
+            let new_up = cnt < brpt;
+            let carry = cnt < freq;
+            slot.cnt = cnt.wrapping_add(freq);
+            let f = utof23(freq).max(1e-9);
+            let col = utof23(brpt);
+            let p = utof23(cnt);
+            let code = (carry as u8) << 2 | (old_up as u8) << 1 | new_up as u8;
+            if t.mode == v2mode::TRI_SAW {
+                // the transition cases cancel catastrophically and then divide by f: V2 ran them on the x87 (15-bit
+                // exponent); in f32 a low note picks up audible noise, so they run in f64 (as v2redux's portable build)
+                let (f, g) = (f as f64, gain as f64);
+                let omf = 1.0 - f;
+                let rcpf = 1.0 / f;
+                let col = col as f64;
+                let (c1, c2) = (g / col.max(1e-9), -g / (1.0 - col).max(1e-9));
+                let p = p as f64 - col;
+                let y = match code {
+                    3 => c1 * (p + p - f),
+                    0 => c2 * (p + p - f),
+                    2 => rcpf * (c2 * (p * p) - c1 * ((p - f) * (p - f))),
+                    5 => {
+                        let t = p + 1.0 - f;
+                        -((c2 * (t * t) - c1 * (p * p)) + g) * rcpf
+                    }
+                    7 => -((c1 * (omf * (p + p + omf))) + g) * rcpf,
+                    4 => -((c2 * (omf * (p + p + omf))) + g) * rcpf,
+                    _ => 0.0,
+                };
+                out((y + g) as f32)
+            } else {
+                let gdf = gain / f;
+                out(match code {
+                    3 => gain,
+                    0 => -gain,
+                    2 => gdf * 2.0 * (col - p) + gain,
+                    5 => gdf * 2.0 * p - gain,
+                    7 => gdf * 2.0 * (col - 1.0) + gain,
+                    4 => gdf * 2.0 * col - gain,
+                    _ => 0.0,
+                })
+            }
+        }
+        v2mode::SIN => {
+            let cnt = slot.cnt;
+            slot.cnt = cnt.wrapping_add(freq);
+            if t.native_sin {
+                return out(gain * crate::fm::sinf(utof23(cnt) * core::f32::consts::TAU));
+            }
+            let mut phase = cnt.wrapping_add(0x4000_0000);
+            if phase & 0x8000_0000 != 0 {
+                phase = !phase;
+            }
+            let x = f32::from_bits((phase >> 8) | 0x3f80_0000) * core::f32::consts::PI - 4.712_389;
+            out(gain * fastsin(x))
+        }
+        v2mode::NOISE if t.old_noise => {
+            slot.nseed = slot.nseed.wrapping_mul(214_013).wrapping_add(2_531_011);
+            let n = f32::from_bits(((slot.nseed & 0xffff) << 7) | 0x4000_0000) - 3.0;
+            let (sl, sb, f, r) = (slot.nf.l, slot.nf.b, t.nffrq, t.nfres);
+            let bb = sb + sl * f;
+            let h = (n - sl) * r - bb;
+            let ll = sl + h * f;
+            (slot.nf.l, slot.nf.b) = (ll, bb);
+            out(gain * (h + bb + ll))
+        }
+        v2mode::NOISE => {
+            let n = crate::v2::frandom(&mut slot.nseed);
+            let h = slot.nf.step(n, t.nffrq, t.nfres);
+            out(gain * (t.nfres * (slot.nf.l + h) + slot.nf.b))
+        }
+        v2mode::FM => {
+            let cnt = slot.cnt;
+            slot.cnt = cnt.wrapping_add(freq);
+            let y = if t.native_sin {
+                // the x87 `fistp`: round to nearest, and the "integer indefinite" 0x80000000 when out of range (a
+                // loud modulator collapses the carrier, as in V2 before version 6)
+                let m = libm::rint((mono as f64) * 4.0 * 2_147_483_648.0);
+                let modi = if (-2_147_483_648.0..2_147_483_648.0).contains(&m) { m as i32 as u32 } else { 0x8000_0000 };
+                gain * crate::fm::sinf(utof23(cnt.wrapping_add(modi)) * core::f32::consts::TAU)
+            } else {
+                gain * fastsinrc((mono * 2.0 + f32::from_bits((cnt >> 9) | 0x3f80_0000)) * core::f32::consts::TAU)
+            };
+            if t.ring { V2Out::Mul(y) } else { V2Out::Set(y) }
+        }
+        v2mode::AUX_A | v2mode::AUX_B => {
+            let a = (aux.0 + aux.1) * gain * 0.6;
+            V2Out::Set(if t.ring { a * mono } else { a })
+        }
+        _ => V2Out::Add(0.0),
     }
 }
 

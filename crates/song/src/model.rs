@@ -184,6 +184,9 @@ pub struct Device {
     /// GSM sample entries (base64), kind 64 only.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub samples: Vec<String>,
+    /// Ronan speech texts (V2 phonemes; controller 4 selects one), kind 64 only (change add-v2-import).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub speech: Vec<String>,
     /// Bypassed devices are kept in the source and left out of the export.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub bypass: bool,

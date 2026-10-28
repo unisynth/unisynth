@@ -32,7 +32,8 @@ pub fn chunk(d: &Device) -> Vec<u8> {
         }
         let samples: Vec<Vec<u8>> = d.samples.iter().map(|b| crate::b64::decode(b).unwrap_or_default()).collect();
         let refs: Vec<&[u8]> = samples.iter().map(|s| s.as_slice()).collect();
-        return chunk::encode(&v, &refs);
+        let text = d.speech.join("\0");
+        return chunk::encode_text(&v, &refs, text.as_bytes());
     }
     let vals: Vec<f32> = t.params.iter().map(|p| d.values.get(&p.name).unwrap_or(p.default)).collect();
     let mut c = fx::encode(&vals);

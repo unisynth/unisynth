@@ -45,18 +45,22 @@ pub(crate) fn check_modules(values: &[f32; COUNT]) -> Result<(), LoadError> {
         return Ok(());
     }
     for i in 0..pm::FILT_SLOTS {
-        flt::Kind::check(law::choice(values[pm::filt(i, pm::f::TYPE)], pm::filter_type::COUNT))?;
+        flt::Kind::check(pm::filter_type::decode(values[pm::filt(i, pm::f::TYPE)]))?;
     }
     // envelope 1 always runs; the others when a matrix slot reads them
     for i in 0..pm::ENV_SLOTS {
         let read = (0..pm::MOD_SLOTS)
-            .any(|s| law::choice(values[pm::modslot(s, pm::m::SOURCE)], crate::modmx::source::COUNT) == crate::modmx::source::ENV1 + i);
+            .any(|s| crate::modmx::source::decode(values[pm::modslot(s, pm::m::SOURCE)]) == crate::modmx::source::ENV1 + i);
         if i == 0 || read {
-            crate::env::check(law::choice(values[pm::env(i, pm::e::MODE)], 2) == 1)?;
+            let mode = pm::env_mode::decode(values[pm::env(i, pm::e::MODE)]);
+            crate::env::check_v2(mode == pm::env_mode::V2)?;
+            if mode != pm::env_mode::V2 {
+                crate::env::check(mode == pm::env_mode::RATE)?;
+            }
         }
     }
     let routed = (0..pm::MOD_SLOTS).any(|i| {
-        law::choice(values[pm::modslot(i, pm::m::SOURCE)], crate::modmx::source::COUNT) != crate::modmx::source::NONE
+        crate::modmx::source::decode(values[pm::modslot(i, pm::m::SOURCE)]) != crate::modmx::source::NONE
             && law::index(values[pm::modslot(i, pm::m::TARGET)]) == crate::modmx::target::NOISE_LEVEL
     });
     if !cfg!(feature = "us-noise") && (values[v::NOISE_LEVEL] > 0.0 || routed) {
@@ -72,7 +76,7 @@ fn check_voice(values: &[f32; COUNT]) -> Result<(), LoadError> {
     let uses = |on: bool, id: u8| if on { Err(LoadError::UnsupportedModule(id)) } else { Ok(()) };
     let mono = law::choice(values[v::MODE], 2) == 1;
     if !cfg!(feature = "us-voice-lfo") {
-        let src = |s: usize| law::choice(values[pm::modslot(s, pm::m::SOURCE)], source::COUNT);
+        let src = |s: usize| source::decode(values[pm::modslot(s, pm::m::SOURCE)]);
         uses((0..pm::MOD_SLOTS).any(|s| (source::LFO1..source::LFO1 + pm::LFO_SLOTS).contains(&src(s))), crate::module::VOICE_LFO)?;
     }
     if !cfg!(feature = "us-voice-glide") {
@@ -89,6 +93,34 @@ fn check_voice(values: &[f32; COUNT]) -> Result<(), LoadError> {
     }
     if !cfg!(feature = "us-matrix") {
         uses((0..pm::MOD_SLOTS).any(|s| crate::modmx::routes(values, s)), crate::module::MATRIX)?;
+    }
+    if !cfg!(feature = "us-matrix-add") {
+        uses((0..pm::MOD_SLOTS).any(|s| crate::modmx::needs_add(values, s)), crate::module::MATRIX_ADD)?;
+    }
+    check_v2(values)
+}
+
+/// The V2 modules a patch uses (change add-v2-import; `needs::instrument_why` mirrors this): a V2-mode LFO a slot
+/// reads, the voice distortion, parallel filter routing, the V2 voice, the channel stage, the speech stage.
+fn check_v2(values: &[f32; COUNT]) -> Result<(), LoadError> {
+    use crate::module as m;
+    let uses = |on: bool, id: u8| if on { Err(LoadError::UnsupportedModule(id)) } else { Ok(()) };
+    let raw = |i: usize| pm::v2_raw(values[i]) as i32;
+    if !cfg!(feature = "us-lfo-v2") {
+        let read = |k: usize| (0..pm::MOD_SLOTS).any(|s| crate::modmx::source::decode(values[pm::modslot(s, pm::m::SOURCE)]) == crate::modmx::source::LFO1 + k);
+        uses((0..pm::LFO_SLOTS).any(|k| read(k) && law::choice(values[pm::lfo_ext(k, pm::lx::MODE)], 2) == 1), m::LFO_V2)?;
+    }
+    if !cfg!(feature = "us-vdist") {
+        uses(raw(pm::VDIST + pm::dist::MODE) != 0, m::VDIST)?;
+    }
+    if !cfg!(feature = "us-flt-route") {
+        uses(raw(pm::v2::ROUTING) == 2, m::FILTER_ROUTE)?;
+    }
+    if !cfg!(feature = "us-v2-voice") {
+        uses(law::choice(values[pm::v2::VOICE], 2) == 1, m::V2_VOICE)?;
+    }
+    if !cfg!(feature = "us-chan") {
+        uses(law::choice(values[pm::ch::ON], 2) == 1, m::CHAN)?;
     }
     Ok(())
 }
@@ -107,6 +139,21 @@ pub struct UInstrument<'a> {
     rng: Xorshift,
     voices: VoicePool<'a, Voice<'a>>,
     events: Events<MAX_EVENTS>,
+    /// The channel stage (`ch::ON`, `us-chan`).
+    chan: Option<crate::chan::Chan<'a>>,
+    /// Note-ons so far (`NoteCx::seq`).
+    seq: u32,
+    /// The Ronan speech stage (`ch::SPEECH` with text in the chunk, `us-speech`), the speech controllers it last
+    /// applied (raw) and the chunk's text (for a reset).
+    #[cfg(feature = "us-speech")]
+    speech: Option<crate::speech::Ronan<'a>>,
+    #[cfg(feature = "us-speech")]
+    speech_ctl: [i32; 2],
+    #[cfg(feature = "us-speech")]
+    text: &'a [u8],
+    /// The editor's filter taps (`set_taps`).
+    #[cfg(feature = "probe")]
+    taps: Option<crate::probe::Ring>,
 }
 
 impl<'a> UInstrument<'a> {
@@ -118,7 +165,8 @@ impl<'a> UInstrument<'a> {
         let n = capacity(&values);
         let tables = n * wt_slots(&kinds);
         let chunk = Chunk::parse(chunk)?;
-        Ok(VoicePool::<Voice>::need(n) + if tables > 0 { Pool::need::<Wt>(tables) } else { 0 } + smp::pool_need(&values, &chunk)?)
+        let chan = if crate::chan::on(&values) { crate::chan::Chan::need() } else { 0 };
+        Ok(VoicePool::<Voice>::need(n) + if tables > 0 { Pool::need::<Wt>(tables) } else { 0 } + smp::pool_need(&values, &chunk)? + chan)
     }
 
     /// Builds the instrument from its chunk. One draw of the song random source seeds the instrument's own stream.
@@ -136,7 +184,18 @@ impl<'a> UInstrument<'a> {
             let wt = core::array::from_fn(|i| if wants_table(kinds[i]) { tables.next() } else { None });
             Voice::new(kinds, &mut own, wt, samples, insts)
         })?;
+        let chan = if crate::chan::on(&values) { Some(crate::chan::Chan::new(pool)?) } else { None };
+        #[cfg(feature = "us-speech")]
+        let text = Chunk::parse(chunk)?.text();
         let mut s = UInstrument {
+            chan,
+            seq: 0,
+            #[cfg(feature = "us-speech")]
+            speech: speech_of(&values, text, env.rate as f32),
+            #[cfg(feature = "us-speech")]
+            speech_ctl: speech_ctl(&values),
+            #[cfg(feature = "us-speech")]
+            text,
             p: values,
             rate: env.rate as f32,
             ctl0: core::array::from_fn(|i| values[pm::CTL + i]),
@@ -145,6 +204,8 @@ impl<'a> UInstrument<'a> {
             rng: own,
             voices,
             events: Events::default(),
+            #[cfg(feature = "probe")]
+            taps: None,
         };
         s.apply_pool_settings();
         Ok(s)
@@ -154,6 +215,24 @@ impl<'a> UInstrument<'a> {
         self.voices.voices()
     }
 
+    /// Starts (or stops) collecting each filter slot's input and output summed over voices (`probe`).
+    #[cfg(feature = "probe")]
+    pub fn set_taps(&mut self, on: bool) {
+        if on != self.taps.is_some() {
+            self.taps = on.then(Default::default);
+        }
+    }
+
+    /// The sounding voices and the filter taps after the last render call. Reads only.
+    #[cfg(feature = "probe")]
+    pub fn probe(&self) -> crate::probe::Probe {
+        let sh = Shared { p: &self.p, rate: self.rate };
+        let voices = self.voices.voices().iter().filter(|v| v.is_on()).map(|v| v.snap(&sh)).collect();
+        let on = |s: usize| crate::flt::Kind::of(pm::filter_type::decode(self.p[pm::filt(s, pm::f::TYPE)])) != crate::flt::Kind::Off;
+        let taps = core::array::from_fn(|s| self.taps.as_ref().filter(|_| on(s)).map(|t| t.read(s)));
+        crate::probe::Probe { voices, taps }
+    }
+
     /// Mod wheel `0..1` (mod source 7): the live input; writes the `ctl.wheel` parameter songs can automate.
     pub fn mod_wheel(&mut self, w: f32) {
         self.set_param(pm::ctl::WHEEL, w);
@@ -161,8 +240,8 @@ impl<'a> UInstrument<'a> {
 
     /// Runs `f` with the pool and a note context (no event position: phase 0).
     fn with_cx<R>(&mut self, f: impl FnOnce(&mut VoicePool<'a, Voice>, &mut NoteCx) -> R) -> R {
-        let UInstrument { p, rate, rng, voices, .. } = self;
-        let mut cx = NoteCx { sh: Shared { p, rate: *rate }, rng, frame: 0, force: false };
+        let UInstrument { p, rate, rng, voices, seq, .. } = self;
+        let mut cx = NoteCx { sh: Shared { p, rate: *rate }, rng, frame: 0, force: false, seq: *seq };
         f(voices, &mut cx)
     }
 
@@ -177,8 +256,28 @@ impl<'a> UInstrument<'a> {
     }
 }
 
+/// The speech stage of a patch: on, with text.
+#[cfg(feature = "us-speech")]
+fn speech_of<'a>(p: &[f32; COUNT], text: &'a [u8], rate: f32) -> Option<crate::speech::Ronan<'a>> {
+    (law::choice(p[pm::ch::SPEECH], 2) == 1 && !text.is_empty()).then(|| crate::speech::Ronan::new(text, rate))
+}
+
+/// The speech controllers 4 and 5 (raw values).
+#[cfg(feature = "us-speech")]
+fn speech_ctl(p: &[f32; COUNT]) -> [i32; 2] {
+    [libm::rintf(pm::v2_raw(p[pm::ch::SPEECH_CTL4])) as i32, libm::rintf(pm::v2_raw(p[pm::ch::SPEECH_CTL5])) as i32]
+}
+
+/// V2's frame at `rate` (128 samples at 44.1 kHz).
+#[cfg(feature = "us-speech")]
+fn v2_frame(rate: f32) -> u64 {
+    ((128.0 * rate / 44_100.0 + 0.5) as u64).max(1)
+}
+
 /// Renders the frames `l.len()` from absolute frame `abs`, ticking the control grid.
-fn render_span(voices: &mut VoicePool<Voice>, sh: &Shared, abs: u64, l: &mut [f32], r: &mut [f32]) {
+/// `base` = frame of `l[0]` in the device call (where the editor's taps write).
+#[cfg_attr(not(feature = "probe"), allow(unused_variables))]
+fn render_span(voices: &mut VoicePool<Voice>, sh: &Shared, abs: u64, l: &mut [f32], r: &mut [f32], base: usize, #[cfg(feature = "probe")] mut tap: Option<&mut crate::probe::Ring>) {
     let mut pos = 0;
     while pos < l.len() {
         let at = abs + pos as u64;
@@ -196,10 +295,58 @@ fn render_span(voices: &mut VoicePool<Voice>, sh: &Shared, abs: u64, l: &mut [f3
         let seg = voices.voices_mut().iter().filter(|v| v.is_on()).map(|v| v.left()).fold(to_grid, u32::min).max(1) as usize;
         let seg = seg.min(l.len() - pos);
         for v in voices.voices_mut().iter_mut().filter(|v| v.is_on()) {
+            #[cfg(feature = "probe")]
+            v.render(&mut l[pos..pos + seg], &mut r[pos..pos + seg], tap.as_deref_mut().map(|t| (t, base + pos)));
+            #[cfg(not(feature = "probe"))]
             v.render(&mut l[pos..pos + seg], &mut r[pos..pos + seg]);
         }
         pos += seg;
     }
+}
+
+/// Delivers the call's events and renders the voices between them into `l`/`r` (`n` frames from `frame0`).
+#[allow(clippy::too_many_arguments)]
+#[inline(always)]
+fn play(
+    events: &mut Events<MAX_EVENTS>,
+    voices: &mut VoicePool<Voice>,
+    rng: &mut Xorshift,
+    seq: &mut u32,
+    sh: Shared,
+    frame0: u64,
+    n: usize,
+    l: &mut [f32],
+    r: &mut [f32],
+    #[cfg(feature = "probe")] mut tap: Option<&mut crate::probe::Ring>,
+    #[cfg(feature = "us-speech")] mut speech: Option<&mut crate::speech::Ronan>,
+) {
+    events.run(n, |step| match step {
+        Step::Event { at, kind } => {
+            let mut cx = NoteCx { sh, rng, frame: frame0 + at as u64, force: false, seq: *seq };
+            match kind {
+                EventKind::NoteOn { note, velocity } => {
+                    // V2 tells the speech stage of every note-on and note-off of its channel
+                    #[cfg(feature = "us-speech")]
+                    if let Some(s) = speech.as_deref_mut() {
+                        s.note_on();
+                    }
+                    *seq = seq.wrapping_add(1);
+                    cx.seq = *seq;
+                    voices.note_on(note, velocity, &mut cx)
+                }
+                EventKind::NoteOff { note } => {
+                    #[cfg(feature = "us-speech")]
+                    if let Some(s) = speech.as_deref_mut() {
+                        s.note_off();
+                    }
+                    voices.note_off(note, &mut cx)
+                }
+            }
+        }
+        Step::Render { start, len } => {
+            render_span(voices, &sh, frame0 + start as u64, &mut l[start..start + len], &mut r[start..start + len], start, #[cfg(feature = "probe")] tap.as_deref_mut());
+        }
+    });
 }
 
 impl Device for UInstrument<'_> {
@@ -213,6 +360,19 @@ impl Device for UInstrument<'_> {
         }
         let max = if pm::is_raw(i) { crate::chunk::MAX_SAMPLE_INDEX } else { 1.0 };
         self.p[i] = value.max(0.0).min(max);
+        #[cfg(feature = "us-speech")]
+        if i == pm::ch::SPEECH_CTL4 || i == pm::ch::SPEECH_CTL5 {
+            // a change of a speech controller is V2's controller message on the speech channel
+            let now = speech_ctl(&self.p);
+            if let Some(sp) = self.speech.as_mut() {
+                for k in 0..2 {
+                    if now[k] != self.speech_ctl[k] {
+                        sp.set_ctl(4 + k as u32, now[k].max(0) as u32);
+                    }
+                }
+            }
+            self.speech_ctl = now;
+        }
         if matches!(i, v::UNISON | v::UNI_DETUNE | v::UNI_SPREAD | v::STEAL | v::MODE) {
             self.apply_pool_settings();
         }
@@ -237,34 +397,111 @@ impl Device for UInstrument<'_> {
     fn reset(&mut self) {
         self.events.clear();
         self.voices.clear_state();
+        #[cfg(feature = "us-speech")]
+        {
+            self.speech = speech_of(&self.p, self.text, self.rate);
+            self.speech_ctl = speech_ctl(&self.p);
+        }
         let kinds = self.kinds;
         self.rng = Xorshift::new(self.seed);
         let rng = &mut self.rng;
         self.voices.voices_mut().iter_mut().for_each(|v| v.reset(kinds, rng));
         self.p[pm::CTL..pm::CTL + pm::ctl::LEN].copy_from_slice(&self.ctl0); // the controllers only, not `ext`
+        if let Some(c) = self.chan.as_mut() {
+            c.reset();
+        }
+        self.seq = 0;
     }
 
     fn run(&mut self, io: &mut Io, n: usize, ctx: &mut Ctx) {
+        self.render(io, &mut [], n, ctx);
+    }
+
+    /// With the channel stage, the extra pairs carry its sends (outputs 1–4: reverb, delay — mono mixes on both
+    /// channels — aux A, aux B) and its aux receive (inputs 1–2). Without it, the default (`run`) applies.
+    #[cfg(feature = "us-chan")]
+    fn run_ext(&mut self, io: &mut Io, ext: &mut [&mut [f32]], n: usize, ctx: &mut Ctx) {
+        self.render(io, ext, n, ctx);
+    }
+}
+
+impl UInstrument<'_> {
+    /// One render call (`run` / `run_ext`).
+    #[inline(always)]
+    fn render(&mut self, io: &mut Io, ext: &mut [&mut [f32]], n: usize, ctx: &mut Ctx) {
         let _ftz = synth_core::denormal::Guard::new();
         self.rate = ctx.rate as f32;
         io.ch[MAIN_L][..n].fill(0.0);
         io.ch[MAIN_R][..n].fill(0.0);
         let [l, r, ..] = &mut io.ch;
-        let UInstrument { p, rate, rng, voices, events, .. } = self;
-        let sh = Shared { p, rate: *rate };
+        let UInstrument {
+            p,
+            rate,
+            rng,
+            voices,
+            events,
+            seq,
+            chan,
+            #[cfg(feature = "probe")]
+            taps,
+            #[cfg(feature = "us-speech")]
+            speech,
+            ..
+        } = self;
+        #[cfg(feature = "us-speech")]
         let frame0 = ctx.frame;
-        events.run(n, |step| match step {
-            Step::Event { at, kind } => {
-                let mut cx = NoteCx { sh, rng, frame: frame0 + at as u64, force: false };
-                match kind {
-                    EventKind::NoteOn { note, velocity } => voices.note_on(note, velocity, &mut cx),
-                    EventKind::NoteOff { note } => voices.note_off(note, &mut cx),
+        // V2 renders a channel (its speech and its strip) only while one of its voices sounds
+        let sounding = (cfg!(feature = "us-speech") || cfg!(feature = "us-chan")) && (voices.voices().iter().any(|v| v.is_on()) || events.has_note_on(n));
+        let sh = Shared { p, rate: *rate };
+        let (l, r) = (&mut l[..n], &mut r[..n]);
+        // the editor's taps (`probe` builds only)
+        #[cfg(feature = "probe")]
+        if let Some(t) = taps.as_mut() {
+            t.begin(n);
+        }
+        play(events, voices, rng, seq, sh, ctx.frame, n, l, r, #[cfg(feature = "probe")] taps.as_mut(), #[cfg(feature = "us-speech")] speech.as_mut());
+        #[cfg(feature = "probe")]
+        if let Some(t) = taps.as_mut() {
+            t.end();
+        }
+        // the speech stage speaks through the voice sum, one V2 frame at a time on the absolute grid
+        #[cfg(feature = "us-speech")]
+        if let Some(sp) = speech.as_mut() {
+            let f = v2_frame(*rate);
+            let mut pos = 0;
+            while pos < n {
+                let at = frame0 + pos as u64;
+                if at % f == 0 {
+                    sp.tick(f as usize);
                 }
+                let len = ((f - at % f) as usize).min(n - pos);
+                if sounding {
+                    sp.process(&mut l[pos..pos + len], &mut r[pos..pos + len]);
+                }
+                pos += len;
             }
-            Step::Render { start, len } => {
-                render_span(voices, &sh, frame0 + start as u64, &mut l[start..start + len], &mut r[start..start + len]);
+        }
+        if let Some(c) = chan.as_mut().filter(|_| cfg!(feature = "us-chan") && sounding) {
+            // the strip's settings follow the parameters with the newest voice's channel routes (once per call: the
+            // player's sub-blocks are on the absolute grid)
+            let mut cp = *p;
+            if let Some(v) = voices.voices().iter().max_by_key(|v| v.seq).filter(|v| v.seq > 0) {
+                v.apply_channel(&mut cp);
             }
-        });
+            let set = crate::chan::ChanP::new(&cp, *rate);
+            if ext.len() >= synth_core::device::EXT_CH {
+                let (outs, ins) = ext.split_at_mut(2 * synth_core::device::OUT_PAIRS);
+                let [rvb, rvb_r, dly, dly_r, aal, aar, abl, abr] = outs else { unreachable!() };
+                let [ial, iar, ibl, ibr] = ins else { unreachable!() };
+                let sends = crate::chan::Sends { rvb: &mut rvb[..n], dly: &mut dly[..n], aux: [(&mut aal[..n], &mut aar[..n]), (&mut abl[..n], &mut abr[..n])] };
+                c.process(&set, &mut l[..n], &mut r[..n], *rate, Some(sends), Some([(&ial[..n], &iar[..n]), (&ibl[..n], &ibr[..n])]));
+                // the reverb and delay buses are mono: the same mix on both channels
+                rvb_r[..n].copy_from_slice(&rvb[..n]);
+                dly_r[..n].copy_from_slice(&dly[..n]);
+            } else {
+                c.process(&set, &mut l[..n], &mut r[..n], *rate, None, None);
+            }
+        }
     }
 }
 
