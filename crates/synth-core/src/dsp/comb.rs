@@ -24,8 +24,8 @@ impl<'a> Comb<'a> {
     #[inline]
     pub fn process(&mut self, input: f32) -> f32 {
         let out = self.buf[self.idx];
-        self.z = out * (1.0 - self.damp) + self.z * self.damp;
-        self.buf[self.idx] = input + self.z * self.feedback;
+        self.z = crate::denormal::flush(out * (1.0 - self.damp) + self.z * self.damp);
+        self.buf[self.idx] = crate::denormal::flush(input + self.z * self.feedback);
         self.idx += 1;
         if self.idx == self.buf.len() {
             self.idx = 0;

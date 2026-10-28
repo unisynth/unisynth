@@ -46,7 +46,7 @@ impl<'a> Ring<'a> {
 
     #[inline]
     pub fn write(&mut self, x: f32) {
-        self.buf[self.pos] = x;
+        self.buf[self.pos] = crate::denormal::flush(x);
         self.pos += 1;
         if self.pos == self.len {
             self.pos = 0;

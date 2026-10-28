@@ -6,7 +6,9 @@ import { startServer } from "../../cli/src/server.ts";
 import { DIST, buildDaw } from "../build.ts";
 
 const B = 3840;
-// variants: OSC1=wt|pm (oscillator 1 type), UNISON=1..16, TRACKS=n
+// variants: OSC1=wt|pm (oscillator 1 type), UNISON=1..16, TRACKS=n, WATCH=track index (live probe on that track:
+// filter taps run, and the probe is read every 10 calls ≈ the worklet's 30 ms status, timed apart as `probe`),
+// AB=1 with WATCH: watched and unwatched alternate per second on one page (`extra` = watched / unwatched − 1)
 const OSC1 = process.env.OSC1 === "pm" ? 0.25 : 0.75;
 const UNISON = (Number(process.env.UNISON ?? 4) - 1) / 15;
 const NT = Number(process.env.TRACKS ?? 12);
@@ -36,19 +38,33 @@ const b = await chromium.launch({ channel: process.env.CHROME_CHANNEL ?? "chrome
 const p = await b.newPage();
 await p.goto(`${s.url}daw/`);
 await p.waitForFunction(() => (window as any).DAW?.engine);
-const r = await p.evaluate((json) => {
+const WATCH = Number(process.env.WATCH ?? -1);
+const AB = !!process.env.AB;
+const r = await p.evaluate(([json, watch, AB]) => {
   const E = (window as any).DAW.engine, x = E.x;
   const ex = E.exportBlob(json); if (!ex.blob) return { error: JSON.stringify(ex.errors) };
   const ptr = x.alloc(ex.blob.length); new Uint8Array(x.memory.buffer, ptr, ex.blob.length).set(ex.blob);
   if (!x.load(ptr, ex.blob.length)) return { error: "load failed" };
+  x.probe_watch?.(watch);  // absent in builds before add-device-live-view (A/B)
   x.play(0);
-  const calls = Math.floor((30 * 44100) / 128), times = new Float64Array(calls);
+  let probe = 0, reads = 0;
+  const calls = AB ? 8 * 4725 : Math.floor((30 * 44100) / 128), times = new Float64Array(calls);
   for (let i = 0; i < 200; i++) x.render(128); // warm-up
-  for (let i = 0; i < calls; i++) { const t0 = performance.now(); x.render(128); times[i] = performance.now() - t0; }
+  // AB: watched and unwatched alternate in blocks on the same page, so machine load hits both alike. The 8-bar loop is
+  // 4725 calls = 27 blocks of 175 (odd), so each block's music is measured both ways over an even number of loops.
+  const ab = { on: 0, off: 0, nOn: 0, nOff: 0 }, BLK = 175;
+  for (let i = 0; i < calls; i++) {
+    const on = watch >= 0 && (!AB || Math.floor(i / BLK) % 2 === 0);
+    if (AB && i % BLK === 0) x.probe_watch(on ? watch : -1);
+    const t0 = performance.now(); x.render(128); times[i] = performance.now() - t0;
+    if (on) { ab.on += times[i]; ab.nOn++; } else { ab.off += times[i]; ab.nOff++; }
+    if (on && i % 10 === 0) { const t1 = performance.now(); const n = x.probe_len(); new Float32Array(x.memory.buffer, x.probe_ptr(), n).slice(); probe += performance.now() - t1; reads++; }
+  }
   const sorted = [...times].sort((a, b) => a - b), q = (f: number) => sorted[Math.min(sorted.length - 1, Math.floor(f * sorted.length))];
-  return { calls, mean: times.reduce((a, b) => a + b, 0) / calls, p50: q(0.5), p99: q(0.99), p999: q(0.999), max: sorted[sorted.length - 1], over: times.filter((t) => t > 2.9).length, res: Math.min(...[...new Set(sorted)].slice(1).map((v, i, a) => (i ? v - a[i - 1] : Infinity))) };
-}, JSON.stringify(song));
-console.log(`osc1=${process.env.OSC1 ?? "wt"} unison=${process.env.UNISON ?? 4} tracks=${NT}`);
+  return { calls, mean: times.reduce((a, b) => a + b, 0) / calls, p50: q(0.5), p99: q(0.99), p999: q(0.999), max: sorted[sorted.length - 1], over: times.filter((t) => t > 2.9).length, res: Math.min(...[...new Set(sorted)].slice(1).map((v, i, a) => (i ? v - a[i - 1] : Infinity))), probe: reads ? probe / reads : 0,
+    ...(AB ? { watched: ab.on / ab.nOn, unwatched: ab.off / ab.nOff, extra: ab.on / ab.nOn / (ab.off / ab.nOff) - 1 } : {}) };
+}, [JSON.stringify(song), WATCH, AB] as const);
+console.log(`osc1=${process.env.OSC1 ?? "wt"} unison=${process.env.UNISON ?? 4} tracks=${NT} watch=${WATCH}`);
 console.log(JSON.stringify(r, (k, v) => (typeof v === "number" ? +v.toFixed(4) : v)));
 console.log(`budget per 128 frames at 44.1 kHz: 2.902 ms · max ${((r as any).max / 2.902 * 100).toFixed(0)}% · p99 ${((r as any).p99 / 2.902 * 100).toFixed(0)}%`);
 await b.close();

@@ -40,9 +40,9 @@ impl Svf {
 
     #[inline]
     fn step(&mut self, x: f32) -> f32 {
-        self.low += self.f * self.band;
-        let high = (x - self.band) - self.low;
-        self.band += self.f * high;
+        self.low = synth_core::denormal::flush(self.low + self.f * self.band);
+        let high = synth_core::denormal::flush((x - self.band) - self.low);
+        self.band = synth_core::denormal::flush(self.band + self.f * high);
         match self.kind {
             SvfKind::Lowpass => self.low,
             SvfKind::Highpass => high,

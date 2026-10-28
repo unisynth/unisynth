@@ -114,6 +114,13 @@ when the computer is busy the audio thread can be paused for 5-40 ms. The **Buff
 figure trades that tolerance against keyboard-audition delay: Low ~5 ms, Normal ~10 ms, **Safe ~23 ms (default)**,
 Max ~50 ms. It is remembered, and changing it while playing keeps the position.
 
+A load that climbs while playing and only falls on Stop → Play is state building up. One case is fixed: WebAssembly
+cannot switch the CPU into flush-to-zero mode (the native player does, `denormal::Guard`), so effect feedback decaying
+into subnormal floats made every later sample many times slower on x86. `engage` went from ~45 % at bar 37 to over
+100 % by bar 41. Feedback state, filter state and each device's output now pass `denormal::flush` in wasm builds
+(nothing natively; wasm bounces still equal the native render). `bun packages/daw/bench/perbar.ts` (`SONG=…`,
+`RESTART=<bar>`, `MUTE`/`KEEP` to bisect) prints the load per bar.
+
 
 ### GSM samples
 
@@ -123,6 +130,34 @@ A GSM sampler slot plays a sample stored inside its instrument (base64 in the de
 browser decodes any audio file it can read, resamples to 44.1 kHz and mixes to mono; the engine encodes it
 (`crates/gsm` encoder, bit-exact with libgsm 1.0.24). Imports are capped at 30 s. **Remove unused** drops samples no
 slot plays, since each costs bytes in the intro.
+
+### Device panel and live view
+
+The instrument panel has a fixed layout (change add-device-live-view): Voice + Noise, Oscillators 1–3, Filters 1–4
+(serial), Envelopes 1–4, LFOs 1–2 and a 12-row mod matrix. Every slot keeps its place; a slot that is not set (type
+Off, or all defaults and not routed) starts collapsed to one header line with its type control, and setting the type
+expands it. ✕ resets one slot in place: mod rows that targeted it switch off and its automation lanes go, later slots do
+not move. Only filters reorder (⇅ between two neighbours; mod targets and lanes follow), because their order changes
+the sound. ▸/▾ collapses a slot (for the session) or a block (remembered in the browser, not in the song). Each block
+has its own colour; envelope and LFO headers show what the mod matrix routes them to.
+
+Active slots show a screen drawn from their parameters (oscillator waveform, filter response with the cutoff, the
+envelope as the engine plays it, one LFO cycle). While the selected track's instrument sounds, the screens show it
+live, one colour per voice (chips with the note names in the header, at most 16 voices, loudest first, then "+N"):
+sampler playheads, a dot per voice on each envelope (and a level bar), a dot per voice on each LFO, and on each filter
+the input spectrum in grey, the output in the filter colour and a tick at each voice's cutoff after modulation. Dots
+at the same spot stack. **Live** in the instrument header turns the live view off (remembered in the browser); then no
+track is watched and the engine does no probe work.
+
+The data comes from the engine: `unisynth`'s host-only feature `probe` (never in the player) reads each voice
+(note-on id, note, amplitude, release, age, envelope levels and stages, LFO phases, sampler positions, cutoffs) and,
+for the watched instrument only, sums each filter slot's input and output over the voices into a 2048-frame ring.
+The live host watches one track (`probe_watch`); the worklet adds the flat probe (`probe_len`/`probe_ptr`, layout in
+`crates/synth-wasm/src/lib.rs`) to its ~30 ms status. Watching never changes a sample (the instrument goldens and the
+live-vs-player tests run with taps on). Cost (`bench/dense.ts`, `WATCH`/`AB`): taps on the watched instrument +0.5–3 %
+render time; the page's spectra and overlays 0.5 ms per status and 0.5 ms per frame at 16 voices and 4 filters. The
+tap branch in the voice loop makes the DAW engine about 5 % slower even when nothing is watched; this is accepted
+(the player is unaffected: same i686 size, no probe code).
 
 ## Using the DAW
 

@@ -1,6 +1,7 @@
 // AudioWorklet processor (design D6): instantiates the engine module synchronously from the compiled module passed
 // in processorOptions and calls the live host's render(128) per quantum. Commands arrive on the port; status
-// (position, playing, per-track peaks, load) goes back about every 30 ms. No SharedArrayBuffer.
+// (position, playing, per-track peaks, load, the watched instrument's probe) goes back about every 30 ms. No
+// SharedArrayBuffer.
 declare const sampleRate: number;
 declare class AudioWorkletProcessor {
   port: MessagePort;
@@ -18,6 +19,8 @@ class Synth extends AudioWorkletProcessor {
   /** Render time × frames over the status window: the mean load. The worklet clock is Date.now (1 ms), so one
    * 0.1 ms call reads as 0 or 1 ms (0% or 34% of a 128-frame quantum); the mean over many calls is unbiased. */
   busy = 0;
+  /** A track is watched: each status carries its instrument probe (change add-device-live-view D6). */
+  watching = false;
   /** Generation of the last play/stop seen (echoed in status). */
   gen = 0;
   constructor(opts: any) {
@@ -66,6 +69,8 @@ class Synth extends AudioWorkletProcessor {
       case "on": x.note_on(m.track, m.note, m.vel); break;
       case "off": x.note_off(m.track, m.note); break;
       case "param": x.set_param(m.track, m.dev, m.param, m.value); break;
+      // an engine built without the probe has no probe exports: watching then stays off
+      case "watch": this.watching = m.track >= 0 && !!x.probe_watch; x.probe_watch?.(m.track); break;
     }
   }
   /** An engine panic traps the module (its state is no longer trustworthy): report it once and go silent; the page
@@ -101,7 +106,10 @@ class Synth extends AudioWorkletProcessor {
     this.since += n;
     if (this.since >= sampleRate * 0.03) {
       const peaks = new Float32Array(x.memory.buffer, x.peaks_ptr(), x.peaks_len()).slice();
-      this.port.postMessage({ t: "status", position: x.position(), playing: !!x.is_playing(), peaks, load: this.busy / this.since, worst: this.worst, gen: this.gen });
+      const pn = this.watching ? x.probe_len() : 0;
+      const probe = pn ? new Float32Array(x.memory.buffer, x.probe_ptr(), pn).slice() : null;
+      this.port.postMessage({ t: "status", position: x.position(), playing: !!x.is_playing(), peaks, probe, load: this.busy / this.since, worst: this.worst, gen: this.gen },
+        probe ? [probe.buffer] : []);
       this.since = 0;
       this.worst = 0;
       this.busy = 0;

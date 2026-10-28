@@ -7,6 +7,28 @@ pub fn mode() -> u64 {
     imp::get()
 }
 
+/// A subnormal → 0 where [`Guard`] cannot set the CPU mode (wasm), so feedback state that decays into subnormals does
+/// not slow every later sample (≈ 10–100× per op on x86). Identity elsewhere: there the CPU flushes them already.
+#[inline(always)]
+pub fn flush(x: f32) -> f32 {
+    #[cfg(target_arch = "wasm32")]
+    if x.abs() < f32::MIN_POSITIVE {
+        return 0.0;
+    }
+    x
+}
+
+/// [`flush`] over a device's channel buffers, i.e. DAZ between devices (a reverb tail's subnormals would otherwise
+/// slow every device after it). Nothing where the CPU flushes.
+#[inline(always)]
+pub fn flush_io(ch: &mut [&mut [f32]]) {
+    #[cfg(target_arch = "wasm32")]
+    for b in ch.iter_mut() {
+        b.iter_mut().for_each(|x| *x = flush(*x));
+    }
+    let _ = ch;
+}
+
 pub struct Guard {
     saved: u64,
 }

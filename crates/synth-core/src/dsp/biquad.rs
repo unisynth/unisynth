@@ -64,7 +64,7 @@ impl Biquad {
     #[inline]
     pub fn process(&mut self, x: f32) -> f32 {
         let c = &self.coefs;
-        let y = c.c1 * x + c.c2 * self.x1 + c.c3 * self.x2 - c.c4 * self.y1 - c.c5 * self.y2;
+        let y = crate::denormal::flush(c.c1 * x + c.c2 * self.x1 + c.c3 * self.x2 - c.c4 * self.y1 - c.c5 * self.y2);
         self.x2 = self.x1;
         self.x1 = x;
         self.y2 = self.y1;

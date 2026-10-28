@@ -6,7 +6,8 @@ import { bounceThreaded, mtModule, mtWorkers, type MtOptions } from "./bounce-mt
 
 type X = Record<string, any> & { memory: WebAssembly.Memory };
 export type Issue = { path: string; message: string };
-export type Status = { position: number; playing: boolean; peaks: Float32Array; load: number; worst: number; gen?: number };
+/** `probe`: the watched track's instrument (layout in crates/synth-wasm `probe_len`), null when nothing is watched. */
+export type Status = { position: number; playing: boolean; peaks: Float32Array; probe?: Float32Array | null; load: number; worst: number; gen?: number };
 export type Table = { kind: number; mode: number; label: string; params: Param[] };
 export type Param = { index: number; name: string; group: string; default: number; law: string; unit: string; min: number; max: number; options: string[]; structural: boolean; raw: boolean };
 
@@ -127,6 +128,7 @@ export class Engine {
     this.ctx = ctx;
     this.node = node;
     if (this.bank) this.post({ t: "bank", bytes: this.bank });
+    if (this.watched >= 0) this.post({ t: "watch", track: this.watched });
     await ctx.resume();
   }
   /** Closes the audio graph and builds it again with the current `latency` (the song must be loaded again). */
@@ -186,6 +188,13 @@ export class Engine {
   }
   setParam(track: number, dev: number, param: number, value: number) {
     this.post({ t: "param", track, dev, param, value });
+  }
+  /** Track index whose instrument the live displays watch (−1 = none); kept across engine restarts. */
+  watched = -1;
+  watch(track: number) {
+    if (track === this.watched) return;
+    this.watched = track;
+    this.post({ t: "watch", track });
   }
   setBank(bytes: Uint8Array) {
     this.bank = bytes;

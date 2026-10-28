@@ -451,9 +451,9 @@ function oscType(d, i) { return choice(vget(d, ip(`osc${i}.type`)), 5); }
 function slotUsed(d, g, i) {
   if (g === "osc") return oscType(d, i) !== 0;
   if (g === "filt") return choice(vget(d, ip(`filt${i}.type`)), 9) !== 0;
-  if (g === "mod") return choice(vget(d, ip(`mod${i}.source`)), 10) !== 0;
+  if (g === "mod") return modSrcName(d, i) !== "None";
   if (g === "env" && i === 1) return true;
-  return slotKeys(g, i).some(n => n in d.values && d.values[n] !== ip(n).default);
+  return slotKeys(g, i).some(n => n in d.values && d.values[n] !== ip(n).default) || (g === "env" || g === "lfo") && routesOf(d, g, i).length > 0;
 }
 // Slot edits rewrite mod-matrix targets and automation lanes in one command (design D8a). `map(slot)` → new slot
 // number or 0 (gone) for every slot of group g.
@@ -475,30 +475,123 @@ function remapSlots(t, d, g, map) {
   const di = t.devices.indexOf(d), lre = new RegExp(`^${g}(\\d+)(\\..+)$`);
   t.lanes = t.lanes.filter(ln => { if (ln.dev !== di) return true; const mm = ln.param.match(lre); if (!mm) return true; const j = map(+mm[1]); if (!j) return false; ln.param = `${g}${j}${mm[2]}`; return true; });
 }
-function slotRack(t, d, g, label, noun, card, fresh) {
-  const n = SLOTS[g], used = [...Array(n)].map((_, i) => i + 1).filter(i => slotUsed(d, g, i));
-  const r = document.createElement("div"); r.className = "rack"; r.setAttribute("role", "group"); r.setAttribute("aria-label", label);
-  r.innerHTML = `<div class="rack-h"><span>${label}</span><span class="num">${used.length}/${n}</span></div>`;
-  const list = document.createElement("div"); list.className = "rack-list"; r.append(list);
-  const cmd = (msg, fn) => { const before = snap(); fn(); rebuildTracks(); renderDevice(); status.textContent = msg; commit(before, msg); };
-  used.forEach((i, k) => {
-    const gEl = card(i); const ctl = document.createElement("span"); ctl.className = "slot-ctl";
-    const fixed = g === "env" && i === 1;
-    ctl.innerHTML = fixed ? `<span class="dim" title="Envelope 1 shapes the amplitude and ends the voice">fixed</span>` :
-      `<button aria-label="Move ${noun} ${i} up" ${k === 0 || (g === "env" && used[k - 1] === 1) ? "disabled" : ""}>↑</button><button aria-label="Move ${noun} ${i} down" ${k === used.length - 1 ? "disabled" : ""}>↓</button><button aria-label="Remove ${noun} ${i}">✕</button>`;
-    if (!fixed) {
-      const [up, down, rm] = ctl.querySelectorAll("button");
-      const swap = j => cmd(`${noun} ${i} ↔ ${j}: mod targets and automation lanes follow`, () => remapSlots(t, d, g, x => x === i ? j : x === j ? i : x));
-      up.onclick = () => swap(used[k - 1]); down.onclick = () => swap(used[k + 1]);
-      rm.onclick = () => cmd(`${noun} ${i} removed; slots below moved up, their mod targets and lanes renumbered`, () => remapSlots(t, d, g, x => x === i ? 0 : x > i ? x - 1 : x));
+// Fixed slot blocks (change add-device-live-view D1): every slot at its own position; a slot not set starts collapsed
+// to its header (type control); ✕ clears in place; only filters swap (serial order). Slot collapse overrides live
+// for the session (per track), block collapse in `store` (editor state, never in the song).
+const SLOT_NOUN = { osc: "Osc", filt: "Filter", env: "Env", lfo: "LFO" };
+const slotOpen = new Map();
+const blkClosed = k => store.get(`daw.blk.${k}`) === "1";
+// a mod row's source name ("None", "Env 1", "LFO 2", "Velocity", V2 CCs …) from the parameter table
+function modSrcName(d, m) { const p = ip(`mod${m}.source`); return p.options[choice(vget(d, p), p.options.length)] || "None"; }
+// mod targets an envelope or LFO slot routes to (by its mod rows)
+function routesOf(d, g, i) {
+  const src = `${g === "env" ? "Env" : "LFO"} ${i}`, out = [];
+  for (let m = 1; m <= SLOTS.mod; m++) if (modSrcName(d, m) === src) out.push(TARGETS()[Math.round(vget(d, ip(`mod${m}.target`)) * 255)] || "?");
+  return out;
+}
+function slotCmd(t, msg, fn) { const before = snap(); fn(); rebuildTracks(); renderDevice(); status.textContent = msg; commit(before, msg); }
+function slotCard(t, d, g, i, el) {
+  const noun = SLOT_NOUN[g], title = `${noun} ${i}`, used = slotUsed(d, g, i), key = `${t.id}:${g}${i}`, closed = !(slotOpen.get(key) ?? used);
+  el.classList.add("slot"); el.classList.toggle("off", !used); el.classList.toggle("closed", closed);
+  const gh = el.querySelector(".gh"), tw = document.createElement("button");
+  tw.className = "tw"; tw.textContent = closed ? "▸" : "▾"; tw.setAttribute("aria-expanded", !closed); tw.setAttribute("aria-label", `${closed ? "Expand" : "Collapse"} ${title}`);
+  tw.onclick = () => { slotOpen.set(key, closed); renderDevice(); };
+  gh.prepend(tw);
+  const sp = document.createElement("span"); sp.className = "sp"; gh.append(sp);
+  if (g === "env" && i === 1) gh.insertAdjacentHTML("beforeend", `<span class="dim" title="Envelope 1 shapes the amplitude and ends the voice">fixed</span>`);
+  else if (used) {
+    const x = document.createElement("button"); x.className = "clr"; x.textContent = "✕"; x.title = `Reset ${title} (later slots stay where they are)`; x.setAttribute("aria-label", `Clear ${title}`);
+    x.onclick = () => slotCmd(t, `${title} cleared; mod rows that targeted it are off, its lanes removed`, () => { remapSlots(t, d, g, y => y === i ? 0 : y); slotOpen.delete(key); });
+    gh.append(x);
+  }
+  el.querySelector("svg.scr, svg.env")?.setAttribute("data-live", `${g}${i}`);
+  if (g === "env" || g === "lfo") {
+    const r = g === "env" && i === 1 ? ["amplitude"] : routesOf(d, g, i), rt = document.createElement("div"); rt.className = "rt";
+    rt.textContent = r.length ? `→ ${r.join(", ")}` : "unrouted · knobs inactive"; el.classList.toggle("unrouted", !r.length);
+    gh.after(rt);
+  }
+  return el;
+}
+function slotBlock(k, label, n, items) {
+  const closed = blkClosed(k), b = document.createElement("div"); b.className = "blk" + (closed ? " closed" : ""); b.dataset.k = k;
+  b.setAttribute("role", "group"); b.setAttribute("aria-label", label);
+  b.innerHTML = `<div class="blk-h"><button class="tw" aria-expanded="${!closed}" aria-label="${closed ? "Expand" : "Collapse"} ${label}">${closed ? "▸" : "▾"}</button><span>${label}</span><span class="cnt num">${n}</span></div>`;
+  b.querySelector(".tw").onclick = () => { store.set(`daw.blk.${k}`, closed ? "0" : "1"); renderDevice(); };
+  const list = document.createElement("div"); list.className = "blk-list"; list.append(...items); b.append(list); return b;
+}
+const usedCount = (d, g) => `${[...Array(SLOTS[g])].filter((_, i) => slotUsed(d, g, i + 1)).length}/${SLOTS[g]}`;
+// filters: a ⇅ handle between neighbours swaps them (mod targets and lanes follow)
+function filterItems(t, d, card) {
+  const out = [];
+  for (let i = 1; i <= SLOTS.filt; i++) {
+    if (i > 1) {
+      const sw = document.createElement("button"); sw.className = "swap"; sw.textContent = "⇅";
+      sw.title = `Swap filter ${i - 1} and ${i} (serial order; mod targets and lanes follow)`; sw.setAttribute("aria-label", `Swap Filter ${i - 1} and Filter ${i}`);
+      sw.onclick = () => slotCmd(t, `Filter ${i - 1} ↔ ${i}: mod targets and automation lanes follow`, () => {
+        remapSlots(t, d, "filt", x => x === i ? i - 1 : x === i - 1 ? i : x);
+        const a = slotOpen.get(`${t.id}:filt${i - 1}`), b = slotOpen.get(`${t.id}:filt${i}`);
+        [[i - 1, b], [i, a]].forEach(([j, v]) => v === undefined ? slotOpen.delete(`${t.id}:filt${j}`) : slotOpen.set(`${t.id}:filt${j}`, v)); });
+      out.push(sw);
     }
-    gEl.querySelector(".gh").append(ctl); list.append(gEl);
+    out.push(card(i));
+  }
+  return out;
+}
+// mod matrix: one table row per slot (source, target, operation, amount); rows with source None dimmed
+function modTable(t, d) {
+  const tb = document.createElement("table"); tb.className = "mm";
+  tb.innerHTML = `<thead><tr><th></th><th>source</th><th>target</th><th>op</th><th>amount</th></tr></thead><tbody></tbody>`;
+  for (let m = 1; m <= SLOTS.mod; m++) {
+    const src = modSrcName(d, m), tr = document.createElement("tr"); tr.className = src === "None" ? "off" : "";
+    tr.dataset.src = src === "None" ? "" : /^Env/.test(src) ? "env" : /^LFO/.test(src) ? "lfo" : "voice";
+    tr.innerHTML = `<td class="n num">${m}</td>`;
+    for (const f of ["source", "target", "operation", "amount"]) { const td = document.createElement("td"); td.append(pctl(t, d, ip(`mod${m}.${f}`), "")); tr.append(td); }
+    // a source change re-routes: rebuild for the row dimming and the env/LFO routing hints
+    tr.querySelector(`select[aria-label$=" mod${m}.source"]`)?.addEventListener("change", () => renderDevice());
+    tr.querySelector(`select[aria-label$=" mod${m}.target"]`)?.addEventListener("change", () => renderDevice());
+    tb.tBodies[0].append(tr);
+  }
+  return tb;
+}
+// Slot screens (D4): an SVG in a 100×40 box (stretched), redrawn from the current values through the group's
+// `_redraw` (knobs, automation, selects). Drawings, not measurements: shapes follow the parameters' meaning.
+const SVGNS = "http://www.w3.org/2000/svg";
+function scrSvg(draw) {
+  const svg = document.createElementNS(SVGNS, "svg"); svg.setAttribute("class", "scr"); svg.setAttribute("viewBox", "0 0 100 40");
+  svg.setAttribute("preserveAspectRatio", "none"); svg.setAttribute("aria-hidden", "true");
+  svg._draw = () => { svg.innerHTML = draw(); }; return svg;
+}
+const scrPath = (f, n = 160) => "M" + Array.from({ length: n + 1 }, (_, k) => `${(k * 100 / n).toFixed(2)} ${Math.max(.5, Math.min(39.5, f(k / n))).toFixed(2)}`).join(" L");
+const scrLine = (d, fill) => (fill ? `<path class="fl" d="${d} L100 40 L0 40 Z"/>` : "") + `<path class="ln" d="${d}"/>`;
+const scrMid = `<line class="mk0" x1="0" y1="20" x2="100" y2="20"/>`;
+function oscView(d, i) {
+  return scrSvg(() => {
+    const ty = oscType(d, i), v = n => curVal(d, `osc${i}.${n}`), TAU = 2 * Math.PI;
+    let f;
+    if (ty === 2) { const pulse = choice(v("s0"), 2), pw = .05 + .9 * v("s1"); f = x => { const ph = (x * 2) % 1; return 20 - 15 * (pulse ? (ph < pw ? 1 : -1) : 2 * ph - 1); }; }
+    else if (ty === 3) { const hn = 1 + Math.round(v("s1") * 15), dm = 1 + v("s2") * 3; let pk = 0; const g = x => { let y = 0; for (let k = 1; k <= hn; k++) y += Math.sin(TAU * 2 * k * x) / k ** dm; return y; };
+      for (let k = 0; k <= 64; k++) pk = Math.max(pk, Math.abs(g(k / 128))); f = x => 20 - 15 * g(x) / (pk || 1); }
+    else { const fb = v("feedback") * 2.5; f = x => 20 - 15 * Math.sin(TAU * 2 * x + fb * Math.sin(TAU * 2 * x)); }
+    return scrMid + scrLine(scrPath(f));
   });
-  const free = [...Array(n)].map((_, i) => i + 1).find(i => !slotUsed(d, g, i));
-  const add = document.createElement("button"); add.className = "rack-add";
-  add.textContent = free ? `+ ${noun} (${n - used.length} free)` : `${n} of ${n} ${noun.toLowerCase()} slots used`; add.disabled = !free;
-  add.onclick = () => cmd(`${noun} ${free} added`, () => Object.assign(d.values, fresh(free)));
-  r.append(add); return r;
+}
+// filter response on a 20 Hz…20 kHz log axis (x = 100·log10(f/20)/3), 0 dB near the top, −60 dB at the bottom
+const yDb = db => 38 - Math.max(0, Math.min(36, (db + 60) * .55));
+function filtView(t, d, i) {
+  return scrSvg(() => {
+    const p = ip(`filt${i}.cutoff`), hz = E.physical(d.kind, 0, p.index, curVal(d, p.name)), cx = Math.max(0, Math.min(100, Math.log10(hz / 20) / .03));
+    const name = (p0 => p0.options[choice(vget(d, p0), p0.options.length)] || "")(ip(`filt${i}.type`)).toLowerCase();
+    const q = .6 + curVal(d, `filt${i}.resonance`) * 6, poles = /ladder/.test(name) ? 2 : 1;
+    const h = x => { let r = 10 ** ((x - cx) * .03); if (/high/.test(name)) r = 1 / r;
+      const den = Math.sqrt((1 - r * r) ** 2 + (r / q) ** 2), lp = 1 / den;
+      return /band/.test(name) ? (r / q) / den : /notch/.test(name) ? Math.abs(1 - r * r) / den : lp ** poles; };
+    return scrLine(scrPath(x => yDb(20 * Math.log10(h(x * 100) + 1e-9))), true) + `<line class="mk" x1="${cx.toFixed(2)}" y1="0" x2="${cx.toFixed(2)}" y2="40"/>`;
+  });
+}
+const LFO_SHAPES = [x => Math.sin(2 * Math.PI * x), x => 2 * x - 1, x => 1 - 2 * x, x => x < .5 ? 1 : -1, x => Math.sin(Math.floor(x * 8) * 2.7 + 1)];
+function lfoView(d, i) {
+  return scrSvg(() => { const f = LFO_SHAPES[choice(curVal(d, `lfo${i}.shape`), 5)], dep = .25 + .75 * curVal(d, `lfo${i}.depth`);
+    return scrMid + scrLine(scrPath(x => 20 - 15 * dep * f(x), 200)); });
 }
 // Envelope curve as the engine plays it (crates/unisynth/src/env.rs): WaveSabre mode in closed form (linear attack,
 // quadratic decay and release, times `p²·5000 + 1` ms), Tunefish mode integrated per 512-frame block. A note is held
@@ -546,10 +639,11 @@ function envView(d, i) {
     const v = n => curVal(d, `env${i}.${n}`), tf = choice(v("mode"), 2) === 1;
     const { pts, off } = envCurve(tf, v("attack"), v("decay"), v("sustain"), v("release"), v("slope"));
     const tot = Math.max(pts[pts.length - 1][0], 1e-3), x = t1 => 4 + (t1 / tot) * (W - 8), y = q => H - 10 - q * (H - 14);
+    svg._geo = { x, y, off, tot };  // the live dots use the curve's own time axis
     const step = Math.max(1, Math.ceil(pts.length / 200)), line = pts.filter((_, k) => k % step === 0 || k === pts.length - 1).map(([t1, q]) => x(t1).toFixed(1) + "," + y(q).toFixed(1)).join(" ");
     const fmt = s => s >= 1 ? s.toFixed(2) + " s" : Math.round(s * 1000) + " ms";
     svg.innerHTML = `<line x1="${x(off)}" y1="2" x2="${x(off)}" y2="${H - 10}" stroke="${css("--line")}" stroke-dasharray="2 2"/>
-      <polyline fill="${css("--focus")}22" stroke="${css("--focus")}" stroke-width="1.5" points="${x(0)},${y(0)} ${line} ${x(tot)},${y(0)}"/>
+      <polyline fill="currentColor" fill-opacity=".14" stroke="currentColor" stroke-width="1.5" points="${x(0)},${y(0)} ${line} ${x(tot)},${y(0)}"/>
       <text x="${x(off) > W - 40 ? x(off) - 2 : x(off) + 2}" y="9" font-size="8" text-anchor="${x(off) > W - 40 ? "end" : "start"}" fill="${css("--dim")}">note off</text>
       <text x="${W - 4}" y="${H - 1}" font-size="8" text-anchor="end" fill="${css("--dim")}">${fmt(tot)}${tf ? " · Tunefish" : ""}</text>`;
     svg.closest(".grp")?.querySelectorAll(".knob").forEach(k => k._redrawText?.());
@@ -644,7 +738,11 @@ function samplerSettings(t, d, i, box, b64) {
     cv2.addEventListener("pointerup", () => { cv2.removeEventListener("pointermove", mv); const lbl = { start: "start", ls: "loop start", le: "loop end", move: "loop" }[what];
       d._edited = true; commit(before, `${t.name}: osc ${i} sample ${lbl} moved`); if (!custom && what !== "start") renderDevice(); }, { once: true });
   });
-  box.append(row, cv2); box._draw = draw; draw();
+  const wrap = document.createElement("div"); wrap.className = "smpwrap";
+  const ov = document.createElementNS(SVGNS, "svg"); ov.setAttribute("class", "smplive"); ov.setAttribute("viewBox", "0 0 100 40");
+  ov.setAttribute("preserveAspectRatio", "none"); ov.setAttribute("aria-hidden", "true"); ov.dataset.live = `smp${i}`;
+  wrap.append(cv2, ov);
+  box.append(row, wrap); box._draw = draw; draw();
 }
 // ---- GSM samples: stored (base64) in the instrument's `samples`; a sampler slot plays one by 1-based number. From the
 // library (samples in project songs), or imported from an audio file: decoded and resampled to 44.1 kHz by the
@@ -702,37 +800,37 @@ async function importAudio(file, tg) {
 wavIn.onchange = () => { const f = wavIn.files?.[0]; if (f && wavTarget) importAudio(f, wavTarget); };
 function instrumentBox(t, d) {
   const box = document.createElement("div"); box.className = "devbox"; box.setAttribute("aria-label", "Instrument");
-  box.innerHTML = `<h3>Unisynth <span class="kind">kind 64 · preset ${d.preset || "init"}${d._edited ? "*" : ""}</span>
-    <span class="acts"><button class="browse">Browse…</button><button class="impsmp" title="Encode an audio file (WAV, AIFF, MP3…) as a GSM sample and play it on a sampler slot (a free oscillator if there is no GSM sampler)">Import sample…</button><button class="savepre">Save preset</button><button class="bypass" aria-pressed="${!!d.bypass}" title="Bypass the instrument" aria-label="Bypass instrument">⏻</button></span></h3>`;
+  box.innerHTML = `<h3>Unisynth <span class="kind">kind 64 · preset ${d.preset || "init"}${d._edited ? "*" : ""}</span><span class="vox" role="group" aria-label="Sounding voices"></span>
+    <span class="acts"><button class="livev" aria-pressed="${liveOn()}" title="Live view: show the sounding voices on the screens (costs some engine time while on)">Live</button><button class="browse">Browse…</button><button class="impsmp" title="Encode an audio file (WAV, AIFF, MP3…) as a GSM sample and play it on a sampler slot (a free oscillator if there is no GSM sampler)">Import sample…</button><button class="savepre">Save preset</button><button class="bypass" aria-pressed="${!!d.bypass}" title="Bypass the instrument" aria-label="Bypass instrument">⏻</button></span></h3>`;
   box.classList.toggle("byp", !!d.bypass);
   box.querySelector(".browse").onclick = () => openLibrary();
   box.querySelector(".impsmp").onclick = () => importWav(t, d, gsmSlot(d));
   box.querySelector(".bypass").onclick = () => devBypass(t, t.devices.indexOf(d));
   box.querySelector(".savepre").onclick = e => savePreset(t, d, e.currentTarget);
+  box.querySelector(".livev").onclick = e => { store.set("daw.live", liveOn() ? "0" : "1"); e.currentTarget.setAttribute("aria-pressed", String(liveOn())); updateWatch(); };
   const body = document.createElement("div"); body.className = "devbody";
   const P = names => names.map(ip);
-  body.append(col(
-    pgroup(t, d, "Voice", P(["mode", "steal", "one_shot", "env1_at_output", "master", "pan", "capacity", "unison", "uni_detune", "uni_spread", "slide", "glide", "transpose", "velocity", "start_spread", "noise_level"]), { cols: 4 }),
-    pgroup(t, d, "Noise", P(["noise.band_on", "noise.hp", "noise.lp"]), { cols: 2 })));
-  body.append(col(slotRack(t, d, "osc", "Oscillators", "Osc", i => {
+  const oscCard = i => {
     const ty = oscType(d, i), shapes = OSC_SHAPES[ty] || [];
     const labels = Object.fromEntries(shapes.map((nm, k) => [`osc${i}.s${k}`, nm]));
     const ks = ty === 4 ? smpShapes(d, i) : shapes.map((_, k) => k);
     const ps = [ip(`osc${i}.type`), ...OSC_COMMON.map(f => ip(`osc${i}.${f}`)), ...ks.map(k => ip(`osc${i}.s${k}`)), ...(ty === 4 ? [ip(`osc${i}.sample`)] : [])];
     if (ty === 4) labels[`osc${i}.sample`] = "sample #";
-    return pgroup(t, d, `Osc ${i}`, ps, { cols: 6, labels, pre: ty === 4 ? samplerPre(t, d, i) : null });
-  }, i => ({ [`osc${i}.type`]: 0.25 }))));
+    return slotCard(t, d, "osc", i, pgroup(t, d, `Osc ${i}`, ps, { cols: 6, labels, pre: ty === 4 ? samplerPre(t, d, i) : ty ? oscView(d, i) : null }));
+  };
+  const range = n => [...Array(n)].map((_, k) => k + 1);
+  const vc = col(
+    pgroup(t, d, "Voice", P(["mode", "steal", "one_shot", "env1_at_output", "master", "pan", "capacity", "unison", "uni_detune", "uni_spread", "slide", "glide", "transpose", "velocity", "start_spread", "noise_level"]), { cols: 4 }),
+    pgroup(t, d, "Noise", P(["noise.band_on", "noise.hp", "noise.lp"]), { cols: 2 }));
+  vc.dataset.k = "voice"; vc.classList.add("c-voice"); body.append(vc);
+  body.append(col(slotBlock("osc", "Oscillators", usedCount(d, "osc"), range(3).map(oscCard))));
+  body.append(col(slotBlock("filt", "Filters · serial", usedCount(d, "filt"),
+    filterItems(t, d, i => slotCard(t, d, "filt", i, pgroup(t, d, `Filter ${i}`, P([`filt${i}.type`, `filt${i}.cutoff`, `filt${i}.resonance`]), { cols: 2, pre: filtView(t, d, i) }))))));
+  body.append(col(slotBlock("env", "Envelopes", usedCount(d, "env"), range(4).map(i =>
+    slotCard(t, d, "env", i, pgroup(t, d, `Env ${i}`, P([`env${i}.mode`, `env${i}.attack`, `env${i}.decay`, `env${i}.sustain`, `env${i}.release`, `env${i}.slope`]), { cols: 3, pre: envView(d, i) }))))));
   body.append(col(
-    slotRack(t, d, "filt", "Filters · serial", "Filter", i => pgroup(t, d, `Filter ${i}`, P([`filt${i}.type`, `filt${i}.cutoff`, `filt${i}.resonance`]), { cols: 2 }), i => ({ [`filt${i}.type`]: 0.125 })),
-    slotRack(t, d, "env", "Envelopes", "Env", i => {
-      const v = n => vget(d, ip(`env${i}.${n}`));
-      return pgroup(t, d, `Env ${i}`, P([`env${i}.mode`, `env${i}.attack`, `env${i}.decay`, `env${i}.sustain`, `env${i}.release`, `env${i}.slope`]),
-        { cols: 3, pre: envView(d, i) });
-    }, i => ({ [`env${i}.attack`]: 0.1, [`env${i}.sustain`]: 0.5 }))));
-  body.append(col(
-    slotRack(t, d, "lfo", "LFOs", "LFO", i => pgroup(t, d, `LFO ${i}`, P([`lfo${i}.shape`, `lfo${i}.sync`, `lfo${i}.rate`, `lfo${i}.depth`]), { cols: 2 }), i => ({ [`lfo${i}.depth`]: 0.5 })),
-    slotRack(t, d, "mod", "Mod matrix", "Mod slot", i => pgroup(t, d, `Mod ${i}`, P([`mod${i}.source`, `mod${i}.target`, `mod${i}.operation`, `mod${i}.amount`]), { cols: 1 }),
-      i => ({ [`mod${i}.source`]: 5 / 9, [`mod${i}.target`]: Math.max(0, TARGETS().indexOf("filt1.cutoff")) / 255, [`mod${i}.amount`]: 0.3 })),
+    slotBlock("lfo", "LFOs", usedCount(d, "lfo"), range(2).map(i => slotCard(t, d, "lfo", i, pgroup(t, d, `LFO ${i}`, P([`lfo${i}.shape`, `lfo${i}.sync`, `lfo${i}.rate`, `lfo${i}.depth`]), { cols: 2, pre: lfoView(d, i) })))),
+    slotBlock("mod", "Mod matrix", usedCount(d, "mod"), [modTable(t, d)]),
     status));
   box.append(body); return box;
 }
@@ -810,10 +908,122 @@ function renderDevice() {
     (clip ? ` <span class="dim">· clip</span> <b>${clip.name}</b>${links(t, clip.name) > 1 ? ` <span class="badge">⧉ ${links(t, clip.name)} linked</span>` : ""}` : "") +
     ` <span class="dim">· ${t.devices.length} device${t.devices.length === 1 ? "" : "s"}</span>`;
   applyAutomation(); updateReauto(t);
+  updateWatch(); liveDirty = true;
 }
+
+// ---- Live per-voice displays (change add-device-live-view D7): the engine's probe of the watched (selected) track's
+// instrument arrives with each ~30 ms status; an animation frame redraws only the overlay groups (`g.live`). Each
+// voice keeps one colour (by its note-on id) in every screen and a chip in the header; at most 16 voices are drawn,
+// the loudest; markers at one spot stack. Filters: input spectrum grey, output in the block colour, a tick per voice
+// at its modulated cutoff. ----
+const VCOL = ["#ffd166", "#4cc9f0", "#f72585", "#80ed99", "#ff8c42", "#b8a1ff", "#f4f1de", "#00f5d4", "#ff70a6", "#70d6ff", "#e9ff70", "#ff9770", "#c77dff", "#90f1ef", "#ffd6e0", "#a3e635"];
+const MAX_DRAWN = 16, VREC = 22;
+const vcol = new Map();  // voice id → palette index
+const relAt = new Map(); // voice id → age at which it was first seen released
+let liveP = null;         // { voices, taps, at } from the last probe
+function liveOn() { return store.get("daw.live") !== "0"; }  // live view on/off, remembered in the browser
+function updateWatch() {
+  const t = selected, on = liveOn() && !document.getElementById("p-dev").hidden && t && !t.bus && !t.master && instOf(t);
+  E.watch(on ? trackIndex(t) : -1);
+  if (!on) { liveP = null; liveDirty = true; }
+}
+function parseProbe(p) {
+  if (!p || p[0] !== 1) return null;
+  const nv = p[1], nf = p[2], L = p[3], voices = [], taps = [];
+  if (p.length < 4 + nv * VREC + nf) return null;  // layout mismatch (VREC = synth-wasm Host::probe's voice record)
+  let o = 4;
+  for (let v = 0; v < nv; v++, o += VREC) {
+    const r = p.subarray(o, o + VREC);
+    voices.push({ id: r[0], note: r[1], amp: r[2], rel: r[3] > 0, age: r[4], env: [0, 1, 2, 3].map(k => [r[5 + 2 * k], r[6 + 2 * k]]),
+      lfo: [r[13], r[14]], smp: [r[15], r[16], r[17]], cut: [r[18], r[19], r[20], r[21]] });
+  }
+  for (let f = 0; f < nf && o < p.length; f++) { if (p[o++]) { if (o + 2 * L > p.length) return null; taps[f] = [p.subarray(o, o + L), p.subarray(o + L, o + 2 * L)]; o += 2 * L; } }
+  return { voices, taps };
+}
+// 2048-point Hann FFT of the taps, folded onto the screens' log axis (x = 100·log10(f/20)/3), with a short peak hold
+const FN = 2048, FBINS = 140, fwin = Float64Array.from({ length: FN }, (_, i) => .5 - .5 * Math.cos(2 * Math.PI * i / (FN - 1)));
+const frev = Uint16Array.from({ length: FN }, (_, i) => { let r = 0; for (let b = 0, x = i; b < 11; b++, x >>= 1) r = (r << 1) | (x & 1); return r; });
+const fre = new Float64Array(FN), fim = new Float64Array(FN);
+function spectrumDb(x) {
+  for (let i = 0; i < FN; i++) { fre[frev[i]] = x[i] * fwin[i]; fim[frev[i]] = 0; }
+  for (let len = 2; len <= FN; len <<= 1) {
+    const ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang);
+    for (let i = 0; i < FN; i += len) { let cr = 1, ci = 0;
+      for (let k = 0; k < len / 2; k++) { const a = i + k, b = a + len / 2, tr = fre[b] * cr - fim[b] * ci, ti = fre[b] * ci + fim[b] * cr;
+        fre[b] = fre[a] - tr; fim[b] = fim[a] - ti; fre[a] += tr; fim[a] += ti; const nr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = nr; } }
+  }
+  const out = new Float64Array(FBINS + 1), rate = E.rate || 44100;
+  for (let b = 0; b <= FBINS; b++) {
+    const f0 = 20 * 10 ** ((b - .5) / FBINS * 3), f1 = 20 * 10 ** ((b + .5) / FBINS * 3);
+    const k0 = Math.max(1, Math.floor(f0 / rate * FN)), k1 = Math.min(FN / 2 - 1, Math.max(k0, Math.ceil(f1 / rate * FN)));
+    let m = 0; for (let k = k0; k <= k1; k++) m = Math.max(m, Math.hypot(fre[k], fim[k]));
+    out[b] = 20 * Math.log10(m / (FN / 4) + 1e-6);
+  }
+  return out;
+}
+const specHold = new Map();  // `${slot}:in|out` → dB bins with peak hold
+function holdSpec(key, db) { const h = specHold.get(key); if (h) for (let b = 0; b < db.length; b++) db[b] = Math.max(db[b], h[b] - 2.5); specHold.set(key, db); return db; }
+let liveDirty = false;
+const liveCost = { probe: 0, nProbe: 0, draw: 0, nDraw: 0, voices: 0 };  // ms spent (DAW.debug.live)
+function liveProbe(p) {
+  const t0 = performance.now();
+  try { liveProbe1(p); } finally { liveCost.probe += performance.now() - t0; liveCost.nProbe++; }
+}
+function liveProbe1(p) {
+  const pr = liveOn() ? parseProbe(p) : null;  // a status sent before the view went off
+  if (!pr && !liveP) return;
+  liveP = pr; liveDirty = true;
+  if (!pr) return;
+  const ids = new Set(pr.voices.map(v => v.id));
+  for (const id of [...vcol.keys()]) if (!ids.has(id)) { vcol.delete(id); relAt.delete(id); }
+  for (const v of pr.voices) {
+    // a free palette entry; with all 16 taken (more voices than are drawn) the voice shares one, starting at its id
+    if (!vcol.has(v.id)) { const used = new Set(vcol.values()); let c = 0; while (used.has(c) && c < VCOL.length) c++; vcol.set(v.id, c < VCOL.length ? c : v.id % VCOL.length); }
+    if (v.rel && !relAt.has(v.id)) relAt.set(v.id, v.age);
+  }
+  pr.spec = pr.taps.map((t, f) => t && [holdSpec(`${f}:in`, spectrumDb(t[0])), holdSpec(`${f}:out`, spectrumDb(t[1]))]);
+}
+const vmark = (x, y, c, a, w = 6) => `<line class="vm" x1="${x.toFixed(2)}" y1="${y.toFixed(2)}" x2="${x.toFixed(2)}" y2="${y.toFixed(2)}" stroke="${c}" stroke-width="${w}" stroke-opacity="${a.toFixed(2)}"/>`;
+function beads(h) { const seen = []; return (x, y, c, a, dy, top) => { const k = seen.filter(b => Math.abs(b[0] - x) < dy * .6 && Math.abs(b[1] - y) < dy).length; seen.push([x, y]); return h(x, y + (y < top ? 1 : -1) * k * dy, c, a); }; }
+function drawLive() {
+  if (!liveDirty) return; liveDirty = false;
+  const t0 = performance.now();
+  try { drawLive1(); } finally { liveCost.draw += performance.now() - t0; liveCost.nDraw++; liveCost.voices = Math.max(liveCost.voices, liveP?.voices.length || 0); }
+}
+function drawLive1() {
+  const root = document.getElementById("device");
+  root.querySelectorAll("g.live").forEach(g => g.remove());
+  const vox = root.querySelector(".vox");
+  const vs = (liveP?.voices || []).slice().sort((a, b) => b.amp - a.amp), shown = vs.slice(0, MAX_DRAWN);
+  if (vox) vox.innerHTML = shown.map(v => `<i style="--vc:${VCOL[vcol.get(v.id)]}" class="${v.rel ? "rel" : ""}">${NAMES[v.note % 12]}${Math.floor(v.note / 12) - 1}</i>`).join("") + (vs.length > MAX_DRAWN ? `<b>+${vs.length - MAX_DRAWN}</b>` : "");
+  if (!shown.length) return;
+  const d = instOf(selected), alpha = v => .25 + .75 * Math.min(1, v.amp / Math.max(1e-6, shown[0].amp));
+  for (const svg of root.querySelectorAll("svg[data-live]")) {
+    if (!svg.isConnected || svg.closest(".closed")) continue;
+    const m = svg.dataset.live.match(/^([a-z]+)(\d)$/), g = m[1], i = +m[2];
+    let h = "";
+    if (g === "smp") for (const v of shown) { const pos = v.smp[i - 1]; if (pos < 0) continue; const x = Math.min(100, pos * 100), c = VCOL[vcol.get(v.id)];
+      h += `<line class="vm" x1="${x}" y1="0" x2="${x}" y2="40" stroke="${c}" stroke-width="1.5" stroke-opacity="${alpha(v).toFixed(2)}"/>`; }
+    if (g === "env" && svg._geo) { const { x, y, off, tot } = svg._geo, bead = beads(vmark), vb = svg.viewBox.baseVal;
+      shown.forEach((v, k) => { const [lvl] = v.env[i - 1], ra = relAt.get(v.id), t = ra == null ? Math.min(v.age, off) : Math.min(tot, off + (v.age - ra)), c = VCOL[vcol.get(v.id)];
+        h += bead(x(t), y(lvl), c, v.rel ? .55 : 1, 5, vb.height / 2) + `<line class="vm" x1="${vb.width - 3 - (k % 4) * 1.5}" y1="${y(0)}" x2="${vb.width - 3 - (k % 4) * 1.5}" y2="${y(lvl)}" stroke="${c}" stroke-width="1.5" stroke-opacity=".8"/>`; }); }
+    if (g === "lfo" && d) { const f = LFO_SHAPES[choice(curVal(d, `lfo${i}.shape`), 5)], dep = .25 + .75 * curVal(d, `lfo${i}.depth`), bead = beads(vmark);
+      for (const v of shown) { const ph = ((v.lfo[i - 1] % 1) + 1) % 1; h += bead(ph * 100, 20 - 15 * dep * f(ph), VCOL[vcol.get(v.id)], alpha(v), 4.5, 20); } }
+    if (g === "filt") { const sp = liveP.spec?.[i - 1];
+      if (sp) { const path = db => "M" + Array.from(db, (v, b) => `${(b / FBINS * 100).toFixed(2)} ${yDb(v).toFixed(2)}`).join(" L");
+        const pin = path(sp[0]); h += `<path class="sin" d="${pin} L100 40 L0 40 Z"/><path class="sinl" d="${pin}"/><path class="sout" d="${path(sp[1])}"/>`; }
+      for (const v of shown) { const hz = v.cut[i - 1]; if (hz < 0) continue; const x = Math.max(0, Math.min(100, Math.log10(Math.max(hz, 20) / 20) / .03));
+        h += `<line class="vm ct" x1="${x.toFixed(2)}" y1="0" x2="${x.toFixed(2)}" y2="5" stroke="${VCOL[vcol.get(v.id)]}" stroke-width="2" stroke-opacity="${alpha(v).toFixed(2)}"/>`; } }
+    if (h) svg.insertAdjacentHTML("beforeend", `<g class="live">${h}</g>`);
+  }
+  svg_playing(root);
+}
+// static curves step back while spectra are drawn
+function svg_playing(root) { root.querySelectorAll("svg.scr[data-live^=filt]").forEach(s => s.classList.toggle("playing", !!s.querySelector("g.live path.sout"))); }
 // Piano roll
 const keys = document.getElementById("keys"), gridc = document.getElementById("gridc"), velc = document.getElementById("velc");
 const NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
+(function liveFrames() { drawLive(); requestAnimationFrame(liveFrames); })();  // after NAMES (the live chips use it)
 const LO = 24, HI = 96; let KH = 12, STEP = 22;  // zoomable: KH = key row height, STEP = px per 1/16
 for (let n = HI; n >= LO; n--) {
   const b = document.createElement("button"); const nm = NAMES[n % 12];
@@ -1120,7 +1330,7 @@ gridc.addEventListener("pointerdown", e => {
     if (e.shiftKey) { n.sel = !n.sel; drawRoll(); return; }
     if (!n.sel) { rollNotes.forEach(x => x.sel = false); n.sel = true; }
     lastVel = n.v;
-    rDrag = { mode: st > n.s + n.l - .35 ? "resize" : "move", st0: st, key0: key, before: snap(), orig: selNotes().map(x => [x, x.s, x.l, x.n]) };
+    rDrag = { mode: st > n.s + n.l - .35 ? "resize" : "move", st0: st, key0: key, before: snap(), orig: selNotes().map(x => [x, x.s, x.l, x.n]), hit: n, l0: n.l };
   } else {
     if (dbl) { const before = snap(), q = rollSnap() || 1, s0 = Math.floor(st / q) * q;
       rollNotes.forEach(x => x.sel = false); rollNotes.push({ s: s0, l: q, n: key, v: lastVel, sel: true }); commit(before, `note ${NAMES[key % 12]}${Math.floor(key / 12) - 1} added at ${barStr(s0)}`); rLast = null; drawRoll(); return; }
@@ -1136,14 +1346,20 @@ gridc.addEventListener("pointermove", e => {
     ds = Math.max(-Math.min(...rDrag.orig.map(o => o[1])), Math.min(rollLen - Math.max(...rDrag.orig.map(o => o[1] + o[2])), ds));
     dk = Math.max(LO - Math.min(...rDrag.orig.map(o => o[3])), Math.min(HI - Math.max(...rDrag.orig.map(o => o[3])), dk));
     for (const [n, s0, , k0] of rDrag.orig) { n.s = s0 + ds; n.n = k0 + dk; } }
-  else if (rDrag.mode === "resize") { const dl = snapTo(st - rDrag.st0, q); for (const [n, s0, l0] of rDrag.orig) n.l = Math.max(q || .25, Math.min(rollLen - s0, l0 + dl)); }
+  else if (rDrag.mode === "resize") {
+    // the grabbed note snaps; the other selected notes scale by its factor (to the tick), Alt: the same amount
+    const dl = snapTo(st - rDrag.st0, q), lh = Math.max(q || .25, Math.min(rollLen - rDrag.hit.s, rDrag.l0 + dl)), f = lh / rDrag.l0;
+    rDrag.alt = e.altKey; rDrag.f = f;
+    for (const [n, s0, l0] of rDrag.orig) n.l = n === rDrag.hit ? lh : Math.max(.25, Math.min(rollLen - s0, e.altKey ? l0 + dl : Math.round(l0 * f * 240) / 240));
+    say(rDrag.orig.length > 1 && !e.altKey ? `length \u00d7${f.toFixed(2)} (${f >= 1 ? "+" : "\u2212"}${Math.abs(Math.round((f - 1) * 100))}%)` : `length ${+lh.toFixed(2)} steps`); }
   else { rDrag.st1 = st; rDrag.key1 = key; const [a1, b1] = [Math.min(rDrag.st0, st), Math.max(rDrag.st0, st)], [k1, k2] = [Math.min(rDrag.key0, key), Math.max(rDrag.key0, key)];
     for (const n of rollNotes) n.sel = rDrag.keep.has(n) || (n.n >= k1 && n.n <= k2 && n.s < b1 && n.s + n.l > a1); }
   drawRoll();
 });
 gridc.addEventListener("pointerup", e => {
   if (rDrag && !rDrag.moved) rLast = { t: performance.now(), x: e.clientX, y: e.clientY };
-  if (rDrag?.before && rDrag.moved) commit(rDrag.before, rDrag.mode === "move" ? `${rDrag.orig.length} notes moved` : "length changed");
+  if (rDrag?.before && rDrag.moved) commit(rDrag.before, rDrag.mode === "move" ? `${rDrag.orig.length} notes moved` :
+    rDrag.orig.length > 1 && !rDrag.alt ? `${rDrag.orig.length} notes: length ${rDrag.f >= 1 ? "+" : "\u2212"}${Math.abs(Math.round((rDrag.f - 1) * 100))}%` : "length changed");
   if (rDrag?.mode === "marquee") say(`${selNotes().length} notes selected`);
   rDrag = null; drawRoll(); renderLane(selected);
 });
@@ -1364,6 +1580,7 @@ const tabs = [...document.querySelectorAll('[role="tab"]')];
 function show(t) {
   for (const x of tabs) { const on = x === t; x.setAttribute("aria-selected", on); x.tabIndex = on ? 0 : -1; document.getElementById(x.getAttribute("aria-controls")).hidden = !on; }
   if (t.id === "tab-roll") { drawRoll(); centreRoll(); }
+  updateWatch();
 }
 tabs.forEach((t, i) => { t.addEventListener("click", () => show(t)); t.addEventListener("keydown", e => {
   if (e.key === "ArrowRight" || e.key === "ArrowLeft") { const n = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length]; n.focus(); show(n); }
@@ -1624,7 +1841,7 @@ document.addEventListener("keydown", e => {
   else if (e.key === "R" && e.shiftKey && !e.ctrlKey && !e.metaKey) setRec(!recOn);
   else if (e.key === "Home") { seek(loopOn ? LOOP[0] : 1); }
 });
-E.onStatus = st => { statusAt = performance.now(); meters(st); loadAvg += (st.load - loadAvg) * .06; setLoad(Math.round(Math.min(1, st.load ? loadAvg : (loadAvg = 0)) * 100)); if (!st.playing && playing && st.gen === E.gen) setPlay(false); };
+E.onStatus = st => { statusAt = performance.now(); meters(st); liveProbe(st.probe); loadAvg += (st.load - loadAvg) * .06; setLoad(Math.round(Math.min(1, st.load ? loadAvg : (loadAvg = 0)) * 100)); if (!st.playing && playing && st.gen === E.gen) setPlay(false); };
 function tick(now) {
   const st = E.status;
   // between status messages (about every 30 ms) the clock runs on from the last reported frame
@@ -1856,7 +2073,8 @@ document.getElementById("bounce-btn").onclick = () => {
   }
 };
 savedKey = dirtyKey(); savedAt = null; renderSongList(); dirtyUpd();
-DAW.debug = { song: () => songOf(false), selected: () => selected.id, bars: () => BARS };
+DAW.debug = { song: () => songOf(false), selected: () => selected.id, bars: () => BARS,
+  live: () => ({ probeMs: liveCost.probe / Math.max(1, liveCost.nProbe), drawMs: liveCost.draw / Math.max(1, liveCost.nDraw), maxVoices: liveCost.voices }) };
 // ===== Menus (right-click or Shift+F10 / ContextMenu key) =====
 function popMenu(x, y, items, label, opener = document.activeElement) {
   document.querySelector(".menu")?.remove();

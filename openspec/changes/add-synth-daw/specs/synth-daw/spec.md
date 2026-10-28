@@ -342,6 +342,15 @@ buttons, and be cut, copied, pasted at the insert cursor, duplicated after the s
 - **WHEN** selected notes are transposed an octave up past the visible rows
 - **THEN** they move 12 semitones and the roll scrolls so they are visible
 
+### Requirement: Proportional note resize
+Dragging the right edge of one of several selected notes SHALL scale every selected length by the grabbed note's
+factor (the grabbed note snaps, the others round to the tick); with Alt held every selected note SHALL change by the
+same amount.
+
+#### Scenario: Proportional resize
+- **WHEN** notes of 4 and 2 steps are selected and the 4-step note is dragged to 3 steps
+- **THEN** the notes are 3 and 1.5 steps long, and one Undo restores both
+
 ### Requirement: Adding and deleting notes
 Double-click on empty grid SHALL add a note (snap length, last velocity); double-click on a note SHALL delete it. Notes
 SHALL stay inside the clip and the MIDI range.

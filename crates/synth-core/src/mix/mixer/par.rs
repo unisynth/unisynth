@@ -243,6 +243,7 @@ unsafe fn step<D: Device, T: TrackSource>(
     let mut ctx = Ctx { rate, tempo, frame, rng: &mut rng };
     for di in st.devices() {
         dev(di).run(&mut io, n, &mut ctx);
+        crate::denormal::flush_io(&mut io.ch);
     }
     // 5. volume
     let volume = st.volume();

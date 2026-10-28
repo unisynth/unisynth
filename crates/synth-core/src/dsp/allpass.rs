@@ -20,7 +20,7 @@ impl<'a> AllPass<'a> {
     #[inline]
     pub fn process(&mut self, input: f32) -> f32 {
         let b = self.buf[self.idx];
-        self.buf[self.idx] = input + b * self.feedback;
+        self.buf[self.idx] = crate::denormal::flush(input + b * self.feedback);
         self.idx += 1;
         if self.idx == self.buf.len() {
             self.idx = 0;

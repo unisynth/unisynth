@@ -203,6 +203,7 @@ impl<'a> Mixer<'a> {
             let mut ctx = Ctx { rate, tempo, frame: self.frame, rng: &mut *rng };
             for di in st.devices() {
                 devices[di].run(&mut io, n, &mut ctx);
+                crate::denormal::flush_io(&mut io.ch);
             }
             // 5. volume
             let volume = st.volume();

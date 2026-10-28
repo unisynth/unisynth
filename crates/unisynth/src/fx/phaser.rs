@@ -24,8 +24,8 @@ impl AllPass1 {
         self.a1 = (1.0 - d) / (1.0 + d);
     }
     fn update(&mut self, x: f32) -> f32 {
-        let y = x * -self.a1 + self.zm1;
-        self.zm1 = y * self.a1 + x;
+        let y = synth_core::denormal::flush(x * -self.a1 + self.zm1);
+        self.zm1 = synth_core::denormal::flush(y * self.a1 + x);
         y
     }
 }
