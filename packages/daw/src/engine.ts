@@ -2,6 +2,7 @@
 // instance for song functions (tables, validation, export/import, presets), the AudioWorklet live host, and a
 // Worker for offline bounce. The UI clock follows the worklet's reported position (D8e).
 import type { Device } from "./model.ts";
+import { bounceThreaded, mtModule, mtWorkers, type MtOptions } from "./bounce-mt.ts";
 
 type X = Record<string, any> & { memory: WebAssembly.Memory };
 export type Issue = { path: string; message: string };
@@ -192,7 +193,38 @@ export class Engine {
   }
 
   // ---- offline bounce (Worker) ----
+  /** Threaded bounce test hooks (change add-wasm-threads); `lastBounceWorkers` = workers the last bounce used. */
+  mt: MtOptions = {};
+  lastBounceWorkers = 0;
+
+  /**
+   * Threaded when the page is cross-origin isolated, `synth-mt.wasm` compiles and every helper starts (design D5);
+   * otherwise, or after any failure of the threaded attempt, the single-thread bounce. Same samples either way.
+   */
   bounce(blob: Uint8Array, range: [number, number] | null, onProgress: (v: number) => void): { done: Promise<Float32Array>; cancel: () => void } {
+    let cancelled = false;
+    let cancel = () => {};
+    const single = () => {
+      this.lastBounceWorkers = 1;
+      const j = this.bounceSingle(blob, range, onProgress);
+      cancel = j.cancel;
+      return j.done;
+    };
+    const done = (mtWorkers(this.mt) < 2 ? Promise.resolve(null) : mtModule(this.base)).then((module) => {
+      if (cancelled) throw new Error("cancelled");
+      if (!module) return single();
+      const j = bounceThreaded(this.base, module, blob, this.bank, range, onProgress, this.mt);
+      this.lastBounceWorkers = j.workers;
+      cancel = j.cancel;
+      return j.done.then((r) => {
+        if (cancelled) throw new Error("cancelled");
+        return r ?? single();
+      });
+    });
+    return { done, cancel: () => { cancelled = true; cancel(); } };
+  }
+
+  private bounceSingle(blob: Uint8Array, range: [number, number] | null, onProgress: (v: number) => void): { done: Promise<Float32Array>; cancel: () => void } {
     const w = new Worker(this.base + "bounce-worker.js", { type: "module" });
     let reject: (e: Error) => void = () => {};
     const done = new Promise<Float32Array>((res, rej) => {

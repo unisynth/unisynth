@@ -138,6 +138,10 @@ test("/daw serves the page with the server token; foreign origins cannot write m
   const page = await (await fetch(`${s.url}daw/`)).text();
   expect(page).toMatch(/<meta name="x-64k-token" content="[0-9a-f-]{36}">/);
   expect(await (await fetch(`${s.url}daw/main.js`)).text()).toBe("console.log(1)");
+  // cross-origin isolation (change add-wasm-threads): page COOP + COEP, every DAW file CORP
+  const head = (await fetch(`${s.url}daw/`)).headers;
+  expect([head.get("cross-origin-opener-policy"), head.get("cross-origin-embedder-policy")]).toEqual(["same-origin", "require-corp"]);
+  expect((await fetch(`${s.url}daw/main.js`)).headers.get("cross-origin-resource-policy")).toBe("same-origin");
   expect((await fetch(`${s.url}daw/../package.json`)).status).toBe(404);
   const evil = await fetch(`${s.url}api/music?path=project/music/evil.song.json`, { method: "PUT", body: demo(), headers: { origin: "https://evil.example" } });
   expect(evil.status).toBe(403);

@@ -13,5 +13,11 @@ DST=gs://preview-judo-technology/dsp
 $G storage rsync "$OUT" "$DST" --recursive --delete-unmatched-destination-objects --cache-control 'public, max-age=300'
 # types gcloud may guess wrong: WebAssembly.compileStreaming needs application/wasm
 $G storage objects update "$DST/synth.wasm" --content-type application/wasm
+$G storage objects update "$DST/synth-mt.wasm" --content-type application/wasm
+# Threaded bounce (change add-wasm-threads) needs cross-origin isolation, i.e. the page served with
+#   Cross-Origin-Opener-Policy: same-origin   and   Cross-Origin-Embedder-Policy: require-corp
+# (+ Cross-Origin-Resource-Policy: same-origin on the files). GCS objects cannot carry these; they would be custom
+# response headers on the LB's backend bucket, which this bucket shares with deltadot/ and basa/ — so they are not set
+# here. Without them the preview is not isolated and the DAW bounces single-threaded (same output).
 $G storage objects update "$DST/data/bank.dls" --content-type application/octet-stream
 echo "published: https://preview.judo.technology/dsp/ (CDN cache up to 5 min)"

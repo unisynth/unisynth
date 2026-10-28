@@ -28,6 +28,30 @@ export function buildSynthWasm(force = false): string {
   return WASM;
 }
 
+export const WASM_MT = join(ROOT, "target/wasm-mt/wasm32-unknown-unknown/release/synth_wasm.wasm");
+
+/** Shared-memory maximum of the threaded module: 1 GiB (16384 pages of 64 KiB). */
+export const MT_MAX_MEMORY = 1 << 30;
+
+/**
+ * Builds the threaded engine module `synth-mt.wasm` (change add-wasm-threads, design D1) when it is missing or `force`:
+ * feature `threads`, shared imported memory, atomics, `-Z build-std`, and the thread-start exports (`__stack_pointer`,
+ * `__wasm_init_tls`, `__tls_size`, `__tls_align`). Own target dir, so the default module's build cache is untouched.
+ */
+export function buildSynthWasmMt(force = false): string {
+  if (force || !existsSync(WASM_MT)) {
+    const flags = ["-C target-feature=+atomics,+bulk-memory,+mutable-globals", "-C link-arg=--shared-memory", "-C link-arg=--import-memory",
+      `-C link-arg=--max-memory=${MT_MAX_MEMORY}`, ...["__stack_pointer", "__wasm_init_tls", "__tls_size", "__tls_align"].map((s) => `-C link-arg=--export=${s}`)];
+    const r = spawnSync("cargo", ["build", "-q", "-p", "synth-wasm", "--release", "--target", "wasm32-unknown-unknown", "--features", "threads", "-Z", "build-std=std,panic_abort"], {
+      cwd: ROOT,
+      stdio: "inherit",
+      env: { ...process.env, PATH: `${process.env.HOME}/.cargo/bin:${process.env.PATH}`, RUSTFLAGS: flags.join(" "), CARGO_TARGET_DIR: join(ROOT, "target/wasm-mt") },
+    });
+    if (r.status !== 0) throw new Error("synth-wasm (threads) build failed");
+  }
+  return WASM_MT;
+}
+
 let cached: Synth | null = null;
 
 export function loadSynth(path = buildSynthWasm()): Synth {

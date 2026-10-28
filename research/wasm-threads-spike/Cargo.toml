@@ -1,0 +1,15 @@
+# Spike for add-wasm-threads D2 (never part of the root workspace): shared-memory wasm32 module whose Web Workers
+# start their own stack and TLS without wasm-bindgen.
+[workspace]
+[package]
+name = "wasm-threads-spike"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+opt-level = 3
+panic = "abort"

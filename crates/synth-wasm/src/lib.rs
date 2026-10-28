@@ -6,6 +6,8 @@
 //! pointer to interleaved f32 the host owns. wasm32 is single-threaded and the exports are not re-entrant.
 
 mod host;
+#[cfg(feature = "threads")]
+mod par;
 
 pub use host::{Edit, Host, MAX_FRAMES};
 

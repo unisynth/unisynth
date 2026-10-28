@@ -1,0 +1,26 @@
+<!doctype html><meta charset="utf-8"><title>wasm threads spike</title>
+<script type="module">
+const N = 1_000_000, HELPERS = 3;
+const module = await WebAssembly.compileStreaming(fetch("spike.wasm"));
+const memory = new WebAssembly.Memory({ initial: 17, maximum: 1024, shared: true });
+const results = [];
+const leader = new Worker("worker.js", { type: "module" });
+const done = new Promise((res, rej) => {
+  leader.onerror = (e) => rej(e.message);
+  leader.onmessage = (e) => {
+    const m = e.data;
+    if (m.t === "blocks") {
+      m.blocks.forEach(([stack, tls], i) => {
+        const w = new Worker("worker.js", { type: "module" });
+        w.onerror = (e) => rej(e.message);
+        w.onmessage = (e) => results.push(e.data);
+        w.postMessage({ t: "helper", module, memory, stack, tls, id: i + 1, n: N });
+      });
+    } else if (m.t === "total") res(m);
+  };
+});
+leader.postMessage({ t: "leader", module, memory, helpers: HELPERS, n: N });
+const total = await done;
+window.RESULT = { isolated: crossOriginIsolated, total: total.total, leader: total, helpers: results };
+document.title = "done";
+</script>

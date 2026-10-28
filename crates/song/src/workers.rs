@@ -1,7 +1,11 @@
 //! Persistent std worker pool implementing `synth_core::mix::Par` (change add-synth-threads, feature `threads`).
 //!
-//! [`with_workers`] starts `n − 1` scoped helper threads for the duration of a closure; the calling thread is the
-//! n-th worker. Each [`Par::run`] is a barrier: every helper takes part in every run (taking jobs from a shared
+//! [`Pool`] is the shared state and the [`Par`] implementation; its helpers are threads that run [`Pool::helper`]
+//! until [`Pool::stop`]. [`with_workers`] is the std spawner: `n − 1` scoped helper threads for the duration of a
+//! closure, the calling thread being the n-th worker. The threaded WASM engine (change add-wasm-threads) keeps a
+//! `Pool` in shared memory and lets JS-started Web Workers call `helper`.
+//!
+//! Each [`Par::run`] is a barrier: every helper takes part in every run (taking jobs from a shared
 //! counter until none is left) and reports that it finished, and `run` returns only after all helpers have, so no
 //! helper can still hold the job of a finished run. Helpers spin and yield briefly between runs (the mixer issues one run
 //! per dependency level per 100-frame sub-block) and park on a condition variable when idle.
@@ -23,7 +27,9 @@ const YIELD: u32 = 2000;
 
 type Job = *const (dyn Fn(usize) + Sync);
 
-struct Shared {
+/// Fork-join pool for one caller thread and `helpers` helper threads (each must run [`Pool::helper`]).
+pub struct Pool {
+    helpers: usize,
     /// Run counter: a new value means a new run is published.
     run_id: AtomicU64,
     stop: AtomicBool,
@@ -41,9 +47,32 @@ struct Shared {
 
 // SAFETY: `job` is written only between runs (all helpers past `finished`, waiting on `run_id`) and read only during a
 // run, ordered by the Release/Acquire pairs on `run_id` and `finished`. The job itself is `Sync`.
-unsafe impl Sync for Shared {}
+unsafe impl Sync for Pool {}
+// SAFETY: as for `Sync`; the job pointer is only a borrow published for one run.
+unsafe impl Send for Pool {}
 
-impl Shared {
+impl Pool {
+    /// A pool expecting `helpers` helper threads. Every helper must call [`Pool::helper`] before the first
+    /// [`Par::run`] with more than one job can finish (runs wait for all helpers).
+    pub fn new(helpers: usize) -> Self {
+        Pool {
+            helpers,
+            run_id: AtomicU64::new(0),
+            stop: AtomicBool::new(false),
+            job: UnsafeCell::new(None),
+            jobs: AtomicUsize::new(0),
+            next: AtomicUsize::new(0),
+            finished: AtomicUsize::new(0),
+            parked: Mutex::new(0),
+            wake: Condvar::new(),
+            panic: Mutex::new(None),
+        }
+    }
+
+    pub fn helpers(&self) -> usize {
+        self.helpers
+    }
+
     fn take(&self) {
         // SAFETY: called during a run, after the Acquire of the run's `run_id` (helpers) or by the publishing caller.
         let job = unsafe { &*(*self.job.get()).expect("job published") };
@@ -63,7 +92,8 @@ impl Shared {
         }
     }
 
-    fn helper(&self) {
+    /// Helper thread body: takes part in every run until [`Pool::stop`]. Blocks (spin → yield → park).
+    pub fn helper(&self) {
         let mut seen = 0;
         loop {
             let mut spins = 0;
@@ -96,26 +126,21 @@ impl Shared {
         }
     }
 
-    fn shut_down(&self) {
+    /// Makes every [`Pool::helper`] return once it is between runs.
+    pub fn stop(&self) {
         let _p = self.parked.lock().unwrap_or_else(|e| e.into_inner());
         self.stop.store(true, Release);
         self.wake.notify_all();
     }
 }
 
-/// `n` workers (the caller plus `n − 1` helper threads); see [`with_workers`].
-pub struct Workers<'s> {
-    shared: &'s Shared,
-    helpers: usize,
-}
-
-impl Par for Workers<'_> {
+impl Par for Pool {
     fn run(&self, jobs: usize, job: &(dyn Fn(usize) + Sync)) {
         if self.helpers == 0 || jobs <= 1 {
             (0..jobs).for_each(job);
             return;
         }
-        let sh = self.shared;
+        let sh = self;
         // SAFETY: every helper finished the previous run (barrier below) and waits for the next `run_id`, so nobody reads
         // `job`. The lifetime is erased only for the duration of this call: `run` returns after every helper has
         // finished with it.
@@ -149,31 +174,20 @@ impl Par for Workers<'_> {
 }
 
 /// Runs `f` with `n ≥ 1` workers; the helper threads exist only while `f` runs (also when it panics).
-pub fn with_workers<R>(n: usize, f: impl FnOnce(&Workers) -> R) -> R {
-    let shared = Shared {
-        run_id: AtomicU64::new(0),
-        stop: AtomicBool::new(false),
-        job: UnsafeCell::new(None),
-        jobs: AtomicUsize::new(0),
-        next: AtomicUsize::new(0),
-        finished: AtomicUsize::new(0),
-        parked: Mutex::new(0),
-        wake: Condvar::new(),
-        panic: Mutex::new(None),
-    };
-    struct Stop<'s>(&'s Shared);
+pub fn with_workers<R>(n: usize, f: impl FnOnce(&Pool) -> R) -> R {
+    let pool = Pool::new(n.max(1) - 1);
+    struct Stop<'s>(&'s Pool);
     impl Drop for Stop<'_> {
         fn drop(&mut self) {
-            self.0.shut_down();
+            self.0.stop();
         }
     }
     std::thread::scope(|s| {
-        let helpers = n.max(1) - 1;
-        for _ in 0..helpers {
-            s.spawn(|| shared.helper());
+        for _ in 0..pool.helpers {
+            s.spawn(|| pool.helper());
         }
-        let _stop = Stop(&shared);
-        f(&Workers { shared: &shared, helpers })
+        let _stop = Stop(&pool);
+        f(&pool)
     })
 }
 
@@ -227,5 +241,32 @@ mod tests {
             })
         }));
         assert!(r.is_err());
+    }
+
+    /// The WASM shape (change add-wasm-threads): the pool lives outside any scope, helper threads are started
+    /// separately (later, in any order) and call `helper()`; `stop()` lets them return.
+    #[test]
+    fn externally_started_helpers() {
+        let pool = std::sync::Arc::new(Pool::new(3));
+        let hs: Vec<_> = (0..3)
+            .map(|k| {
+                let p = pool.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(10 * k)); // late, staggered start
+                    p.helper()
+                })
+            })
+            .collect();
+        for jobs in [7, 1, 0, 40] {
+            let seen = Mutex::new(vec![]);
+            pool.run(jobs, &|i| seen.lock().unwrap().push(i));
+            let mut v = seen.into_inner().unwrap();
+            v.sort();
+            assert_eq!(v, (0..jobs).collect::<Vec<_>>());
+        }
+        pool.stop();
+        for h in hs {
+            h.join().unwrap();
+        }
     }
 }

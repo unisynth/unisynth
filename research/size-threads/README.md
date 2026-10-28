@@ -70,3 +70,40 @@ call (export excluded: the blob is exported first) and compares every WAV byte f
 - Wait policy of the std pool (`crates/song/src/workers.rs`): spin 64, then up to 2000 `yield_now`, then park. Tried
   on `engage`/`elysian` at 8 / 16 workers: busy spin 2¹⁴ gives 9.6–10.3 s / 16–63 s (16 workers collapse), 256 spin
   10.4 / 14.0 s, 64 + 2000 yields 9.4 / 10.9 s.
+
+## Live load in the browser (add-wasm-threads task 1.2)
+
+`SONG=project/music/<song>.song.json bun packages/daw/bench/dense.ts`: the first 30 s of the song through the live
+host's `render(128)` (single-thread `synth.wasm`, Chrome, page main thread, same machine), 3 runs each. Budget =
+128 frames at 44.1 kHz = 2.902 ms.
+
+| Song | mean ms | p50 | p99 | p99.9 | max | calls > 2.9 ms (of 10 335) |
+|---|---|---|---|---|---|---|
+| `engage` (42 tracks) | 0.88–0.91 | 0.7–0.8 | 1.9–2.0 | 2.2–2.8 | 2.8–12.8 | 0–9 |
+| `elysian` (32 tracks) | 1.32–1.35 | 1.2 | 3.0 | 3.2 | 9.4–12.7 | 296–378 |
+
+- Mean load is 30–46 % of the budget, but `elysian` exceeds the budget on ~3 % of calls (p99 103 %): dense sections
+  (heavy chords + reverbs) would drop out live on one thread. The isolated max spikes (7–13 ms) appear in single runs
+  and are machine pauses (see `crates/synth-wasm/examples/spikes.rs` notes).
+- This argues for threaded live playback for the densest converted songs (follow-up change, render-ahead Worker),
+  not for the bounce-only scope of add-wasm-threads.
+
+## DAW bounce in the browser (add-wasm-threads task 4.4)
+
+`bun research/size-threads/bench-wasm.ts`: whole-song bounce in headless Chrome through `Engine.bounce` (1 worker =
+the single-thread `synth.wasm` path; 2/4/8 = `synth-mt.wasm` with that many workers), seconds, same machine. All
+outputs per song are identical (SHA-256 of the f32 samples).
+
+| Song | 1 worker | 2 workers | 4 workers | 8 workers | best speed-up | equal |
+|---|---|---|---|---|---|---|
+| `demo` | 0.7 | 0.7 | 0.9 | 0.7 | 1.05× | yes |
+| `eladamri` | 19.8 | 15.0 | 14.0 | 14.2 | 1.41× | yes |
+| `elysian` | 232.1 | 126.4 | 86.0 | 70.7 | 3.28× | yes |
+| `engage` | 333.2 | 176.5 | 104.7 | 89.1 | 3.74× | yes |
+
+- WASM single-thread is ~6–7× slower than native here (`elysian` 232 s vs 36 s; no SIMD in the module) and slower
+  than real time over the whole song (`elysian` ≈ 218 s long, `engage` ≈ 219 s): live playback of these songs on one
+  thread cannot keep up in their dense sections, which matches the p99 overruns of task 1.2.
+- Pool wait policy unchanged from native (spin 64 → 2000 yields → park; `yield_now` is a no-op on wasm, so helpers
+  spin ~2000 iterations before parking). Speed-up is in line with native (3.3–3.7× at 8 workers), so no WASM-specific
+  thresholds.

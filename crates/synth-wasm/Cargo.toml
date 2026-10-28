@@ -17,6 +17,10 @@ unisynth = { path = "../unisynth", features = ["std"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 
+[features]
+# Threaded bounce for `synth-mt.wasm` (change add-wasm-threads): `song/threads` + the exports in `src/par.rs`.
+threads = ["song/threads"]
+
 [dev-dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
