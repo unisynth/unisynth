@@ -10,6 +10,7 @@ use tfsynth::device::kind as t;
 pub fn target(kind: u8) -> Option<(u8, usize)> {
     Some(match kind {
         w::SCISSOR => (u::DISTORTION, 0),
+        w::SCREWDRIVER => (u::DISTORTION, 1),
         w::LEVELLER => (u::EQ, 0),
         w::CRUSHER => (u::CRUSHER, 0),
         w::ECHO => (u::DELAY, 0),
@@ -17,7 +18,7 @@ pub fn target(kind: u8) -> Option<(u8, usize)> {
         w::CHAMBER => (u::REVERB, 2),
         w::TWISTER => (u::FLANGER, 0),
         w::CATHEDRAL => (u::REVERB, 0),
-        t::DISTORTION => (u::DISTORTION, 1),
+        t::DISTORTION => (u::DISTORTION, 2),
         t::DELAY => (u::DELAY, 1),
         t::CHORUS => (u::CHORUS, 0),
         t::FLANGER => (u::FLANGER, 1),

@@ -153,7 +153,9 @@ pub(super) fn parity_at(
 
 #[test]
 fn the_mode_is_the_first_parameter_and_selects_by_choice() {
-    assert_eq!(mode_count(kind::DISTORTION), 2);
+    assert_eq!(mode_count(kind::DISTORTION), 3);
+    assert_eq!(mode_of(kind::DISTORTION, &encode(&[1.0])), 2, "power keeps its stored value 1.0");
+    assert_eq!(mode_of(kind::DISTORTION, &encode(&[0.5])), 1);
     assert_eq!(mode_count(kind::REVERB), 3);
     assert_eq!(mode_count(kind::CRUSHER), 1);
     assert_eq!(mode_count(kind::INSTRUMENT), 0);
@@ -209,6 +211,7 @@ fn a_mode_the_build_lacks_is_named_at_load() {
         let built = match id {
             m::FX_DISTORTION_SHAPER => cfg!(feature = "us-fx-distortion-shaper"),
             m::FX_DISTORTION_POWER => cfg!(feature = "us-fx-distortion-power"),
+            m::FX_DISTORTION_CURVE => cfg!(feature = "us-fx-distortion-curve"),
             m::FX_CRUSHER => cfg!(feature = "us-fx-crusher"),
             m::FX_EQ_PARAMETRIC => cfg!(feature = "us-fx-eq-parametric"),
             m::FX_EQ_3BAND => cfg!(feature = "us-fx-eq-3band"),

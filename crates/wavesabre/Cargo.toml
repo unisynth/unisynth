@@ -14,7 +14,7 @@ gsm = { workspace = true, optional = true }
 [features]
 default = ["ws-all"]
 ws-all = ["ws-falcon", "ws-slaughter", "ws-thunder", "ws-scissor", "ws-leveller", "ws-crusher", "ws-echo",
-          "ws-smasher", "ws-chamber", "ws-twister", "ws-cathedral", "ws-adultery", "ws-specimen"]
+          "ws-smasher", "ws-chamber", "ws-twister", "ws-cathedral", "ws-adultery", "ws-specimen", "ws-screwdriver"]
 ws-falcon = []
 ws-slaughter = []
 ws-thunder = ["dep:gsm"]
@@ -28,6 +28,8 @@ ws-twister = []
 ws-cathedral = []
 ws-adultery = ["dep:dls"]
 ws-specimen = ["dep:gsm"]
+# fork device (qm210/WaveSabre), not upstream
+ws-screwdriver = []
 
 [dev-dependencies]
 # `threads` only for tests/threads.rs (WaveSabre songs fall back to the single-thread path, change add-synth-threads)

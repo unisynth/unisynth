@@ -66,6 +66,7 @@ impl Table {
 pub const EFFECT_MODES: &[(u8, usize)] = &[
     (kind::DISTORTION, 0),
     (kind::DISTORTION, 1),
+    (kind::DISTORTION, 2),
     (kind::CRUSHER, 0),
     (kind::EQ, 0),
     (kind::EQ, 1),
@@ -99,7 +100,7 @@ pub fn kind_name(k: u8) -> &'static str {
 
 pub fn mode_names(k: u8) -> &'static [&'static str] {
     match k {
-        kind::DISTORTION => &["Shaper", "Power"],
+        kind::DISTORTION => &["Shaper", "Curve", "Power"],
         kind::CRUSHER => &["Crusher"],
         kind::EQ => &["Parametric", "3-band"],
         kind::DELAY => &["Tempo", "Ms"],
@@ -122,7 +123,10 @@ fn effect_params(k: u8, mode: usize) -> Vec<(&'static str, f32)> {
     let env_ms = |ms: f32| ((ms - 1.0) / 5000.0).max(0.0).sqrt(); // scalar_to_env_value inverse
     match (k, mode) {
         (kind::DISTORTION, 0) => vec![("drive", 0.2), ("threshold", 0.8), ("foldover", 0.0), ("dry_wet", 1.0), ("shaper", 0.0), ("oversampling", 0.0)],
-        (kind::DISTORTION, 1) => vec![("amount", 0.0)],
+        (kind::DISTORTION, 1) => vec![
+            ("x1", 0.1), ("y1", 0.1), ("x2", 0.3), ("y2", 0.3), ("power1", 0.5), ("power2", 0.5), ("power3", 0.5), ("dry_wet", 1.0),
+        ],
+        (kind::DISTORTION, 2) => vec![("amount", 0.0)],
         (kind::CRUSHER, 0) => vec![("vertical", 0.0), ("horizontal", 0.0), ("dry_wet", 1.0)],
         (kind::EQ, 0) => vec![
             ("low_cut", hz(20.0)), ("low_cut_q", 0.5),

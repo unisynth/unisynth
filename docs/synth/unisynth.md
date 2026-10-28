@@ -688,7 +688,7 @@ flowchart LR
 
 | Kind | Mode 0 | Mode 1 | Mode 2 |
 |---|---|---|---|
-| 65 distortion | shaper (6): drive, threshold, foldover, dry/wet, shaper, oversampling | power (1): amount | |
+| 65 distortion | shaper (6): drive, threshold, foldover, dry/wet, shaper, oversampling | curve (8): x1, y1, x2, y2, power1–3, dry/wet (QM Screwdriver, qm210 WaveSabre fork) | power (1): amount |
 | 66 crusher | crusher (3): vertical, horizontal, dry/wet | | |
 | 67 EQ | parametric (14): low cut f/Q; peaks 1–3 f/gain/Q; high cut f/Q; master | 3band (3): low, mid, high | |
 | 68 delay | tempo (9): L/R coarse + fine, low cut, high cut, feedback, cross, dry/wet | ms (3): left, right, decay | |
@@ -715,7 +715,7 @@ Properties that hold for every mode:
 - **Memory.** Delay lines and reverb buffers come from the caller's pool, sized at load from the rate, the tempo and
   the chunk's parameters (tempo delay: 16 eighths + 200 ms at the song tempo; ms delay and phaser: 1 s; reverb: the Freeverb
   lines at the rate; pre-delay: 500 ms).
-- **Features.** `us-fx-distortion-shaper`, `-power`, `us-fx-crusher`, `us-fx-eq-parametric`, `-3band`, `us-fx-delay-tempo`,
+- **Features.** `us-fx-distortion-shaper`, `-curve`, `-power`, `us-fx-crusher`, `us-fx-eq-parametric`, `-3band`, `us-fx-delay-tempo`,
   `-ms`, `us-fx-chorus`, `us-fx-flanger-phaser`, `-ring`, `us-fx-reverb-freeverb`, `-compact`, `-rooms`,
   `us-fx-compressor`, `us-fx-formant`. A chunk that selects a mode the build lacks fails at load with
   `UnsupportedModule` naming the (kind, mode) (`module::FX_*`).
@@ -750,7 +750,7 @@ flowchart LR
 
 | Legacy effect | Unified kind | Mode |
 |---|---|---|
-| WaveSabre Scissor / Tunefish distortion | 65 distortion | 0 / 1 |
+| WaveSabre Scissor / fork Screwdriver (kind 13) / Tunefish distortion | 65 distortion | 0 / 1 / 2 (stored 0 / 0.5 / 1.0; power keeps 1.0) |
 | WaveSabre Crusher | 66 crusher | 0 |
 | WaveSabre Leveller / Tunefish EQ | 67 EQ | 0 / 1 |
 | WaveSabre Echo / Tunefish delay | 68 delay | 0 / 1 |

@@ -25,7 +25,7 @@ with WaveSabre.
 
 ## Released songs (local only, `released/`)
 
-`released/` holds 24 WaveSabre songs taken from released 64K intros and executable music (2018-2026), extracted with
+`released/` holds 25 WaveSabre songs taken from released 64K intros and executable music (2018-2026; Robo Outer Space Epos uses QM's fork device Screwdriver, played as the distortion's curve mode), extracted with
 `tools/ws-extract` and written by `tools/ws-extract/make-demos.py`. **No licence is stated for any of them: the music
 belongs to its authors.** The folder is git-ignored and is rebuilt locally; it is never committed or redistributed.
 Each file's `meta` names the production, its authors and music credit (Demozoo), its release and party placing, a pouet

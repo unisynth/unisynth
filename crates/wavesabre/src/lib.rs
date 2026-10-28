@@ -27,6 +27,8 @@ mod leveller;
 mod sampler;
 #[cfg(feature = "ws-scissor")]
 mod scissor;
+#[cfg(feature = "ws-screwdriver")]
+mod screwdriver;
 #[cfg(feature = "ws-slaughter")]
 mod slaughter;
 #[cfg(feature = "ws-smasher")]

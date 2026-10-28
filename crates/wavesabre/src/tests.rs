@@ -150,6 +150,38 @@ mod effect_tests_1 {
         assert!(WsDevice::need(99, &[], &env).is_err());
     }
 
+    /// Screwdriver (fork kind 13) against the C++ of qm210/WaveSabre a175dd6 built natively (clang, powf): Robo
+    /// Outer Space Epos's four parameter sets plus one where X1 > the default X2 clamps; L = ramp −1.2..1.2, R = a
+    /// stepped ramp. Within 2 ulp: only `powf` differs (libm here, Apple's libm in the reference; the intro itself used
+    /// MSVC's x87 CRT, so no build reproduces it bit for bit); every branch and clamp matches.
+    #[cfg(feature = "ws-screwdriver")]
+    #[test]
+    fn screwdriver_matches_the_cpp_reference() {
+        const N: usize = 601;
+        let sets: [[f32; 8]; 5] = [
+            [0.1, 0.2, 0.16, 0.065, 0.22, 0.5, 0.265, 0.345],
+            [0.171, 0.22, 0.644, 0.465, 0.465, 0.395, 0.47, 0.305],
+            [0.1, 0.1, 0.3, 0.3, 0.235, 0.5, 0.5, 0.63],
+            [0.11, 0.36, 0.2, 0.24, 0.49, 0.51, 0.37, 0.725],
+            [0.7, 0.9, 0.8, 0.05, 0.0, 1.0, 0.9, 0.5],
+        ];
+        let l: Vec<f32> = (0..N).map(|i| -1.2 + 2.4 * i as f32 / (N - 1) as f32).collect();
+        let r: Vec<f32> = (0..N).map(|i| 1.1 * (((i * 37) % N) as f32 / (N - 1) as f32 * 2.0 - 1.0)).collect();
+        let want: Vec<u32> =
+            include_str!("testdata/screwdriver_ref.txt").lines().map(|h| u32::from_str_radix(h, 16).unwrap()).collect();
+        assert_eq!(want.len(), sets.len() * 2 * N);
+        assert_eq!(load(kind::SCREWDRIVER, &[]).param_count(), 8);
+        for (k, s) in sets.iter().enumerate() {
+            let mut d = load(kind::SCREWDRIVER, s);
+            let (a, b) = run(&mut d, &l, &r, None);
+            let got: Vec<u32> = a.iter().chain(b.iter()).map(|v| v.to_bits()).collect();
+            let at = k * 2 * N;
+            let ulps = got.iter().zip(&want[at..at + 2 * N]).map(|(g, w)| (*g as i64 - *w as i64).unsigned_abs()).max().unwrap();
+            let bad = got.iter().zip(&want[at..at + 2 * N]).filter(|(g, w)| g != w).count();
+            assert!(ulps <= 2, "set {k}: {bad} samples differ, up to {ulps} ulp");
+        }
+    }
+
     #[test]
     fn short_and_tiny_chunks() {
         // chunk with fewer params than the device: given ones set, rest keep defaults

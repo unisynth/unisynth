@@ -8,7 +8,7 @@ export PATH="$HOME/.cargo/bin:$PATH"
 MODULES="us-osc-pm us-osc-blit us-osc-wt us-osc-sample us-sample-gsm us-sample-dls us-noise
          us-flt-svf us-flt-ladder us-flt-rbj us-flt-notch us-env-timed us-env-rate
          us-voice-lfo us-voice-glide us-voice-mono us-voice-unison us-voice-oneshot us-matrix us-automation"
-FX="us-fx-distortion-shaper us-fx-distortion-power us-fx-crusher us-fx-eq-parametric us-fx-eq-3band us-fx-delay-tempo
+FX="us-fx-distortion-shaper us-fx-distortion-curve us-fx-distortion-power us-fx-crusher us-fx-eq-parametric us-fx-eq-3band us-fx-delay-tempo
     us-fx-delay-ms us-fx-chorus us-fx-flanger-phaser us-fx-flanger-ring us-fx-reverb-freeverb us-fx-reverb-compact
     us-fx-reverb-rooms us-fx-compressor us-fx-formant"
 SETS=("" $MODULES $FX "us-osc" "us-flt" "us-env" "us-voice" "us-fx" "us-all"

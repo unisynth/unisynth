@@ -27,6 +27,7 @@ song, what the DAW plays): BS.1770 loudness Δ and the worst octave band 63 Hz�
 | 2021-04 | Multiplicity | liqube | 32K exe music | 130 | 4:00 | 31 | 0.05 | 0.21 |
 | 2021-04 | We're All Biohazards Now | Byproduct | 32K exe music | 180 | 3:03 | 44 | 0.46 | **3.07** (250 Hz) — not imported as a demo |
 | 2022-01 | astrophage | Logicoma | 64K intro | 130 | 2:06 | 14 | −0.08 | 0.81 |
+| 2022-04 | Robo Outer Space Epos | QM / Team210 | 32K exe music | 130 | 3:23 | 18 | 0.02 | 0.18 (fork device 13 Screwdriver → distortion curve mode) |
 | 2023-04 | Try Stopping. | Eladamri | 32K exe music | 130 | 3:11 | 9 | −0.03 | 0.83 |
 | 2023-07 | Ouefvoke | Rebels | 64K intro | 110 | 2:03 | 18 | −0.47 | 0.68 |
 | 2024-03 | Skranglefant | Eladamri | 32K exe music | 174 | 3:11 | 15 | −0.15 | 0.91 |
@@ -39,7 +40,7 @@ song, what the DAW plays): BS.1770 loudness Δ and the worst octave band 63 Hz�
 
 ## DAW demos
 
-The 24 rows within ~1 dB (all but Biohazards) are imported as DAW songs in `project/music/released/` (git-ignored) by
+The 25 rows within ~1 dB (all but Biohazards) are imported as DAW songs in `project/music/released/` (git-ignored) by
 `python3 tools/ws-extract/make-demos.py`, using `details.json` (Demozoo credits and placings) next to `catalog.json`.
 
 ## Not extracted
@@ -49,5 +50,6 @@ The 24 rows within ~1 dB (all but Biohazards) are imported as DAW songs in `proj
 | Reverence (2015), Bare Faced Cheek (2016), Elysian (2016), Engage (2017), Soundproof Motion (2017), iota (2018), Bros Before Foes (2018) | pre-2019 private song format (the blob is found by tempo/rate/length, but device chunks carry no size); needs that format reverse-engineered. Elysian and Engage exist as projects in the WaveSabre test suite already. |
 | Orthonormalizer, Bright Velvet, IO Transmitter, Dinette | 32-bit squishy builds crash inside Wine (ntdll fault) before unpacking finishes; need real Windows. |
 | Cuboid (Rootkids) | blob found, but tracks 10 on and the master have volume 0 in it: silent as stored (a fork or runtime-set volumes). |
-| Robo Outer Space Epos, Glorp | fork device ids 13 / 14, unknown to the converter. |
+| Robo Outer Space Epos | device id 13 = Screwdriver, QM's fork (qm210/WaveSabre branch fix-flp-null-reference, commit a175dd6): 8 params (X1,Y1,X2,Y2,LogPower0..2,DryWet), 36-byte chunks. |
+| Glorp | wrighter's private fork: device ids 14, 20, 21, 22, 25, 27, 28, 30, 32, 34, 35, 38 (Scissor 3 + Smasher 7 are the only known ones). Not in wrightwriter/WrightSabre or any other public fork. Way forward: ask wrighter (PR logicomacorp/WaveSabre#107, Mar 2026) for the source, or disassemble the DSP from the unpacked 64-bit exe (REA unavailable in this env; no unpacked image yet — out/raw389811 is Wine-session leftovers, no blob). |
 | Gotta Go Fast, Guttersnipe, Rubbik, Light Reading, invot teih martx | no reachable executable download (mediafire, none listed, PowerShell entry, dead link). |

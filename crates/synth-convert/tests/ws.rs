@@ -8,9 +8,10 @@ use unisynth::kind as u;
 use wavesabre::kind as w;
 
 /// Every legacy effect kind with its unified `(kind, mode)`.
-const MAP: [(u8, u8, usize); 15] = [
+const MAP: [(u8, u8, usize); 16] = [
     (w::SCISSOR, u::DISTORTION, 0),
-    (t::DISTORTION, u::DISTORTION, 1),
+    (w::SCREWDRIVER, u::DISTORTION, 1),
+    (t::DISTORTION, u::DISTORTION, 2),
     (w::CRUSHER, u::CRUSHER, 0),
     (w::LEVELLER, u::EQ, 0),
     (t::EQ, u::EQ, 1),

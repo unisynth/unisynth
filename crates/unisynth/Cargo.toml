@@ -52,9 +52,10 @@ us-matrix = []
 us-automation = []
 
 # --- effect kinds and modes (kind = any of its modes) ---
-us-fx-distortion = ["us-fx-distortion-shaper", "us-fx-distortion-power"]
+us-fx-distortion = ["us-fx-distortion-shaper", "us-fx-distortion-curve", "us-fx-distortion-power"]
 us-fx-distortion-shaper = []
 us-fx-distortion-power = []
+us-fx-distortion-curve = []
 us-fx-crusher = []
 us-fx-eq = ["us-fx-eq-parametric", "us-fx-eq-3band"]
 us-fx-eq-parametric = []

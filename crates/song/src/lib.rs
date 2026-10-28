@@ -183,6 +183,7 @@ fn fx_feature(k: u8, mode: usize) -> Option<&'static str> {
     use unisynth::kind::*;
     Some(match (k, mode) {
         (DISTORTION, 0) => "us-fx-distortion-shaper",
+        (DISTORTION, 1) => "us-fx-distortion-curve",
         (DISTORTION, _) => "us-fx-distortion-power",
         (CRUSHER, _) => "us-fx-crusher",
         (EQ, 0) => "us-fx-eq-parametric",

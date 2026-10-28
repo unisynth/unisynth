@@ -21,6 +21,8 @@ pub mod kind {
     pub const CATHEDRAL: u8 = 10;
     pub const ADULTERY: u8 = 11;
     pub const SPECIMEN: u8 = 12;
+    /// Fork device (qm210/WaveSabre): QM's waveshaper, kind 13 there.
+    pub const SCREWDRIVER: u8 = 13;
 }
 
 /// Upstream `Device::SetChunk`: `(size − 4) / 4` little-endian f32 parameters (the trailing i32 is the size).
@@ -101,6 +103,7 @@ ws_devices! {
     "ws-cathedral" CATHEDRAL Cathedral crate::cathedral::Cathedral<'a>,
     "ws-adultery" ADULTERY Adultery crate::adultery::Adultery<'a>,
     "ws-specimen" SPECIMEN Specimen crate::specimen::Specimen<'a>,
+    "ws-screwdriver" SCREWDRIVER Screwdriver crate::screwdriver::Screwdriver,
 }
 
 #[allow(unused_variables)] // all arms compiled out without features

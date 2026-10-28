@@ -166,7 +166,7 @@ fn leveller_mode_is_the_wavesabre_leveller() {
 #[test]
 fn tunefish_distortion_mode_is_the_tunefish_distortion() {
     let rate = 44100.0;
-    parity(kind::DISTORTION, 1, 1, rate, 0.0, 0..16, |p, l, r| {
+    parity(kind::DISTORTION, 2, 1, rate, 0.0, 0..16, |p, l, r| {
         with_tf(tfsynth::device::kind::DISTORTION, p, rate, 120, |d| run(d, rate, 120, l, r, 512))
     });
 }

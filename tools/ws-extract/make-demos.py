@@ -15,7 +15,7 @@ DLS = os.path.expanduser("~/Downloads/64k-tools/synth-lab/ws/gm.dls")
 OUT = os.path.join(ROOT, "project/music/released")
 BIN = os.path.join(ROOT, "target/release")
 KINDS = ["Falcon", "Slaughter", "Thunder", "Scissor", "Leveller", "Crusher", "Echo", "Smasher", "Chamber", "Twister",
-         "Cathedral", "Adultery", "Specimen"]
+         "Cathedral", "Adultery", "Specimen", "Screwdriver"]  # 13: qm210 fork waveshaper
 SYNTH = {"Falcon": "FM synth", "Slaughter": "subtractive synth", "Thunder": "GSM sample player",
          "Adultery": "GM.DLS sampler", "Specimen": "GSM sampler"}
 
@@ -45,6 +45,7 @@ SONGS = [
     ("indigo-shift", "371151-0", (0.05, 0.13), "32K executable music that placed 5th in the executable music competition at Revision 2025."),
     ("4o4-instance", "389813-0", (0.05, 0.26), "Executable music that placed 2nd in the executable music competition at Revision 2026."),
     ("nightform", "390011-0", (0.03, 0.92), "A 64K intro that placed 4th in the PC 64K intro competition at Revision 2026."),
+    ("robo-outer-space-epos", "307397-0", (0.02, 0.18), "32K executable music that placed 8th in the executable music competition at Revision 2022. Made with QM's own WaveSabre fork: its four Screwdriver waveshapers (fork device 13, a three-segment power curve) play here as the unified distortion's curve mode."),
     ("hold-da-bass-up", "392727-0", (0.19, 0.68), "32K executable music that won the 32K executable music competition at Nova 2026."),
 ]
 
@@ -184,7 +185,7 @@ def main():
         # track names: role from the notes + the WaveSabre instrument (GM wave name for Adultery)
         names, used = [], {}
         for i, t in enumerate(tracks):
-            insts = [KINDS[kinds[k]] for k in (btracks[i] if i < len(btracks) else []) if kinds[k] < 13 and KINDS[kinds[k]] in SYNTH]
+            insts = [KINDS[kinds[k]] for k in (btracks[i] if i < len(btracks) else []) if kinds[k] < len(KINDS) and KINDS[kinds[k]] in SYNTH]
             inst = insts[0] if insts else None
             if inst is None:
                 base = "Bus"
@@ -213,7 +214,7 @@ def main():
         secs = song["length"] / 960 * 60 / song["tempo"]
         inst_count = {}
         for k in kinds:
-            if k < 13:
+            if k < len(KINDS):
                 inst_count[KINDS[k]] = inst_count.get(KINDS[k], 0) + 1
         synths = ", ".join(f"{inst_count[k]} {k} ({SYNTH[k]})" for k in KINDS if k in SYNTH and k in inst_count)
         fx = ", ".join(f"{inst_count[k]} {k}" for k in KINDS if k not in SYNTH and k in inst_count)

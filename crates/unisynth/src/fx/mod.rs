@@ -4,7 +4,7 @@
 //!
 //! | kind | modes (mode parameter `choice(p, n)`) |
 //! |---|---|
-//! | 65 distortion | 0 shaper (WaveSabre Scissor), 1 power (Tunefish) |
+//! | 65 distortion | 0 shaper (WaveSabre Scissor), 1 curve (Screwdriver, qm210 WaveSabre fork), 2 power (Tunefish) |
 //! | 66 crusher | 0 crusher (WaveSabre) |
 //! | 67 EQ | 0 parametric (WaveSabre Leveller), 1 3band (Tunefish) |
 //! | 68 delay | 0 tempo (WaveSabre Echo), 1 ms (Tunefish) |
@@ -62,6 +62,8 @@ mod chorus;
 mod delay_ms;
 #[cfg(feature = "us-fx-distortion-power")]
 mod power;
+#[cfg(feature = "us-fx-distortion-curve")]
+mod curve;
 #[cfg(feature = "us-fx-eq-3band")]
 mod three_band;
 #[cfg(feature = "us-fx-flanger-ring")]
@@ -104,9 +106,12 @@ trait Effect<'a>: Sized {
 }
 
 /// `(kind, mode, module id)` for every mode of every kind, in mode order.
-const MODES: [(u8, usize, u8); 15] = [
+// Distortion: curve sits between shaper and power so the stored mode values keep their meaning (0 = shaper,
+// 1.0 = power, as before curve existed; curve = 0.5).
+const MODES: [(u8, usize, u8); 16] = [
     (kind::DISTORTION, 0, m::FX_DISTORTION_SHAPER),
-    (kind::DISTORTION, 1, m::FX_DISTORTION_POWER),
+    (kind::DISTORTION, 1, m::FX_DISTORTION_CURVE),
+    (kind::DISTORTION, 2, m::FX_DISTORTION_POWER),
     (kind::CRUSHER, 0, m::FX_CRUSHER),
     (kind::EQ, 0, m::FX_EQ_PARAMETRIC),
     (kind::EQ, 1, m::FX_EQ_3BAND),
@@ -198,7 +203,8 @@ macro_rules! modes {
 
 modes! {
     "us-fx-distortion-shaper" DISTORTION 0 Shaper shaper::Shaper,
-    "us-fx-distortion-power" DISTORTION 1 Power power::Power,
+    "us-fx-distortion-curve" DISTORTION 1 Curve curve::Curve,
+    "us-fx-distortion-power" DISTORTION 2 Power power::Power,
     "us-fx-crusher" CRUSHER 0 Crusher crusher::Crusher,
     "us-fx-eq-parametric" EQ 0 Parametric parametric::Parametric,
     "us-fx-eq-3band" EQ 1 ThreeBand three_band::ThreeBand,

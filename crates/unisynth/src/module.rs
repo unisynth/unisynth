@@ -74,6 +74,8 @@ modules! {
     VOICE_ONESHOT = 35, "us-voice-oneshot", "one-shot voices";
     MATRIX = 36, "us-matrix", "mod matrix";
     AUTOMATION = 37, "us-automation", "automation lanes";
+    // added after the first release of the table: ids are never renumbered
+    FX_DISTORTION_CURVE = 38, "us-fx-distortion-curve", "distortion, curve mode";
 }
 
 /// Whether this build contains every module in `ids`: generated songs assert it at compile time

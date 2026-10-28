@@ -133,7 +133,7 @@ bun packages/cli/src/cli.ts serve --no-headless   # then open http://127.0.0.1:6
 
 `?song=project/music/x.song.json` opens a song; `?tab=roll|dev|mix` a panel; `?nobank` shows the missing-bank state.
 
-The song list also shows `project/music/released/`: 24 WaveSabre songs from released intros and executable music,
+The song list also shows `project/music/released/`: 25 WaveSabre songs from released intros and executable music,
 built locally by `python3 tools/ws-extract/make-demos.py` (git-ignored, no licence; see `project/music/NOTICE.md`).
 Songs with Adultery (GM.DLS) instruments sound as released only with the Windows bank: start the server with
 `GM_DLS=<path to gm.dls>`.
