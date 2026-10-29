@@ -95,6 +95,24 @@ function wsSongs(dir: string) {
   return { songs, unique: seen.size };
 }
 
+/**
+ * Converted legacy entries (change add-synth-daw task 5.7b): `project/music/.library.json`, written from the local lab
+ * by `cargo run -p synth-convert --example library` (git-ignored), gives each Tunefish program and each WaveSabre
+ * instrument instance its song/1 devices (instrument first, then the program's insert effects). Attached as `conv`.
+ */
+function attachConverted(root: string, cat: Record<string, any>) {
+  const f = join(root, "project/music/.library.json");
+  if (!existsSync(f)) return;
+  let lib: any;
+  try {
+    lib = JSON.parse(readFileSync(f, "utf8"));
+  } catch {
+    return;
+  }
+  for (const p of cat.tunefish?.programs ?? []) if (lib.tunefish?.[p.n]) p.conv = lib.tunefish[p.n];
+  for (const s of cat.wavesabre?.songs ?? []) s.instruments.forEach((d: any, i: number) => { const c = lib.wavesabre?.[s.file]?.[i]; if (c?.devices) d.conv = c; });
+}
+
 export function library(root: string, synth: Synth | null, env = process.env) {
   const lab = env.SYNTH_LAB ?? join(homedir(), "Downloads/64k-tools/synth-lab");
   const cat: Record<string, any> = {};
@@ -120,6 +138,7 @@ export function library(root: string, synth: Synth | null, env = process.env) {
   }
   const ws = wsSongs(join(lab, "ws/refs"));
   if (ws) cat.wavesabre = { ...ws, licence: "MIT reference songs: converted on load" };
+  attachConverted(root, cat);
   cat.gsm = { samples: gsmSamples(root), licence: "samples stored in project songs: each song's meta gives its licence" };
   cat.repo = {
     "wavesabre-tests": ["falcon", "slaughter_automation", "slaughter_mono_legato", "thunder", "specimen_loop", "adultery", "adultery_no_bank"],

@@ -1084,7 +1084,8 @@ function drawRoll() {
 // Wheel/bend: click adds, drag moves, double-click deletes (like automation lanes).
 const VH = 84, ccKind = document.getElementById("cc-kind"), ccVal = document.getElementById("cc-val");
 let ccTip = null, ccDrag = null, ccLast = null;
-const bendRange = () => 2;  // instrument parameter ctl.bend-range (index 179), semitones
+// the selected track's instrument bend range (unisynth ctl.bend_range, 0..24 semitones, default 2)
+const bendRange = () => { const d = instOf(selected); return d ? +(vget(d, paramOf(d, "ctl.bend_range")) * 24).toFixed(2) : 2; };
 const ccText = (k, v) => k === "vel" ? `vel ${Math.max(1, Math.round(v * 127))}` : k === "wheel" ? `MW ${Math.round(v * 127)}` : `PB ${((v - .5) * 2 * bendRange()).toFixed(2)} st`;
 function drawCC() {
   const W = rollLen * STEP, dpr = devicePixelRatio || 1, k = ccKind.value, y = v => VH - 4 - v * (VH - 10);
@@ -1168,8 +1169,8 @@ velc.addEventListener("wheel", e => {
 }, { passive: false });
 ccKind.addEventListener("change", () => { velc.setAttribute("aria-label", `Controller lane: ${ccKind.selectedOptions[0].text}`); ccVal.textContent = ""; drawCC(); });
 // Audition controllers: MW holds, PB springs back to centre on release (live only, never recorded).
-const pb = document.getElementById("pb"); pb.addEventListener("pointerup", () => { pb.value = 0; });
-pb.addEventListener("keyup", () => { pb.value = 0; });
+const pb = document.getElementById("pb"); pb.addEventListener("pointerup", () => { pb.value = 0; pb.dispatchEvent(new Event("input")); });
+pb.addEventListener("keyup", () => { pb.value = 0; pb.dispatchEvent(new Event("input")); });
 const grid = document.getElementById("grid"), vel = document.getElementById("vel");
 grid.addEventListener("scroll", () => { keys.scrollTop = grid.scrollTop; vel.scrollLeft = grid.scrollLeft; if (Math.floor(grid.scrollLeft) !== rollX0 && rollClip) redrawRollSoon(); });
 new ResizeObserver(redrawRollSoon).observe(grid);
@@ -1506,8 +1507,8 @@ const SOURCES = [
   { id: "project", label: "Project presets", note: "project/music/patches · us-patch/1", lic: "ours" },
   { id: "gm", label: "GM.DLS bank", note: "OS bank read at runtime (Win gm.dls / macOS gs_instruments.dls); never shipped in the intro", lic: "OS bank" },
   { id: "gsm", label: "GSM samples", note: "stored in the instruments of project/music songs · GSM 06.10, about 9 KB per second", lic: "from project songs: each song's meta gives its licence" },
-  { id: "tunefish", label: "Tunefish 4 programs", note: "tf4programs/*.txt → synth-convert → us-patch/1", lic: "GPL-3 reference: converted and re-saved as an own patch" },
-  { id: "wavesabre", label: "WaveSabre songs", note: "instruments inside the reference songs → synth-convert → us-patch/1", lic: "WaveSabre reference songs (MIT)" },
+  { id: "tunefish", label: "Tunefish 4 programs", note: "tf4programs/*.txt → synth-convert → unisynth instrument + insert effects", lic: "GPL-3 reference: converted and re-saved as an own patch" },
+  { id: "wavesabre", label: "WaveSabre songs", note: "instruments inside the reference songs → synth-convert → unisynth instrument", lic: "WaveSabre reference songs (MIT)" },
   { id: "tests", label: "Test patches", note: "crates/wavesabre/tests, crates/tfsynth/tests (synthetic, cover every module)", lic: "ours" },
 ];
 function libItems(src) {
@@ -1515,8 +1516,8 @@ function libItems(src) {
   if (src === "project") return (CAT.project?.presets || []).map(p => ({ name: p.name, tag: "patch", preset: p }));
   if (src === "gm") return (CAT.gm?.instruments || []).map(g => ({ name: g.name, tag: g.drums ? "kit" : `${String(g.prog).padStart(3, "0")}${g.bank ? "·b" + g.bank : ""}`, gm: g }));
   if (src === "gsm") return (CAT.gsm?.samples || []).map(g => ({ name: `${g.song} · ${g.trackName}${g.sample ? ` #${g.sample + 1}` : ""}`, tag: `${g.seconds.toFixed(2)} s`, gsm: g }));
-  if (src === "tunefish") return (CAT.tunefish?.programs || []).map(p => ({ name: p.name, tag: "#" + p.n }));
-  if (src === "wavesabre") return (CAT.wavesabre?.songs || []).flatMap(s => s.instruments.filter(d => !d.dup).map((d, i) => ({ name: `${s.song} · ${d.kind} ${i + 1}`, tag: d.kind === "Adultery" ? `wave ${d.wave}` : d.kind.slice(0, 5).toLowerCase(), ws: d, song: s.song })));
+  if (src === "tunefish") return (CAT.tunefish?.programs || []).map(p => ({ name: p.name, tag: "#" + p.n, conv: p.conv }));
+  if (src === "wavesabre") return (CAT.wavesabre?.songs || []).flatMap(s => s.instruments.filter(d => !d.dup).map((d, i) => ({ name: `${s.song} · ${d.kind} ${i + 1}`, tag: d.kind === "Adultery" ? `wave ${d.wave}` : d.kind.slice(0, 5).toLowerCase(), ws: d, song: s.song, conv: d.conv })));
   if (src === "tests") return [...(CAT.repo?.["wavesabre-tests"] || []).map(n => ({ name: n, tag: "ws" })), ...(CAT.repo?.["tfsynth-tests"] || []).map(n => ({ name: n, tag: "tf" }))];
 }
 const libTree = document.getElementById("lib-tree"), libQ = document.getElementById("lib-q"), insp = document.getElementById("lib-insp");
@@ -1537,14 +1538,16 @@ function renderLibrary(open) {
 }
 function inspect(src, it, btn) {
   libTree.querySelectorAll("button[aria-current]").forEach(b => b.removeAttribute("aria-current")); btn.setAttribute("aria-current", "true");
-  const inst = instOf(selected), legacy = src.id === "tunefish" || src.id === "wavesabre" || (src.id === "tests");
+  // legacy entries load once converted (`conv`: synth-convert → song/1 devices, from project/music/.library.json)
+  const inst = instOf(selected), legacy = src.id === "tests" || ((src.id === "tunefish" || src.id === "wavesabre") && !it.conv?.devices?.length);
   const canLoad = !!inst && !legacy;
   const what = src.id === "gm" ? `${it.gm.drums ? "drum kit" : "melodic"} · bank ${it.gm.bank} · prog ${it.gm.prog} · ${it.gm.regions.length} regions` :
     src.id === "gsm" ? `${it.gsm.seconds.toFixed(2)} s · ${(it.gsm.bytes / 1024).toFixed(1)} KB · ${it.gsm.path}${it.gsm.uses > 1 ? ` · used ${it.gsm.uses}×` : ""}` :
     src.id === "wavesabre" ? `${it.ws.kind} in “${it.song}”${it.ws.kind === "Adultery" ? ` · plays GM wave ${it.ws.wave}` : ""}` : src.note;
   insp.innerHTML = `<div class="iname">${it.name}</div><div class="dim">${src.label} · ${what}</div><div class="lic">${src.lic}</div>
     <div class="iacts">${src.id === "gsm" ? `<button class="aud" aria-label="Play ${it.name}">▶ Play sample</button>` : `<button class="aud" aria-label="Audition ${it.name}" ${inst ? "" : "disabled"}>▶ Audition C3</button>`}<button class="loadin" ${canLoad ? "" : "disabled"}>Load into <span id="lib-target">${selected.name}</span></button></div>
-    ${legacy ? `<div class="dim small">Legacy instruments need <code>synth-convert</code> (add-unified-synth tasks 6.x); listed for reference, loadable once the converter lands.</div>` : ""}`;
+    ${legacy ? `<div class="dim small">${src.id === "tests" ? "Test patches are listed for reference." : "Not converted yet: run <code>cargo run --release -p synth-convert --example library</code> (writes project/music/.library.json)."}</div>` : ""}
+    ${it.conv?.devices?.length ? `<div class="dim small">Converted by synth-convert: ${it.conv.devices.length > 1 ? `instrument + ${it.conv.devices.length - 1} insert effect${it.conv.devices.length > 2 ? "s" : ""}` : "instrument"}${it.conv.warnings?.length ? ` · ${it.conv.warnings.length} note${it.conv.warnings.length > 1 ? "s" : ""}: ${it.conv.warnings.slice(0, 2).join("; ")}` : ""}</div>` : ""}`;
   insp.querySelector(".aud").onclick = e => auditionEntry(src, it, e.currentTarget);
   insp.querySelector(".loadin").onclick = () => loadInto(selected, src, it);
 }
@@ -1555,6 +1558,11 @@ async function loadInto(t, src, it) {
     if (!r.device) return say(`${it.name}: ${r.errors?.map(e => e.message).join("; ")}`);
     const i = t.devices.indexOf(inst); t.devices[i] = { ...r.device, _edited: false }; inst = t.devices[i];
     for (const ln of t.lanes) if (ln.dev === i && !paramOf(inst, ln.param)) ln.param = "filt1.cutoff";
+  } else if (it.conv?.devices?.length) {
+    // converted legacy entry: its instrument replaces the track's, its insert effects go right after it
+    const [ins, ...fx] = it.conv.devices.map(d => ({ ...structuredClone(d), preset: it.name, _edited: false }));
+    const i = t.devices.indexOf(inst); t.devices.splice(i, 1, ins, ...fx); inst = ins;
+    for (const ln of t.lanes) { if (ln.dev > i) ln.dev += fx.length; else if (ln.dev === i && !paramOf(inst, ln.param)) ln.param = "filt1.cutoff"; }
   } else if (src.id === "gsm") {
     const b64 = await gsmOf(it.gsm); if (!b64) return say(`${it.name}: sample not found in ${it.gsm.path}`);
     return useGsm(t, inst, b64, it.name);
@@ -1882,9 +1890,16 @@ queueMicrotask(() => { updateArmed(); validateMarks(); });
 // ===== Audition (never recorded): computer keyboard on the armed track, piano-roll keys, library entries, Web MIDI =====
 let kbOn = true;
 const heldV = new Map(), mwEl = document.getElementById("mw"), pbEl = document.getElementById("pb");
-// Mod wheel and pitch bend reach the engine once the instrument has its controller block (unisynth ctl.wheel /
-// ctl.bend, add-unified-synth task 6a); until then the sliders only show the controller.
-for (const el of [mwEl, pbEl]) el.title = "Needs the unisynth controller block (ctl.wheel / ctl.bend, add-unified-synth task 6a)";
+// Mod wheel and pitch bend (sliders, Web MIDI CC1 / pitch bend) set the armed track's instrument controller block
+// (unisynth ctl.wheel / ctl.bend) live; never written to the song. A seek or stop restores the stored values.
+function ctlLive(name, v) {
+  const t = armed, d = t && instOf(t), p = d && paramOf(d, name), di = d ? engineDev(t, d) : -1;
+  if (p && di >= 0 && E.node) E.setParam(trackIndex(t), di, p.index, v);
+}
+mwEl.addEventListener("input", () => ctlLive("ctl.wheel", +mwEl.value / 127));
+pbEl.addEventListener("input", () => ctlLive("ctl.bend", (+pbEl.value + 8192) / 16383));
+mwEl.title = "Mod wheel: the armed track's ctl.wheel (audition, not recorded)";
+pbEl.title = "Pitch bend: the armed track's ctl.bend, ± its bend range (audition, not recorded; springs back)";
 function noteOn(t, note, vel, key) {
   if (!t || t.bus || t.master || note < 0 || note > 127 || !instOf(t)) return; noteOff(key);
   const ti = trackIndex(t);

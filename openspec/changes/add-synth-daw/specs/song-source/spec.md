@@ -97,6 +97,15 @@ a track-level lane for the same parameter SHALL fail validation.
 - **WHEN** clip `bass-a` has a wheel envelope and is placed at bars 5 and 9
 - **THEN** the exported automation repeats the envelope at both placements and returns to 0 after each
 
+#### Scenario: Bend at rest
+- **WHEN** a clip's bend envelope stays at 0.5 (stored as automation byte 128)
+- **THEN** the song renders exactly like the same song without the envelope (the engine treats half a step around the
+  centre as no bend)
+
+#### Scenario: Looping placement restarts the envelope
+- **WHEN** a clip with a bend envelope is placed looping for two clip lengths
+- **THEN** the automation repeats the envelope from its start at the second pass and returns to the centre at the end
+
 #### Scenario: Wheel on track and clip
 - **WHEN** a track has a track lane for `ctl.wheel` and its clip has a wheel envelope
 - **THEN** validation fails with "wheel is automated by both the track and clip bass-a"

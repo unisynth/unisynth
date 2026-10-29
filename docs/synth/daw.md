@@ -159,6 +159,18 @@ render time; the page's spectra and overlays 0.5 ms per status and 0.5 ms per fr
 tap branch in the voice loop makes the DAW engine about 5 % slower even when nothing is watched; this is accepted
 (the player is unaffected: same i686 size, no probe code).
 
+### Mod wheel, pitch bend and converted library entries
+
+A clip's mod-wheel and pitch-bend envelopes (controller lane) export as automation of the instrument's `ctl.wheel` /
+`ctl.bend`, per placement and loop pass, back to rest (wheel 0, bend centre) at the placement end; a track lane on the
+same parameter is a validation error. The bend lane shows semitones from the instrument's `ctl.bend_range`. The MW/PB
+sliders and Web MIDI CC1 / pitch bend set the armed track's controllers live (not recorded; PB springs back).
+
+Tunefish 4 programs and the instruments of the WaveSabre reference songs load from the library once converted:
+`cargo run --release -p synth-convert --example library` writes `project/music/.library.json` (git-ignored, from the
+local lab); the server attaches each entry's devices to `/api/library`. Loading replaces the track's instrument and puts
+a Tunefish program's insert effects right after it.
+
 ## Using the DAW
 
 ```bash

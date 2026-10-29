@@ -68,10 +68,16 @@ pub fn bend_range(p: f32) -> f32 {
     c01(p) * 24.0
 }
 
-/// Pitch-bend offset in semitones: `bend` 0..1 with its centre 0.5, `range_p` the [`bend_range`] parameter.
+/// Pitch-bend offset in semitones: `bend` 0..1 with its centre 0.5, `range_p` the [`bend_range`] parameter. Within
+/// half an automation step of the centre (|bend − 0.5| ≤ 0.5/255) it is exactly 0: automation stores bytes, and the
+/// byte nearest 0.5 (128 = 0.50196) must not leave every note a few cents sharp.
 #[inline]
 pub fn bend_semitones(bend: f32, range_p: f32) -> f32 {
-    (c01(bend) - 0.5) * 2.0 * bend_range(range_p)
+    let d = c01(bend) - 0.5;
+    if libm::fabsf(d) <= 0.5 / 255.0 + 1e-6 {
+        return 0.0;
+    }
+    d * 2.0 * bend_range(range_p)
 }
 
 /// Oscillator coarse pitch in whole semitones, `−24..24`.
@@ -273,5 +279,19 @@ pub mod host {
         let r = (v / range).max(-1.0).min(1.0);
         let x = if r < 0.0 { -sqrtf(-r) } else { sqrtf(r) };
         (x + 1.0) / 2.0
+    }
+}
+
+#[cfg(test)]
+mod bend_centre_tests {
+    use super::*;
+
+    #[test]
+    fn the_automation_byte_nearest_the_centre_bends_nothing() {
+        let r = host::inv_bend_range(12.0);
+        assert_eq!(bend_semitones(128.0 / 255.0, r), 0.0);
+        assert_eq!(bend_semitones(127.0 / 255.0, r), 0.0);
+        assert!(bend_semitones(129.0 / 255.0, r) > 0.09, "one step further bends");
+        assert!((bend_semitones(1.0, r) - 12.0).abs() < 1e-5);
     }
 }

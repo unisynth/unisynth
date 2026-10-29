@@ -17,3 +17,8 @@ unisynth = { path = "../unisynth", features = ["std"] }
 [[bin]]
 name = "synth-convert"
 path = "src/main.rs"
+
+[dev-dependencies]
+# examples/library.rs: converted library entries as song/1 devices
+song = { path = "../song" }
+serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }

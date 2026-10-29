@@ -71,6 +71,60 @@ pub fn flatten(s: &Song, t: &Track) -> Vec<(i64, i64, u8, u8)> {
     out
 }
 
+/// Value of a clip envelope at clip tick `x`: linear between points, the first value before them, the last after.
+fn env_at(env: &[Point], x: f64) -> f32 {
+    let Some(first) = env.first() else { return 0.0 };
+    if x <= first.tick {
+        return first.value;
+    }
+    for w in env.windows(2) {
+        let (a, b) = (&w[0], &w[1]);
+        if x <= b.tick {
+            let span = b.tick - a.tick;
+            return if span <= 0.0 { b.value } else { a.value + (b.value - a.value) * ((x - a.tick) / span) as f32 };
+        }
+    }
+    env[env.len() - 1].value
+}
+
+/// A clip controller envelope (`wheel` or `bend`) of every placement flattened into one automation in ticks (spec
+/// "Clip controller envelopes"): per placement (and per loop pass) the envelope's points at their song ticks, the
+/// value at the pass start and end, then a step back to `rest` (the controller's default) at the placement end, so a
+/// clip without an envelope plays at rest. `None` when no clip of the track has one.
+pub fn controller(s: &Song, t: &Track, pick: impl Fn(&Clip) -> &Vec<Point>, rest: f32) -> Option<Vec<Point>> {
+    let mut pls: Vec<&Placement> = t.placements.iter().collect();
+    pls.sort_by_key(|p| p.start);
+    let clip = |pl: &Placement| s.clips.iter().find(|c| c.id == pl.clip);
+    if !pls.iter().any(|pl| clip(pl).is_some_and(|c| !pick(c).is_empty())) {
+        return None;
+    }
+    let mut out = vec![Point { tick: 0.0, value: rest }];
+    for pl in pls {
+        let Some(c) = clip(pl) else { continue };
+        let env = pick(c);
+        if env.is_empty() {
+            continue;
+        }
+        let end = pl.start.saturating_add(pl.length.unwrap_or(c.length)) as f64;
+        let mut off = pl.start as f64;
+        while off < end {
+            let pass_end = if pl.looping && c.length > 0 { (off + c.length as f64).min(end) } else { end };
+            out.push(Point { tick: off, value: env_at(env, 0.0) });
+            for p in env.iter().filter(|p| off + p.tick > off && off + p.tick < pass_end) {
+                out.push(Point { tick: off + p.tick, value: p.value });
+            }
+            out.push(Point { tick: pass_end, value: env_at(env, pass_end - off) });
+            if !pl.looping || c.length <= 0 {
+                break;
+            }
+            off = pass_end;
+        }
+        out.push(Point { tick: end, value: rest });
+    }
+    out.sort_by(|a, b| a.tick.total_cmp(&b.tick)); // stable: equal ticks keep their step order
+    Some(out)
+}
+
 /// Notes → lane events in samples. Per pitch one open note: an earlier note is cut at the next start (dropped if
 /// it would end before it starts). At one sample: note-offs first, then note-ons, each in pitch order.
 fn events(s: &Song, notes: &[(i64, i64, u8, u8)]) -> Vec<(i64, EventKind)> {
@@ -134,6 +188,18 @@ pub fn export_model(s: &Song) -> Result<BlobM, Vec<Issue>> {
             let Some(p) = tab.param(&l.param) else { continue };
             let points = l.points.iter().map(|pt| (tick_to_sample(s, pt.tick), (pt.value * 255.0).round() as u8)).collect();
             autos.push(AutoM { device: *dev, param: p.index, points });
+        }
+        // clip mod-wheel and pitch-bend envelopes → automation of the instrument's controller block
+        if let Some(di) = t.devices.iter().position(|d| d.kind == kind::INSTRUMENT && !d.bypass) {
+            for (name, rest, pick) in [
+                ("ctl.wheel", params::DEFAULTS[params::ctl::WHEEL], (|c: &Clip| &c.wheel) as fn(&Clip) -> &Vec<Point>),
+                ("ctl.bend", params::DEFAULTS[params::ctl::BEND], |c: &Clip| &c.bend),
+            ] {
+                let (Some(Some(dev)), Some(tab)) = (map.get(di), tables::of_device(&t.devices[di])) else { continue };
+                let (Some(p), Some(pts)) = (tab.param(name), controller(s, t, pick, rest)) else { continue };
+                let points = pts.iter().map(|pt| (tick_to_sample(s, pt.tick), (pt.value.clamp(0.0, 1.0) * 255.0).round() as u8)).collect();
+                autos.push(AutoM { device: *dev, param: p.index, points });
+            }
         }
         b.tracks.push(TrackM {
             volume: if t.mute { 0.0 } else { t.volume },

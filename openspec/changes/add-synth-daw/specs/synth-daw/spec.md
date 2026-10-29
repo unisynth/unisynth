@@ -494,8 +494,18 @@ WaveSabre songs, and the repository test patches, each with a count, a licence n
 
 ### Requirement: Loading from the library
 Selecting a library entry SHALL show its details with Audition and "Load into <selected track>". Loading a Tunefish or
-WaveSabre entry SHALL convert it with `synth-convert` into the track's instrument; loading a GM entry SHALL set a
+WaveSabre entry SHALL use its ahead-of-time `synth-convert` conversion served with the catalog: the converted
+instrument replaces the track's and a Tunefish program's insert effects follow it; loading a GM entry SHALL set a
 sampler slot to that instrument. Each load is one undo step; sources outside the project are read-only.
+
+#### Scenario: Load a converted Tunefish program
+- **WHEN** a Tunefish program whose conversion is an instrument plus one insert effect is loaded into the Lead track
+- **THEN** the Lead's instrument is replaced by the converted one, the insert follows it before the Lead's own effects,
+  lanes of the Lead's later effects keep their targets, and one undo restores the Lead
+
+#### Scenario: Entry not converted yet
+- **WHEN** the converted-library file has no entry for a Tunefish program
+- **THEN** "Load into" is disabled and the inspector says how to convert the library
 
 #### Scenario: Load a GM instrument
 - **WHEN** "Piano 1d" (bank 16, program 0) is loaded into the Keys track

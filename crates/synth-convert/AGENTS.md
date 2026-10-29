@@ -29,7 +29,8 @@ Rules (details and mapping tables in `docs/synth/unisynth.md`, section Converter
 
 | File | Purpose |
 |---|---|
-| `Cargo.toml` | Deps `synth-core`, `gsm`, `wavesabre` (`ws-all`), `tfsynth` (`tf-fx-all`; legacy decoders, kind ids, `.tfm` parser), `unisynth` with `std` (chunk encoder, law inverses, `needs`). Bin `synth-convert`. |
+| `Cargo.toml` | Deps `synth-core`, `gsm`, `wavesabre` (`ws-all`), `tfsynth` (`tf-fx-all`; legacy decoders, kind ids, `.tfm` parser), `unisynth` with `std` (chunk encoder, law inverses, `needs`). Bin `synth-convert`. Dev-deps `song`, `serde_json` (examples/library.rs). |
+| `examples/library.rs` | `library [lab] [out]`: converts the DAW library's legacy entries ahead of time (every `tf4programs/programN.txt` via `convert_patch`, every WaveSabre instrument instance of `ws/refs/*.bin` alone on a track via `convert`) and imports each with `song::import` → `{format "us-library/1", tunefish: {n: {devices, warnings}}, wavesabre: {file: [{devices, warnings}]}}`, default `project/music/.library.json` (git-ignored). |
 | `examples/patch.txt`, `examples/phrase.txt` | Walkthrough inputs for `synth-convert patch` (a 3-layer wavetable pad with a chorus; two notes). Kept valid by `tests/tunefish.rs`. |
 | `examples/legacy.rs` | Renders a legacy synth-mix song (kinds 0–12 or 32–39) or a `.tfm` with its legacy crate to a 16-bit WAV and prints `engine audio-s render-s`; `tools/unisynth-parity`'s reference render. |
 | `examples/legacy_features.rs` | Prints the `ws-*` cargo features a legacy WaveSabre song's devices need; `research/size-compare`. |
