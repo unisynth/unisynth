@@ -4,7 +4,7 @@ import { expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
-import { fromSong, toSong, type Song } from "./model.ts";
+import { audible, fromSong, toSong, type Song } from "./model.ts";
 import { loadSynth } from "../../cli/src/synth.ts";
 
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
@@ -36,6 +36,23 @@ test("solo for live preview mutes the others without changing the source", () =>
   const s = toSong(ui, (t) => t.name === "Bass");
   expect(s.tracks.map((t) => t.mute)).toEqual([true, false, true, true, true]);
   expect(toSong(ui).tracks.every((t) => !t.mute)).toBe(true);
+});
+
+test("solo keeps the send sources of a soloed track and the buses it sends to", () => {
+  const ui = fromSong(demo());
+  const [kick, bass, lead, pad] = ui.tracks;
+  // kick feeds the pad's sidechain; pad sends to the verb bus
+  kick.sends = [["Pad", "side", 0]];
+  pad.solo = true;
+  pad.sends = [["Verb", "main", -6]];
+  const on = (t: (typeof ui.tracks)[number]) => audible(ui.tracks, t);
+  expect(ui.tracks.map(on)).toEqual([true, false, false, true, true]);
+  // muted wins over solo membership; nothing soloed = everything not muted
+  kick.mute = true;
+  expect(on(kick)).toBe(false);
+  pad.solo = false;
+  expect([bass, lead].map(on)).toEqual([true, true]);
+  expect(toSong(ui, on).tracks.map((t) => t.mute)).toEqual([true, false, false, false, false]);
 });
 
 test("an edited volume is written from its dB value", () => {

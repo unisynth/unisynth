@@ -1727,11 +1727,8 @@ document.addEventListener("click", e => {
   if (t._lane) t._lane.style.opacity = t.mute ? .45 : "";
   say(`${name} ${solo ? (t.solo ? "soloed" : "unsoloed") : (t.mute ? "muted" : "unmuted")}`); livePush();
 });
-// Audible = not muted, and soloed (or feeding/fed by a soloed track) when any solo is on.
-function audible(t) {
-  if (t.mute) return false; const solos = tracks.filter(x => x.solo); if (!solos.length) return true;
-  return t.solo || (t.bus && solos.some(x => x.sends.some(s1 => s1[0] === t.name))) || solos.some(x => x.bus && t.sends.some(s1 => s1[0] === x.name));
-}
+// Audible = not muted, and soloed, a send source of a soloed track, or a bus it sends to when any solo is on (model.ts).
+const audible = t => M.audible(tracks, t);
 
 // Clock. Position in bars; 4/4 at the tempo field. The loop wraps when the playhead reaches its end.
 let playing = false, lastT = 0, raf = 0;

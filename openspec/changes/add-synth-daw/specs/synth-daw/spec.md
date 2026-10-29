@@ -639,7 +639,7 @@ its size, and SHALL remove stored samples no slot plays on request.
 - **THEN** the sample is copied into that instrument (not duplicated if already stored) and a sampler slot plays it
 
 ### Requirement: Live device graphics
-Envelope curves SHALL be drawn as the engine plays them (per envelope mode) and SHALL redraw whenever a parameter they
+Envelope curves SHALL be drawn with the shape the engine plays (per envelope mode) and SHALL redraw whenever a parameter they
 depend on changes, by hand or by automation. A sampler slot SHALL show its sample's waveform with the start and loop
 and SHALL offer its playback settings (loop mode, loop region, interpolation, reverse) as named controls, showing loop
 start and length only for a custom loop that plays; dragging the start line or the loop edits those values in one

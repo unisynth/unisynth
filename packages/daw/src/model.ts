@@ -114,6 +114,16 @@ export const gainToDb = (g: number) => (g <= 0.001 ? -60 : 20 * Math.log10(g));
 const gainOf = (db: number, g0?: [number, number]) => (g0 && g0[0] === db ? g0[1] : dbToGain(db));
 export const ticksPerBar = (sig: [number, number]) => (TPB * 4 * sig[0]) / sig[1];
 
+/** Live-preview audibility: not muted, and when any track is soloed, soloed itself, a send source of a soloed track
+ * (a kick feeding a soloed pad's sidechain keeps feeding it), or a bus a soloed track sends to. */
+export function audible(tracks: UITrack[], t: UITrack): boolean {
+  if (t.mute) return false;
+  const solos = tracks.filter((x) => x.solo);
+  if (!solos.length || t.solo) return true;
+  if (t.sends.some((s) => solos.some((x) => x.name === s[0]))) return true;
+  return !!t.bus && solos.some((x) => x.sends.some((s) => s[0] === t.name));
+}
+
 /** The editor model as a song/1 source. `audible(t)` (solo/mute for live preview) defaults to `!t.mute`. */
 export function toSong(ui: UIState, audible?: (t: UITrack) => boolean): Song {
   const bar = ticksPerBar(ui.sig), step = bar / 16;
