@@ -41,5 +41,22 @@ trusted build without the V2 kinds decodes choices and effect modes with the old
 `us-chunk-wide` (5-byte pairs without it); `run_ext` only with `us-chan`. The rest (+150 to +470 B xz) is the other
 voice-struct growth and the instrument's render split.
 
+Aux buses and the Moog fix (task 5.2, commit `4b8d7ce`) vs `49185ef`, same compo probe in clean worktrees, each song
+converted by its own tree (raw / xz -9e / squishy 0.1.3 bytes). The aux path is behind `us-chan`, so songs without V2
+are byte-identical; every V2 song has `us-chan` and carries the aux-input plumbing even without an aux oscillator.
+
+| song | before | after | Δ xz |
+|---|---|---|---:|
+| 7 songs without V2 | | identical | 0 |
+| v2-candytron | 157184 / 46056 / 35328 | 157184 / 46148 / 35328 | +92 |
+| v2-platinum (aux) | 161792 / 39228 / 30720 | 161792 / 39384 / 30720 | +156 |
+| v2-brullwurfel | 109056 / 34820 / 27648 | 109056 / 34992 / 27648 | +172 |
+| v2-debris (aux) | 508416 / 51076 / 38400 | 508928 / 51272 / 38400 | +196 |
+| v2-kkrieger | 114688 / 39908 / 31744 | 114688 / 40112 / 31744 | +204 |
+| v2-fr08 | 354304 / 47816 / 34816 | 354304 / 48192 / 34816 | +376 |
+
+V2 oscillator pan in a unisynth voice (mixed patches), after `4b8d7ce`: v2-fr08 354816 raw / 48060 xz (−132),
+v2-brullwurfel 109568 / 35084 (+92), global-groove unchanged (15544). V2-voice renders stay byte-identical.
+
 Legacy figures (`research/softsynth-research.md`): WaveSabre port, all 13 devices + 1 KB test sample: 71,168 raw / 34,472 xz / 27,648 squishy;
 Slaughter only: 28,672 / 15,968 / 14,336. Tunefish-compatible port: 41,472 raw with every effect, 30,208 without.

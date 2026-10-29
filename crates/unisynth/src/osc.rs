@@ -349,11 +349,13 @@ const TWO_32: f32 = 4_294_967_296.0;
 /// (the FM modulator), `aux` the aux A and aux B input pairs at this sample (the bus mixes so far in the frame). The counter advances by the ramped increment
 /// as V2's integer `freq`.
 #[inline]
-pub fn v2_sample(slot: &mut Slot, r: &mut SlotRamps, mono: f32, aux: [(f32, f32); 2]) -> V2Out {
+/// One V2 sample and the slot's pan gains `(left, right)` (1, 1 in the V2 voice).
+pub fn v2_sample(slot: &mut Slot, r: &mut SlotRamps, mono: f32, aux: [(f32, f32); 2]) -> (V2Out, f32, f32) {
     let mut st = slot.v2s.get();
+    let (pl, pr) = (r.pan_l.next(), r.pan_r.next());
     let y = v2_step(&mut st, r, mono, aux);
     slot.v2s.set(st);
-    y
+    (y, pl, pr)
 }
 
 #[inline(always)]
@@ -361,7 +363,7 @@ fn v2_step(slot: &mut V2Slot, r: &mut SlotRamps, mono: f32, aux: [(f32, f32); 2]
     use crate::v2::{fastsin, fastsinrc, utof23};
     let inc = r.inc.next();
     let gain = r.gain.next() * r.mix.next();
-    let _ = (r.pan_l.next(), r.pan_r.next(), r.pm_out.next(), r.feedback.next(), r.wf.next(), r.pw.next());
+    let _ = (r.pm_out.next(), r.feedback.next(), r.wf.next(), r.pw.next());
     let _ = (r.det.next(), r.spread.next(), r.drive.next());
     let t = &r.v2.get();
     let freq = (inc * TWO_32) as i64 as u32;

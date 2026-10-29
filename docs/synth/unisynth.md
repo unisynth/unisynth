@@ -575,9 +575,17 @@ flowchart LR
 | speech | `us-speech` | Ronan; text in chunk version 2 |
 | matrix Add | `us-matrix-add` | V2's mod rule, CC2–CC7 and V2 note sources, slots 13–16 |
 
-`us-v2` enables them all. A V2 oscillator outputs the same mono signal to both channels and ignores the slot pan; the
-voice pan applies after the distortion, as V2 does. A patch can still mix V2 and unisynth slots; only the V2 path is
-checked against V2.
+`us-v2` enables them all. In the V2 voice a V2 oscillator outputs the same mono signal to both channels and ignores
+the slot pan; the voice pan applies after the distortion, as V2 does.
+
+**Mixing.** Every module above is chosen per slot or by its own parameter, so a unisynth voice (`v2.voice` off) can
+use any of them beside the unisynth ones: a V2 filter kind or the Moog in any filter slot, a V2 oscillator next to a
+wavetable or BLIT slot, V2 envelope or LFO mode on any envelope or LFO, the voice distortion, and parallel routing of
+filter slots 1 and 2 (whatever their kinds). A V2 oscillator then pans like a unisynth slot (slot pan + voice pan,
+the unisynth pan law), and the voice keeps unisynth's gain, velocity and pan. The V2 laws stay as they are: V2
+parameters store `raw / 128`, and a V2 filter's cutoff moves with Scale and Add routes, not Offset (Hz). Only the V2
+voice is checked against V2; the mixed cases are checked by the `mix_*` tests in `src/instrument/tests/v2.rs`. V2's
+overdrive output gain (`vdist.p1`) defaults to 0, which is silent, as in V2.
 
 ### Channel stage
 

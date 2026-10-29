@@ -214,3 +214,80 @@ fn an_aux_oscillator_needs_the_channel_stage() {
     let old = v2patch(&[(6, 0, 64, 64)], &[(v2::ERA, pm::kinds::encode(5, 7))]);
     assert!(!crate::osc::v2_aux(&crate::chunk::Chunk::parse(&old).unwrap().values(), 0));
 }
+
+// --- mixed patches: V2 modules in a unisynth voice (`v2.voice` off), and unisynth modules beside V2 slots ---
+
+/// A unisynth voice (`v2.voice` off) with a BLIT oscillator in slot 0, plus `edits`.
+fn mixed(edits: &[(usize, f32)]) -> Vec<u8> {
+    let mut p = pm::DEFAULTS;
+    p[pm::osc(0, o::TYPE)] = osc_type::encode(osc_type::BLIT);
+    for &(i, x) in edits {
+        p[i] = x;
+    }
+    crate::chunk::encode(&p, &[])
+}
+
+fn rms(x: &[f32]) -> f64 {
+    (x.iter().map(|&s| (s as f64) * (s as f64)).sum::<f64>() / x.len() as f64).sqrt()
+}
+
+#[test]
+fn mix_v2_moog_filter_in_a_unisynth_voice() {
+    let (dry, _) = play(&mixed(&[]), 57, 44100);
+    let (wet, _) = play(&mixed(&[(pm::filt(0, f::TYPE), ft::encode(ft::V2_MOOG_LP)), (pm::filt(0, f::CUTOFF), 40.0 / 128.0)]), 57, 44100);
+    let (d, w) = (&dry[4410..], &wet[4410..]);
+    eprintln!("moog: h1 {:.1} dB, h20 {:.1} dB", db(mag(w, 220.0), mag(d, 220.0)), db(mag(w, 4400.0), mag(d, 4400.0)));
+    assert!(db(mag(w, 4400.0), mag(d, 4400.0)) < db(mag(w, 220.0), mag(d, 220.0)) - 20.0);
+}
+
+#[test]
+fn mix_v2_distortion_in_a_unisynth_voice() {
+    let (dry, _) = play(&mixed(&[]), 57, 22050);
+    // overdrive, in gain 120, out gain (param 1) 100: V2's default out gain 0 is silent, as in V2
+    let (wet, _) = play(&mixed(&[(pm::VDIST + pm::dist::MODE, 1.0 / 128.0), (pm::VDIST + pm::dist::GAIN, 120.0 / 128.0), (pm::VDIST + pm::dist::P1, 100.0 / 128.0)]), 57, 22050);
+    let pk = wet.iter().fold(0f32, |a, &x| a.max(x.abs()));
+    eprintln!("vdist: dry rms {:.3} wet rms {:.3} peak {pk:.3}", rms(&dry), rms(&wet));
+    assert!(rms(&wet) > 0.01 && (rms(&wet) - rms(&dry)).abs() > 0.01 && pk < 2.0);
+}
+
+#[test]
+fn mix_v2_envelope_in_a_unisynth_voice() {
+    let held = |slope: f32| {
+        let c = mixed(&[(pm::env(0, e::MODE), env_mode::encode(env_mode::V2)), (pm::env(0, e::ATTACK), 0.0), (pm::env(0, e::DECAY), 0.5), (pm::env(0, e::SUSTAIN), 1.0), (pm::env(0, e::SLOPE), slope), (pm::env_amp(0), 1.0)]);
+        let (l, _) = play(&c, 57, 88200);
+        (rms(&l[4410..8820]), rms(&l[79380..88200]))
+    };
+    let (a, b) = held(0.5);
+    let (c, d) = held(0.3);
+    eprintln!("env: flat {a:.3}->{b:.3}, falling {c:.3}->{d:.3}");
+    assert!(a > 0.01 && (b / a - 1.0).abs() < 0.05 && d < c * 0.7);
+}
+
+#[test]
+fn mix_parallel_routing_of_unisynth_filters() {
+    let lp = mixed(&[(pm::filt(0, f::TYPE), ft::encode(ft::SVF_LP)), (pm::filt(0, f::CUTOFF), 0.3), (pm::filt(1, f::TYPE), ft::encode(ft::SVF_HP)), (pm::filt(1, f::CUTOFF), 0.7)]);
+    let par = mixed(&[(pm::filt(0, f::TYPE), ft::encode(ft::SVF_LP)), (pm::filt(0, f::CUTOFF), 0.3), (pm::filt(1, f::TYPE), ft::encode(ft::SVF_HP)), (pm::filt(1, f::CUTOFF), 0.7), (v2::ROUTING, 2.0 / 128.0), (v2::BALANCE, 0.5)]);
+    let (s, _) = play(&lp, 57, 44100);
+    let (q, _) = play(&par, 57, 44100);
+    eprintln!("route: serial rms {:.4} parallel rms {:.4}", rms(&s[4410..]), rms(&q[4410..]));
+    assert!(rms(&q[4410..]) > 4.0 * rms(&s[4410..]));
+}
+
+#[test]
+fn mix_v2_oscillator_with_unisynth_filter_and_voice_pan() {
+    let mut p = pm::DEFAULTS;
+    p[pm::osc(0, o::TYPE)] = osc_type::encode(osc_type::V2);
+    p[pm::osc(0, o::SHAPE + shape::V2_MODE)] = 1.0 / 128.0;
+    p[pm::osc(0, o::COARSE)] = 0.5;
+    p[pm::osc(0, o::FINE)] = 0.5;
+    p[pm::osc(0, o::GAIN)] = 1.0;
+    p[pm::filt(0, f::TYPE)] = ft::encode(ft::SVF_LP);
+    p[pm::filt(0, f::CUTOFF)] = 0.4;
+    let c = crate::chunk::encode(&p, &[]);
+    let (l, r) = play(&c, A440, 44100);
+    p[v::PAN] = 0.0;
+    let (pl, pr) = play(&crate::chunk::encode(&p, &[]), A440, 44100);
+    eprintln!("v2 osc: centre l {:.3} r {:.3}; pan left l {:.3} r {:.3}", rms(&l), rms(&r), rms(&pl), rms(&pr));
+    // centred: the unisynth pan law (√½ per side), like a unisynth slot; hard left: nothing on the right
+    assert!((rms(&l) - rms(&r)).abs() < 1e-3 && rms(&pr) < 0.01 * rms(&pl));
+}

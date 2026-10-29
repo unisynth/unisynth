@@ -567,7 +567,7 @@ impl<'a> Voice<'a> {
         let f = |fld: usize| pm::osc(i, fld);
         let t = |fld: u8| target::osc(i, fld);
         if cfg!(feature = "us-osc-v2") && self.slots[i].kind == Kind::V2 {
-            return self.v2_slot_targets(mm, sh, i, key);
+            return self.v2_slot_targets(mm, sh, i, key, shift);
         }
         let semis = key
             + law::coarse(p[f(pm::o::COARSE)])
@@ -616,7 +616,7 @@ impl<'a> Voice<'a> {
     /// Control values of a V2 oscillator slot (`V2Osc::set` / `chgPitch`): transpose `raw − 64`, detune `(raw − 64)/128`
     /// semitones, volume `raw/128`, colour as the break point and the noise filter, V2's base frequency (note 60 =
     /// 130.8 Hz).
-    fn v2_slot_targets(&self, mm: &impl Query, sh: &Shared, i: usize, key: f32) -> SlotT {
+    fn v2_slot_targets(&self, mm: &impl Query, sh: &Shared, i: usize, key: f32, shift: f32) -> SlotT {
         use crate::v2::{calcfreq, ftou32, linfreq, OSC_BASE_HZ};
         let p = sh.p;
         let f = |fld: usize| pm::osc(i, fld);
@@ -648,7 +648,13 @@ impl<'a> Voice<'a> {
             box4: era(p) < 3,
             old_noise: era(p) < 5,
         };
-        SlotT { inc: hz / sh.rate, gain, mix, pan_l: 1.0, pan_r: 1.0, v2: Opt::new(v2), ..SlotT::default() }
+        // the V2 voice pans its mono sum after the voice stages; in a unisynth voice the slot pans like any other
+        let (pan_l, pan_r) = if v2_voice(p) {
+            (1.0, 1.0)
+        } else {
+            law::pan((p[f(pm::o::PAN)] * mm.scale(t(target::OSC_PAN)) + mm.offset(t(target::OSC_PAN)) + shift).max(0.0).min(1.0))
+        };
+        SlotT { inc: hz / sh.rate, gain, mix, pan_l, pan_r, v2: Opt::new(v2), ..SlotT::default() }
     }
 
     /// Type-dependent shape value `k` of slot `i` after the matrix, clamped to `0..=1`.
@@ -882,10 +888,12 @@ impl<'a> Voice<'a> {
                     };
                     #[cfg(not(feature = "us-chan"))]
                     let ax = [(0.0, 0.0); 2];
-                    match osc::v2_sample(slot, ramps, mono, ax) {
-                        osc::V2Out::Add(y) => (bl, br, mono) = (bl + y, br + y, mono + y),
+                    // (pl, pr) = (1, 1) in the V2 voice; the running mono sum (ring, FM) stays unpanned
+                    let (out, pl, pr) = osc::v2_sample(slot, ramps, mono, ax);
+                    match out {
+                        osc::V2Out::Add(y) => (bl, br, mono) = (bl + y * pl, br + y * pr, mono + y),
                         osc::V2Out::Mul(y) => (bl, br, mono) = (bl * y, br * y, mono * y),
-                        osc::V2Out::Set(y) => (bl, br, mono) = (y, y, y),
+                        osc::V2Out::Set(y) => (bl, br, mono) = (y * pl, y * pr, y),
                     }
                     send = 0.0;
                     continue;
