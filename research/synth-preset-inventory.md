@@ -1,8 +1,8 @@
 # Instrument and preset inventory for the unified synth (2026-10-26)
 
-What instruments and presets exist locally that the DAW (`openspec/changes/add-synth-daw`) can offer in its library,
+What instruments and presets exist locally that the DAW (`openspec/changes/archive/2026-10-30-add-synth-daw`) can offer in its library,
 where they live, their licence, and how each becomes a `unisynth` patch. Counts come from
-`openspec/changes/add-synth-daw/mockup/gen-catalog.py`, which writes `catalog.json` (names and counts only) for the
+`openspec/changes/archive/2026-10-30-add-synth-daw/mockup/gen-catalog.py`, which writes `catalog.json` (names and counts only) for the
 mockup. The lab files are never committed.
 
 ## Summary
@@ -43,5 +43,5 @@ mockup. The lab files are never committed.
 ## Regenerate
 
 ```bash
-python3 openspec/changes/add-synth-daw/mockup/gen-catalog.py   # needs the lab + cargo (dls dump example)
+python3 openspec/changes/archive/2026-10-30-add-synth-daw/mockup/gen-catalog.py   # needs the lab + cargo (dls dump example)
 ```

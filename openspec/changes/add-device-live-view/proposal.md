@@ -6,7 +6,7 @@ The Unisynth device panel shows only the slots in use and packs them: adding, re
 other slots, so the panel never has a stable layout and the user loses their place. The panel also shows only static
 values; while a note plays the user cannot see where the sampler is, which envelope stage each voice is in, what the
 LFOs are doing or what a filter does to the signal. The reviewed mockup
-(`openspec/changes/add-synth-daw/mockup/device-fixed-slots.html`) settles the layout, colours and live displays.
+(`openspec/changes/archive/2026-10-30-add-synth-daw/mockup/device-fixed-slots.html`) settles the layout, colours and live displays.
 
 ## What Changes
 

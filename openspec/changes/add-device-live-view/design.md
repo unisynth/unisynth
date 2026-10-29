@@ -10,7 +10,7 @@
   visible to the UI.
 - `unisynth` voices keep their control state in `Ctl` (`env: [Env; 4]` with `value()`/`stage()`, `lfo: [Lfo; 2]`
   with a phase, the mod matrix) and sampler `smp::State` per slot; filters run per voice in series. LFOs are per voice.
-- The reviewed mockup is `openspec/changes/add-synth-daw/mockup/device-fixed-slots.html`; its simulation (voice
+- The reviewed mockup is `openspec/changes/archive/2026-10-30-add-synth-daw/mockup/device-fixed-slots.html`; its simulation (voice
   colours, beads, spectra) is the reference for the UI.
 
 ## Goals / Non-Goals

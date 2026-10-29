@@ -1,6 +1,6 @@
 # packages/daw
 
-Browser DAW for the unified synth (change add-synth-daw, spec synth-daw), served by `packages/cli` at `/daw/`. Plain TypeScript + DOM (no framework); the UI is the reviewed mockup (`openspec/changes/add-synth-daw/mockup/index.html`) ported into `src/app.js` on the real model and engine; `src/app.js` is now the source (edit it, not the mockup). Build: `bun packages/daw/build.ts` (also `pnpm -r build`). Docs: `docs/synth/daw.md`.
+Browser DAW for the unified synth (change add-synth-daw, spec synth-daw), served by `packages/cli` at `/daw/`. Plain TypeScript + DOM (no framework); the UI is the reviewed mockup (`openspec/changes/archive/2026-10-30-add-synth-daw/mockup/index.html`) ported into `src/app.js` on the real model and engine; `src/app.js` is now the source (edit it, not the mockup). Build: `bun packages/daw/build.ts` (also `pnpm -r build`). Docs: `docs/synth/daw.md`.
 
 | File | Purpose |
 |---|---|

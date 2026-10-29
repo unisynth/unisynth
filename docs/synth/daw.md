@@ -2,7 +2,7 @@
 
 Change `add-synth-daw`. Compose music for the intro with the unified synth in the browser: the editor plays the
 **same code the intro plays**, and the song lives in the repo as editable JSON next to `intro.json`. Specs:
-`openspec/changes/add-synth-daw/specs/` (song-source, synth-live-host, synth-daw); decisions: its `design.md`.
+`openspec/changes/archive/2026-10-30-add-synth-daw/specs/` (song-source, synth-live-host, synth-daw); decisions: its `design.md`.
 
 ## Pieces
 
