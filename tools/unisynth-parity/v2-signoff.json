@@ -1,1 +1,1 @@
-{ "decision": "pending" }
+{ "decision": "approved", "by": "user", "date": "2026-10-28", "notes": "A/B listening of the unified renders against the v2redux references: \"seems ok\". Follow-up: tristar_bp2008-unsuspecting (corpus, not acceptance) is 1.7 dB quiet (research/v2-synth.md)." }

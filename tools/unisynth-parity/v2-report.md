@@ -36,4 +36,6 @@ Songs outside the acceptance set that use V2's aux A/B buses (aux oscillators, a
 
 ## A/B listening
 
-Pending: the acceptance songs are rendered both ways (`--renders`) for the user to compare.
+Decision: **approved** by user on 2026-10-28.
+
+A/B listening of the unified renders against the v2redux references: "seems ok". Follow-up: tristar_bp2008-unsuspecting (corpus, not acceptance) is 1.7 dB quiet (research/v2-synth.md).

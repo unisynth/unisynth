@@ -164,7 +164,7 @@ Open decisions at the time of the survey (answered above):
   Moog filters.
 - **Known gap.** `Quickyman--tristar_bp2008-unsuspecting` fails: −1.7 dB, 63 Hz −5.5 dB. Its aux use is
   self-send/receive only, so the cause is elsewhere (channels 5 and 6, FM and noise patches). A follow-up.
-- **Not done.** Bulk Modland fetch. The A/B listening is pending (`v2-signoff.json`).
+- **Not done.** Bulk Modland fetch. The A/B listening is approved (`v2-signoff.json`, 2026-10-28).
 - **Size.** V2 songs build to 27.6–35.3 KB squishy (`tools/unisynth-parity/size.md`). Next to the build before the V2
   work, songs without V2 first cost up to +1.8 KB xz. After gating (design D11) they cost +180 to +470 B xz, and
   squishy is +0 or +512 B.
