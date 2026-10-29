@@ -5,7 +5,7 @@
 - [x] 1.1 Record current golden hashes (`synth-core` player tests, `wavesabre` and `tfsynth` goldens) as the baseline
 - [x] 1.2 Extract `mix::Mixer` + `Source` trait from `Player::render_sub`; `Player` = `Mixer` + blob source; doubt-driven review of the split
 - [x] 1.3 Verify: all synth crates' tests and goldens byte-equal (56 lab songs hashed before/after); `cargo check` i686 `no_std` and wasm32 still pass; size probe measured: +192 B `.text` (xz +120 `all` / +196 `slaughter`); user accepted, size pass deferred to 1.4
-- [ ] 1.4 Size pass on the shared `Mixer` before compo builds (goal: `ws-size-probe` back within noise of the pre-split 25 396 B `.text`)
+- [x] 1.4 Size pass on the shared `Mixer` before compo builds (goal: `ws-size-probe` back within noise of the pre-split 25 396 B `.text`). Measured in one worktree: pre-split 25 426 B, split +192, later V2/shrink commits +92 → 25 710. The split cost is an inlining effect, not logic: `#[inline(never)]` on `Mixer::render_sub` → 25 522 (ws-all 65 436 → 64 532). Accepted trade-off (user): unified-synth probes grow, demo song 49 520 → 49 792, all modules 121 861 → 124 741. Engage renders bit-identical, same speed (50.8 s both).
 
 ## 2. Song source crate `crates/song` (song-source)
 

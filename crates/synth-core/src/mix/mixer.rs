@@ -174,6 +174,11 @@ impl<'a> Mixer<'a> {
     }
 
     /// Renders one sub-block of every track in dependency order and advances the frame.
+    ///
+    /// Not inlined (add-synth-daw task 1.4): it brings the WaveSabre size probe back to before the Mixer split
+    /// (`ws-size-probe` slaughter: 25 710 → 25 522 B `.text`, pre-split 25 426 + later V2/shrink changes); the
+    /// unified-synth probes grow (demo song +272 B, all modules +2.9 KB). One call per sub-block, no measurable speed cost.
+    #[inline(never)]
     pub fn render_sub<D: Device, S: Source>(&mut self, devices: &mut [D], src: &mut S, rate: f64, tempo: i32, rng: &mut dyn Rng) {
         let n = self.sub;
         let t0 = self.frame as i64;

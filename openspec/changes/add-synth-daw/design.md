@@ -50,6 +50,10 @@ This is how D-spec "same sound as the player" holds by construction rather than 
 Risks: a `synth-core` refactor under a finished capability. Guard: existing `player_tests`, `wavesabre`/`tfsynth`
 goldens and parity must stay byte-equal; doubt-driven review before merging (proposal discipline list).
 
+Size (task 1.4): the split cost the WaveSabre probe +192 B through inlining; `Mixer::render_sub` is `#[inline(never)]`,
+which recovers it there (slaughter 25 710 → 25 522 B, pre-split 25 426 + 92 B of later changes) and costs the
+unified-synth probes +272 B (demo song) / +2.9 KB (all modules); chosen by the user.
+
 Rejected: (a) rebuilding a `Player` from a fresh blob on every edit and seeking (seek is O(position), seconds late in
 a song); (b) a separate live sequencer copied from `Player` (drift); (c) pool snapshots for seeking (needs the
 `Player` inside the pool; kept as a later option for exact scrubbing).
