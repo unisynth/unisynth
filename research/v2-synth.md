@@ -129,7 +129,7 @@ pay nothing (the feature gating from `shrink-unified-synth`).
 
 **Decided 2026-10-28** (user): parity metrics (not bit-exact); extend the one mod matrix (Add operation, controller
 sources, appended targets, 16 slots); append parameters after 183, with UTF-8-like escaped indices (<240 one byte, 0xF0+bank two bytes) and counts, so old chunks are unchanged; the 15 acceptance
-songs; Ronan in scope. Planned as OpenSpec change `openspec/changes/add-v2-import/`.
+songs; Ronan in scope. Planned as OpenSpec change `openspec/changes/archive/2026-10-29-add-v2-import/`.
 
 Open decisions at the time of the survey (answered above):
 
