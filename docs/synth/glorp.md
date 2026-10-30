@@ -189,6 +189,14 @@ bit-equal alone and inside `Either<Foreign, Glorp>` / `Either<Glorp, Foreign>` a
 `synth-core` records the writes of two engines' devices in one song and checks each lane bit for bit against its own
 device's form. The preflight box (`MARGIN` 1e-5) holds both forms with ≥ 100× room.
 
+## Speed and size (external probes)
+
+Facts only; figures, harness descriptions and caveats are in `research/glorp-devices.md` §Performance and size. The harnesses are outside git (`~/Downloads/64k-tools/ws-intros/out/glorp-bench`, `glorp-size-probe`, each with a `README.md`) and the song is isolated third-party data (not committed). Per-run timings are not saved; rerun to regenerate.
+
+- Host, whole song (227.241 s of audio, one thread, `GlorpPlayer`, `required_pool` 31,057,326 bytes, peak ≈ 34.6 MB): `release` (opt z) 251.93–277.03 s = **0.82–0.90×** real time; opt 3 171.5–174.8 s = **1.30–1.32×**. i9-9900K, macOS 14.6.1, busy host, 2–3 runs: indicative only. ID 30 = 66.2 % of profile samples (opt 3).
+- i686 `no_std` probe (rendering to memory only: **no visuals, no audio output**; needs `/STACK:0x10000000`): synth only (song read from a file) 37,376 bytes squishy 0.1.3, 48,204 `xz -9e` (`direct` `Player`) / 48,432 (`GlorpPlayer`); with the 33,931-byte song embedded 42,496 squishy, 54,044 / 54,176 `xz`. This is not an intro size.
+- Wine / Docker run exit code is the checksum's **low byte only** (40 of `c259f528`); `GlorpPlayer` and the direct `Player` give the same full host checksum after an earlier mismatch (f32 bits vs i16 PCM folded) was fixed in the probe. Packed `owned` builds were not re-run.
+
 ## Not claimed
 
 - The real song plays with tolerance (not bit) parity of the mix (see above); ID 30's cascade topologies 1 / 2, unison, other rates and block sizes are not modelled. Mono (ID 14 only) follows the original's note stack; the song never overlaps two notes, so the legato rules are verified on synthetic vectors only.

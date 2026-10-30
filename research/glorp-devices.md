@@ -485,3 +485,59 @@ Synthetic (no fixtures, `tests30.rs`, 18 tests): rejection table + atomicity, to
 
 Artifacts (outside git, `~/Downloads/64k-tools/ws-intros/out/glorp-win64/analysis/harness/out/id30impl/`): `taps/dev15..21.tap` (320,684,032 B each), `ev.csv`, `tapspec.txt`, `song.log`, `vec/{gen.py,capture.sh,capture.log,manifest.json,…}`, captured in `--network none` containers (`analysis/id30-impl/run30.sh`); our render of the song (not in git): `ws-intros/out/glorp-ours-id30.{wav,mp3}`, original's `fullA.wav` / `glorp-reference.mp3`. Limitations: same-binary Wine reference, no real-Windows capture; one sample rate; cascade topologies 1 / 2 and the dead reverb parts unmodelled.
 
+
+## Performance and size (external measurements, 2026-10-30)
+
+Nothing here is in git: the harnesses live in `~/Downloads/64k-tools/ws-intros/out/glorp-bench` (host speed: source, `README.md` with run commands, one raw log line, `sample` text; copied from the ephemeral `/tmp/glorp-bench`) and `~/Downloads/64k-tools/ws-intros/out/glorp-size-probe` (i686 size probe, `README.md`, `measure.sh`). The song is the isolated third-party `389811-2.bin` (33,931 bytes), external and not committed. No code changed for these measurements.
+
+### Host render speed
+
+`glorp-bench <root> render` renders the whole song through `GlorpPlayer` (`required_pool` + `Pool`, `render_f32`, 4096-frame chunks, 10,021,344 frames = 227.241 s of audio) and times only the `render_f32` calls. Single thread, `lto`, `codegen-units = 1`, `panic = abort`; two profiles mirroring the repo: `release` (`opt-level = "z"`) and `fast` (`opt-level = 3`).
+
+| Build | Render time | Real-time factor | Runs |
+|---|---|---|---|
+| `release`, opt z | 251.93 – 277.03 s | 0.82 – 0.90× | 2–3 |
+| `fast`, opt 3 | 171.5 – 174.8 s | 1.30 – 1.32× | 2–3 |
+
+- Pool: `required_pool` = **31,057,326 bytes**; peak RSS ≈ **34.6 MB** (the one retained log line, `glorp-bench/measurements/prof_run.txt`, shows 34.16 MB at the end of a `fast` run, 1.28×, 171.9 s process CPU, setup 13 ms).
+- Profile (macOS `sample`, 5 ms, `fast` build with `debug = 1`): ID 30 accounts for **66.2 %** of samples; it is the dominant cost. `sample` text is kept in `glorp-bench/measurements/` (`sample.txt`, `leaf.txt`); the 63 MB xctrace output (`tp.trace`, `tp.xml`) was not persisted, no flame graph is kept. **The per-run timings behind the ranges were not saved to a file** (only the session output): rerun `glorp-bench` to regenerate.
+- Host: Intel i9-9900K, macOS 14.6.1, x86-64. **The host was busy** (other jobs running) and only 2–3 runs per build were taken, so the ranges are indicative, not a benchmark: do not quote the slow end of the opt-z range as the cost of the code. Opt z is **below real time** on this host; opt 3 is only ~1.3×.
+- Not measured: other CPUs, Windows / Linux, SIMD-enabled targets, a block size other than 4096 for the timings (the player sub-block stays 128), the cost per device other than ID 30.
+
+### i686 `no_std` size probe
+
+`glorp-size-probe` is a `#![no_std]` `#![no_main]` i686-pc-windows-msvc exe (nightly, `-Zbuild-std=core,compiler_builtins`, `lld-link`, no CRT, kernel32 `raw-dylib`) that plays the whole song through `synth-core`'s `Player` with `GlorpDevice` and exits with a PCM checksum. Variants: `embed` (song bytes inside the exe) vs `file` (`song.bin` read at run time); `direct` (`Player::<GlorpDevice, _>`) vs `owned` (`GlorpPlayer`, strict preflight); `plain` (`opt-level = z`, `lto`, `panic = abort`) vs `compo` (adds `-Cpanic=immediate-abort`, `optimize_for_size`, `compiler-builtins-mem`). Pool and stack: `.bss` 96 MiB pool (no file size), **`/STACK:0x10000000,0x100000` is required** (the `Player` value lives in `start`; a custom `__chkstk` and `__aulldiv` / `__aullrem` / `__alldiv` / `__allrem` shims are in the probe).
+
+Corrected figures (rebuilt 2026-10-30 19:42; sizes in bytes):
+
+| Variant | raw exe | `xz -9e` | squishy 0.1.3 |
+|---|---|---|---|
+| compo, file, direct | 99,840 | 48,204 | **37,376** |
+| compo, file, owned | 99,840 | 48,432 | 37,376 |
+| compo, embed, direct | 133,632 | 54,044 | 42,496 |
+| compo, embed, owned | 133,632 | 54,176 | 42,496 |
+| plain, file, direct / owned | 103,936 | 50,316 / 50,592 | 38,912 |
+| plain, embed, direct / owned | 137,216 / 138,240 | 56,140 / 56,424 | 43,520 / 44,032 |
+
+The song alone: 33,931 bytes raw, 6,096 `xz -9e`. "Synth only" = the `file` variant, 37,376 bytes squishy-packed; with the song embedded 42,496.
+
+Caveats: **the synth-only number is not an intro size.** The probe has no visuals, no audio output (no WASAPI / winmm / device), no timing or message loop; it only renders to memory and exits. The song is a 34 KB external third-party file, so the embedded figure is a size of this one song, not of the 64k budget. squishy is run under Wine on macOS (0.1.3, one retry); `xz` is a reference, not the shipped packer. `direct` vs `owned` differ by ≈ 0.2 KB xz: the strict preflight with `Reject` diagnostics costs little.
+
+### Run verification (Wine, Docker i686)
+
+The probe checksum is `h = h.rotate_left(5) ^ pcm_i16(s) as u16`, folded over the whole render and returned as the exit code `sum | 0x100`. **Windows exit codes carry the low byte only for this check** (`0xc259f528 & 0xff` = 40): the container run is a weak, 8-bit confirmation. The full 32-bit checksum **`c259f528`** is from the native host build (`host-check`), and the corrected `owned` (`GlorpPlayer::render_f32` → `pcm_i16`) and `direct` (`render_i16`) paths give the **same** full host checksum.
+
+- An earlier `owned` run exited 107 against `direct`'s 40. That was a probe bug: `owned` folded the f32 **bits** while `direct` folded i16 PCM (different checksum domain, not a render difference). Fixed in the probe (`owned` converts with `pcm_i16`); the 107 entries in `run-docker.log` are the stale pre-fix builds.
+- After the fix, Wine / Docker i686 (`xvfb-run wine`, ≈ 250–252 s each): raw `compo-embed-owned`, `compo-embed-direct` and `plain-embed-owned` all exit 40.
+- **Packed** exes: `compo-embed-direct.squishy013` and `compo-file-direct.squishy013` exit 40 (254–262 s), but that run (19:36) used the **earlier** builds; the corrected `owned` packed exes were **not** re-run. The `run-file-sq.log` exit 123 entries are a failed attempt (not used).
+- Not checked: native Windows, 64-bit, other Wine versions, comparison against the original's WAV (this checks the repo's own renders against each other, not against `fullA.wav`; see §Whole song in `docs/synth/glorp.md`).
+
+### Continuation (next steps)
+
+State: all 14 dispatches except ID 30's cascade topologies 1 / 2 are implemented and tap-checked; the player renders the whole song (`docs/synth/glorp.md`). Open, in order of value:
+
+1. Re-run the packed `owned` i686 exes under Wine / Docker (`glorp-size-probe/out/run-verify.sh`); only `direct` packed builds were checked after the checksum fix.
+2. A real-Windows capture of the reference (all references are the same binary under Wine) and the original's WAV (`fullA.wav`) against our render at more than one sample rate.
+3. ID 30 is 66 % of the render cost and opt z runs below real time (0.82–0.90×): profile `id30.rs` with a quiet host (`glorp-bench` `prof` build) before any size or speed claim.
+4. Unmodelled: ID 30 cascade 1 / 2, unison, the dead reverb parts; ID 35 math (see its section: no change recommended alone).
+5. Reverse-engineering tools: Hopper automation is blocked (macOS Automation denial); Ghidra 12.1.4 headless works (JDK 21 at `~/.local/java`, symlinked `/usr/local/bin/java`).
