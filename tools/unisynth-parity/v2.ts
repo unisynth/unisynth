@@ -4,13 +4,15 @@
 // reference rings its tail out). Writes `v2-report.md` (metrics, never audio) and, with `--renders`, the unified
 // renders to `renders/unisynth/<song>_unisynth.{wav,mp3}` (git-ignored).
 //
-//   bun tools/unisynth-parity/v2.ts [--report path] [--renders] [--reuse] [song…]
+//   bun tools/unisynth-parity/v2.ts [--report path] [--renders] [--reuse] [--baseline dir] [--drift dir] [song…]
+//     --baseline stores each unified render as <dir>/<song>.wav; --drift compares each with it (drift.ts)
 //     V2_LAB / V2REDUX / V2_SONGS as in tools/v2-extract/v2.ts
 // Exit 0 when every song that ran passed (or the songs were absent and skipped), 1 on a failing song.
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { compare, DEFAULT_TOL, readWav, type Audio, type Report } from "../synth-parity/metrics.ts";
 import { ACCEPTANCE, acceptancePath, reference, SONGS, V2REDUX } from "../v2-extract/v2.ts";
+import { against, formatDrift, keep } from "./drift.ts";
 import { BAND_FLOOR_DB, MIN_ALIGNMENT, PROFILE } from "./parity.ts";
 
 const ROOT = resolve(import.meta.dir, "../..");
@@ -133,6 +135,7 @@ function main() {
   const opt = (k: string) => (a.includes(k) ? a.splice(a.indexOf(k), 2)[1] : undefined);
   const reportPath = opt("--report") ?? join(import.meta.dir, "v2-report.md");
   const renders = flag("--renders"), reuse = flag("--reuse");
+  const baseDir = opt("--baseline"), driftDir = opt("--drift");
   const names = a.length ? a : [...ACCEPTANCE, ...Object.keys(AUX_SONGS)];
   const signoffPath = join(import.meta.dir, "v2-signoff.json");
   const signoff = existsSync(signoffPath) ? JSON.parse(readFileSync(signoffPath, "utf8")) : { decision: "pending" };
@@ -154,6 +157,8 @@ function main() {
     row.version = JSON.parse(Bun.spawnSync([join(SONGS, ".bin/v2dumpjson"), songPath(n)]).stdout.toString() || "{}").version;
     run.rows.push(row);
     console.log(`${n}: ${passes(row) ? "PASS" : "FAIL"} ${row.error ?? ""}`);
+    if (!row.error && baseDir) keep(baseDir, n, join(work, `${n}_unisynth.wav`));
+    if (!row.error && driftDir) console.log(formatDrift(n, against(driftDir, n, join(work, `${n}_unisynth.wav`))));
     if (renders && !row.error) {
       const dir = join(ROOT, "renders/unisynth");
       mkdirSync(dir, { recursive: true });

@@ -630,3 +630,47 @@ fn an_import_config_names_the_tracks_and_attaches_descriptions() {
     cfg["tracks"] = serde_json::json!([{ "name": "A", "colour": "red" }]);
     assert!(song::apply_meta(&mut s, &cfg.to_string()).unwrap_err().contains("unknown field"));
 }
+
+/// change unify-v2-algorithms, "Functional names": no table, parameter, option, effect mode, module or feature names a
+/// source synth (words, so `env2` — envelope 2 — is fine).
+#[test]
+fn no_source_names_in_the_parameter_table() {
+    fn source(s: &str) -> bool {
+        let l = s.to_ascii_lowercase();
+        ["tunefish", "wavesabre", "ronan", "moog", "slaughter", "falcon"].iter().any(|x| l.contains(x))
+            || l.split(|c: char| !c.is_ascii_alphanumeric()).any(|t| t == "tf" || t == "ws" || t.starts_with("v2"))
+    }
+    let mut bad = vec![];
+    for t in song::tables::tables() {
+        if source(&t.label) {
+            bad.push(t.label.clone());
+        }
+        for p in &t.params {
+            if source(&p.name) || source(p.unit) {
+                bad.push(format!("{}: {}", t.label, p.name));
+            }
+            bad.extend(p.options.iter().filter(|o| source(o)).map(|o| format!("{}: {} option {o}", t.label, p.name)));
+        }
+        bad.extend(song::tables::mode_names(t.kind).iter().filter(|m| source(m)).map(|m| format!("mode {m}")));
+    }
+    for &id in unisynth::module::ALL {
+        for s in [unisynth::module::feature(id), unisynth::module::name(id)] {
+            if source(s) {
+                bad.push(format!("module {id}: {s}"));
+            }
+        }
+    }
+    let cargo = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../unisynth/Cargo.toml")).unwrap();
+    bad.extend(cargo.lines().filter_map(|l| l.split_once(" = ").map(|(k, _)| k.trim())).filter(|k| k.starts_with("us-") && source(k)).map(String::from));
+    assert!(bad.is_empty(), "{bad:#?}");
+}
+
+/// change unify-v2-algorithms 1.3: a song file with the old parameter names (values and lanes) loads under the new names.
+#[test]
+fn old_parameter_names_load_under_the_new_ones() {
+    let d: song::model::Values = serde_json::from_str(r#"{"env1.mode": 0.5, "vdist.mode": 0.25, "ch.volume": 0.5, "lfo1.eg": 1, "master": 0.2}"#).unwrap();
+    let names: Vec<&str> = d.0.iter().map(|(n, _)| n.as_str()).collect();
+    assert_eq!(names, ["env1.law", "drive.mode", "strip.volume", "lfo1.one_shot", "master"]);
+    let l: song::model::Lane = serde_json::from_str(r#"{"device": 0, "param": "env2.slope", "points": []}"#).unwrap();
+    assert_eq!(l.param, "env2.curve_slope");
+}

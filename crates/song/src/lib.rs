@@ -170,7 +170,7 @@ pub fn features(s: &Song) -> Vec<String> {
                 };
             }
             for slot in 0..p::ENV_SLOTS {
-                out.insert(if choice(v[p::ENV + slot * e::LEN + e::MODE], 2) == 1 { "us-env-rate" } else { "us-env-timed" });
+                out.insert(if choice(v[p::ENV + slot * e::LEN + e::MODE], 2) == 1 { "us-env-rate" } else { "us-env-seconds" });
             }
         } else if let Some(name) = fx_feature(d.kind, tables::mode_of(d.kind, &d.values)) {
             out.insert(name);

@@ -3,12 +3,14 @@
 // then compared with the shared metrics (tools/synth-parity: 1 dB integrated loudness, 3 dB per octave band 63 Hz-16 kHz,
 // onsets within 100 frames for WaveSabre, one 512-frame block for Tunefish). Writes `report.md` (metrics, never audio).
 //
-//   bun tools/unisynth-parity/parity.ts [--no-songs] [--report path] [--reuse dir]
+//   bun tools/unisynth-parity/parity.ts [--no-songs] [--report path] [--reuse dir] [--baseline dir] [--drift dir]
+//     --baseline stores each unified render as <dir>/<item>.wav; --drift compares each with it (drift.ts)
 //     WS_SONG_DIR  dir with the WaveSabre reference songs (groove.bin elysian.bin engage.bin eladamri.bin [gm.dls])
 //     TF_SONGS     dir with the Tunefish .tfm reference songs
 //     GM_DLS       bank for the Adultery/Specimen-bank songs (default $WS_SONG_DIR/gm.dls, else the macOS bank)
 // Exit 0 when everything that ran passed (or the songs were absent and skipped), 1 on a failing item.
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { against, formatDrift, keep } from "./drift.ts";
 import { join, resolve } from "node:path";
 import { compare, DEFAULT_TOL, loudness, octaveLtas, readWav, type Report, type Tolerance } from "../synth-parity/metrics.ts";
 
@@ -339,6 +341,8 @@ function main() {
   const noSongs = a.includes("--no-songs");
   // --reuse <dir>: keep the renders of an earlier run there and only compare again (the cache holds the timings too)
   const reuseDir = a.includes("--reuse") ? a[a.indexOf("--reuse") + 1] : undefined;
+  const baseDir = a.includes("--baseline") ? a[a.indexOf("--baseline") + 1] : undefined;
+  const driftDir = a.includes("--drift") ? a[a.indexOf("--drift") + 1] : undefined;
   const work = reuseDir ?? join(process.env.TMPDIR ?? "/tmp", `unisynth-parity-${process.pid}`);
   mkdirSync(work, { recursive: true });
   build();
@@ -363,6 +367,11 @@ function main() {
   };
   writeFileSync(reportPath, formatRun(run));
   for (const r of rows) console.log(`${passes(r) ? "ok  " : "FAIL"} ${r.level} ${r.name}${r.error ? `: ${r.error}` : ""}`);
+  for (const r of rows.filter((r) => !r.error)) {
+    const ours = join(work, `${r.name}_unified.wav`);
+    if (baseDir) keep(baseDir, r.name, ours);
+    if (driftDir) console.log(formatDrift(r.name, against(driftDir, r.name, ours)));
+  }
   const failing = rows.filter((r) => !passes(r));
   console.log(`${rows.length - failing.length}/${rows.length} pass; report: ${reportPath}`);
   process.exit(failing.length ? 1 : 0);

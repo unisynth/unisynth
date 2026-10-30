@@ -87,13 +87,13 @@ modules" converter would get few songs right. V2 needs its own modes inside
 
 | V2 | unisynth today | Verdict |
 |---|---|---|
-| 3 oscillators: saw↔tri morph (color), pulse width (color), sin, V2 noise (color = filter), naive + V2 anti-alias box filter | 3 slots: PM sine, BLIT saw/pulse, wavetable, sampler; separate noise source | ➕ `us-osc-v2` oscillator type (V2 waveform core incl. noise). BLIT is not V2's sound. |
+| 3 oscillators: saw↔tri morph (color), pulse width (color), sin, V2 noise (color = filter), naive + V2 anti-alias box filter | 3 slots: PM sine, BLIT saw/pulse, wavetable, sampler; separate noise source | ➕ `us-osc-naive` oscillator type (V2 waveform core incl. noise). BLIT is not V2's sound. |
 | FM (osc 2/3 modulated by the previous oscillator's output) | PM send between slots | ➕ inside the V2 oscillator type (V2 FM law, era variants) |
 | Ring mod (multiply into the running sum) | — | ➕ slot mix mode "ring" |
 | Aux A/B as oscillator input (reads a global aux bus) | instruments do not read buses | ➕ architectural: aux buses + instrument input. Used by 11 songs; phase 2. |
 | 2 filters, single/serial/**parallel + balance** | 4 slots in series | ➕ routing mode for slots 1–2 (parallel + balance) |
-| SVF LP/BP/HP/notch/**all-pass** (V2 coefficient law) | SVF LP/HP/BP/notch (WaveSabre law), ladder, RBJ | ➕ `us-flt-v2` (V2 SVF law + all-pass), ➕ V2 Moog LP/HP |
-| Voice distortion: OD, clip, crush, decimate, LPF/BPF/HPF/NoF/APF/MoogL | none in the voice | ➕ voice-path distortion stage `us-vdist-v2` (shares code with the channel distortion) |
+| SVF LP/BP/HP/notch/**all-pass** (V2 coefficient law) | SVF LP/HP/BP/notch (WaveSabre law), ladder, RBJ | ➕ `us-flt-feedback` (V2 SVF law + all-pass), ➕ V2 Moog LP/HP |
+| Voice distortion: OD, clip, crush, decimate, LPF/BPF/HPF/NoF/APF/MoogL | none in the voice | ➕ voice-path distortion stage `us-drive-v2` (shares code with the channel distortion) |
 | ADSR + **sustain time** (sustain slope), V2 curves, amplify | timed (WaveSabre) / rate (Tunefish) | ➕ envelope mode 3 `v2` |
 | LFO saw/tri/pulse/sin/**S+H**, keysync, **env mode**, **polarity**, phase, amplify | sine/ramp/square/random, sync/free | ➕ V2 LFO shapes + one-shot + polarity (or an LFO mode `v2`) |
 | Mod matrix: 255 additive entries, any param, amount −64..63, in param space 0..127 | 12 slots, scale/offset, fixed target list | ➕ the hardest gap. Option A: V2 matrix mode (additive, raw-param space, own target table of the V2 params). Option B: fold into the 12 slots + targets (lossy semantics). Measured: 4 363 used patches, max 14 entries, p95 8, only 3 patches > 12, so the slot **count** fits; the **semantics** (additive, raw 0..127 space, any param) do not. |

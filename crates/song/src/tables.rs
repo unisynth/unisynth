@@ -107,11 +107,11 @@ pub fn mode_names(k: u8) -> &'static [&'static str] {
         kind::DISTORTION => &["Shaper", "Curve", "Power"],
         kind::CRUSHER => &["Crusher"],
         kind::EQ => &["Parametric", "3-band", "Cut"],
-        kind::DELAY => &["Tempo", "Ms", "V2"],
+        kind::DELAY => &["Tempo", "Ms", "Modulated"],
         kind::CHORUS => &["Chorus"],
         kind::FLANGER => &["Phaser", "Ring"],
-        kind::REVERB => &["Freeverb", "Compact", "Rooms", "V2"],
-        kind::COMPRESSOR => &["Compressor", "V2"],
+        kind::REVERB => &["Freeverb", "Compact", "Rooms", "Comb"],
+        kind::COMPRESSOR => &["Compressor", "Look-ahead"],
         kind::FORMANT => &["Formant"],
         _ => &[],
     }
@@ -191,18 +191,19 @@ fn choice_options(i: usize, law: Law) -> Vec<String> {
     // odd ones (unused positions are "—"), so `choice(v, options.len())` picks the position as before
     if let Law::Kinds { old, all } = law {
         let names: &[&str] = if old == params::osc_type::COUNT {
-            &["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "V2"]
+            &["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive"]
         } else if old == params::filter_type::COUNT {
             &[
                 "Off", "SVF low-pass", "SVF high-pass", "SVF band-pass", "SVF notch", "Ladder low-pass", "RBJ high-pass", "RBJ band-pass",
-                "Resonator notch", "V2 low-pass", "V2 band-pass", "V2 high-pass", "V2 notch", "V2 all-pass", "V2 Moog low-pass", "V2 Moog high-pass",
+                "Resonator notch", "Feedback SVF low-pass", "Feedback SVF band-pass", "Feedback SVF high-pass", "Feedback SVF notch", "Feedback SVF all-pass",
+                "4-pole 2× low-pass", "4-pole 2× high-pass",
             ]
         } else if old == params::env_mode::COUNT {
-            &["WaveSabre", "Tunefish", "V2"]
+            &["Seconds", "Rate", "Frame"]
         } else if old == unisynth::modmx::source::COUNT {
             &[
                 "None", "Env 1", "Env 2", "Env 3", "Env 4", "LFO 1", "LFO 2", "Mod wheel", "Velocity", "Key", "Breath (CC2)", "CC3", "CC4", "CC5",
-                "CC6", "Volume (CC7)", "V2 note",
+                "CC6", "Volume (CC7)", "Note (centred)",
             ]
         } else {
             &["Scale", "Offset", "Add"]
@@ -222,7 +223,7 @@ fn choice_options(i: usize, law: Law) -> Vec<String> {
             } else if base(params::FILT, params::f::LEN, params::FILT_SLOTS) {
                 &["Off", "SVF low-pass", "SVF high-pass", "SVF band-pass", "SVF notch", "Ladder low-pass", "RBJ high-pass", "RBJ band-pass", "Resonator notch"]
             } else if base(params::ENV, params::e::LEN, params::ENV_SLOTS) {
-                &["WaveSabre", "Tunefish"]
+                &["Seconds", "Rate"]
             } else if base(params::LFO, params::l::LEN, params::LFO_SLOTS) {
                 &["Sine", "Ramp up", "Ramp down", "Square", "Random"]
             } else if i == params::v::MODE {
@@ -261,7 +262,7 @@ fn unit_range(law: Law) -> (&'static str, f32, f32) {
         Law::EnvTime => ("ms", 1.0, 5001.0),
         Law::Raw => ("", 0.0, 65_535.0),
         Law::Kinds { old, .. } => ("", 0.0, (2 * old - 2) as f32),
-        Law::V2Raw => ("V2", 0.0, 128.0),
+        Law::V2Raw => ("steps", 0.0, 128.0),
         Law::Unit | Law::Pan | Law::Shape | Law::ModAmount => ("", 0.0, 1.0),
     }
 }
