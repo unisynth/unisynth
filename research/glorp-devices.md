@@ -488,7 +488,7 @@ Artifacts (outside git, `~/Downloads/64k-tools/ws-intros/out/glorp-win64/analysi
 
 ## Performance and size (external measurements, 2026-10-30)
 
-Nothing here is in git: the harnesses live in `~/Downloads/64k-tools/ws-intros/out/glorp-bench` (host speed: source, `README.md` with run commands, one raw log line, `sample` text; copied from the ephemeral `/tmp/glorp-bench`) and `~/Downloads/64k-tools/ws-intros/out/glorp-size-probe` (i686 size probe, `README.md`, `measure.sh`). The song is the isolated third-party `389811-2.bin` (33,931 bytes), external and not committed. No code changed for these measurements.
+Nothing here is in git: the harnesses live in `~/Downloads/64k-tools/ws-intros/out/glorp-bench` (host speed: source, `README.md` with run commands, one raw log line, `sample` text; copied from `/tmp/glorp-bench`, plus the xctrace `tp.trace`/`tp.xml`) and `~/Downloads/64k-tools/ws-intros/out/glorp-size-probe` (i686 size probe, `README.md`, `measure.sh`). The song is the isolated third-party `389811-2.bin` (33,931 bytes), external and not committed. No code changed for these measurements.
 
 ### Host render speed
 
@@ -500,7 +500,7 @@ Nothing here is in git: the harnesses live in `~/Downloads/64k-tools/ws-intros/o
 | `fast`, opt 3 | 171.5 – 174.8 s | 1.30 – 1.32× | 2–3 |
 
 - Pool: `required_pool` = **31,057,326 bytes**; peak RSS ≈ **34.6 MB** (the one retained log line, `glorp-bench/measurements/prof_run.txt`, shows 34.16 MB at the end of a `fast` run, 1.28×, 171.9 s process CPU, setup 13 ms).
-- Profile (macOS `sample`, 5 ms, `fast` build with `debug = 1`): ID 30 accounts for **66.2 %** of samples; it is the dominant cost. `sample` text is kept in `glorp-bench/measurements/` (`sample.txt`, `leaf.txt`); the 63 MB xctrace output (`tp.trace`, `tp.xml`) was not persisted, no flame graph is kept. **The per-run timings behind the ranges were not saved to a file** (only the session output): rerun `glorp-bench` to regenerate.
+- Profile (macOS `sample`, 5 ms, `fast` build with `debug = 1`): ID 30 accounts for **66.2 %** of samples; it is the dominant cost. `sample` text is kept in `glorp-bench/measurements/` (`sample.txt`, `leaf.txt`); the xctrace Time Profiler output (`tp.trace` bundle plus `tp.xml` export, ~42 MB) is kept in `glorp-bench/` (`tp.xml` sha256 `e24aae19…c3048`); no flame graph is rendered. **The per-run timings behind the ranges were not saved to a file** (only the session output): rerun `glorp-bench` to regenerate.
 - Host: Intel i9-9900K, macOS 14.6.1, x86-64. **The host was busy** (other jobs running) and only 2–3 runs per build were taken, so the ranges are indicative, not a benchmark: do not quote the slow end of the opt-z range as the cost of the code. Opt z is **below real time** on this host; opt 3 is only ~1.3×.
 - Not measured: other CPUs, Windows / Linux, SIMD-enabled targets, a block size other than 4096 for the timings (the player sub-block stays 128), the cost per device other than ID 30.
 
