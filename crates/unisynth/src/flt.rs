@@ -79,6 +79,19 @@ pub const OPEN_LP_HZ: f32 = 19_980.0;
 /// The lowest cutoff the coefficients use, Hz (`coefs` clamps there).
 pub const OPEN_HP_HZ: f32 = 1.0;
 
+#[cfg(feature = "probe")]
+std::thread_local! {
+    static RUN_OPEN: core::cell::Cell<bool> = const { core::cell::Cell::new(false) };
+}
+
+/// Editor-only listening switch (feature `probe`, never in the player): run open filters instead of skipping them,
+/// so the top end rolls off as in the legacy engines (WaveSabre's state-variable low-pass, −4 dB at 16 kHz even fully
+/// open). Per thread: the DAW's live host sets it; bounces and exports are unaffected.
+#[cfg(feature = "probe")]
+pub fn set_run_open(on: bool) {
+    RUN_OPEN.with(|c| c.set(on));
+}
+
 /// True when the filter is set so that the signal comes out (nearly) as it went in, to what the controls can tell: a
 /// low-pass or ladder with the cutoff at the top of its range, or a high-pass with it at the bottom, and no resonance.
 /// Such a slot is not run (see [`Slot::pass`]). The test is the end of the range, not a gain of exactly 1, so the sound
@@ -88,6 +101,10 @@ pub const OPEN_HP_HZ: f32 = 1.0;
 /// is bypassed is therefore brighter than the same filter run (Eladamri: +1.9 dB in the 16 kHz octave); the
 /// tests `an_open_filter_...` pin these figures.
 pub fn transparent(kind: Kind, hz: f32, res: f32) -> bool {
+    #[cfg(feature = "probe")]
+    if RUN_OPEN.with(|c| c.get()) {
+        return false;
+    }
     res <= 0.0
         && match kind {
             Kind::SvfLp if cfg!(feature = "us-flt-svf") => hz >= OPEN_LP_HZ,
@@ -617,6 +634,16 @@ mod tests {
                 assert!(!transparent(k, hz, 0.0), "{k:?} {hz}");
             }
         }
+    }
+
+    #[cfg(all(feature = "probe", feature = "us-flt-svf"))]
+    #[test]
+    fn the_editor_can_run_open_filters_for_listening() {
+        assert!(transparent(Kind::SvfLp, OPEN_LP_HZ, 0.0));
+        set_run_open(true);
+        assert!(!transparent(Kind::SvfLp, OPEN_LP_HZ, 0.0), "run, as the legacy engines do");
+        set_run_open(false);
+        assert!(transparent(Kind::SvfLp, OPEN_LP_HZ, 0.0));
     }
 
     #[cfg(all(feature = "us-flt-svf", feature = "us-flt-ladder", feature = "us-flt-rbj"))]

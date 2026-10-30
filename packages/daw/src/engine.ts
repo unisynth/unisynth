@@ -135,6 +135,7 @@ export class Engine {
     this.node = node;
     if (this.bank) this.post({ t: "bank", bytes: this.bank });
     if (this.watched >= 0) this.post({ t: "watch", track: this.watched });
+    if (this.runOpen) this.post({ t: "openflt", on: true });
     await ctx.resume();
   }
   /** Closes the audio graph and builds it again with the current `latency` (the song must be loaded again). */
@@ -194,6 +195,13 @@ export class Engine {
   }
   setParam(track: number, dev: number, param: number, value: number) {
     this.post({ t: "param", track, dev, param, value });
+  }
+  /** Listening switch: fully open filters run instead of being skipped (as WaveSabre/Tunefish do); live playback
+   * only, kept across engine restarts. */
+  runOpen = false;
+  runOpenFilters(on: boolean) {
+    this.runOpen = on;
+    this.post({ t: "openflt", on });
   }
   /** Track index whose instrument the live displays watch (−1 = none); kept across engine restarts. */
   watched = -1;

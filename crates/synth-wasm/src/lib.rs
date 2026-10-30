@@ -239,6 +239,13 @@ pub extern "C" fn probe_len() -> usize {
     host().probe().len()
 }
 
+/// Runs fully open filters instead of skipping them (`on` ≠ 0), as the legacy engines do: a listening switch for A/B
+/// against WaveSabre renders. Live playback only. See `Host::set_run_open_filters`.
+#[unsafe(no_mangle)]
+pub extern "C" fn run_open_filters(on: i32) {
+    host().set_run_open_filters(on != 0);
+}
+
 /// The probe filled by the last `probe_len` call.
 #[unsafe(no_mangle)]
 pub extern "C" fn probe_ptr() -> *const f32 {

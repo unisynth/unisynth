@@ -70,6 +70,7 @@ class Synth extends AudioWorkletProcessor {
       case "off": x.note_off(m.track, m.note); break;
       case "param": x.set_param(m.track, m.dev, m.param, m.value); break;
       // an engine built without the probe has no probe exports: watching then stays off
+      case "openflt": x.run_open_filters?.(m.on ? 1 : 0); break;
       case "watch": this.watching = m.track >= 0 && !!x.probe_watch; x.probe_watch?.(m.track); break;
     }
   }

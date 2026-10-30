@@ -231,3 +231,27 @@ fn watching_a_track_reports_its_voices_and_taps_and_never_changes_the_sound() {
     // the layout the page parses (packages/daw/src/app.js `parseProbe`, VREC = 22): header, voices, slot 1 + taps, 3 flags
     assert_eq!(p.len(), 4 + nv * 22 + 1 + 2 * 2048 + 3);
 }
+
+#[test]
+fn running_open_filters_is_a_listening_switch_off_by_default() {
+    // the lead with its low-pass fully open and no resonance: skipped by default, run with the switch
+    let mut v = song_json(64);
+    let lead = &mut v["tracks"][0];
+    lead["devices"][0]["values"]["filt1.resonance"] = 0.0.into();
+    lead["devices"][0]["values"]["filt1.cutoff"] = 1.0.into();
+    lead["lanes"] = serde_json::json!([]);
+    let b = blob(&v);
+    let want = player(&b, 44100);
+    let mut h = loaded(&b);
+    h.play(0);
+    assert!(live(&mut h, 44100, 128) == want, "off: the song as exported");
+    let mut r = loaded(&b);
+    r.set_run_open_filters(true);
+    r.play(0);
+    let got = live(&mut r, 44100, 128);
+    assert!(got != want, "on: the open filter runs and changes the sound");
+    // high-frequency energy (first difference) drops when the filter runs
+    let hf = |x: &[f32]| x.windows(3).map(|w| ((w[2] - w[0]) as f64).powi(2)).sum::<f64>();
+    assert!(hf(&got) < hf(&want), "{} vs {}", hf(&got), hf(&want));
+    r.set_run_open_filters(false);
+}

@@ -114,6 +114,13 @@ when the computer is busy the audio thread can be paused for 5-40 ms. The **Buff
 figure trades that tolerance against keyboard-audition delay: Low ~5 ms, Normal ~10 ms, **Safe ~23 ms (default)**,
 Max ~50 ms. It is remembered, and changing it while playing keeps the position.
 
+**Run open filters** (checkbox after Buffer, remembered) is a listening switch for comparing with WaveSabre renders.
+To save CPU, the unified synth skips a low-pass that is fully open with no resonance (`flt::transparent`). The
+original engines still run it, and WaveSabre's state-variable low-pass takes about 4 dB off at 16 kHz even fully open.
+With the switch on, live playback runs those filters too. On Dope On Wax, the 16 kHz octave goes from +2.4 dB to 0.0 dB
+against WaveSabre's own C++ render, every band ends within 0.3 dB, and render time rises about 3 %. Only live
+playback changes: the song file, Bounce, Export and the intro are not affected.
+
 **N drops** after the Engine figure counts audio dropouts since the last Play: the browser's own count of output
 underruns (`AudioContext.playbackStats`, Chrome; hidden where the browser has none), i.e. moments the sound card got
 no samples in time and played silence. It turns red; its tooltip gives the milliseconds of silence and the song

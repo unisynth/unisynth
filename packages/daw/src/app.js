@@ -1787,6 +1787,10 @@ async function pushOnce() {
 }
 function livePush() { if (!E.node) return; clearTimeout(pushT); pushT = setTimeout(pushSong, 30); }
 function liveLoop() { if (E.node && liveLoaded) E.setLoop(frameOf(LOOP[0]), frameOf(LOOP[1]), loopOn); }
+// Run open filters (listening switch, remembered): live playback only, see Engine.runOpenFilters.
+const openFlt = document.getElementById("openflt");
+openFlt.checked = store.get("daw.openflt") === "1"; E.runOpen = openFlt.checked;
+openFlt.addEventListener("change", () => { store.set("daw.openflt", openFlt.checked ? "1" : "0"); E.runOpenFilters(openFlt.checked); say(`open filters ${openFlt.checked ? "run (as WaveSabre)" : "skipped"} in live playback`); });
 // Output buffer (Buffer select, remembered): applied by rebuilding the audio graph, keeping position and play state.
 const bufSel = document.getElementById("buffer");
 const bufHint = v => (isNaN(+v) ? v : +v);

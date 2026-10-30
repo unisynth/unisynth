@@ -856,6 +856,12 @@ impl Host {
         &self.probe_out
     }
 
+    /// Listening switch: run filters that are fully open instead of skipping them (`unisynth::flt::set_run_open`), as
+    /// the legacy engines do. Live playback only; the song, exports and bounces are unchanged.
+    pub fn set_run_open_filters(&mut self, on: bool) {
+        unisynth::flt::set_run_open(on);
+    }
+
     /// The buffer `probe` filled last.
     pub fn probe_ptr(&self) -> *const f32 {
         self.probe_out.as_ptr()

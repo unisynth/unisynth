@@ -310,3 +310,22 @@ test("audio drops (output underruns while playing) show next to the engine meter
   expect(await drops.textContent()).toBe("0 drops");
   await page.locator("#play").click();
 }, 60_000);
+
+test("Run open filters: a remembered listening switch that reaches the live engine and survives an engine restart", async () => {
+  await open();
+  const box = page.locator("#openflt");
+  expect(await box.isChecked()).toBe(false);
+  await page.locator("#play").click();
+  await page.waitForFunction(() => (window as any).DAW.engine.ctx?.state === "running", null, { timeout: 15_000 });
+  // what the worklet is told
+  await page.evaluate(() => { const E = (window as any).DAW.engine; (window as any).__sent = []; const post = E.post.bind(E); E.post = (m: any) => { (window as any).__sent.push(m); post(m); }; });
+  await box.check();
+  expect(await page.evaluate(() => (window as any).__sent.filter((m: any) => m.t === "openflt"))).toEqual([{ t: "openflt", on: true }]);
+  expect(await page.evaluate(() => localStorage.getItem("daw.openflt"))).toBe("1");
+  await page.locator("#play").click();
+  await page.reload();
+  await page.waitForSelector(".thdr.track");
+  expect(await page.locator("#openflt").isChecked()).toBe(true);
+  expect(await page.evaluate(() => (window as any).DAW.engine.runOpen)).toBe(true);
+  await page.locator("#openflt").uncheck();
+}, 60_000);

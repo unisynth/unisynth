@@ -36,6 +36,7 @@
     <label class="dim" title="Output buffer. Larger rides out moments when the computer is busy (no clicks or dropouts); smaller makes keyboard audition respond sooner.">Buffer <select id="buffer" aria-label="Audio output buffer">
       <option value="interactive">Low · ~5 ms</option><option value="balanced">Normal · ~10 ms</option><option value="playback" selected>Safe · ~23 ms</option><option value="0.05">Max · ~50 ms</option>
     </select></label>
+    <label class="dim" title="Listening switch for comparing with WaveSabre renders: run filters that are fully open instead of skipping them. The original engines run them, which takes about 4 dB off at 16 kHz. Live playback only: the song, Bounce and Export are unchanged."><input type="checkbox" id="openflt"> Run open filters</label>
   </div>
   <span id="edited" class="badge warn" hidden title="An edit happened since play started; live sound may differ from the intro. Bounce for the exact render.">edited since play</span>
   <span class="spacer"></span>
