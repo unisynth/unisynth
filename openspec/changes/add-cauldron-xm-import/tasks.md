@@ -128,7 +128,7 @@
 - [x] 6.4 `research/tbl-mini-cauldron/tools/run_all.sh`: when `synth-convert` is built, convert the three songs into
       `out/songs/` and render them with the unified player for listening (mp3 next to the references). Verify:
       `run_all.sh` ends with the three converted mp3s.
-- [ ] 6.5 A/B listen by the user (references vs converted), with sign-off recorded like the earlier suites
+- [x] 6.5 A/B listen by the user (references vs converted), with sign-off recorded like the earlier suites
       (`cauldron-signoff.json`). Verify: the sign-off file exists with the user's verdict.
 
 ## 7. Docs and closeout

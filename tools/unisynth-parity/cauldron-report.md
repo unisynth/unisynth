@@ -106,4 +106,6 @@ Generated 2026-10-30 by `bun tools/unisynth-parity/cauldron.ts`. Reference: `ope
 
 ## A/B listening
 
-Pending: the user compares `out/listen/*.mp3` (reference) with `out/songs/*.mp3` (converted).
+Decision: **approved** by user on 2026-10-30.
+
+A/B listening of the converted Jizz, Stash song 1 and Stash BLUISH renders (out/listen/*.unisynth.mp3) against the openmpt references: "The A/B success". Accepted known deviations (design.md): reversed ping-pong step attacks (records 6, 8), sharper sample starts than openmpt's ramp (record 13), stored-drum interpolation edges, stretched-echo gap at 21.5-22 s, and the three phrase failures (song0 records 3, 4, 10).
