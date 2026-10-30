@@ -1062,7 +1062,7 @@ Songs, references and oracles live outside the repo: `tools/v2-extract` and `res
 TBL's Jizz and Stash (1997) ship as XM modules whose samples a precalc synth, Probe's *mini-cauldron*
 (`research/tbl-mini-cauldron/mini-cauldron-spec.md`), renders at load: 16-step phrases, one per record and variant.
 `synth-convert xm` turns such an XM plus the patch data (`research/tbl-mini-cauldron/ref/patches_*.json`) into a
-unified song that plays the phrases live. Full design and measurements: `openspec/changes/add-cauldron-xm-import/design.md`.
+unified song that plays the phrases live. Full design and measurements: `openspec/changes/archive/2026-10-30-add-cauldron-xm-import/design.md`.
 
 | Original | Unified song |
 |---|---|
