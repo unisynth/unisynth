@@ -1820,7 +1820,7 @@ function seek(b1) {
 async function setPlay(on) {
   if (on) {
     if (!(await ensureAudio())) return say(`cannot play: ${lastIssue || "audio did not start"}`);
-    liveLoop(); E.play(frameOf(SONG_POS)); statusAt = performance.now();
+    liveLoop(); E.play(frameOf(SONG_POS)); statusAt = performance.now(); dropsReset();
     playing = true; resumeFollow(); document.getElementById("edited").hidden = true; raf = requestAnimationFrame(tick); say(`playing from ${fmtPos(SONG_POS)}`);
   } else {
     if (E.node) E.stop(); playing = false; cancelAnimationFrame(raf); say(`stopped at ${fmtPos(SONG_POS)}`); setLoad(0);
@@ -1846,7 +1846,7 @@ document.addEventListener("keydown", e => {
   else if (e.key === "R" && e.shiftKey && !e.ctrlKey && !e.metaKey) setRec(!recOn);
   else if (e.key === "Home") { seek(loopOn ? LOOP[0] : 1); }
 });
-E.onStatus = st => { statusAt = performance.now(); meters(st); liveProbe(st.probe); loadAvg += (st.load - loadAvg) * .06; setLoad(Math.round(Math.min(1, st.load ? loadAvg : (loadAvg = 0)) * 100)); if (!st.playing && playing && st.gen === E.gen) setPlay(false); };
+E.onStatus = st => { statusAt = performance.now(); meters(st); dropsCheck(); liveProbe(st.probe); loadAvg += (st.load - loadAvg) * .06; setLoad(Math.round(Math.min(1, st.load ? loadAvg : (loadAvg = 0)) * 100)); if (!st.playing && playing && st.gen === E.gen) setPlay(false); };
 function tick(now) {
   const st = E.status;
   // between status messages (about every 30 ms) the clock runs on from the last reported frame
@@ -1863,6 +1863,26 @@ function laneTick(now) { if (now - lastLane < 100) return; lastLane = now; laneV
 // Meters: per-track peaks from the engine (master last), falling 20 dB/s.
 const lvl = {};
 let loadShown = -1, loadAvg = 0;  // engine load: mean render time per real time, averaged over about 0.5 s
+// Audio drops: the browser's count of output underruns (silence played because samples came late), counted from
+// the last Play, with the song positions where new ones appeared (the counter updates about once a second).
+// The first 1.5 s after Play are not counted: a just-started output often underruns once before any sound, and the
+// browser updates the counter about once a second.
+let dropBase = null, dropSeen = 0, dropWhere = [], dropFrom = 0;
+function dropsReset() { dropBase = E.drops(); dropSeen = 0; dropWhere = []; dropFrom = performance.now() + 1500; dropsShow(0, 0); }
+function dropsCheck() {
+  if (!playing) return;
+  const d = E.drops(); if (!d) return;
+  if (!dropBase || d.events < dropBase.events || performance.now() < dropFrom) dropBase = d;  // start-up; a new context starts from zero
+  const n = d.events - dropBase.events;
+  if (n > dropSeen) { dropWhere.push(fmtPos(SONG_POS)); if (dropWhere.length > 8) dropWhere.shift(); dropSeen = n; }
+  dropsShow(n, d.seconds - dropBase.seconds);
+}
+function dropsShow(n, sec) {
+  const el = document.getElementById("drops"); if (!E.drops()) { el.hidden = true; return; }
+  el.hidden = false; el.textContent = `${n} drop${n === 1 ? "" : "s"}`; el.classList.toggle("bad", n > 0); el.classList.toggle("dim", n === 0);
+  el.title = n ? `Audio drops since Play: ${n}, ${Math.round(sec * 1000)} ms of silence, at ${dropWhere.join(", ")}${dropWhere.length >= 8 ? " (last 8)" : ""}. Raise Buffer, or close other heavy programs.`
+    : "Audio drops since Play: none (the sound card always got its samples in time)";
+}
 function setLoad(v) { if (v === loadShown) return; loadShown = v; const el = document.querySelector(".load > i"), lab = document.querySelector(".load + .num"); el.style.width = v + "%"; lab.textContent = v + "%"; document.querySelector(".load").setAttribute("aria-valuenow", v); }
 let meterAt = performance.now();
 function meters(st) {

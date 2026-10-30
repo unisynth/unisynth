@@ -89,6 +89,12 @@ export class Engine {
   // ---- live host (AudioWorklet) ----
   /** Output buffer request: a larger buffer rides out longer pauses of the audio thread (other load on the machine)
    * at the cost of later keyboard audition. Takes effect at the next `start` (see `restart`). */
+  /** Output underruns of this context so far (`AudioContext.playbackStats`, Chrome 13x+): count and seconds of silence;
+   * null where the browser has no such counter. A new context (engine restart) starts from zero. */
+  drops(): { events: number; seconds: number } | null {
+    const s = (this.ctx as any)?.playbackStats;
+    return s && typeof s.underrunEvents === "number" ? { events: s.underrunEvents, seconds: s.underrunDuration } : null;
+  }
   latency: AudioContextLatencyCategory | number = "playback";
   /** The audio engine stopped (a trap in the worklet); the next `start` builds a new graph. */
   dead = false;

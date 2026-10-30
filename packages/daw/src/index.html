@@ -32,6 +32,7 @@
   <div class="sep"></div>
   <div class="group" title="Audio engine: render time per 128-frame call vs real time">
     <span class="dim">Engine</span><span class="load" role="meter" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Engine load"><i></i></span><span class="num dim">0%</span>
+    <span id="drops" class="drops dim" hidden title="Audio drops: moments the sound card got no samples in time and played silence">0 drops</span>
     <label class="dim" title="Output buffer. Larger rides out moments when the computer is busy (no clicks or dropouts); smaller makes keyboard audition respond sooner.">Buffer <select id="buffer" aria-label="Audio output buffer">
       <option value="interactive">Low · ~5 ms</option><option value="balanced">Normal · ~10 ms</option><option value="playback" selected>Safe · ~23 ms</option><option value="0.05">Max · ~50 ms</option>
     </select></label>

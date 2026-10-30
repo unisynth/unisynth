@@ -168,7 +168,7 @@ test("a watched track's chord comes back in the status as one probe record per v
   await page.locator("#lanes-wrap").focus();
   await page.evaluate(() => (window as any).DAW.engine.watch(3)); // the pad (track index 3)
   for (const k of ["z", "c", "b"]) await page.keyboard.down(k); // C, E, G
-  await page.waitForTimeout(600);
+  await page.waitForFunction(() => ((window as any).DAW.engine.status.probe ?? [])[1] >= 3, null, { timeout: 10_000 });
   const p: number[] = await page.evaluate(() => [...((window as any).DAW.engine.status.probe ?? [])]);
   for (const k of ["z", "c", "b"]) await page.keyboard.up(k);
   expect(p.slice(0, 4)).toEqual([1, 3, 4, 2048]);
@@ -282,5 +282,31 @@ test("seeks while playing keep playing; a dead engine is reported, reads 0% and 
   await page.locator("#play").click();
   await page.waitForTimeout(1200);
   expect(await st()).toMatchObject({ dead: false, playing: true });
+  await page.locator("#play").click();
+}, 60_000);
+
+test("audio drops (output underruns while playing) show next to the engine meter with where they happened", async () => {
+  await open();
+  const drops = page.locator("#drops");
+  await page.locator("#play").click();
+  await page.waitForFunction(() => (window as any).DAW.engine.ctx?.state === "running", null, { timeout: 15_000 });
+  // the browser's own counter (AudioContext.playbackStats, seconds); a real underrun cannot be forced, so the test
+  // replaces the live object on this context
+  await page.evaluate(() => {
+    const st = { underrunEvents: 0, underrunDuration: 0, totalDuration: 1, averageLatency: 0, minimumLatency: 0, maximumLatency: 0 };
+    (window as any).__st = st;
+    Object.defineProperty((window as any).DAW.engine.ctx, "playbackStats", { get: () => st, configurable: true });
+  });
+  await page.waitForTimeout(2000); // past the start-up grace (1.5 s after Play)
+  expect(await drops.textContent()).toBe("0 drops");
+  await page.evaluate(() => { const st = (window as any).__st; st.underrunEvents = 2; st.underrunDuration = 0.012; });
+  await page.waitForFunction(() => document.getElementById("drops")!.textContent === "2 drops");
+  expect(await drops.getAttribute("class")).toContain("bad");
+  expect(await drops.getAttribute("title")).toMatch(/12 ms of silence, at \d+\.\d+\.\d+/);
+  // a new Play counts from zero again
+  await page.locator("#play").click();
+  await page.locator("#play").click();
+  await page.waitForTimeout(300);
+  expect(await drops.textContent()).toBe("0 drops");
   await page.locator("#play").click();
 }, 60_000);

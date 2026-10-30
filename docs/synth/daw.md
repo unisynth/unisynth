@@ -114,6 +114,13 @@ when the computer is busy the audio thread can be paused for 5-40 ms. The **Buff
 figure trades that tolerance against keyboard-audition delay: Low ~5 ms, Normal ~10 ms, **Safe ~23 ms (default)**,
 Max ~50 ms. It is remembered, and changing it while playing keeps the position.
 
+**N drops** after the Engine figure counts audio dropouts since the last Play: the browser's own count of output
+underruns (`AudioContext.playbackStats`, Chrome; hidden where the browser has none), i.e. moments the sound card got
+no samples in time and played silence. It turns red; its tooltip gives the milliseconds of silence and the song
+positions where new drops appeared (the counter updates about once a second, so ±1 s). The first 1.5 s after Play
+are not counted (a just-started output often underruns once before any sound). Drops are a playback problem, never
+in a bounce: raise Buffer or free the machine.
+
 A load that climbs while playing and only falls on Stop → Play is state building up. One case is fixed: WebAssembly
 cannot switch the CPU into flush-to-zero mode (the native player does, `denormal::Guard`), so effect feedback decaying
 into subnormal floats made every later sample many times slower on x86. `engage` went from ~45 % at bar 37 to over

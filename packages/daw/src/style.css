@@ -36,6 +36,7 @@ header { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border
 .badge.warn { color: var(--warn); border-color: var(--warn); }
 .badge.ok { color: var(--ok); border-color: var(--ok); }
 .load { width: 60px; height: 6px; background: var(--bg); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+.drops.bad { color: var(--err); font-weight: 600; }
 .load > i { display: block; height: 100%; width: 0; background: var(--ok); }
 .spacer { flex: 1; }
 #save.dirty::after { content: " •"; color: var(--warn); }
