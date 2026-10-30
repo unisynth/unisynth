@@ -124,6 +124,27 @@ pub trait Device {
     fn event_lookahead(&self) -> u32 {
         0
     }
+    /// Frames of silent input after which this device's output stays silent (below the mixer's quiet level, −120 dBFS)
+    /// for as long as its input does, in its current state: its longest memory (a delay line's length), 0 for a device
+    /// without memory, and for an instrument 0 only while no voice sounds and no event is queued. `None` (the default)
+    /// = unknown: the mixer never puts the device's track to sleep. Used to skip quiet tracks (see
+    /// [`crate::mix::Mixer::set_skip_quiet`]); a skipped device's state is frozen, so a device whose output depends on
+    /// time alone (a free-running LFO heard through the input) must answer `None`.
+    fn quiet_after(&self) -> Option<u32> {
+        None
+    }
+    /// Whether the mixer may skip quiet tracks of this engine at all: a constant `false` (the default) compiles the
+    /// skip path out (no [`Device::quiet_after`] calls, no level checks), like [`Device::automation`]. A method, not a
+    /// const, so `Device` stays dyn-compatible. The mixer asks the first device of the song.
+    fn quiet_skip(&self) -> bool {
+        false
+    }
+    /// Called once when the mixer runs the device's track again after skipping it for `skipped` frames, **before**
+    /// that sub-block's automation: the parameters now hold what the skipped sub-blocks set. A device that smooths
+    /// parameter changes across calls (a gain ramp from the last applied value) settles that state here, and one that
+    /// counts time (a sweep since its restart) advances it by `skipped`, so it resumes as if it had run. Default:
+    /// nothing.
+    fn wake(&mut self, _skipped: u32) {}
     /// Returns to the freshly loaded state. Parameters and values derived from them stay; all dynamic state is
     /// cleared: voices, queued events, delay contents, phases, counters, and any random state the engine owns.
     /// The player calls it on every device, and re-seeds the song random source, before re-rendering from frame 0

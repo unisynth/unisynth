@@ -110,6 +110,9 @@ the cauldron row after it.
 
 Render speed (release `render` example, one thread, i9-9900K; render time / audio time, below 1 = faster than real
 time): Jizz 166.3 s in 76.1 s (0.46, 2.2× real time, pool 47 MB), BLUISH 84.4 s in 51.3 s (0.61, 1.6×, 153 MB),
-song 1 203.7 s in 206.9 s (**1.02: slower than real time**, 291 MB). The
+song 1 203.7 s in 206.9 s (**1.02: slower than real time**, 291 MB). With the quiet-track skip (`us-quiet`, change
+add-quiet-track-skip; tracks sound only 12–21 % of the time): Jizz 32.6 s (0.20), BLUISH 32.6 s (0.39), song 1 88.1 s
+(0.43); output within one 16-bit step of the unskipped render (4–603 frames). Size: `us-quiet` on Jizz +512 raw /
++484 xz / +512 squishy; songs without it +512 raw / +128 xz / 0 squishy (global-groove). The
 cost is the track count (song 1: 106 phrase tracks, one cauldron voice each at the phrase clock, plus the comb,
 echo, doubler and two low-pass stages per track) and the delay lines the pool holds.

@@ -32,6 +32,8 @@ fn main() {
     let mut mem = vec![0u8; need];
     let mut pool = Pool::new(&mut mem);
     let mut p = Player::<UDevice, Xorshift>::new(song, &env, &mut pool, Xorshift::new(seed), DEFAULT_SUB).unwrap_or_else(|e| fail(e));
+    // US_NO_SKIP=1: render every track every sub-block (A/B of the quiet-track skip)
+    p.set_skip_quiet(std::env::var_os("US_NO_SKIP").is_none());
     let frames = p.length_frames() as usize;
     let mut pcm = vec![0i16; frames * 2];
     let t0 = std::time::Instant::now();

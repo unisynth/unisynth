@@ -68,6 +68,16 @@ impl Device for UDevice<'_> {
     fn event_lookahead(&self) -> u32 {
         forward!(self, d => d.event_lookahead())
     }
+    #[inline]
+    fn quiet_skip(&self) -> bool {
+        cfg!(feature = "us-quiet")
+    }
+    fn quiet_after(&self) -> Option<u32> {
+        forward!(self, d => d.quiet_after())
+    }
+    fn wake(&mut self, skipped: u32) {
+        forward!(self, d => d.wake(skipped))
+    }
     fn reset(&mut self) {
         forward!(self, d => d.reset())
     }

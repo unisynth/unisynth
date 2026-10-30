@@ -742,6 +742,7 @@ build lacks fails at load with `UnsupportedModule(id)` (`module.rs` names the id
 | `us-voice-oneshot` | one-shot voices (sampler runs out, note-off ignored) | one-shot is on |
 | `us-matrix` | the mod matrix | any slot with a source and a target |
 | `us-automation` | the mixer's automation walk (song-level) | any track with an automation lane (refused by `Player::new`) |
+| `us-quiet` | quiet-track skip (`Device::quiet_skip`; [synth-core](synth-core.md#quiet-tracks-sleep-devicequiet_skip-quiet_after-wake)): a silent track skips its devices. A speed option, not a module: no song needs it, `features` does not list it, a build without it plays the same. The instrument answers `quiet_after` 0 without voices, queued events, channel stage or speech; shaper, EQ 3band, wrap (no offset) 0, tempo delay and comb their line capacity; every other mode unknown (keeps its track awake). Costs Jizz's build +512 raw / +484 xz / +512 squishy | none |
 | `us-chunk-wide` | chunk escapes (index ≥ 240, ≥ 255 pairs); implied by `us-strip` | a chunk that uses an escape, at parse |
 | `us-matrix-add`, `us-speech`, `us-osc-naive`, `us-flt-feedback`, `us-flt-parallel`, `us-drive`, `us-env-frame`, `us-lfo-frame`, `us-voice-out`, `us-strip` | the V2 modules ([V2 voice](#v2-voice-change-add-v2-import)) | an Add or controller route; non-empty speech text; the slot, filter, routing, distortion, envelope, LFO mode; `v2.voice`; any channel field off its default |
 

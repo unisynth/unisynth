@@ -41,4 +41,8 @@ impl<'a> Effect<'a> for Wrap {
             io.ch[c][..n].iter_mut().for_each(|v| *v = wrap(*v * d + o));
         }
     }
+    /// No memory; with an offset it plays DC on silence, so its track never sleeps.
+    fn quiet_after(&self) -> Option<u32> {
+        (self.offset == 0.0).then_some(0)
+    }
 }

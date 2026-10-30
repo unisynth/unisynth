@@ -294,10 +294,13 @@ flowchart TD
 flowchart TD
     S["render_sub(t0)"] --> T{"next track in dependency order"}
     T --> E1["1. events: deliver lane events with frame < t0 + sub + lookahead<br/>to every device on the track (note_on/off with offset)"]
-    E1 --> E2["2. automations: value at t0 (linear between points in the<br/>target device's lane_lerp form, held after the last) → device.set_param"]
-    E2 --> E3["3. clear the 4 track buffers"]
-    E3 --> E4["4. receives: sender main L/R (or extra output pair) × volume<br/>→ channel 0 (main), 2 (sidechain) or an extra input pair"]
-    E4 --> E5["5. devices in chain order: run(io, sub, ctx)"]
+    E1 --> E3["2. clear the 4 track buffers"]
+    E3 --> E4["3. receives: sender main L/R (or extra output pair) × volume<br/>→ channel 0 (main), 2 (sidechain) or an extra input pair"]
+    E4 --> Q{"quiet skip: sleep?"}
+    Q -->|"woken: wake(skipped)"| E2["4. automations: value at t0 (linear between points in the<br/>target device's lane_lerp form, held after the last) → device.set_param"]
+    Q -->|"sleeps"| E2s["4. automations (parameters stay current)"]
+    E2s --> T
+    E2 --> E5["5. devices in chain order: run(io, sub, ctx)"]
     E5 --> E6["6. × track volume"]
     E6 --> T
     T -->|"all tracks done"| M["master buffers feed render_f32 / render_i16"]
@@ -324,6 +327,31 @@ flowchart LR
   uses upstream's `clamp(trunc(x·32767))`. The denormal guard is on for the call.
 - `seek(frame)` resets every device and track, restores `rng0`, then re-renders silently up to `frame`.
 - `length_frames()` = `trunc(length · rate)`.
+
+### Quiet tracks sleep (`Device::quiet_skip`, `quiet_after`, `wake`)
+
+A song converted from a tracker has many sparse tracks (Stash song 1: 119, sounding 12 % of the time), and every
+track ran its devices every sub-block. With an engine whose `quiet_skip()` is true (unisynth: feature `us-quiet`, in
+`us-all`), a track **sleeps** (skips steps 5 and 6, its buffers stay zero) in a sub-block when:
+
+- every event delivered to it is due before this sub-block (a device holds an event delivered early, through its
+  lookahead, until its frame),
+- its input (the receives, step 3) is exactly zero,
+- and every device has run quiet for its memory: each device's output (and the input) stayed below −120 dBFS
+  (`QUIET_LEVEL` 1e-6) for at least the sum of the devices' `quiet_after()` (and never under 4096 frames,
+  `QUIET_MIN`); a device answering `None` (the default: unknown), or whose own engine's `quiet_skip()` is false (a
+  song may mix engines), keeps its track awake. If the automations of a sleeping sub-block make a device's answer
+  unknown (a parameter that turns silence into sound, a wrap's offset), the track runs after all.
+
+Every device's output counts, not only the last one's: a delay after an instrument holds what the instrument played
+while its own output is still silent. The automations still run while a track sleeps, after the decision, so its
+parameters stay current; when it runs again, each device first gets `wake(skipped)`, before that sub-block's
+automation: a smoothed parameter settles at what the skipped sub-blocks set (EQ 3band's gain ramp), a time counter
+advances (the comb's sweep). The output is that of a render without skipping but for what a sleeping device would
+have played below −120 dBFS: the three TBL songs match within one 16-bit step on 4–603 frames, and render 1.6–2.4×
+faster. `Player::set_skip_quiet(false)` (`US_NO_SKIP=1` in the `render` example) renders every track every
+sub-block; switching it clears the quiet runs, and a track asleep at the switch is still woken. With `quiet_skip()` a constant false the skip path compiles out; the bookkeeping left costs a song without
+it +512 B raw / +128 B xz / 0 squishy (global-groove).
 
 ### Determinism
 

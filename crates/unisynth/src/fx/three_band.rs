@@ -50,13 +50,7 @@ impl<'a> Effect<'a> for ThreeBand {
         self.cur = None;
     }
     fn run(&mut self, io: &mut Io, n: usize, ctx: &mut Ctx) {
-        let (pl, pr) = if self.pan > 0.0 {
-            let q = ((self.pan * 255.0 - 1.0) / 254.0).clamp(0.0, 1.0);
-            (crate::fm::sqrtf(1.0 - q), crate::fm::sqrtf(q))
-        } else {
-            (1.0, 1.0)
-        };
-        let to = [eq_gain(self.gain[0]), eq_gain(self.gain[1]), eq_gain(self.gain[2]), pl, pr];
+        let to = self.targets();
         let from = self.cur.unwrap_or(to);
         self.cur = Some(to);
         let step = |k: usize| (to[k] - from[k]) / n.max(1) as f32;
@@ -81,5 +75,29 @@ impl<'a> Effect<'a> for ThreeBand {
                 b.hist = [x, b.hist[0], b.hist[1]];
             }
         }
+    }
+    /// Its crossover filters and 3-frame delay ring for a few frames (the mixer's minimum quiet run covers them).
+    fn quiet_after(&self) -> Option<u32> {
+        Some(0)
+    }
+    /// Its track slept: the ramp starts from the gains the parameters now hold (set while it slept), as the blocks it
+    /// skipped would have left it.
+    fn wake(&mut self, _: u32) {
+        if self.cur.is_some() {
+            self.cur = Some(self.targets());
+        }
+    }
+}
+
+impl ThreeBand {
+    /// The band gains and the left and right pan gains the parameters ask for.
+    fn targets(&self) -> [f32; 5] {
+        let (pl, pr) = if self.pan > 0.0 {
+            let q = ((self.pan * 255.0 - 1.0) / 254.0).clamp(0.0, 1.0);
+            (crate::fm::sqrtf(1.0 - q), crate::fm::sqrtf(q))
+        } else {
+            (1.0, 1.0)
+        };
+        [eq_gain(self.gain[0]), eq_gain(self.gain[1]), eq_gain(self.gain[2]), pl, pr]
     }
 }

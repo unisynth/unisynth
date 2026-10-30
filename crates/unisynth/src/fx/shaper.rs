@@ -91,4 +91,8 @@ impl<'a> Effect<'a> for Shaper {
             }
         }
     }
+    /// No memory but the oversampling filter's few frames (the mixer's minimum quiet run covers them).
+    fn quiet_after(&self) -> Option<u32> {
+        Some(0)
+    }
 }

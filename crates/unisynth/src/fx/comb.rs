@@ -79,4 +79,12 @@ impl<'a> Effect<'a> for Comb<'a> {
             }
         }
     }
+    /// Its line's capacity.
+    fn quiet_after(&self) -> Option<u32> {
+        Some(self.line.iter().map(|b| b.capacity()).max().unwrap_or(0) as u32)
+    }
+    /// The sweep counts frames since its restart: the frames its track slept count too.
+    fn wake(&mut self, skipped: u32) {
+        self.t = self.t.saturating_add(skipped);
+    }
 }

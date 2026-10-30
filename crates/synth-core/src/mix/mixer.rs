@@ -50,12 +50,78 @@ pub(crate) struct Bufs<'a> {
     #[cfg(feature = "pairs")]
     ext: [&'a mut [f32]; crate::device::EXT_CH],
     look: u32,
+    /// Frames the track's output has been quiet (below `QUIET_LEVEL`) in a row.
+    quiet: u32,
+    /// Frames the track has skipped its devices since they last ran (they get `Device::wake` before they run again).
+    asleep: u32,
+    /// Frame of the latest event delivered to the track: with lookahead a device holds it until then, awake.
+    due: i64,
+}
+
+/// A track's output below this peak counts as silence (−120 dBFS).
+const QUIET_LEVEL: f32 = 1e-6;
+/// The shortest quiet run before a track may sleep, even when its devices have no memory (filters ring a little).
+const QUIET_MIN: u32 = 4096;
+
+/// Whether a track may skip its devices in the sub-block starting at `t0`: every event delivered to it is due before
+/// `t0` (a device holds an event delivered early until its frame), its input (the receives, already added) is exactly
+/// zero, and its output has been quiet for its devices' memory (`need`, the sum of their [`Device::quiet_after`],
+/// `None` if one is unknown). Its buffers stay cleared: silence.
+#[inline]
+pub(crate) fn may_sleep(tb: &Bufs, n: usize, t0: i64, need: Option<u32>) -> bool {
+    let Some(need) = need else { return false };
+    if tb.due >= t0 || tb.quiet < need.max(QUIET_MIN) {
+        return false;
+    }
+    #[cfg(feature = "pairs")]
+    if tb.ext.iter().any(|b| b[..n].iter().any(|&x| x != 0.0)) {
+        return false;
+    }
+    tb.ch.iter().all(|b| b[..n].iter().all(|&x| x == 0.0))
+}
+
+/// Whether a device's output (the track's buffers after it ran) reaches `QUIET_LEVEL`: every device's, not only the
+/// last one's, since a delay later in the chain holds what an earlier device played while its own output is silent.
+#[inline]
+pub(crate) fn loud(ch: &[&mut [f32]]) -> bool {
+    ch.iter().any(|b| b.iter().any(|x| x.abs() >= QUIET_LEVEL))
+}
+
+/// After a sub-block: extends the track's quiet run, or ends it when a device's output was loud (`loud`).
+#[inline]
+pub(crate) fn note_quiet(tb: &mut Bufs, n: usize, loud: bool) {
+    tb.quiet = if loud { 0 } else { tb.quiet.saturating_add(n as u32) };
+}
+
+/// The sum of the devices' memories, `None` if one is unknown or its engine refuses the skip
+/// ([`Device::quiet_skip`], per device: a song may mix engines).
+#[inline]
+pub(crate) fn chain_quiet<'d, D: Device + 'd>(devices: impl Iterator<Item = usize>, dev: impl Fn(usize) -> &'d D) -> Option<u32> {
+    devices.map(|d| dev(d)).map(|d| if d.quiet_skip() { d.quiet_after() } else { None }).try_fold(0u32, |a, q| q.map(|q| a.saturating_add(q)))
+}
+
+/// After the automations of a track that decided to sleep: if one made a device's memory unknown (a parameter that
+/// turns silence into sound), the track runs after all, its devices woken here (after the automation, the best left).
+/// Returns whether it still sleeps.
+#[inline]
+pub(crate) fn still_asleep(tb: &mut Bufs, n: usize, need: Option<u32>, mut wake: impl FnMut(u32)) -> bool {
+    if need.is_some() {
+        return true;
+    }
+    let slept = tb.asleep.saturating_sub(n as u32);
+    if slept > 0 {
+        wake(slept);
+    }
+    tb.asleep = 0;
+    false
 }
 
 pub struct Mixer<'a> {
     tracks: &'a mut [Bufs<'a>],
     order: &'a mut [usize],
     sub: usize,
+    /// Skip quiet tracks ([`Mixer::set_skip_quiet`]).
+    skip: bool,
     /// Song frame of the next sub-block.
     frame: u64,
     #[cfg(feature = "threads")]
@@ -116,6 +182,9 @@ impl<'a> Mixer<'a> {
                     e
                 },
                 look: 0,
+                quiet: 0,
+                asleep: 0,
+                due: i64::MIN,
             });
         }
         // SAFETY: all `nt` slots written above; MaybeUninit<T> has T's layout.
@@ -124,6 +193,7 @@ impl<'a> Mixer<'a> {
             tracks,
             order,
             sub,
+            skip: true,
             frame: 0,
             #[cfg(feature = "threads")]
             levels,
@@ -147,9 +217,25 @@ impl<'a> Mixer<'a> {
         self.frame
     }
 
+    /// Whether a track whose devices all report their memory ([`Device::quiet_after`]) skips its chain while it is
+    /// quiet: no events, no input, and silent output for that long. On by default; the output is the same, but for
+    /// what a skipped device would have played below −120 dBFS. Off renders every track every sub-block.
+    pub fn set_skip_quiet(&mut self, on: bool) {
+        if on != self.skip {
+            // a quiet run counted before the switch says nothing about what played while it was off
+            for t in self.tracks.iter_mut() {
+                t.quiet = 0;
+            }
+        }
+        self.skip = on;
+    }
+
     /// Clears every buffer and restarts at `frame`.
     pub fn reset(&mut self, frame: u64) {
         for t in self.tracks.iter_mut() {
+            t.quiet = 0;
+            t.asleep = 0;
+            t.due = i64::MIN;
             for b in t.ch.iter_mut() {
                 b.fill(0.0);
             }
@@ -181,6 +267,10 @@ impl<'a> Mixer<'a> {
     #[inline(never)]
     pub fn render_sub<D: Device, S: Source>(&mut self, devices: &mut [D], src: &mut S, rate: f64, tempo: i32, rng: &mut dyn Rng) {
         let n = self.sub;
+        // a constant `false` from the engine drops the skip path; a track asleep when the skip is switched off is still
+        // woken
+        let capable = devices.first().is_some_and(|d| d.quiet_skip());
+        let skip = self.skip && capable;
         let t0 = self.frame as i64;
         for oi in 0..self.order.len() {
             let ti = self.order[oi];
@@ -200,12 +290,11 @@ impl<'a> Mixer<'a> {
                     }
                 }
                 st.advance();
+                if capable {
+                    tb.due = tb.due.max(at);
+                }
             }
-            // 2. automations
-            if devices.first().is_some_and(|d| d.automation().is_ok()) {
-                st.automate(n, |d, p, v| devices[d].set_param(p, v));
-            }
-            // 3. clear + receives
+            // 2. clear + receives
             for b in tb.ch.iter_mut() {
                 b[..n].fill(0.0);
             }
@@ -223,11 +312,36 @@ impl<'a> Mixer<'a> {
                 };
                 add_receive(dst, s, r.channel, r.volume, n);
             }
-            // 4. devices in chain order
+            // 3. sleep (skip step 5) or wake; then the automations (a sleeping track's too: its parameters stay current)
             let tb = &mut self.tracks[ti];
+            let sleep = skip && may_sleep(tb, n, t0, chain_quiet(st.devices(), |d| &devices[d]));
+            if capable {
+                if tb.asleep > 0 && !sleep {
+                    for d in st.devices() {
+                        devices[d].wake(tb.asleep);
+                    }
+                }
+                tb.asleep = if sleep { tb.asleep.saturating_add(n as u32) } else { 0 };
+            }
+            if devices.first().is_some_and(|d| d.automation().is_ok()) {
+                st.automate(n, |d, p, v| devices[d].set_param(p, v));
+            }
+            let tb = &mut self.tracks[ti];
+            if sleep && still_asleep(tb, n, chain_quiet(st.devices(), |d| &devices[d]), |s| st.devices().for_each(|d| devices[d].wake(s))) {
+                tb.quiet = tb.quiet.saturating_add(n as u32);
+                continue;
+            }
+            // 4. devices in chain order
             let [a, b, c, d] = &mut tb.ch;
             let mut io = Io { ch: [&mut a[..n], &mut b[..n], &mut c[..n], &mut d[..n]] };
             let mut ctx = Ctx { rate, tempo, frame: self.frame, rng: &mut *rng };
+            // the input (receives) enters the devices' memory too
+            #[allow(unused_mut)]
+            let mut sounded = skip && loud(&io.ch);
+            #[cfg(feature = "pairs")]
+            {
+                sounded = sounded || (skip && tb.ext.iter().any(|b| b[..n].iter().any(|x| x.abs() >= QUIET_LEVEL)));
+            }
             #[cfg(feature = "pairs")]
             {
                 let mut ext: [&mut [f32]; crate::device::EXT_CH] = Default::default();
@@ -237,15 +351,20 @@ impl<'a> Mixer<'a> {
                 for di in st.devices() {
                     devices[di].run_ext(&mut io, &mut ext, n, &mut ctx);
                     crate::denormal::flush_io(&mut io.ch);
+                    sounded = sounded || (skip && (loud(&io.ch) || loud(&ext)));
                 }
             }
             #[cfg(not(feature = "pairs"))]
             for di in st.devices() {
                 devices[di].run(&mut io, n, &mut ctx);
                 crate::denormal::flush_io(&mut io.ch);
+                sounded = sounded || (skip && loud(&io.ch));
             }
             // 5. volume
             scale(tb, st.volume(), n);
+            if skip {
+                note_quiet(tb, n, sounded);
+            }
         }
         self.frame += n as u64;
     }

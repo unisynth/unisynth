@@ -1144,3 +1144,18 @@ fn a_held_quiet_note_is_not_freed() {
         assert!(ins.voices().iter().any(|v| v.is_on()));
     });
 }
+
+#[test]
+fn an_instrument_is_quiet_only_without_voices_or_queued_notes() {
+    use synth_core::device::Device;
+    with_ins(&patch(&[(pm::env(0, pm::e::RELEASE), 0.0)]), 44100.0, |ins| {
+        assert_eq!(ins.quiet_after(), Some(0), "fresh");
+        ins.note_on(60, 100, 50);
+        assert_eq!(ins.quiet_after(), None, "a queued note");
+        render(ins, 44100.0, &[], 100, 100);
+        assert_eq!(ins.quiet_after(), None, "a sounding voice");
+        ins.note_off(60, 0);
+        render(ins, 44100.0, &[], 44100, 100);
+        assert_eq!(ins.quiet_after(), Some(0), "released and freed");
+    });
+}

@@ -90,4 +90,8 @@ impl<'a> Effect<'a> for Tempo<'a> {
             io.ch[1][i] = ri * (1.0 - dw) + rd * dw;
         }
     }
+    /// The longer line's capacity: whatever entered it has come out (and, with feedback, decayed) after that long.
+    fn quiet_after(&self) -> Option<u32> {
+        Some(self.buf.iter().map(|b| b.capacity()).max().unwrap_or(0) as u32)
+    }
 }

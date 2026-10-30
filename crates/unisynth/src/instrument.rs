@@ -380,6 +380,16 @@ impl Device for UInstrument<'_> {
         COUNT
     }
 
+    /// Silent once no voice sounds and no event is queued; a channel stage or speech (V2: their own delays, reverb
+    /// and a speech clock) keeps the track awake.
+    fn quiet_after(&self) -> Option<u32> {
+        #[cfg(feature = "us-speech")]
+        if self.speech.is_some() {
+            return None;
+        }
+        (self.chan.is_none() && self.events.is_empty() && !self.voices.voices().iter().any(|v| v.is_on())).then_some(0)
+    }
+
     fn set_param(&mut self, i: usize, value: f32) {
         if i >= COUNT || !value.is_finite() || pm::is_structural(i) {
             return;

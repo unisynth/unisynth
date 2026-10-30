@@ -145,6 +145,8 @@ impl<'a> Mixer<'a> {
         // as the serial step: a build without automation (constant `Err`) skips the walk; read here, before any job
         // holds a device
         let automate = devices.first().is_some_and(|d| d.automation().is_ok());
+        let capable = devices.first().is_some_and(|d| d.quiet_skip());
+        let skip = self.skip && capable;
         let parts = Shared(parts.as_mut_ptr());
         let devs = Shared(devices.as_mut_ptr());
         let ndev = devices.len();
@@ -160,7 +162,7 @@ impl<'a> Mixer<'a> {
                 // `unsafe trait SplitSource`) the devices listed on track `ti`. Receives read buffers of lower levels,
                 // which no job of this level writes. `ti` < track count (`assert` above); `step` range-checks device
                 // and receive indices.
-                unsafe { step(ti, &mut *parts.get().add(ti), devs.get(), ndev, bufs.get(), nt, n, frame, rate, tempo, automate) }
+                unsafe { step(ti, &mut *parts.get().add(ti), devs.get(), ndev, bufs.get(), nt, n, frame, rate, tempo, automate, (capable, skip)) }
             };
             if level.len() == 1 {
                 job(0);
@@ -193,6 +195,7 @@ unsafe fn step<D: Device, T: TrackSource>(
     rate: f64,
     tempo: i32,
     automate: bool,
+    (capable, skip): (bool, bool),
 ) {
     let _g = crate::denormal::Guard::new();
     let dev = |d: usize| {
@@ -217,12 +220,11 @@ unsafe fn step<D: Device, T: TrackSource>(
             }
         }
         st.advance();
+        if capable {
+            tb.due = tb.due.max(at);
+        }
     }
-    // 2. automations
-    if automate {
-        st.automate(n, |d, p, v| dev(d).set_param(p, v));
-    }
-    // 3. clear + receives
+    // 2. clear + receives
     for b in tb.ch.iter_mut() {
         b[..n].fill(0.0);
     }
@@ -236,11 +238,35 @@ unsafe fn step<D: Device, T: TrackSource>(
         let s = unsafe { &*bufs.add(r.track) };
         super::add_receive(tb, s, r.channel, r.volume, n);
     }
+    // 3. sleep (skip step 5) or wake; then the automations (a sleeping track's too: its parameters stay current)
+    let sleep = skip && super::may_sleep(tb, n, t0, super::chain_quiet(st.devices(), |d| &*dev(d)));
+    if capable {
+        if tb.asleep > 0 && !sleep {
+            for d in st.devices() {
+                dev(d).wake(tb.asleep);
+            }
+        }
+        tb.asleep = if sleep { tb.asleep.saturating_add(n as u32) } else { 0 };
+    }
+    if automate {
+        st.automate(n, |d, p, v| dev(d).set_param(p, v));
+    }
+    if sleep && super::still_asleep(tb, n, super::chain_quiet(st.devices(), |d| &*dev(d)), |s| st.devices().for_each(|d| dev(d).wake(s))) {
+        tb.quiet = tb.quiet.saturating_add(n as u32);
+        return;
+    }
     // 4. devices in chain order
     let [a, b, c, d] = &mut tb.ch;
     let mut io = Io { ch: [&mut a[..n], &mut b[..n], &mut c[..n], &mut d[..n]] };
     let mut rng = NoRng;
     let mut ctx = Ctx { rate, tempo, frame, rng: &mut rng };
+    // the input (receives) enters the devices' memory too
+    #[allow(unused_mut)]
+    let mut sounded = skip && super::loud(&io.ch);
+    #[cfg(feature = "pairs")]
+    {
+        sounded = sounded || (skip && tb.ext.iter().any(|b| b[..n].iter().any(|x| x.abs() >= super::QUIET_LEVEL)));
+    }
     #[cfg(feature = "pairs")]
     {
         let mut ext: [&mut [f32]; crate::device::EXT_CH] = Default::default();
@@ -250,13 +276,18 @@ unsafe fn step<D: Device, T: TrackSource>(
         for di in st.devices() {
             dev(di).run_ext(&mut io, &mut ext, n, &mut ctx);
             crate::denormal::flush_io(&mut io.ch);
+            sounded = sounded || (skip && (super::loud(&io.ch) || super::loud(&ext)));
         }
     }
     #[cfg(not(feature = "pairs"))]
     for di in st.devices() {
         dev(di).run(&mut io, n, &mut ctx);
         crate::denormal::flush_io(&mut io.ch);
+        sounded = sounded || (skip && super::loud(&io.ch));
     }
     // 5. volume
     super::scale(tb, st.volume(), n);
+    if skip {
+        super::note_quiet(tb, n, sounded);
+    }
 }

@@ -937,3 +937,92 @@ fn wrap_distortion_wraps_around_full_scale() {
     assert!((at(1.0, 0.375, 0.7) - (1.075 - 2.0)).abs() < 1e-6, "Stash's +48: 0.7 + 0.375 wraps");
     assert!((at(1.0, 0.375, -0.5) - -0.125).abs() < 1e-6);
 }
+
+/// `Device::quiet_after` of the modes the TBL songs use (the mixer's quiet-track skip): memoryless ones 0, the delays
+/// their line capacity, a wrap with an offset unknown (it turns silence into DC), every other mode unknown.
+#[cfg(all(feature = "us-fx-distortion-shaper", feature = "us-fx-eq-3band", feature = "us-fx-delay-tempo", feature = "us-fx-flanger-comb", feature = "us-fx-distortion-wrap", feature = "us-fx-crusher"))]
+#[test]
+fn quiet_after_is_the_memory_of_the_mode() {
+    let q = |k: u8, m: f32, rest: &[f32]| {
+        let mut v = vec![m];
+        v.extend_from_slice(rest);
+        with_fx(k, &v, 44100.0, 120, |fx| synth_core::device::Device::quiet_after(fx))
+    };
+    let (dist, eq, delay, fl) = (kind::DISTORTION, kind::EQ, kind::DELAY, kind::FLANGER);
+    assert_eq!(q(dist, mode_value(dist, 0), &[0.2, 1.0, 0.0, 1.0]), Some(0), "shaper");
+    assert_eq!(q(eq, mode_value(eq, 1), &[0.5, 0.5, 0.5]), Some(0), "3-band");
+    let tempo = q(delay, mode_value(delay, 0), &[0.5, 0.5, 0.5, 0.5]).unwrap();
+    // its whole line: at least the longest delay at 120 BPM, 16 eighths (1 s) + 200 ms
+    assert!(tempo as f64 >= 1.2 * 44100.0, "the tempo delay's whole line: {tempo}");
+    assert_eq!(q(fl, mode_value(fl, 2), &[0.01, 1.0, 0.0, 0.0]), Some(16386), "comb: its line");
+    assert_eq!(q(dist, mode_value(dist, 3), &[0.25, 0.5]), Some(0), "wrap without offset");
+    assert_eq!(q(dist, mode_value(dist, 3), &[0.25, 0.7]), None, "wrap with an offset plays DC on silence");
+    assert_eq!(q(kind::CRUSHER, 0.0, &[0.5, 0.5, 1.0]), None, "a mode without an answer");
+}
+
+/// `Device::wake` (the mixer skipped the effect's track): the 3-band EQ's next block ramps from the gain its
+/// parameters held before the waking block's automation, as it does when it never slept.
+#[cfg(feature = "us-fx-eq-3band")]
+#[test]
+fn a_woken_three_band_ramps_as_if_it_had_run() {
+    let eq = kind::EQ;
+    let block = |fx: &mut UFx, x: f32| {
+        let (mut l, mut r, mut sl, mut sr) = (vec![x; 100], vec![x; 100], vec![0.0; 100], vec![0.0; 100]);
+        let mut rng = Lcg(1);
+        let mut ctx = Ctx { rate: 44100.0, tempo: 120, frame: 0, rng: &mut rng };
+        synth_core::device::Device::run(fx, &mut Io { ch: [&mut l, &mut r, &mut sl, &mut sr] }, 100, &mut ctx);
+        l
+    };
+    // awake: blocks at gain 0.1, then 0.3 (silent input), then the gain steps to 0.5 with sound
+    let want = with_fx(eq, &[mode_value(eq, 1), 0.1, 0.1, 0.1], 44100.0, 120, |fx| {
+        block(fx, 0.0);
+        for i in 1..=3 {
+            synth_core::device::Device::set_param(fx, i, 0.3);
+        }
+        block(fx, 0.0);
+        for i in 1..=3 {
+            synth_core::device::Device::set_param(fx, i, 0.5);
+        }
+        block(fx, 1.0)
+    });
+    // asleep through the 0.3 block (no run), woken before the step to 0.5
+    let got = with_fx(eq, &[mode_value(eq, 1), 0.1, 0.1, 0.1], 44100.0, 120, |fx| {
+        block(fx, 0.0);
+        for i in 1..=3 {
+            synth_core::device::Device::set_param(fx, i, 0.3);
+        }
+        synth_core::device::Device::wake(fx, 100);
+        for i in 1..=3 {
+            synth_core::device::Device::set_param(fx, i, 0.5);
+        }
+        block(fx, 1.0)
+    });
+    assert_eq!(got, want);
+}
+
+/// A woken comb's sweep goes on from where the skipped frames would have left it (its counter runs in time).
+#[cfg(feature = "us-fx-flanger-comb")]
+#[test]
+fn a_woken_comb_sweeps_on_as_if_it_had_run() {
+    let fl = kind::FLANGER;
+    // k = 1000 frames, sweep 0.003 per frame (cap at k after 333 333 frames): silence for 5000 frames, then a tone
+    let vals = [mode_value(fl, 2), 1000.0 / 16384.0, 1.0, 0.3, 0.0];
+    let block = |fx: &mut UFx, x: &[f32]| {
+        let (mut l, mut r, mut sl, mut sr) = (x.to_vec(), x.to_vec(), vec![0.0; x.len()], vec![0.0; x.len()]);
+        let mut rng = Lcg(1);
+        let mut ctx = Ctx { rate: 44100.0, tempo: 120, frame: 0, rng: &mut rng };
+        synth_core::device::Device::run(fx, &mut Io { ch: [&mut l, &mut r, &mut sl, &mut sr] }, x.len(), &mut ctx);
+        l
+    };
+    let tone: Vec<f32> = (0..3000).map(|i| libm::sinf(i as f32 * 0.05)).collect();
+    let want = with_fx(fl, &vals, 44100.0, 120, |fx| {
+        block(fx, &[0.0; 5000]);
+        block(fx, &tone)
+    });
+    let got = with_fx(fl, &vals, 44100.0, 120, |fx| {
+        synth_core::device::Device::wake(fx, 5000);
+        block(fx, &tone)
+    });
+    assert!(peak(&want[1500..]) > 0.1, "the comb sounds");
+    assert_eq!(got, want);
+}

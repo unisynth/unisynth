@@ -159,6 +159,15 @@ impl<A: Device, B: Device> Device for Either<A, B> {
     fn event_lookahead(&self) -> u32 {
         forward!(self, d => d.event_lookahead())
     }
+    fn quiet_after(&self) -> Option<u32> {
+        forward!(self, d => d.quiet_after())
+    }
+    fn quiet_skip(&self) -> bool {
+        forward!(self, d => d.quiet_skip())
+    }
+    fn wake(&mut self, skipped: u32) {
+        forward!(self, d => d.wake(skipped))
+    }
     fn reset(&mut self) {
         forward!(self, d => d.reset())
     }

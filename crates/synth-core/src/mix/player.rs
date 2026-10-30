@@ -267,6 +267,11 @@ impl<'a, K: Kinds<'a>, R: Rng + Clone> Player<'a, K, R> {
         &self.song
     }
 
+    /// Skips quiet tracks ([`Mixer::set_skip_quiet`]; on by default).
+    pub fn set_skip_quiet(&mut self, on: bool) {
+        self.mixer.set_skip_quiet(on);
+    }
+
     pub fn devices(&self) -> &[K] {
         self.devices
     }

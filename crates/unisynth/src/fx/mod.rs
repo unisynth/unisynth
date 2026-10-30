@@ -113,6 +113,13 @@ trait Effect<'a>: Sized {
     fn set(&mut self, i: usize, v: f32);
     fn reset(&mut self);
     fn run(&mut self, io: &mut Io, n: usize, ctx: &mut Ctx);
+    /// [`Device::quiet_after`]: the mode's memory in frames; `None` (the default) keeps its track awake.
+    fn quiet_after(&self) -> Option<u32> {
+        None
+    }
+    /// [`Device::wake`]: settle per-call smoothing to the parameters as they are now, advance time-counting state by
+    /// the `skipped` frames. Default: nothing.
+    fn wake(&mut self, _skipped: u32) {}
 }
 
 /// `(kind, mode, module id)` for every mode of every kind, in mode order.
@@ -288,6 +295,19 @@ macro_rules! modes {
                     Mode::Never(_, n) => match *n {},
                 }
             }
+            fn quiet_after(&self) -> Option<u32> {
+                match self {
+                    $( #[cfg(feature = $feat)] Mode::$var(e) => e.quiet_after(), )*
+                    Mode::Never(_, n) => match *n {},
+                }
+            }
+            #[allow(unused_variables)]
+            fn wake(&mut self, skipped: u32) {
+                match self {
+                    $( #[cfg(feature = $feat)] Mode::$var(e) => e.wake(skipped), )*
+                    Mode::Never(_, n) => match *n {},
+                }
+            }
         }
     };
 }
@@ -378,6 +398,12 @@ impl Device for UFx<'_> {
     }
     fn run(&mut self, io: &mut Io, n: usize, ctx: &mut Ctx) {
         self.mode.run(io, n, ctx);
+    }
+    fn quiet_after(&self) -> Option<u32> {
+        self.mode.quiet_after()
+    }
+    fn wake(&mut self, skipped: u32) {
+        self.mode.wake(skipped);
     }
 }
 

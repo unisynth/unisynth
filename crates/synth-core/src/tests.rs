@@ -2395,3 +2395,510 @@ mod lane_lerp_tests {
         });
     }
 }
+
+/// Quiet-track skipping (`Device::quiet_after`): a track whose devices report how long their memory lasts skips its
+/// chain once its output has been silent that long, with no input and no events; the output is unchanged.
+mod quiet_skip_tests {
+    use crate::device::*;
+    use crate::mix::*;
+    use crate::pool::Pool;
+
+    /// A voice sounding 0.5 for `HOLD` frames after a note-on; quiet once it stops (or never known, with `KNOWN` off).
+    struct Tone<const KNOWN: bool> {
+        left: u32,
+        start: Option<u32>,
+        runs: u32,
+    }
+    const HOLD: u32 = 300;
+    impl<const KNOWN: bool> Device for Tone<KNOWN> {
+        fn param_count(&self) -> usize {
+            0
+        }
+        fn set_param(&mut self, _: usize, _: f32) {}
+        fn note_on(&mut self, _: u8, _: u8, offset: u32) {
+            self.start = Some(offset);
+        }
+        fn reset(&mut self) {}
+        fn quiet_after(&self) -> Option<u32> {
+            (KNOWN && self.left == 0 && self.start.is_none()).then_some(0)
+        }
+        fn run(&mut self, io: &mut Io, n: usize, _: &mut Ctx) {
+            self.runs += 1;
+            for i in 0..n {
+                if self.start == Some(i as u32) {
+                    self.left = HOLD;
+                    self.start = None;
+                }
+                let x = if self.left > 0 { 0.5 } else { 0.0 };
+                self.left = self.left.saturating_sub(1);
+                io.ch[MAIN_L][i] = x;
+                io.ch[MAIN_R][i] = x;
+            }
+            if let Some(s) = self.start.as_mut() {
+                *s -= n as u32;
+            }
+        }
+    }
+    /// A pure delay of `D` frames (its memory: `D`).
+    struct Echo {
+        line: Vec<f32>,
+        pos: usize,
+        runs: u32,
+    }
+    const D: usize = 6000;
+    impl Device for Echo {
+        fn param_count(&self) -> usize {
+            0
+        }
+        fn set_param(&mut self, _: usize, _: f32) {}
+        fn reset(&mut self) {}
+        fn quiet_after(&self) -> Option<u32> {
+            Some(D as u32)
+        }
+        fn run(&mut self, io: &mut Io, n: usize, _: &mut Ctx) {
+            self.runs += 1;
+            for i in 0..n {
+                let y = self.line[self.pos];
+                self.line[self.pos] = io.ch[MAIN_L][i];
+                self.pos = (self.pos + 1) % D;
+                io.ch[MAIN_L][i] = y;
+                io.ch[MAIN_R][i] = y;
+            }
+        }
+    }
+    enum Dev {
+        Known(Tone<true>),
+        Unknown(Tone<false>),
+        Echo(Echo),
+        /// Claims to be quiet, but its engine refuses the skip.
+        Refuse(Dc<true, false>),
+    }
+    impl Dev {
+        fn runs(&self) -> u32 {
+            match self {
+                Dev::Known(d) => d.runs,
+                Dev::Unknown(d) => d.runs,
+                Dev::Echo(d) => d.runs,
+                Dev::Refuse(d) => d.runs,
+            }
+        }
+    }
+    impl Device for Dev {
+        fn param_count(&self) -> usize {
+            0
+        }
+        fn set_param(&mut self, _: usize, _: f32) {}
+        fn note_on(&mut self, n: u8, v: u8, o: u32) {
+            match self {
+                Dev::Known(d) => d.note_on(n, v, o),
+                Dev::Unknown(d) => d.note_on(n, v, o),
+                Dev::Echo(_) | Dev::Refuse(_) => {}
+            }
+        }
+        fn reset(&mut self) {}
+        fn quiet_skip(&self) -> bool {
+            !matches!(self, Dev::Refuse(_))
+        }
+        fn quiet_after(&self) -> Option<u32> {
+            match self {
+                Dev::Known(d) => d.quiet_after(),
+                Dev::Unknown(d) => d.quiet_after(),
+                Dev::Echo(d) => d.quiet_after(),
+                Dev::Refuse(d) => d.quiet_after(),
+            }
+        }
+        fn run(&mut self, io: &mut Io, n: usize, c: &mut Ctx) {
+            match self {
+                Dev::Known(d) => d.run(io, n, c),
+                Dev::Unknown(d) => d.run(io, n, c),
+                Dev::Echo(d) => d.run(io, n, c),
+                Dev::Refuse(d) => d.run(io, n, c),
+            }
+        }
+    }
+
+    struct Src {
+        tracks: Vec<Tr>,
+    }
+    struct Tr {
+        devices: Vec<usize>,
+        receives: Vec<Receive>,
+        events: Vec<i64>,
+        pos: usize,
+    }
+    impl Source for Src {
+        type Track<'s> = &'s mut Tr;
+        fn track_count(&self) -> usize {
+            self.tracks.len()
+        }
+        fn track(&mut self, t: usize) -> &mut Tr {
+            &mut self.tracks[t]
+        }
+    }
+    impl TrackSource for &mut Tr {
+        fn devices(&self) -> impl Iterator<Item = usize> + '_ {
+            self.devices.iter().copied()
+        }
+        fn receives(&self) -> impl Iterator<Item = Receive> + '_ {
+            self.receives.iter().copied()
+        }
+        fn volume(&self) -> f32 {
+            1.0
+        }
+        fn peek(&self) -> Option<(i64, EventKind)> {
+            self.events.get(self.pos).map(|&at| (at, EventKind::NoteOn { note: 60, velocity: 100 }))
+        }
+        fn advance(&mut self) {
+            self.pos += 1;
+        }
+        fn automate(&mut self, _: usize, _: impl FnMut(usize, usize, f32)) {}
+    }
+    struct Zero;
+    impl crate::rng::Rng for Zero {
+        fn next_f32(&mut self) -> f32 {
+            0.0
+        }
+    }
+
+    /// Tracks: 0 tone → echo (notes at 1000 and 60000), 1 a tone of unknown memory (one note), 2 the master receiving
+    /// both. Returns the master's left channel and each device's run count.
+    fn render(skip: bool, frames: usize) -> (Vec<f32>, Vec<u32>) {
+        let mut devices = vec![
+            Dev::Known(Tone { left: 0, start: None, runs: 0 }),
+            Dev::Echo(Echo { line: vec![0.0; D], pos: 0, runs: 0 }),
+            Dev::Unknown(Tone { left: 0, start: None, runs: 0 }),
+        ];
+        let recv = |t| Receive { track: t, channel: 0, volume: 1.0 };
+        let mut src = Src {
+            tracks: vec![
+                Tr { devices: vec![0, 1], receives: vec![], events: vec![1000, 60000], pos: 0 },
+                Tr { devices: vec![2], receives: vec![], events: vec![500], pos: 0 },
+                Tr { devices: vec![], receives: vec![recv(0), recv(1)], events: vec![], pos: 0 },
+            ],
+        };
+        let mut mem = vec![0u8; 1 << 16];
+        let mut pool = Pool::new(&mut mem);
+        let mut m = Mixer::new(&mut src, &mut pool, 100).unwrap();
+        m.set_skip_quiet(skip);
+        let mut out = vec![];
+        while out.len() < frames {
+            m.render_sub(&mut devices, &mut src, 44100.0, 120, &mut Zero);
+            out.extend((0..100).map(|j| m.master_frame(j).0));
+        }
+        (out, devices.iter().map(Dev::runs).collect())
+    }
+
+    #[test]
+    fn a_quiet_track_skips_its_chain_and_sounds_the_same() {
+        let frames = 100_000;
+        let (want, all) = render(false, frames);
+        let (got, some) = render(true, frames);
+        assert_eq!(got, want, "skipping changes no sample");
+        // the echo's tail (1000 + D … + HOLD) is played, not cut by the skip
+        assert!(want[1000 + D + 10] == 0.5 && want[1000 + D + HOLD as usize + 10] == 0.0, "the echo sounds in the reference");
+        assert_eq!(all, vec![1000; 3], "without skipping every device runs every block");
+        // track 0 sounds 1000..1300 plus the echo to 7300, then waits D quiet frames (13 300), then sleeps until the
+        // note at 60 000 (and again after its tail): well under half the blocks
+        assert!(some[0] < 400 && some[1] == some[0], "track 0 runs {} blocks", some[0]);
+        assert_eq!(some[2], 1000, "a device of unknown memory keeps its track running");
+    }
+
+    /// A device that logs its calls: quiet whenever it has nothing queued.
+    #[derive(Default)]
+    struct Log {
+        calls: Vec<&'static str>,
+        queued: bool,
+        skipped: u32,
+    }
+    impl Device for Log {
+        fn param_count(&self) -> usize {
+            1
+        }
+        fn set_param(&mut self, _: usize, _: f32) {
+            self.calls.push("set");
+        }
+        fn note_on(&mut self, _: u8, _: u8, _: u32) {
+            self.queued = true;
+        }
+        fn reset(&mut self) {}
+        fn quiet_skip(&self) -> bool {
+            true
+        }
+        fn quiet_after(&self) -> Option<u32> {
+            (!self.queued).then_some(0)
+        }
+        fn wake(&mut self, skipped: u32) {
+            self.calls.push("wake");
+            self.skipped = skipped;
+        }
+        fn run(&mut self, _: &mut Io, _: usize, _: &mut Ctx) {
+            self.calls.push("run");
+            self.queued = false;
+        }
+    }
+    struct AutoSrc {
+        events: Vec<i64>,
+        pos: usize,
+    }
+    impl Source for AutoSrc {
+        type Track<'s> = &'s mut AutoSrc;
+        fn track_count(&self) -> usize {
+            1
+        }
+        fn track(&mut self, _: usize) -> &mut AutoSrc {
+            self
+        }
+    }
+    impl TrackSource for &mut AutoSrc {
+        fn devices(&self) -> impl Iterator<Item = usize> + '_ {
+            0..1
+        }
+        fn receives(&self) -> impl Iterator<Item = Receive> + '_ {
+            core::iter::empty()
+        }
+        fn volume(&self) -> f32 {
+            1.0
+        }
+        fn peek(&self) -> Option<(i64, EventKind)> {
+            self.events.get(self.pos).map(|&at| (at, EventKind::NoteOn { note: 60, velocity: 1 }))
+        }
+        fn advance(&mut self) {
+            self.pos += 1;
+        }
+        /// One parameter write every sub-block, as a lane moving every tick.
+        fn automate(&mut self, _: usize, mut set: impl FnMut(usize, usize, f32)) {
+            set(0, 0, 0.5);
+        }
+    }
+
+    #[test]
+    fn a_waking_track_is_woken_before_its_automation() {
+        // silent from the start: asleep after QUIET_MIN frames (41 blocks of 100), a note at 10 000 wakes it
+        let mut devices = vec![Log::default()];
+        let mut src = AutoSrc { events: vec![10_000], pos: 0 };
+        let mut mem = vec![0u8; 1 << 16];
+        let mut pool = Pool::new(&mut mem);
+        let mut m = Mixer::new(&mut src, &mut pool, 100).unwrap();
+        for _ in 0..120 {
+            m.render_sub(&mut devices, &mut src, 44100.0, 120, &mut Zero);
+        }
+        let c = &devices[0].calls;
+        let runs = c.iter().filter(|&&x| x == "run").count();
+        assert_eq!(c.iter().filter(|&&x| x == "set").count(), 120, "automation runs while asleep");
+        assert!(runs < 120 && runs > 41, "slept, then woke: {runs} runs");
+        let w = c.iter().position(|&x| x == "wake").expect("woken");
+        assert_eq!(c.iter().filter(|&&x| x == "wake").count(), 1, "once per wake-up");
+        assert_eq!(&c[w - 1..w + 3], ["set", "wake", "set", "run"], "the sleeping block's write, then wake before the waking block's write and run");
+        // it slept from block 41 (4100 quiet frames ≥ QUIET_MIN) to the note's block (10 000): 59 blocks
+        assert_eq!(devices[0].skipped, 5900, "wake gets the frames it slept");
+    }
+
+    #[test]
+    fn switching_the_skip_mid_song_keeps_the_output() {
+        // the tone → echo track sleeps after its first tail; the skip is switched off while it sleeps (it must be
+        // woken), then on again during the second note's tail (a stale quiet count must not cut it)
+        let run = |toggle: bool| {
+            let mut devices = vec![Dev::Known(Tone { left: 0, start: None, runs: 0 }), Dev::Echo(Echo { line: vec![0.0; D], pos: 0, runs: 0 })];
+            let recv = |t| Receive { track: t, channel: 0, volume: 1.0 };
+            let mut src = Src {
+                tracks: vec![
+                    Tr { devices: vec![0, 1], receives: vec![], events: vec![1000, 30_000], pos: 0 },
+                    Tr { devices: vec![], receives: vec![recv(0)], events: vec![], pos: 0 },
+                ],
+            };
+            let mut mem = vec![0u8; 1 << 16];
+            let mut pool = Pool::new(&mut mem);
+            let mut m = Mixer::new(&mut src, &mut pool, 100).unwrap();
+            m.set_skip_quiet(toggle);
+            let mut out = vec![];
+            while out.len() < 50_000 {
+                if toggle && out.len() == 20_000 {
+                    m.set_skip_quiet(false);
+                }
+                if toggle && out.len() == 33_000 {
+                    m.set_skip_quiet(true);
+                }
+                m.render_sub(&mut devices, &mut src, 44100.0, 120, &mut Zero);
+                out.extend((0..100).map(|j| m.master_frame(j).0));
+            }
+            out
+        };
+        let want = run(false);
+        assert!(want[30_000 + D + 10] == 0.5, "the second note's echo sounds");
+        assert_eq!(run(true), want);
+    }
+
+    /// A DC source (its parameter as output) with a lookahead: quiet at 0 and unknown otherwise (or, with `CARELESS`, always
+    /// quiet, ignoring a queued note), refusing the skip without `SKIPS`. A note-on sets its level to 0.25 from its offset.
+    struct Dc<const CARELESS: bool, const SKIPS: bool> {
+        level: f32,
+        at: Option<u32>,
+        runs: u32,
+    }
+    impl<const CARELESS: bool, const SKIPS: bool> Device for Dc<CARELESS, SKIPS> {
+        fn param_count(&self) -> usize {
+            1
+        }
+        fn set_param(&mut self, _: usize, v: f32) {
+            self.level = v;
+        }
+        fn note_on(&mut self, _: u8, _: u8, offset: u32) {
+            self.at = Some(offset);
+        }
+        fn event_lookahead(&self) -> u32 {
+            2000
+        }
+        fn reset(&mut self) {}
+        fn quiet_skip(&self) -> bool {
+            SKIPS
+        }
+        fn quiet_after(&self) -> Option<u32> {
+            (CARELESS || self.level == 0.0).then_some(0)
+        }
+        fn run(&mut self, io: &mut Io, n: usize, _: &mut Ctx) {
+            self.runs += 1;
+            for i in 0..n {
+                if self.at == Some(i as u32) {
+                    self.level = 0.25;
+                    self.at = None;
+                }
+                io.ch[MAIN_L][i] = self.level;
+                io.ch[MAIN_R][i] = self.level;
+            }
+            if let Some(a) = self.at.as_mut() {
+                *a -= n as u32;
+            }
+        }
+    }
+    /// One track: device 0, a lane of `events`, and an automation writing `to` from frame `from` on (0 before).
+    struct DcSrc {
+        events: Vec<i64>,
+        pos: usize,
+        frame: usize,
+        from: usize,
+        to: f32,
+    }
+    impl Source for DcSrc {
+        type Track<'s> = &'s mut DcSrc;
+        fn track_count(&self) -> usize {
+            1
+        }
+        fn track(&mut self, _: usize) -> &mut DcSrc {
+            self
+        }
+    }
+    impl TrackSource for &mut DcSrc {
+        fn devices(&self) -> impl Iterator<Item = usize> + '_ {
+            0..1
+        }
+        fn receives(&self) -> impl Iterator<Item = Receive> + '_ {
+            core::iter::empty()
+        }
+        fn volume(&self) -> f32 {
+            1.0
+        }
+        fn peek(&self) -> Option<(i64, EventKind)> {
+            self.events.get(self.pos).map(|&at| (at, EventKind::NoteOn { note: 60, velocity: 1 }))
+        }
+        fn advance(&mut self) {
+            self.pos += 1;
+        }
+        fn automate(&mut self, n: usize, mut set: impl FnMut(usize, usize, f32)) {
+            if self.from > 0 {
+                set(0, 0, if self.frame >= self.from { self.to } else { 0.0 });
+            }
+            self.frame += n;
+        }
+    }
+    fn dc_render<const C: bool, const S: bool>(skip: bool, events: Vec<i64>, from: usize, to: f32) -> (Vec<f32>, u32) {
+        let mut devices = vec![Dc::<C, S> { level: 0.0, at: None, runs: 0 }];
+        let mut src = DcSrc { events, pos: 0, frame: 0, from, to };
+        let mut mem = vec![0u8; 1 << 16];
+        let mut pool = Pool::new(&mut mem);
+        let mut m = Mixer::new(&mut src, &mut pool, 100).unwrap();
+        m.update_look(&devices, &mut src);
+        m.set_skip_quiet(skip);
+        let mut out = vec![];
+        while out.len() < 20_000 {
+            m.render_sub(&mut devices, &mut src, 44100.0, 120, &mut Zero);
+            out.extend((0..100).map(|j| m.master_frame(j).0));
+        }
+        (out, devices[0].runs)
+    }
+
+    #[test]
+    fn automation_that_makes_a_track_audible_wakes_it() {
+        // asleep from 4100; at 10 000 the automation raises the DC level: it sounds from that block on
+        let (want, _) = dc_render::<false, true>(false, vec![], 10_000, 0.5);
+        let (got, runs) = dc_render::<false, true>(true, vec![], 10_000, 0.5);
+        assert_eq!(want[10_000], 0.5);
+        assert_eq!(got, want);
+        assert!(runs < 200, "it slept before: {runs}");
+    }
+
+    #[test]
+    fn a_note_delivered_early_keeps_its_track_awake_until_it_is_due() {
+        // a device that claims quiet with a note queued (2000 frames of lookahead): the mixer keeps the track awake
+        // until the note's frame has passed
+        let (want, _) = dc_render::<true, true>(false, vec![12_000], 0, 0.0);
+        let (got, _) = dc_render::<true, true>(true, vec![12_000], 0, 0.0);
+        assert_eq!(want[12_000], 0.25);
+        assert_eq!(got, want);
+    }
+
+    #[test]
+    fn a_device_that_refuses_the_skip_keeps_its_track_awake() {
+        // the song's first device allows the skip; track 1's own device refuses it (whatever its `quiet_after` says):
+        // track 0 sleeps, track 1 runs every block
+        let mut devices = vec![Dev::Known(Tone { left: 0, start: None, runs: 0 }), Dev::Refuse(Dc { level: 0.0, at: None, runs: 0 })];
+        let recv = |t| Receive { track: t, channel: 0, volume: 1.0 };
+        let mut src = Src {
+            tracks: vec![
+                Tr { devices: vec![0], receives: vec![], events: vec![], pos: 0 },
+                Tr { devices: vec![1], receives: vec![], events: vec![], pos: 0 },
+                Tr { devices: vec![], receives: vec![recv(0), recv(1)], events: vec![], pos: 0 },
+            ],
+        };
+        let mut mem = vec![0u8; 1 << 16];
+        let mut pool = Pool::new(&mut mem);
+        let mut m = Mixer::new(&mut src, &mut pool, 100).unwrap();
+        for _ in 0..200 {
+            m.render_sub(&mut devices, &mut src, 44100.0, 120, &mut Zero);
+        }
+        assert!(devices[0].runs() < 100, "track 0 slept");
+        assert_eq!(devices[1].runs(), 200, "track 1 never slept");
+    }
+
+    #[test]
+    fn a_track_with_input_keeps_running() {
+        // track 0 a tone (unknown memory) with a note at 20 000; track 1 an echo fed only by track 0's receive, asleep
+        // from frame D on: the input must wake it, so its echo of the note sounds at 20 000 + D
+        let run = |skip: bool| {
+            let mut devices = vec![Dev::Unknown(Tone { left: 0, start: None, runs: 0 }), Dev::Echo(Echo { line: vec![0.0; D], pos: 0, runs: 0 })];
+            let recv = |t| Receive { track: t, channel: 0, volume: 1.0 };
+            let mut src = Src {
+                tracks: vec![
+                    Tr { devices: vec![0], receives: vec![], events: vec![20_000], pos: 0 },
+                    Tr { devices: vec![1], receives: vec![recv(0)], events: vec![], pos: 0 },
+                    Tr { devices: vec![], receives: vec![recv(1)], events: vec![], pos: 0 },
+                ],
+            };
+            let mut mem = vec![0u8; 1 << 16];
+            let mut pool = Pool::new(&mut mem);
+            let mut m = Mixer::new(&mut src, &mut pool, 100).unwrap();
+            m.set_skip_quiet(skip);
+            let mut out = vec![];
+            while out.len() < 40_000 {
+                m.render_sub(&mut devices, &mut src, 44100.0, 120, &mut Zero);
+                out.extend((0..100).map(|j| m.master_frame(j).0));
+            }
+            (out, devices[1].runs())
+        };
+        let (want, _) = run(false);
+        let (got, runs) = run(true);
+        assert!(want[20_000 + D + 10] > 0.4, "the echo of the received note sounds");
+        let first = got.iter().zip(&want).position(|(a, b)| a != b);
+        assert_eq!(first, None, "first difference at {first:?}: {:?} vs {:?}", first.map(|i| &got[i..i + 4]), first.map(|i| &want[i..i + 4]));
+        assert!(runs < 400, "the echo track slept while nothing came in: {runs} runs");
+    }
+}
