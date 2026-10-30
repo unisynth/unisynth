@@ -326,8 +326,74 @@ fn cut_hz(mm: &impl Query, base: f32, t: u8) -> f32 {
     (law::cutoff((base * mm.scale(t)).max(0.0).min(1.0)) + mm.offset(t)).max(0.0).min(19_980.0)
 }
 
-/// A cauldron restart's declick fade (see `Voice::dk`).
+/// A cauldron restart's declick fade (see [`Declick`]).
+#[cfg(feature = "us-osc-cauldron")]
 const DECLICK_MS: f32 = 1.0;
+
+/// A note-on restarts a cauldron voice with its filter output at 0: when it cuts a sounding note, the step from that
+/// note's last output frame to the new note's first is carried into the new note and faded out over `len` frames
+/// (`DECLICK_MS`); `pending` until the first frame measures it. A note from silence (a fresh voice, or a retrigger
+/// after the old note's fade: below `SILENT`) carries nothing, keeping its instant start.
+#[cfg(feature = "us-osc-cauldron")]
+#[derive(Clone, Copy, Default)]
+struct Declick {
+    last: (f32, f32),
+    step: (f32, f32),
+    n: u32,
+    len: u32,
+    pending: bool,
+}
+
+/// −80 dBFS: below it a cut note counts as silent.
+#[cfg(feature = "us-osc-cauldron")]
+const SILENT: f32 = 1e-4;
+
+#[cfg(all(test, feature = "us-osc-cauldron"))]
+#[test]
+fn a_declick_carries_only_a_sounding_note() {
+    // from silence (last 0) the new note passes unchanged: its instant start stays
+    let mut d = Declick::default();
+    d.start(4);
+    assert_eq!((0..6).map(|i| d.next(i as f32, -(i as f32))).collect::<Vec<_>>(), (0..6).map(|i| (i as f32, -(i as f32))).collect::<Vec<_>>());
+    // nor from a faded note (below −80 dB)
+    let mut d = Declick { last: (5e-5, -5e-5), ..Declick::default() };
+    d.start(4);
+    assert_eq!(d.next(0.5, 0.5), (0.5, 0.5));
+    // a sounding cut: the step from the old note's last frame to the new note's first fades out linearly, so the
+    // join is continuous whatever the new note starts at
+    let mut d = Declick { last: (0.8, -0.4), ..Declick::default() };
+    d.start(4);
+    let got: Vec<(f32, f32)> = (0..6).map(|_| d.next(0.2, 0.2)).collect();
+    let want = [(0.8, -0.4), (0.65, -0.25), (0.5, -0.1), (0.35, 0.05), (0.2, 0.2), (0.2, 0.2)];
+    assert!(got.iter().zip(want).all(|(g, w)| (g.0 - w.0).abs() < 1e-6 && (g.1 - w.1).abs() < 1e-6), "{got:?}");
+}
+
+#[cfg(feature = "us-osc-cauldron")]
+impl Declick {
+    fn start(&mut self, len: u32) {
+        self.len = len;
+        self.n = 0;
+        self.pending = self.last.0.abs().max(self.last.1.abs()) >= SILENT;
+    }
+
+    #[inline]
+    fn next(&mut self, l: f32, r: f32) -> (f32, f32) {
+        if self.pending {
+            self.pending = false;
+            self.step = (self.last.0 - l, self.last.1 - r);
+            self.n = self.len;
+        }
+        let (mut l, mut r) = (l, r);
+        if self.n > 0 {
+            let g = self.n as f32 / self.len as f32;
+            l += self.step.0 * g;
+            r += self.step.1 * g;
+            self.n -= 1;
+        }
+        self.last = (l, r);
+        (l, r)
+    }
+}
 
 pub struct Voice<'a> {
     on: bool,
@@ -375,13 +441,9 @@ pub struct Voice<'a> {
     dcf_r: Opt<f32>,
     /// Note-on order (`NoteCx::seq`).
     pub seq: u32,
-    /// A cauldron restart's declick: the last output frame, the step carried into the new note, frames of it left
-    /// and the fade's length (`DECLICK_MS`), `pending` until the new note's first frame measures the step.
-    last: (f32, f32),
-    dk: (f32, f32),
-    dk_n: u32,
-    dk_len: u32,
-    dk_pending: bool,
+    /// A cauldron restart's declick (only with `us-osc-cauldron`).
+    #[cfg(feature = "us-osc-cauldron")]
+    dk: Declick,
     #[cfg(test)]
     pub(crate) starts: u32,
 }
@@ -398,11 +460,8 @@ impl<'a> Voice<'a> {
             pan: 0.5,
             rng: Xorshift::new(1),
             has_pitch: false,
-            last: (0.0, 0.0),
-            dk: (0.0, 0.0),
-            dk_n: 0,
-            dk_len: 0,
-            dk_pending: false,
+            #[cfg(feature = "us-osc-cauldron")]
+            dk: Declick::default(),
             fx: Fixed { envp: [EnvP::DEFAULT; pm::ENV_SLOTS], vel: 0.0, key: 0.0, note: 0.0, resample: false },
             start: c,
             end: c,
@@ -1028,21 +1087,8 @@ impl<'a> Voice<'a> {
                 }
                 None => (bl * amp, br * amp),
             };
-            let (mut ol, mut or) = (ol, or);
-            if cfg!(feature = "us-osc-cauldron") {
-                if self.dk_pending {
-                    self.dk_pending = false;
-                    self.dk = (self.last.0 - ol, self.last.1 - or);
-                    self.dk_n = self.dk_len;
-                }
-                if self.dk_n > 0 {
-                    let g = self.dk_n as f32 / self.dk_len as f32;
-                    ol += self.dk.0 * g;
-                    or += self.dk.1 * g;
-                    self.dk_n -= 1;
-                }
-                self.last = (ol, or);
-            }
+            #[cfg(feature = "us-osc-cauldron")]
+            let (ol, or) = self.dk.next(ol, or);
             *lo += ol;
             *ro += or;
             self.lvl += ol.abs() + or.abs();
@@ -1067,8 +1113,9 @@ impl VoiceState for Voice<'_> {
 impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
     fn note_on(&mut self, note: u8, velocity: u8, detune: f32, pan: f32, cx: &mut NoteCx<'c>) {
         let sh = cx.sh;
+        #[cfg(feature = "us-osc-cauldron")]
         if !self.on {
-            self.last = (0.0, 0.0);
+            self.dk.last = (0.0, 0.0);
         }
         self.on = true;
         self.seq = cx.seq;
@@ -1095,9 +1142,9 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
         let instant = cfg!(feature = "us-osc-cauldron") && self.slots.iter().any(|s| s.kind == Kind::Cauldron);
         // its restart zeroes the filter's output: a note cut while sounding (a ping-pong joint) would drop in one
         // frame, so the step is carried and faded out; a forward retrigger's old note has faded to 0 (no step)
+        #[cfg(feature = "us-osc-cauldron")]
         if instant {
-            self.dk_pending = true;
-            self.dk_len = (sh.rate * DECLICK_MS / 1000.0).max(1.0) as u32;
+            self.dk.start((sh.rate * DECLICK_MS / 1000.0).max(1.0) as u32);
         }
         self.fx = Fixed {
             envp: core::array::from_fn(|i| EnvP { instant, ..EnvP::read(sh.p, i) }),

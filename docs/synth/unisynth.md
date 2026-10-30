@@ -483,9 +483,10 @@ from those intros (`synth-convert xm`, change add-cauldron-xm-import). Algorithm
   coefficients recomputed when the clock changes), as the original's player band-limits a slowed sample; bypassed at
   a clock of 1 or more.
 - **Restart declick.** A note-on restarts a cauldron voice with the filter's output at 0. A note cut while it sounds
-  (a converted ping-pong joint, an XM jump) would drop in one frame, so the voice carries the step between its last
-  output and the new note's first frame and fades it out linearly over 1 ms (`DECLICK_MS`). A forward retrigger's
-  old note has faded to 0 already: no step, no change.
+  (a converted ping-pong joint, an XM jump) would drop in one frame, so the voice carries the step from the cut
+  note's last output frame to the new note's first into the new note and fades it out linearly over 1 ms
+  (`DECLICK_MS`, `Declick`): the join is continuous. A note from silence (a fresh voice, a forward retrigger after the
+  old note's fade, below −80 dB) carries nothing: its instant start is unchanged.
 - **Playback rate.** The voice-wide transpose and bend are a playback rate for a voice with a cauldron slot (an XM
   pitch slide resamples the precalc sample): the phrase clock is multiplied by `2^((transpose + bend)/12)`, so the
   pitch word stays and the filter and phrase position move with it, and the voice's envelopes advance at that rate
@@ -1056,6 +1057,33 @@ it is what the songs play.
 Songs, references and oracles live outside the repo: `tools/v2-extract` and `research/v2-intros.md`. The songs are
 © their authors and never committed.
 
+### Mini-cauldron XMs (change add-cauldron-xm-import)
+
+TBL's Jizz and Stash (1997) ship as XM modules whose samples a precalc synth, Probe's *mini-cauldron*
+(`research/tbl-mini-cauldron/mini-cauldron-spec.md`), renders at load: 16-step phrases, one per record and variant.
+`synth-convert xm` turns such an XM plus the patch data (`research/tbl-mini-cauldron/ref/patches_*.json`) into a
+unified song that plays the phrases live. Full design and measurements: `openspec/changes/add-cauldron-xm-import/design.md`.
+
+| Original | Unified song |
+|---|---|
+| a generated phrase sample (record, variant) | notes of a cauldron instrument (`us-osc-cauldron`, see [Cauldron](#cauldron-us-osc-cauldron)): untied steps note-ons with the retrigger byte and phrase position as velocity, ties legato, v2 gates note-offs |
+| a stored sample (Stash's drum kit, Jizz's vocals) | a sampler instrument on the sample GSM-encoded (upsampled ×1–4 to ≥ 0.95 correlation) |
+| the XM's replay (FT2 semantics: `src/xm/replay.rs`) | the converter's per-tick control: triggers, volume, pan, pitch |
+| 16-bit clamp → comb → echo → doubler → song0 specials → decimation | the track's chain: clipper → comb (`us-fx-flanger-comb`) → tempo delay → comb sweep (restart lane) → wrap (`us-fx-distortion-wrap`, slot 9's ×1.25 only) → two-stage low-pass at the stored Nyquist |
+| sample volume, envelopes, fadeout, pan | after the chain: EQ 3band post gain and pan, automated per tick |
+| a pitch slide, an XM note's ratio | a playback rate (transpose + bend; the phrase clock and envelopes follow), cut into hand-overs past 94 semitones |
+| a ping-pong loop's backward pass | **approximation:** the loop's steps in reverse order, each played forwards, one warning per sample |
+
+**Tracks (D2).** Triggers of one record on one XM channel at one ratio class (a semitone class of the trigger's
+sounding range, −48…+24) share a track; channel groups whose spans never overlap merge. The comb, echo and doubler
+times are fixed in phrase frames, so a track's chain is built for its class.
+
+**Known deviations** (all accepted with the A/B sign-off, `tools/unisynth-parity/cauldron-signoff.json`): reversed
+step attacks land at a step's start, not its end; the echo cannot wrap a phrase's end into its start (song0
+record 3); a filter past its stability edge stays smoother than the original's integer store (record 4); an
+extreme slow-down's echo, baked into the original's sample, is near-silent in ours (song 1 21.5–22 s). Parity:
+all 3 songs and 82 of 85 phrases, 85 of 88 checks (`bun tools/unisynth-parity/cauldron.ts`).
+
 ### WaveSabre instruments
 
 Each instrument becomes one kind-64 device. Its patch is a pure function of the legacy parameters, built through their
@@ -1174,6 +1202,15 @@ cargo run -q --release -p unisynth --features std --example render -- /tmp/uni/p
 # --channels <hex mask> / --era auto|kkrieger2004 for debugging
 V2=${V2_SONGS:-$HOME/Downloads/64k-tools/synth-lab/v2songs}/acceptance/fr08.v2m
 [ -f "$V2" ] && $SC v2m "$V2" /tmp/uni/fr08.song 4 && $SC features /tmp/uni/fr08.song
+
+# a mini-cauldron phrase (patch data in the repo): call, record, variant at native speed
+$SC xm-phrase research/tbl-mini-cauldron/ref/patches_stash.json song0 10 0 /tmp/uni/jaceb1.song
+cargo run -q --release -p unisynth --features std --example render -- /tmp/uni/jaceb1.song /tmp/uni/jaceb1.wav
+# a whole TBL song (XMs are rebuilt by research/tbl-mini-cauldron/tools/run_all.sh, git-ignored): warnings, track
+# counts, ping-pong seconds and the lead on stderr; `xm-triggers` lists the replay's triggers
+XM=research/tbl-mini-cauldron/out/listen/stash_bluish.xm
+[ -f "$XM" ] && $SC xm "$XM" research/tbl-mini-cauldron/ref/patches_stash.json /tmp/uni/bluish.song && $SC features /tmp/uni/bluish.song
+[ -f "$XM" ] && $SC xm-triggers "$XM" | sed -n 1,3p
 
 # errors name the problem, exit non-zero and write nothing
 $SC ws /tmp/uni/slaughter.song /tmp/uni/again.song; echo "exit $?"      # already unified

@@ -593,7 +593,10 @@ read them with `tools/xminfo.py`. The template text includes greetings and
   wrap-around, the gate/fade and glide timing, the clamp before the v2 filter
   (it shapes spike2), and the "only the last spike voice" behaviour (the
   patches were tuned to it).
-  Open question: the Stash flag-1 specials (slot 9 ×1.25, slots 11/15 +48,
-  both with 8-bit wrap) are hard-coded for 3 sounds only, so they look like
-  deliberate distortion, not memory saving. Keep them as an optional
-  per-patch fold/drive, or A/B them before dropping.
+  The Stash flag-1 specials (slot 9 ×1.25, slots 11/15 +48, both with 8-bit
+  wrap): only slot 9's wraps in the rendered samples (135 jumps); 11 and 15
+  stay under 80, so their +48 is a DC shift. The port keeps slot 9's as a wrap
+  effect and drops the +48.
+- **The port as built:** `synth-convert xm` (change add-cauldron-xm-import)
+  plays the phrases live in `unisynth`; see "Mini-cauldron XMs" in
+  `docs/synth/unisynth.md`.

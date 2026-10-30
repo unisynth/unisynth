@@ -133,12 +133,12 @@
 
 ## 7. Docs and closeout
 
-- [ ] 7.1 `docs/synth/unisynth.md`: a converter section "Mini-cauldron XMs" covering the mapping table, D2 track
+- [x] 7.1 `docs/synth/unisynth.md`: a converter section "Mini-cauldron XMs" covering the mapping table, D2 track
       rule, the ping-pong approximation, and the walkthrough commands. `research/tbl-mini-cauldron/mini-cauldron-spec.md`
       §9 points to it. Verify: the walkthrough commands run as written.
-- [ ] 7.2 `crates/synth-convert/AGENTS.md` rows for the new modules and CLI; `research/tbl-mini-cauldron/AGENTS.md`
+- [x] 7.2 `crates/synth-convert/AGENTS.md` rows for the new modules and CLI; `research/tbl-mini-cauldron/AGENTS.md`
       updated. Verify: `kb_search --doc-type agents "xm import"` finds the rows.
-- [ ] 7.3 Speed and size: per-feature size cost of `us-osc-cauldron`, `us-fx-flanger-comb`, `us-fx-distortion-wrap`
+- [x] 7.3 Speed and size: per-feature size cost of `us-osc-cauldron`, `us-fx-flanger-comb`, `us-fx-distortion-wrap`
       in the size report, and the render speed of the three songs. Verify: `tools/unisynth-parity/size.md`
       lists them.
 

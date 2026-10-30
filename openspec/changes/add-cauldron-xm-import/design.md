@@ -360,7 +360,8 @@ calibration of 6.2.
   decimated (`slide_lowpass`), its cut automated to the stored Nyquist times the playing ratio. Song 1's record 10
   (+48 wrap, decimated 4) went from 98 HF bursts to the reference's count. A cut restart: a ping-pong's reversed
   steps join unrelated step ends, and the one voice restarted with its filter output at 0, dropping the sounding
-  note in a frame; the voice now fades that step out over 1 ms (unisynth restart declick): record 5 from 26 HF
+  note in a frame; the voice now carries the step from the cut note's last frame to the new note's first and fades
+  it out over 1 ms (unisynth restart declick; a note from silence carries nothing): record 5 from 26 HF
   bursts to the reference's count, the goldens and phrases unchanged. Left: records 6 and 8 (8 / 82 vs 0 / 57):
   a reversed step's attack belongs at its end (D9: ours plays it forwards, the attack at its start); record 13
   (70 vs 42): openmpt ramps each new sample start (≈ 0.36 ms) and ours starts sharper; the drums at 24 s
@@ -467,3 +468,12 @@ Existing songs keep their bytes and render unchanged. The existing goldens prove
 
 - The calibration constant (D10) is measured during implementation.
   They do not change the approach.
+
+## Results: size and speed (task 7.3)
+
+Code: `us-osc-cauldron` +13.8 K raw / +7.5 K xz / +5.6 K squishy, `us-fx-flanger-comb` +1.0 K / +0.7 K / +0.5 K,
+`us-fx-distortion-wrap` +0.5 K / +0.4 K / 0; songs without them +512 raw / +256 xz, squishy unchanged. Whole
+builds (squishy): Jizz 40.4 K, BLUISH 49.2 K, song 1 54.8 K, almost all of it the songs' per-tick automation. Speed:
+render time / audio time Jizz 0.46, BLUISH 0.61, song 1 1.02 (one thread: song 1 is slower than real time). Neither fits a 64k intro as converted: the songs are
+a faithful reference port; a compo use needs coarser automation and fewer tracks. Details:
+`tools/unisynth-parity/size.md`.

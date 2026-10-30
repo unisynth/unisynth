@@ -237,6 +237,10 @@ fn a_cauldron_restart_fades_the_cut_note_out() {
     let smooth = (500..1000).map(d).fold(0.0f32, f32::max);
     assert!(l[999].abs() > 4.0 * smooth, "the old note sounds at the cut: {} vs step {smooth}", l[999]);
     assert!(d(1000) <= 2.0 * smooth, "restart step {} vs the wave's {smooth}", d(1000));
+    // a note from silence keeps its instant start: nothing to carry, so the first note is the same with or without
+    // the cut note before it (its start, before the restart, is unchanged)
+    let (fresh, _) = with_ins(&patch(&edits), 44100.0, |ins| render(ins, 44100.0, &[on(0, 48)], 200, 200));
+    assert_eq!(&fresh[..200], &l[..200], "a first note fades nothing in");
 }
 
 #[cfg(feature = "us-osc-cauldron")]

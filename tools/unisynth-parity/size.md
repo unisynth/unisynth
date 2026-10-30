@@ -60,3 +60,38 @@ v2-brullwurfel 109568 / 35084 (+92), global-groove unchanged (15544). V2-voice r
 
 Legacy figures (`research/softsynth-research.md`): WaveSabre port, all 13 devices + 1 KB test sample: 71,168 raw / 34,472 xz / 27,648 squishy;
 Slaughter only: 28,672 / 15,968 / 14,336. Tunefish-compatible port: 41,472 raw with every effect, 30,208 without.
+
+## Mini-cauldron songs (change add-cauldron-xm-import, measured 2026-10-30)
+
+Same build as the table above (`measure.sh`'s flags, baked, `us-trusted`), songs from `synth-convert xm`
+(`research/tbl-mini-cauldron/out/songs`, git-ignored). `measure.sh` does not build these rows: rerun with the probe's
+`US_SONG` and the song's `synth-convert features`.
+
+| build | song B | raw B | xz -9e B | squishy 0.1.3 B | features |
+|---|---:|---:|---:|---:|---|
+| tbl-jizz | 365125 | 425472 | 49000 | 40448 | us-osc-sample,us-sample-gsm,us-env-seconds,us-fx-distortion-shaper,us-fx-eq-3band,us-fx-delay-tempo,us-voice-glide,us-voice-mono,us-automation,us-osc-cauldron |
+| tbl-stash-bluish | 616853 | 677888 | 62516 | 49152 | jizz's + us-fx-flanger-comb |
+| tbl-stash-song1 | 1447168 | 1509376 | 70500 | 54784 | bluish's + us-fx-distortion-wrap |
+
+The song bytes are almost all per-tick automation (XM volume, pan, bend, low-pass cut per track and tick): song 1
+packs to 54.8 KB with squishy, music alone, so a converted TBL song does not fit a 64k intro as is.
+
+Per-feature code cost (each added to a song that does not use it, same tree; raw / xz / squishy bytes):
+
+| feature | on | raw | xz -9e | squishy |
+|---|---|---:|---:|---:|
+| `us-osc-cauldron` | global-groove | +13 824 | +7 536 | +5 632 |
+| `us-fx-flanger-comb` | tbl-jizz | +1 024 | +732 | +512 |
+| `us-fx-distortion-wrap` | tbl-jizz | +512 | +404 | 0 |
+
+Cost to songs without these features: global-groove 30 720 / 15 796 / 14 336 before the change (`60e9be5`), now
+31 232 / 16 052 / 14 336 (+512 raw, +256 xz, squishy unchanged), from the cauldron commit (`4daefd2`, which also
+carries unify-v2-algorithms' unisynth side). The restart declick costs non-users nothing (its state exists only with
+`us-osc-cauldron`; ungated it was +512 raw / +32 xz). The song rows were built before the declick's last form;
+the cauldron row after it.
+
+Render speed (release `render` example, one thread, i9-9900K; render time / audio time, below 1 = faster than real
+time): Jizz 166.3 s in 76.1 s (0.46, 2.2× real time, pool 47 MB), BLUISH 84.4 s in 51.3 s (0.61, 1.6×, 153 MB),
+song 1 203.7 s in 206.9 s (**1.02: slower than real time**, 291 MB). The
+cost is the track count (song 1: 106 phrase tracks, one cauldron voice each at the phrase clock, plus the comb,
+echo, doubler and two low-pass stages per track) and the delay lines the pool holds.
