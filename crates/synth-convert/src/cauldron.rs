@@ -386,10 +386,12 @@ pub fn effects(call: &Call, record: usize, ratio: f64, rate: f64, tempo: i32) ->
         out.devices.push((FLANGER, comb(k, SWEEP)));
         out.latency += k as u32 + 1;
     }
-    // song0's specials on Stash slots 9 (×1.25) and 11, 15 (+48 of 128), wrapping as 8-bit samples
+    // song0's specials on Stash slots 9 (×1.25) and 11, 15 (+48 of 128), wrapping as 8-bit samples. Only slot 9's
+    // wraps: on 11 and 15 the spike wave's DC keeps every value under 80, so +48 is a DC shift (their stored samples
+    // have no wrap jump, minimum −79). Ours, the DC lost to the echo's low cut, wrapped on every peak (song 1, 18–25 s:
+    // record 10 crackling, +5 to +21 dB above 1.6 kHz), so they get none
     let special = match (call.flag, record + 1) {
         (1, 9) => Some((1.25, 0.0)),
-        (1, 11) | (1, 15) => Some((1.0, 48.0 / 128.0)),
         _ => None,
     };
     if let Some((drive, offset)) = special {

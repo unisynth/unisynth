@@ -9,7 +9,7 @@ Generated 2026-10-30 by `bun tools/unisynth-parity/cauldron.ts`. Reference: `ope
 | name | result | loudness Δ dB | worst band Δ dB | alignment corr | ping-pong s | notes |
 |---|---|---:|---:|---:|---:|---|
 | jizz | PASS | 0.33 | -3.30 @ 16000 | 0.72 | 0.00 |  |
-| stash_song1 | PASS | 0.23 | 0.73 @ 8000 | 0.72 | 473.50 | 26 converter warning(s) |
+| stash_song1 | PASS | 0.23 | 0.73 @ 8000 | 0.73 | 473.50 | 26 converter warning(s) |
 | stash_bluish | PASS | 0.13 | -2.93 @ 16000 | 0.68 | 160.60 | 9 converter warning(s) |
 
 ## Phrases
@@ -85,7 +85,7 @@ Generated 2026-10-30 by `bun tools/unisynth-parity/cauldron.ts`. Reference: `ope
 | stash_song0_8_0_Jace81 | PASS | -0.05 | -2.89 @ 16000 | 0.99 |  |
 | stash_song0_9_0_Jace91 | PASS | -0.06 | 1.68 @ 16000 | 0.77 |  |
 | stash_song0_10_0_Jacea1 | PASS | -0.29 | 11.24 @ 8000 | 0.89 |  |
-| stash_song0_11_0_Jaceb1 | FAIL | 1.11 | 53.01 @ 8000 | 0.96 |  |
+| stash_song0_11_0_Jaceb1 | FAIL | 1.04 | 36.98 @ 8000 | 0.97 |  |
 | stash_song0_12_0_Jacec1 | PASS | 0.02 | 25.53 @ 8000 | 0.93 |  |
 | stash_song0_12_1_Jacec2 | PASS | 0.17 | 12.52 @ 8000 | 0.89 |  |
 | stash_song0_12_2_Jacec3 | PASS | 0.56 | 9.66 @ 8000 | 0.91 |  |
@@ -98,7 +98,7 @@ Generated 2026-10-30 by `bun tools/unisynth-parity/cauldron.ts`. Reference: `ope
 | stash_song0_14_1_Jacee2 | PASS | -0.01 | 13.23 @ 16000 | 0.94 |  |
 | stash_song0_14_2_Jacee3 | PASS | 0.03 | 5.78 @ 16000 | 0.93 |  |
 | stash_song0_14_3_Jacee4 | PASS | 0.71 | 4.78 @ 16000 | 0.86 |  |
-| stash_song0_15_0_Jacef1 | PASS | 0.65 | 34.13 @ 16000 | 0.99 |  |
+| stash_song0_15_0_Jacef1 | PASS | 0.64 | 11.71 @ 16000 | 0.99 |  |
 | stash_song0_16_0_Jaceg1 | PASS | 0.04 | 15.67 @ 8000 | 0.89 |  |
 | stash_song0_16_1_Jaceg2 | PASS | 0.26 | 12.03 @ 8000 | 0.84 |  |
 | stash_song0_16_2_Jaceg3 | PASS | -0.36 | 9.27 @ 8000 | 0.89 |  |

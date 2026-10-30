@@ -199,7 +199,10 @@ mod effects {
         // 16-bit clamp → comb → 8-bit clamp → echo → 8-bit clamp → doubler → (specials) → bandwidth low-pass (2 stages)
         assert_eq!(kinds(&chain("song0", 3, 1.0)), [clip, (fl, comb), clip, (de, tempo), clip, (fl, comb), lp, lp]);
         assert_eq!(kinds(&chain("song0", 8, 1.0)), [clip, (fl, comb), clip, (de, tempo), clip, (fl, comb), (di, wrap)], "slot 9: ×1.25 wrap");
-        assert_eq!(kinds(&chain("song0", 10, 1.0)), [clip, (de, tempo), clip, (fl, comb), (di, wrap), lp, lp], "slot 11: +48 wrap");
+        // slots 11 and 15: +48 never wraps in the original (the spike's DC holds them under 80; the stored samples have
+        // no wrap jump), so it is a DC shift only. Ours, its DC lost to the echo's low cut, wrapped every peak: clicks
+        assert_eq!(kinds(&chain("song0", 10, 1.0)), [clip, (de, tempo), clip, (fl, comb), lp, lp], "slot 11: no +48 wrap");
+        assert!(!kinds(&chain("song0", 14, 1.0)).contains(&(di, wrap)), "slot 15: no +48 wrap");
         assert_eq!(kinds(&chain("bluish", 8, 1.0)), [clip, (fl, comb), clip, (de, tempo), clip, (fl, comb)], "the specials are song0's only");
         assert_eq!(kinds(&chain("jizz", 0, 1.0)), [clip, (de, tempo), clip, lp, lp]);
         // the clip: the shaper's clipper at unity drive and threshold 1, fully wet, no foldover or oversampling
@@ -255,9 +258,8 @@ mod effects {
         let w = &c.devices[6].1;
         assert!(((w[1] * 4.0) as f64 - 1.25 * 1.4).abs() < 1e-5 && (w[2] - 0.5).abs() < 1e-6, "{w:?}");
         assert_eq!(c.level, 1.0);
-        let c = chain("song0", 10, 1.0); // echo 0.4, +48
-        let w = &c.devices[4].1;
-        assert!(((w[1] * 4.0) as f64 - 1.4).abs() < 1e-5 && ((w[2] * 2.0 - 1.0) as f64 - 48.0 / 128.0).abs() < 1e-6, "{w:?}");
+        let c = chain("song0", 10, 1.0); // echo 0.4, the +48 dropped: the track gain makes up
+        assert!((c.level - 1.0 / 1.4).abs() < 1e-6, "{}", c.level);
     }
 
     #[test]
