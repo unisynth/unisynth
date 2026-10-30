@@ -76,6 +76,24 @@ Same build as the table above (`measure.sh`'s flags, baked, `us-trusted`), songs
 The song bytes are almost all per-tick automation (XM volume, pan, bend, low-pass cut per track and tick): song 1
 packs to 54.8 KB with squishy, music alone, so a converted TBL song does not fit a 64k intro as is.
 
+Against the original (TBL 1997). The original ships an XM **template**: patterns, headers and the stored samples,
+with every synthesized sample area zero (filled at startup by mini-cauldron), plus the synth code and its patch
+records. Template = the XM cut from the unpacked intro image with the synthesized areas zeroed, xz -9e; ours = the
+converted `.song`, xz -9e (data only, no player in either):
+
+| | original: template (xz) | original: patches | original: synth code | ours: song (xz) |
+|---|---:|---:|---:|---:|
+| Jizz | 14 812 | 12 × 123 = 1 476 | ≈ 1.4 K (x87, v1) | 17 888 |
+| Stash song 1 | 14 704 | | | 38 588 |
+| Stash BLUISH | 13 688 | | | 30 552 |
+| Stash (both, one intro) | 16 748 | 26 × 103 = 2 678 | ≈ 2 K (x87, v2) | 60 296 |
+
+Code: the original's mini-cauldron is ≈ 1.4 / 2 K; ours, `us-osc-cauldron` + comb + wrap ≈ 15.3 K raw / 8.7 K xz on
+top of the unified player (the songs' whole builds below). Not measured: the original's XM replay (its GUS player,
+part of the intro code). Whole intros, graphics and code included, as released: `jizz.ixa` 59 275 B, `stash.ixa`
+88 015 B. Jizz's data is close (+21 %); Stash's is 3.6× the original, the cost of per-tick automation for its
+slides, tremor and ping-pong passages, where the original's tracker replays a few pattern effects.
+
 Per-feature code cost (each added to a song that does not use it, same tree; raw / xz / squishy bytes):
 
 | feature | on | raw | xz -9e | squishy |

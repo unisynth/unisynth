@@ -473,7 +473,9 @@ Existing songs keep their bytes and render unchanged. The existing goldens prove
 
 Code: `us-osc-cauldron` +13.8 K raw / +7.5 K xz / +5.6 K squishy, `us-fx-flanger-comb` +1.0 K / +0.7 K / +0.5 K,
 `us-fx-distortion-wrap` +0.5 K / +0.4 K / 0; songs without them +512 raw / +256 xz, squishy unchanged. Whole
-builds (squishy): Jizz 40.4 K, BLUISH 49.2 K, song 1 54.8 K, almost all of it the songs' per-tick automation. Speed:
+builds (squishy): Jizz 40.4 K, BLUISH 49.2 K, song 1 54.8 K, almost all of it the songs' per-tick automation. Against the original
+(data, xz -9e): Jizz template 14.8 K + 1.5 K patches vs our song 17.9 K; Stash (both songs) 16.7 K + 2.7 K vs 60.3 K;
+synth code ≈ 1.4 / 2 K vs ≈ 8.7 K xz. Speed:
 render time / audio time Jizz 0.46, BLUISH 0.61, song 1 1.02 (one thread: song 1 is slower than real time). Neither fits a 64k intro as converted: the songs are
 a faithful reference port; a compo use needs coarser automation and fewer tracks. Details:
 `tools/unisynth-parity/size.md`.
