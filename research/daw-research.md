@@ -144,3 +144,53 @@ clips, recording, plugin hosting and pattern-compressed blobs come later or neve
 4. Inside the existing intro editor (one app, shared timeline) or a separate page/package?
 5. Timing: wait for `add-unified-synth` to finish effects (kinds 65–73) and the converter, or start the DAW now
    against the instrument alone?
+
+## 8. Alternatives to our own wasm DAW (2026 update)
+
+`packages/daw` exists now (change `add-synth-daw`); it plays the same `synth_core::mix::Mixer` the intro plays. Two
+newer standards make option A (plugin in someone else's DAW) much cheaper than in §6.
+
+Sources: opendaw.studio/manuals/devices/audio/wclap, opendaw.studio/manuals/community-webclaps,
+github.com/free-audio/web-clap, github.com/WebCLAP/wclap-bridge, github.com/WebCLAP/browser-test-host,
+github.com/bitwig/dawproject, github.com/robbert-vdh/nih-plug, github.com/prokopyl/clack, github.com/vsariola/sointu.
+
+### WebCLAP (WCLAP)
+
+- A CLAP plugin compiled to wasm32. The module exports `clap_entry` and `malloc` (plus its function table) and imports
+  nothing but WASI. Bundle: a directory (or `.wclap.tar.gz`) with `module.wasm` and an optional web UI.
+- **openDAW** (AGPL-3.0 or commercial) hosts WCLAP instruments and effects: Cloud, Community and Local plugins, plus
+  **Load Plugin › Import WebCLAP…** from disk. Every published parameter can be automated, MIDI-learned and modulated;
+  plugin state is saved with the project. Community plugins are built from source with Emscripten 3.1.51 and CLAP
+  headers 1.2.10; the plugin's licence can be any OSI licence (our code does not become AGPL).
+- **wclap-bridge** (Wasmtime): a native CLAP/VST3 plugin that loads WCLAPs, so the same wasm build runs in desktop
+  DAWs. Early; mostly tested on macOS.
+- Test hosts: `webclap.github.io/browser-test-host` (`?module=<url>`), `wclap.plinken.org`.
+
+### DAWproject
+
+An open project-exchange format (Bitwig + PreSonus): tracks, channels, clips, notes, automation, plugin state.
+Supported by Bitwig 5.0.9+, Studio One 6.5 Pro, Cubase 14, Cubasis 3.7.1, VST Live 2.2, n-Track 10.2.2; Reaper via
+git-moss/ProjectConverter; openDAW has `lib-dawproject`. **One importer** replaces a converter per DAW format.
+
+### Options
+
+| Option | Build | Gain | Lose |
+|---|---|---|---|
+| 1. `unisynth` as WCLAP in openDAW | CLAP wrapper over `unisynth` for wasm32 + DAWproject → `song.json` importer | A full web DAW (arrangement, piano roll, automation, MIDI, recording) without UI work | Not bit-exact while composing; no intro timeline sync; depends on a single-maintainer AGPL app |
+| 2. Native CLAP/VST3 + DAWproject import (WaveSabre route, updated) | Plugin via nih-plug (maintenance mode; community fork continues it) or clack + the same importer | Bitwig, Cubase, Studio One, Reaper | Not bit-exact; plugin GUI; paid DAWs |
+| 3. Option 1 built once, native via wclap-bridge | The WCLAP from option 1 | One wasm build for browser and desktop | Bridge maturity |
+| 4. Tracker (Sointu, or Renoise `.xrns` import) | Importer, or copy ideas | Proven for intros | Sointu is a different synth; Renoise is closed source |
+| 5. Native Rust app (egui + cpal, option C) | Own editor | No 128-frame AudioWorklet budget | Second UI stack |
+| Other web DAWs: web synth (synth.ameo.dev), SoundCraft (soundcraft.live), awsm-audio | — | Ideas | Maturity and embeddability not checked |
+
+**The catch for options 1–3:** an outside host runs its own sequencer and automation timing, not the `Mixer` rules
+(100-frame sub-blocks, block-start automation interpolation). What you hear while composing is close, not
+guaranteed bit-exact. The real check is unchanged: import to `song.json`, export the blob, `song render`.
+
+### Recommendation
+
+Keep `packages/daw` as the source of truth: what it plays is what the intro plays. The cheapest addition is
+**option 3**: one WCLAP build of `unisynth` (openDAW in the browser, desktop DAWs through wclap-bridge), plus a
+**DAWproject importer in `crates/song`** so a musician's work comes back as `song.json`. This is §6's hybrid ("B first;
+A later as a thin plugin"), now cheaper. Next step if pursued: a minimal WCLAP wrapper loaded in the browser test
+host and openDAW, checking parameter names/ranges against the `song/1` parameter table.
