@@ -90,7 +90,13 @@ ratio. No decimation aliasing SHALL be reproduced.
 
 ### Requirement: Track effects follow the ratio
 The record's echo, comb, doubler and wrap distortion SHALL map to effects on the track, with delay times scaled by the
-track's playback ratio.
+track's playback ratio. A song0 special SHALL become a wrap only where the original's stored sample wraps: slot 9
+(×1.25). The +48 of slots 11 and 15 never wraps there (the spike wave's DC keeps every value under 80), so it is a DC
+shift and SHALL be dropped.
+
+#### Scenario: A special that never wraps
+- **WHEN** Stash song0's record 10 (slot 11, +48) is converted
+- **THEN** its track has no wrap effect, while record 8 (slot 9, ×1.25) ends its chain with a wrap of drive 1.25
 
 #### Scenario: Echo time follows the ratio
 - **WHEN** a record with echo is triggered at native speed on one channel and one octave up on another
@@ -120,9 +126,13 @@ The converter SHALL replay the XM's control flow with FastTracker 2 semantics:
 - sample offset
 - volume column, volume slides and set volume
 - panning, volume and panning envelopes with sustain and loop, and fadeout
-- pitch slides and tone portamento
+- pitch slides and tone portamento (which keeps the sounding note's instrument)
 - relative note and finetune on the linear frequency table
 - forward and ping-pong loops
+
+#### Scenario: Tone portamento with another instrument
+- **WHEN** a channel's note of an instrument whose volume envelope has reached 0 meets `3xx` naming another instrument
+- **THEN** no new trigger starts, and the sounding note replays its own instrument's envelope from the start
 
 #### Scenario: Note delay
 - **WHEN** a row triggers a phrase with `ED3` at speed 6

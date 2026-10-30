@@ -69,7 +69,13 @@ A non-legato cauldron note-on SHALL set the phrase frame counter to `(velocity â
 
 ### Requirement: Cauldron filter note-on
 A non-legato note-on SHALL restart the cauldron filter as the original's retrigger does: output memory 0, envelope
-part = the amount, the rest of the state running on. A legato note SHALL keep it running.
+part = the amount, the rest of the state running on. A legato note SHALL keep it running. Since the restart zeroes
+the output, the voice SHALL carry the step between its last output and the new note's first frame into the new note
+and fade it out linearly over 1 ms.
+
+#### Scenario: A sounding note cut by a restart
+- **WHEN** a one-voice cauldron instrument restarts while its filtered note sounds
+- **THEN** the output does not drop to 0 in one frame: the step at the restart is no larger than twice the wave's own largest step
 
 #### Scenario: Rising cutoff
 - **WHEN** the decay is above 1 and a legato note follows

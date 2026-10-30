@@ -94,8 +94,8 @@
         filters shift phase per pass, and the circular wrap of steps 13–15 into 0–2 is missing (design D5).
       - song0 r4: rising cutoff passes c ≈ 1 at step 12, where the recurrence turns unstable; the original's integer
         `prev` (fistp, 32-bit) bounds it differently from our float (steps 0–11 match in level and bands).
-      - song0 r10 (+48 wrap): the voice matches (corr 0.99, bands 0.0); the wrap's broadband jumps leave +3.2 dB at
-        2 kHz through the 12 dB/octave low-pass where the reference is cut at its Nyquist.
+      - song0 r10 (+48): the voice matches (corr 0.99, bands 0.0); the excess was a wrap that never fires in the
+        original (DC shift only), now dropped; left: +37 dB at 8 kHz, above its 4.4 kHz stored Nyquist.
       - bluish r7 v3, r8 v2: onset correlation 0.48/0.50; loudness and bands within tolerance.
 
 ## 5. XM reader and control replay (`synth-convert`)

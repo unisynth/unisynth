@@ -41,8 +41,8 @@ part of how they sound. Only the aliasing goes.
 - **Effects**: two new modes.
   - **comb** (`us-fx-flanger-comb`): a feed-forward difference comb plus an optional one-way delay sweep restarted
     by a parameter step. It covers v2's comb and doubler.
-  - **wrap** (`us-fx-distortion-wrap`): drive and offset with modular wrap-around. It covers Stash's three
-    wrap-distorted sounds.
+  - **wrap** (`us-fx-distortion-wrap`): drive and offset with modular wrap-around. It covers Stash's wrap-distorted
+    sound (song0 slot 9); the +48 specials of slots 11 and 15 never wrap in the original and are dropped.
 - **Parity**: `tools/unisynth-parity` gains the three songs (Jizz, Stash song 1, Stash BLUISH) and a per-phrase
   check against the reference renders.
 - **Docs**: a converter section in `docs/synth/unisynth.md`, and the port notes in the mini-cauldron spec point to it.
