@@ -291,8 +291,8 @@ impl<'a, K: Kinds<'a>, R: Rng + Clone> Player<'a, K, R> {
         let _g = crate::denormal::Guard::new();
         for f in out.chunks_exact_mut(2) {
             let (l, r) = self.next_frame();
-            f[0] = ((l * 32767.0) as i32).clamp(-32768, 32767) as i16;
-            f[1] = ((r * 32767.0) as i32).clamp(-32768, 32767) as i16;
+            f[0] = pcm_i16(l);
+            f[1] = pcm_i16(r);
         }
     }
 
@@ -356,8 +356,8 @@ impl<'a, K: Kinds<'a> + Send, R: Rng + Clone> Player<'a, K, R> {
         let _g = crate::denormal::Guard::new();
         for f in out.chunks_exact_mut(2) {
             let (l, r) = self.next_frame_par(par);
-            f[0] = ((l * 32767.0) as i32).clamp(-32768, 32767) as i16;
-            f[1] = ((r * 32767.0) as i32).clamp(-32768, 32767) as i16;
+            f[0] = pcm_i16(l);
+            f[1] = pcm_i16(r);
         }
     }
 
@@ -381,4 +381,11 @@ impl<'a, K: Kinds<'a> + Send, R: Rng + Clone> Player<'a, K, R> {
     pub fn mixer(&self) -> &Mixer<'a> {
         &self.mixer
     }
+}
+
+/// One sample of the upstream 16-bit conversion: `clamp(trunc(x · 32767))` with an `f32` product (toward zero, ties
+/// included; `-1.0 → -32767`; beyond ±1 clipped; NaN → 0). What [`Player::render_i16`] writes.
+#[inline]
+pub fn pcm_i16(x: f32) -> i16 {
+    ((x * 32767.0) as i32).clamp(-32768, 32767) as i16
 }

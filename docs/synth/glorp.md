@@ -151,14 +151,20 @@ ID 28 (devices 11..14 through `GlorpPlayer`, whole song, 55 / 172 / 352 / 65 not
 
 `whole_song_is_accepted_by_the_preflight` (the real song has no unsupported id; an ID 30 chunk with the cascade on over a
 first-order topology is refused naming device and parameter) and `whole_song_through_the_player_matches_the_original_render`
-(`reference_player.rs`, release, ≈ 4 min): `GlorpPlayer` renders the 10,021,344 frames of `389811-2.bin`, scaled to 16 bit
-(round, clip) and compared with the original's own render (`fullA.wav`, whole 128-frame blocks): **23.8 % of samples
-exact, 49.5 % one step off, worst 137 steps (0.42 % of full scale) at 183.2 s**, no device fault. This is tolerance parity
+(`reference_player.rs`, release, ≈ 4 min): `GlorpPlayer` renders the 10,021,344 frames of `389811-2.bin`, converted to 16 bit
+with the core's own rule (`synth_core::mix::pcm_i16` = `Player::render_i16`: `clamp(trunc(x · 32767))`, NaN → 0) and compared
+with the original's own render (`fullA.wav`, whole 128-frame blocks; 10,021,376 frames = ours + 32 zero padding frames):
+**60.397 % of 20,042,688 samples exact, 16.503 % one step off, worst 136 steps (0.42 % of full scale) at 183.2 s**, no
+device fault. (An earlier comparison and export used `round(x · 32768)` and reported 23.8 % / 49.5 % / 137: that was a
+conversion mismatch, not a render difference; `pcm_conversion_is_the_upstream_truncation` pins the rule.) This is tolerance parity
 of the mix, not bit parity: the residual comes from the upstream instruments and effects that are tolerance-parity only
 (ID 25 / 27 / 21 / 20 / 14 at 1e-4 … 1e-3 of peak, 24,395 float samples are at or beyond full scale), which the ID 30
-devices pass on (they reproduce the original exactly **given the original's recorded input**). The attribution is by
-reasoning, not by isolating each device; `GLORP_SONG_WAV=<path>` makes the test write our render (16-bit WAV, outside
-git) for listening. The pinned bound is 160 steps.
+devices pass on (they reproduce the original exactly **given the original's recorded input**). Attribution: the ID 35
+device 27 (song device 27, channel 9) carries the worst error. In the isolated oracle run, replacing it with the original's
+own output drops the worst whole-song difference from 136 to 10 PCM steps (an oracle result reported for this change, with
+the original run network-disabled; it was not re-run here and no proprietary data is copied). The other devices are not
+isolated individually. `GLORP_SONG_WAV=<path>` makes the test write our render (16-bit WAV, same conversion, outside git,
+40,085,420 bytes) for listening. Pinned: worst ≤ 160 steps, exact share ≥ 60 %.
 
 ## ID 21 and the lane interpolation (fixed: per-device `Device::lane_lerp`)
 

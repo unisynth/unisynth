@@ -174,6 +174,41 @@ fn original_wav(out: &Path) -> Vec<i16> {
     raw[44..].chunks_exact(2).map(|c| i16::from_le_bytes([c[0], c[1]])).collect()
 }
 
+/// The 16-bit conversion of the whole-song comparison and export: the core's own (`Player::render_i16` uses it too).
+use synth_core::mix::pcm_i16 as to_pcm;
+
+/// The upstream conversion is `clamp(trunc(x · 32767))` with an `f32` product (`Player::render_i16`), not a rounded
+/// `· 32768`. Expected values are written out by hand from that rule: truncation toward zero, ties included, full scale
+/// `-1.0 → -32767`, clipping both ways, NaN → 0.
+#[test]
+fn pcm_conversion_is_the_upstream_truncation() {
+    let cases: &[(f32, i16)] = &[
+        (0.0, 0),
+        (-0.0, 0),
+        (1.0, 32767),
+        (-1.0, -32767),            // the old rule gave -32768
+        (0.5, 16383),              // 16383.5 truncates; the old rule rounded to 16384
+        (-0.5, -16383),
+        (1.5 / 32768.0, 1),        // the old rule's tie (1.5 steps) rounded away to 2
+        (-1.5 / 32768.0, -1),
+        (0.5 / 32768.0, 0),
+        (1.0 / 32767.0, 1),        // exactly one step
+        (2.0 / 32767.0 * 0.999, 1),
+        (-32768.0 / 32767.0, -32768), // the lowest code is reached exactly
+        (1.0 + 1.0 / 32767.0, 32767),
+        (2.0, 32767),
+        (-2.0, -32768),
+        (1e30, 32767),
+        (-1e30, -32768),
+        (f32::INFINITY, 32767),
+        (f32::NEG_INFINITY, -32768),
+        (f32::NAN, 0),
+    ];
+    for &(x, want) in cases {
+        assert_eq!(to_pcm(x), want, "x = {x:e}");
+    }
+}
+
 #[test]
 fn whole_song_is_accepted_by_the_preflight() {
     let Some(fx) = fixtures() else {
@@ -205,7 +240,7 @@ fn whole_song_is_accepted_by_the_preflight() {
 }
 
 /// The whole real song through `GlorpPlayer` (every device, every lane, every note) against the original's own render.
-/// Our output is float: `· 32768`, rounded, clipped to the 16-bit range the original writes. Reports the exact share
+/// Our output is float, converted with the core's `render_i16` rule (`clamp(trunc(x · 32767))`, `pcm_i16`). Reports the exact share
 /// and the worst difference in 16-bit steps, and saves nothing in the repository.
 #[test]
 fn whole_song_through_the_player_matches_the_original_render() {
@@ -234,7 +269,7 @@ fn whole_song_through_the_player_matches_the_original_render() {
             let n = 4096.min(frames - done);
             p.render_f32(&mut buf[..2 * n]).expect("no device may fault");
             for (i, &x) in buf[..2 * n].iter().enumerate() {
-                let q = (x as f64 * 32768.0).round().clamp(-32768.0, 32767.0) as i32;
+                let q = to_pcm(x) as i32;
                 clipped += (x.abs() >= 1.0) as usize;
                 let d = (q - want[2 * done + i] as i32).abs();
                 exact += (d == 0) as usize;
@@ -265,6 +300,13 @@ fn whole_song_through_the_player_matches_the_original_render() {
             f.write_all(&v).unwrap();
         }
         let total = 2 * frames;
+        let pad = &want[total..];
+        eprintln!(
+            "lengths: ours {frames} frames, original {} frames, original padding {} frames (all zero: {})",
+            want.len() / 2,
+            pad.len() / 2,
+            pad.iter().all(|&s| s == 0)
+        );
         eprintln!(
             "whole song: {total} samples, {exact} exact ({:.3} %), {off_by_one} off by one 16-bit step ({:.3} %), worst {worst} steps at sample {worst_at} ({} s), {clipped} float samples at or beyond full scale",
             100.0 * exact as f64 / total as f64,
@@ -272,15 +314,21 @@ fn whole_song_through_the_player_matches_the_original_render() {
             worst_at as f64 / 2.0 / 44100.0,
         );
         assert!(worst <= WHOLE_SONG_WORST_STEPS, "worst difference {worst} steps exceeds {WHOLE_SONG_WORST_STEPS}");
+        assert!(exact as f64 >= WHOLE_SONG_EXACT_SHARE * total as f64, "only {exact} of {total} samples exact (< {WHOLE_SONG_EXACT_SHARE})");
     });
 }
 
 /// Largest per-sample difference (in 16-bit steps) tolerated between the whole song through the player and the
-/// original's render. Measured over the whole song (20,042,688 samples): 23.8 % exact, 49.5 % one step off, worst 137 steps
-/// (0.42 % of full scale) at 183.2 s. The residual is carried by the instruments and effects that are tolerance-parity only
+/// original's render. Measured over the whole song (20,042,688 samples) with the upstream conversion (`pcm_i16`):
+/// 60.397 % exact, 16.503 % one step off, worst 136 steps (0.42 % of full scale) at 183.2 s (the earlier `round(x · 32768)`
+/// comparison gave 23.8 % / 49.5 % / 137: a conversion mismatch, not a render difference). The residual is carried by the instruments and effects that are tolerance-parity only
 /// (ID 25 / 27 / 21 / 20: 1e-4..1e-3 of the peak, see their suites); the ID 30 devices are bit-exact (devices 15 / 16 / 17 /
 /// 18 / 21) or within 1.4e-4 (device 20) given the recorded input, so they only pass those input errors on.
 const WHOLE_SONG_WORST_STEPS: i32 = 160;
+
+/// Lower bound on the exact share of the whole-song comparison (measured 0.60397): catches a return to a rounded `· 32768`
+/// conversion (0.238).
+const WHOLE_SONG_EXACT_SHARE: f64 = 0.60;
 
 // ---- GlorpPlayer on the real chunks and lanes ----
 
