@@ -140,7 +140,8 @@ fn effect_params(k: u8, mode: usize) -> Vec<(&'static str, f32)> {
             ("high_cut", hz(20_000.0)), ("high_cut_q", 0.5), ("master", 1.0),
         ],
         // Tunefish band gain is 2p below the middle: 0.5 = unity (the engine's own 0 would silence the track)
-        (kind::EQ, 1) => vec![("low", 0.5), ("mid", 0.5), ("high", 0.5)],
+        // pan 0: off (both channels); a byte 1..255 pans equal-power after the bands (a converted XM pans after its chain)
+        (kind::EQ, 1) => vec![("low", 0.5), ("mid", 0.5), ("high", 0.5), ("pan", 0.0)],
         (kind::DELAY, 0) => vec![
             ("left_coarse", 3.0 / 16.0), ("left_fine", 0.0), ("right_coarse", 4.0 / 16.0), ("right_fine", 0.0),
             ("low_cut", hz(20.0)), ("high_cut", hz(19_980.0)), ("feedback", 0.5), ("cross", 0.0), ("dry_wet", 0.5),
