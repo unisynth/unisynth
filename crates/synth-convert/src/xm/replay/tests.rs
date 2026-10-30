@@ -156,6 +156,24 @@ fn envelopes_hold_at_sustain_loop_and_fade_after_key_off() {
 }
 
 #[test]
+fn a_tone_portamento_with_another_instrument_keeps_the_playing_one() {
+    // FT2 (openmpt in FT2 mode): 3xx with a new instrument number keeps the sounding sample and its instrument; the
+    // number only resets the volume and restarts that instrument's envelope. Song 1's channel 6: instrument 9's
+    // looped drum, its envelope long at 0, met `C-4 ins 20 300`; taking instrument 20's settings (no envelope) brought
+    // the loop back at full volume for 12 s where openmpt plays instrument 9's envelope once more (1.2 s) and stops
+    let env = Env { points: vec![(0, 64), (10, 0)], sustain: 0, loop_start: 0, loop_end: 0, flags: 1 };
+    let porta = Cell { note: C5, instrument: 2, volume: 0, effect: 3, param: 0 };
+    let r = run(&song(6, &[(0, note(C5, 0, 0)), (4, porta)], vec![ins(env, 0), ins(Env::default(), 0)]));
+    assert_eq!(r.triggers.len(), 1, "no new trigger");
+    let t = &r.triggers[0];
+    assert_eq!(t.instrument, 0);
+    let v: Vec<f64> = t.ticks.iter().map(|c| (c.vol * 64.0).round()).collect();
+    assert_eq!(v[23], 0.0, "instrument 1's envelope ran out: {v:?}");
+    // row 4 (tick 24): instrument 1's envelope restarts, then runs out again
+    assert!(v[24] > 0.0 && v[24 + 10] == 0.0 && v.last() == Some(&0.0), "{v:?}");
+}
+
+#[test]
 fn pattern_break_and_delay() {
     let mut x = song(4, &[(0, note(C5, 0xD, 0x02))], vec![ins(Env::default(), 0)]);
     x.patterns[0].cells[3] = note(C5, 0, 0);

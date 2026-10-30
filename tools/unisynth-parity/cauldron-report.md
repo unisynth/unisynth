@@ -9,7 +9,7 @@ Generated 2026-10-30 by `bun tools/unisynth-parity/cauldron.ts`. Reference: `ope
 | name | result | loudness Δ dB | worst band Δ dB | alignment corr | ping-pong s | notes |
 |---|---|---:|---:|---:|---:|---|
 | jizz | PASS | 0.33 | -3.30 @ 16000 | 0.72 | 0.00 |  |
-| stash_song1 | PASS | 0.37 | 1.30 @ 8000 | 0.70 | 473.50 | 26 converter warning(s) |
+| stash_song1 | PASS | 0.23 | 0.73 @ 8000 | 0.72 | 473.50 | 26 converter warning(s) |
 | stash_bluish | PASS | 0.13 | -2.93 @ 16000 | 0.68 | 160.60 | 9 converter warning(s) |
 
 ## Phrases

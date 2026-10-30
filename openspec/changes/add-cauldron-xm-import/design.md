@@ -384,6 +384,15 @@ calibration of 6.2.
   After the click fixes phrases are 85 of 88 (BLUISH 7/3 and 8/2 now pass); songs: Jizz +0.48 dB, song 1 +0.75 dB,
   BLUISH +0.31 dB. After pan-after-chain and the aged entry: Jizz +0.33, song 1 +0.38 (worst band 1.31 dB), BLUISH
   +0.16. After the handover (song 1 106 phrase tracks, BLUISH 64): song 1 +0.37 dB (worst band 1.30), BLUISH +0.13.
+  After the portamento fix (Replay, below): song 1 +0.23 dB, worst band 0.73 dB.
+- **Tone portamento keeps the playing instrument** (song 1, 38–51 s: a bright drum loop where openmpt is silent).
+  FT2 (openmpt in FT2 mode, checked on a one-channel copy of the song) keeps the sounding sample *and* its instrument
+  when a `3xx` cell carries another instrument number; the number only resets the volume and restarts that
+  instrument's envelope. The replay took the new instrument's (no envelope), reviving channel 6's long-silent
+  ping-pong drum loop at full volume for 12 s. Tried and dropped: a stored-sample low-pass at the playback Nyquist
+  (it removed interpolation images above 16 kHz, but openmpt's sinc keeps part of them: the songs' 16 kHz bands
+  fell 1–12 dB under) and two-voice retrigger crossfades (no measurable change: the loud hit edges start from
+  silence).
   Song 1's by record (isolated renders): records 3, 4 and 10 carry their phrase deviations (D5/D11: 26–48 s, −2 to
   −4 dB); record 7's riser (92–98 s, 180 s) plays +2 to +6 dB and record 1's (16 s) +4 dB, open; the intro (0–8 s)
   and the last seconds differ in the top bands.

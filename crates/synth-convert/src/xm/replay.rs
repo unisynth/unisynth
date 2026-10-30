@@ -333,7 +333,11 @@ fn note_on(x: &Xm, ch: &mut Ch, cell: &Cell, c: usize, (tick, frame, t): (usize,
         if cell.instrument as usize > x.instruments.len() {
             return Err(format!("instrument {} does not exist (channel {c})", cell.instrument));
         }
-        ch.ins = cell.instrument as usize;
+        // FT2: a tone portamento keeps the sounding note's instrument; its number only resets the volume and restarts
+        // that instrument's envelopes (below)
+        if !(cell.effect == 3 && ch.cur.is_some()) {
+            ch.ins = cell.instrument as usize;
+        }
     }
     if cell.note == 97 {
         ch.key_on = false;
