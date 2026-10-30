@@ -6,6 +6,10 @@
 //! synth-convert v2m   <in.v2m> <out.song> [tail-s]     Farbrausch V2 song (format versions 0–6) → unified song
 //! synth-convert patch <patch.txt> <phrase.txt> <out.song>
 //!                                                       one Tunefish patch (112 numbers) played by a phrase (`block note velocity` lines)
+//! synth-convert xm-phrase <patches.json> <call> <record> <variant> <out.song>
+//! synth-convert xm <in.xm> <patches.json> <out.song>
+//! synth-convert xm-triggers <in.xm>
+//!                                                       one mini-cauldron phrase trigger (call jizz | bluish | song0; parity entry)
 //! synth-convert features <song>                          the unisynth cargo features the unified song needs (comma separated)
 //! synth-convert features <song> --explain|--json [--cost marginal.csv]
 //!                                                       the same with what calls for each feature, and its marginal size
@@ -14,7 +18,7 @@
 use std::process::ExitCode;
 use synth_convert::Converted;
 
-const USAGE: &str = "usage: synth-convert ws <in.song> <out.song>\n       synth-convert tfm <in.tfm> <out.song> [tail-seconds]\n       synth-convert v2m <in.v2m> <out.song> [tail-seconds] [--channels hex] [--era auto|kkrieger2004]   (Farbrausch V2, format versions 0-6)\n       synth-convert tf4m <in.tf4m> <out.song> [tail-seconds]   (2013 Tunefish 4 of Enigma Studio 4)\n       synth-convert tf4m-tfm <in.tf4m> <out.tfm>   (the same song in the final .tfm layout)\n       synth-convert patch <patch.txt> <phrase.txt> <out.song>\n       synth-convert features <unified.song> [--explain | --json] [--cost <marginal.csv>]\n       synth-convert rust <unified.song> <out.rs> [bank.dls]   (compo build: validated song as Rust + module assert)";
+const USAGE: &str = "usage: synth-convert ws <in.song> <out.song>\n       synth-convert tfm <in.tfm> <out.song> [tail-seconds]\n       synth-convert v2m <in.v2m> <out.song> [tail-seconds] [--channels hex] [--era auto|kkrieger2004]   (Farbrausch V2, format versions 0-6)\n       synth-convert tf4m <in.tf4m> <out.song> [tail-seconds]   (2013 Tunefish 4 of Enigma Studio 4)\n       synth-convert tf4m-tfm <in.tf4m> <out.tfm>   (the same song in the final .tfm layout)\n       synth-convert patch <patch.txt> <phrase.txt> <out.song>\n       synth-convert xm <in.xm> <patches.json> <out.song>   (a mini-cauldron XM: TBL Jizz, Stash)\n       synth-convert xm-phrase <patches.json> <jizz|bluish|song0> <record> <variant> <out.song>   (one mini-cauldron phrase)\n       synth-convert xm-triggers <in.xm>   (the XM replay's triggers: start s, volume, offset)\n       synth-convert features <unified.song> [--explain | --json] [--cost <marginal.csv>]\n       synth-convert rust <unified.song> <out.rs> [bank.dls]   (compo build: validated song as Rust + module assert)";
 
 fn read(path: &str) -> Result<Vec<u8>, String> {
     std::fs::read(path).map_err(|e| format!("{path}: {e}"))
@@ -102,6 +106,43 @@ fn run(args: &[String]) -> Result<(), String> {
             let last = ph.iter().map(|e| e.0).max().unwrap_or(0) as f64;
             let length = (last + 1.0) * 512.0 / 44_100.0 + 2.0;
             finish(synth_convert::tfm::convert_patch(&p, &ph, 120, length).map_err(|e| format!("{patch}: {e}"))?, output)
+        }
+        ["xm-phrase", patches, call, record, variant, output] => {
+            let p = synth_convert::cauldron::load(&text(patches)?).map_err(|e| format!("{patches}: {e}"))?;
+            let c = p.call(call).ok_or_else(|| format!("{patches}: no call `{call}` (jizz, bluish, song0)"))?;
+            let num = |s: &str, what: &str| s.parse::<usize>().map_err(|_| format!("{what} `{s}` is not a number"));
+            let (record, variant) = (num(record, "record")?, num(variant, "variant")?);
+            let r = c.records.get(record).ok_or_else(|| format!("{call} has {} records, not {}", c.records.len(), record + 1))?;
+            if variant >= r.variants as usize {
+                return Err(format!("{call} record {record} has {} variants", r.variants));
+            }
+            let (song, lead) = synth_convert::cauldron::phrase_song(c, record, variant, 44100);
+            eprintln!("lead-frames {lead}");
+            std::fs::write(output, song.write()).map_err(|e| format!("{output}: {e}"))
+        }
+        ["xm", input, patches, output] => {
+            // a mini-cauldron XM with its patch data (change add-cauldron-xm-import); an error writes nothing
+            let p = synth_convert::cauldron::load(&text(patches)?).map_err(|e| format!("{patches}: {e}"))?;
+            let x = synth_convert::xm::parse(&read(input)?).map_err(|e| format!("{input}: {e}"))?;
+            let c = synth_convert::cauldron::import::convert(&p, &x, 44100).map_err(|e| format!("{input}: {e}"))?;
+            for w in &c.warnings {
+                eprintln!("warning: {w}");
+            }
+            eprintln!("tracks {} phrase, {} stored", c.tracks.0, c.tracks.1);
+            eprintln!("pingpong-seconds {:.1}", c.pingpong);
+            eprintln!("muted-seconds {:.1}", c.muted);
+            eprintln!("lead-frames {}", c.lead);
+            std::fs::write(output, c.song.write()).map_err(|e| format!("{output}: {e}"))
+        }
+        ["xm-triggers", input] => {
+            // the replay's triggers as "<start s> <first-tick volume> <offset> <channel> <instrument> <sample> <note>" lines (parity onset check, task 5.2)
+            let x = synth_convert::xm::parse(&read(input)?).map_err(|e| format!("{input}: {e}"))?;
+            let r = synth_convert::xm::replay::replay(&x, 44100).map_err(|e| format!("{input}: {e}"))?;
+            for t in &r.triggers {
+                println!("{:.6} {:.4} {} {} {} {} {}", t.at, t.ticks.first().map_or(0.0, |c| c.vol), t.offset, t.channel, t.instrument + 1, t.sample, t.note);
+            }
+            eprintln!("length {:.6}", r.length);
+            Ok(())
         }
         ["features", input] => {
             println!("{}", synth_convert::features::features(&read(input)?).map_err(|e| format!("{input}: {e}"))?.join(","));

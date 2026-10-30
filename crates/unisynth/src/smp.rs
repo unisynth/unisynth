@@ -395,7 +395,7 @@ pub fn load<'a>(
     Ok((out, insts))
 }
 
-#[cfg(all(test, feature = "us-env-timed"))] // the tests load default patches
+#[cfg(all(test, feature = "us-env-seconds"))] // the tests load default patches
 mod tests {
     use super::*;
     use crate::chunk::encode;

@@ -165,6 +165,96 @@ fn mono_legato_slides_without_retriggering() {
     });
 }
 
+#[cfg(all(feature = "us-voice-glide", feature = "us-voice-mono", feature = "us-osc-cauldron"))]
+#[test]
+fn a_legato_note_keeps_the_cauldron_phase() {
+    // a cauldron saw in mono-legato mode: a legato note slides on without resetting the phase to -32766
+    let edits = [(osc(0, o::TYPE), osc_type::encode(osc_type::CAULDRON)), (v::MODE, 1.0), (v::SLIDE, inv::inv_time(0.5))];
+    let run = |evs: &[Ev]| with_ins(&patch(&edits), 44100.0, |ins| render(ins, 44100.0, evs, 1100, 1100).0);
+    let held = run(&[on(0, 60)]);
+    let legato = run(&[on(0, 60), on(1000, 72)]);
+    assert_eq!(held[..1000], legato[..1000]);
+    for n in 1000..1008 {
+        assert!((held[n] - legato[n]).abs() < 1e-3, "frame {n}: {} vs {}", held[n], legato[n]);
+    }
+    // the legato note slid: one voice, started once; a note after a release starts a voice again
+    let starts = |evs: &[Ev]| with_ins(&patch(&edits), 44100.0, |ins| {
+        render(ins, 44100.0, evs, 1100, 1100);
+        ins.voices().iter().map(|v| v.starts).sum::<u32>()
+    });
+    assert_eq!(starts(&[on(0, 60), on(1000, 72)]), 1);
+    assert_eq!(starts(&[on(0, 60), off(990, 60), on(1000, 72)]), 2);
+}
+
+#[cfg(feature = "us-voice-mono")]
+#[test]
+fn a_legato_note_keeps_the_cauldron_filter_rising() {
+    // a rising cauldron filter (decay 1.0001 per phrase frame, one phrase frame per output frame): across a legato
+    // note its envelope part keeps growing from the first note-on; a note after a release restarts it at the amount
+    use crate::params::shape as sp;
+    let sh = |i| osc(0, o::SHAPE + i);
+    let edits = [
+        (osc(0, o::TYPE), osc_type::encode(osc_type::CAULDRON)),
+        (v::MODE, 1.0),
+        (sh(sp::CD_F_BASE), 0.001 / 8.0),
+        (sh(sp::CD_F_AMOUNT), 0.01 / 8.0),
+        (sh(sp::CD_F_DECAY), 0.49),
+        (sh(sp::CD_F_DAMP), 0.1),
+    ];
+    let v1 = |evs: &[Ev]| with_ins(&patch(&edits), 44100.0, |ins| {
+        render(ins, 44100.0, evs, 1100, 1100);
+        ins.voices().iter().filter(|v| v.starts > 0).map(|v| v.slots[0].cd.v1).collect::<Vec<f64>>()
+    });
+    let amount = (0.01f32 / 8.0) as f64 * 8.0;
+    let d = 1.0 + (0.5 - 0.49f32 as f64) / 100.0;
+    let rel = |x: f64, y: f64| (x - y).abs() < 1e-9 * y;
+    // legato: one voice, 1100 frames of growth since the first note-on
+    let legato = v1(&[on(0, 60), on(1000, 72)]);
+    assert!(legato.len() == 1 && rel(legato[0], amount * d.powi(1100)), "{legato:?}");
+    // after a release: the new voice restarted at the amount 100 frames ago
+    let restarted = v1(&[on(0, 60), off(990, 60), on(1000, 72)]);
+    assert!(restarted.iter().any(|&x| rel(x, amount * d.powi(100))), "{restarted:?}");
+}
+
+#[cfg(feature = "us-osc-cauldron")]
+#[test]
+fn transpose_and_bend_resample_the_cauldron_phrase() {
+    // an octave of transpose (or bend) is a playback twice as fast: the phrase clock doubles with the pitch, so the
+    // rising filter envelope (per phrase frame) has grown twice as many frames after 1100 output frames
+    use crate::params::{ctl, shape as sp};
+    let sh = |i| osc(0, o::SHAPE + i);
+    let base = [
+        (osc(0, o::TYPE), osc_type::encode(osc_type::CAULDRON)),
+        (sh(sp::CD_F_BASE), 0.001 / 8.0),
+        (sh(sp::CD_F_AMOUNT), 0.01 / 8.0),
+        (sh(sp::CD_F_DECAY), 0.49),
+        (sh(sp::CD_F_DAMP), 0.1),
+    ];
+    let v1 = |extra: &[(usize, f32)]| {
+        let edits: std::vec::Vec<(usize, f32)> = base.iter().chain(extra).copied().collect();
+        with_ins(&patch(&edits), 44100.0, |ins| {
+            render(ins, 44100.0, &[on(0, 60)], 1100, 1100);
+            ins.voices()[0].slots[0].cd.v1
+        })
+    };
+    let amount = (0.01f32 / 8.0) as f64 * 8.0;
+    let d = 1.0 + (0.5 - 0.49f32 as f64) / 100.0;
+    let rel = |x: f64, y: f64| (x - y).abs() < 1e-6 * y;
+    assert!(rel(v1(&[]), amount * d.powi(1100)));
+    assert!(rel(v1(&[(v::TRANSPOSE, inv::inv_transpose(12.0))]), amount * d.powi(2200)));
+    // bend +12 of a 24 range: the same
+    assert!(rel(v1(&[(ctl::BEND_RANGE, inv::inv_bend_range(24.0)), (ctl::BEND, 0.75)]), amount * d.powi(2200)));
+    // the envelopes follow the rate too: a 200 ms release after a note-off at 1000 ends twice as soon an octave up
+    let tail = |extra: &[(usize, f32)]| {
+        let mut edits: std::vec::Vec<(usize, f32)> = base.iter().chain(extra).copied().collect();
+        edits.push((crate::params::env(0, crate::params::e::RELEASE), inv::inv_env_ms(200.0)));
+        let out = with_ins(&patch(&edits), 44100.0, |ins| render(ins, 44100.0, &[on(0, 60), off(1000, 60)], 20_000, 20_000).0);
+        out.iter().rposition(|x| x.abs() > 1e-4).unwrap() as f64 - 1000.0
+    };
+    let (plain, up) = (tail(&[]), tail(&[(v::TRANSPOSE, inv::inv_transpose(12.0))]));
+    assert!((up / plain - 0.5).abs() < 0.05, "release {plain} frames, an octave up {up}");
+}
+
 /// Renders `n` frames at absolute frame `from` (no scripted events), returns the output.
 fn render_from(ins: &mut UInstrument, from: u64, n: usize) -> (Vec<f32>, Vec<f32>) {
     let mut rng = Lcg(1);
@@ -915,18 +1005,18 @@ mod osc_dls_instrument;
 mod flt_noise;
 
 /// Without the channel stage's build an aux oscillator has no extra input pairs: the patch does not load.
-#[cfg(all(feature = "us-osc-v2", feature = "us-env-timed", not(feature = "us-chan")))]
+#[cfg(all(feature = "us-osc-naive", feature = "us-env-seconds", not(feature = "us-strip")))]
 #[test]
 fn an_aux_oscillator_needs_the_channel_stage_build() {
     let mut p = pm::DEFAULTS;
     p[pm::osc(0, o::TYPE)] = osc_type::encode(osc_type::V2);
     p[pm::osc(0, o::SHAPE + pm::shape::V2_MODE)] = 7.0 / 128.0;
     let c = crate::chunk::encode(&p, &[]);
-    assert_eq!(UInstrument::need(&c).err(), Some(LoadError::UnsupportedModule(crate::module::CHAN)));
+    assert_eq!(UInstrument::need(&c).err(), Some(LoadError::UnsupportedModule(crate::module::STRIP)));
 }
 
 // V2 modules (change add-v2-import)
-#[cfg(all(feature = "us-osc-v2", feature = "us-flt-v2", feature = "us-flt-route", feature = "us-vdist", feature = "us-env-v2", feature = "us-lfo-v2", feature = "us-v2-voice", feature = "us-chan", feature = "us-matrix-add", feature = "us-voice-lfo"))]
+#[cfg(all(feature = "us-osc-naive", feature = "us-flt-feedback", feature = "us-flt-parallel", feature = "us-drive", feature = "us-env-frame", feature = "us-lfo-frame", feature = "us-voice-out", feature = "us-strip", feature = "us-matrix-add", feature = "us-voice-lfo"))]
 mod v2;
 
 #[cfg(all(feature = "probe", feature = "us-osc-pm", feature = "us-osc-sample", feature = "us-sample-dls", feature = "us-sample-gsm", feature = "us-flt-svf", feature = "us-voice-lfo"))]
@@ -951,7 +1041,7 @@ mod golden;
     feature = "us-osc-sample",
     feature = "us-sample-dls",
     feature = "us-sample-gsm",
-    feature = "us-env-timed"
+    feature = "us-env-seconds"
 ))]
 mod pool;
 

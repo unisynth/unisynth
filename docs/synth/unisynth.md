@@ -60,7 +60,8 @@ flowchart LR
 ```
 
 - **Oscillator types:** phase-mod operator (Falcon), band-limited saw/pulse (Slaughter), spectral wavetable (Tunefish,
-  1–10 unison layers), sampler (GSM sample from the chunk, a GM.DLS wave or a GM.DLS instrument with its key/velocity regions).
+  1–10 unison layers), sampler (GSM sample from the chunk, a GM.DLS wave or a GM.DLS instrument with its key/velocity regions),
+  V2's naive oscillator, and the cauldron oscillator (TBL's mini-cauldron waveforms).
 - **Filter types:** state-variable LP/HP/BP/notch, ladder LP, RBJ HP/BP, resonator notch.
 - **Envelopes:** each picks the WaveSabre curve (ms, linear attack, quadratic decay/release) or the Tunefish curve
   (rate steps with a slope); envelope 1 ends the voice.
@@ -80,26 +81,26 @@ flowchart LR
 | oscillator ×3 | 16–81 | 22 each | type, tracking, coarse, fine, octave, ratio, ratio fine, fixed Hz, gain, mix, pan, pm-out, feedback, shape[9] |
 | noise | 82–84 | 3 | band on, hp, lp |
 | filter ×4 | 85–96 | 3 each | type, cutoff, resonance |
-| envelope ×4 | 97–120 | 6 each | mode, attack, decay, sustain, release, slope |
+| envelope ×4 | 97–120 | 6 each | law (seconds, rate, frame), attack, decay, sustain, release, curve_slope |
 | LFO ×2 | 121–128 | 4 each | shape, rate, depth, sync |
 | mod slot ×12 | 129–176 | 4 each | source, target, amount, operation |
 | sample index ×3 | 177–179 | 1 each | raw: the GSM sample number (1-based, 0 = none), DLS wave index or packed DLS instrument of oscillator slot 1–3 (`osc1.sample` …) |
 | controllers | 180–182 | 3 | `ctl.wheel` (0..1), `ctl.bend` (0..1, centre 0.5), `ctl.bend_range` (0..24 semitones, default 2) |
 | ext | 183 | 1 | `noise.width` |
-| V2 voice | 184–188 | 5 | `v2.voice` (off/on), `v2.keysync`, `v2.era` (`count 0..6`, default 6), `v2.routing`, `v2.balance` |
-| voice distortion | 189–192 | 4 | `vdist.mode/gain/p1/p2` |
-| envelope amplify ×4 | 193–196 | 1 each | `envN.amplify` (V2 envelope mode) |
-| LFO extras ×2 | 197–204 | 4 each | `lfoN.mode` (unisynth / V2 laws), `phase`, `polarity`, `eg` (one-shot) |
+| voice output | 184–188 | 5 | `voice.stage` (off/on), `voice.keysync`, `voice.era` (`count 0..6`, default 6), `voice.routing`, `voice.balance` |
+| drive | 189–192 | 4 | `drive.mode/gain/p1/p2` |
+| envelope amplify ×4 | 193–196 | 1 each | `envN.amplify` (frame law) |
+| LFO extras ×2 | 197–204 | 4 each | `lfoN.law` (unisynth / frame), `phase`, `polarity`, `one_shot` |
 | mod slot 13–16 | 205–220 | 4 each | as slots 1–12 (`us-matrix-add`) |
 | controllers 2–7 | 221–226 | 6 | `ctl.cc2` … `ctl.cc7` (breath, 3–6, volume; default CC7 = 127/128) |
-| channel stage | 227–237 | 11 | `ch.on`, `volume`, `boost`, `fx_order`, `send_reverb/delay/aux_a/aux_b`, `recv_aux_a/b`, `speech` |
-| free | 238–239 | 2 | |
-| channel stage, two-byte | 240–259 | 20 | `ch.dist_*` ×4, `ch.chorus_*` ×7, `ch.comp_*` ×9 |
+| channel strip | 227–236 | 10 | `strip.on`, `volume`, `boost`, `order`, `send_reverb/delay/aux_a/aux_b`, `recv_aux_a/b` |
+| speech | 237–239 | 3 | `speech.on`, `speech.select`, `speech.pitch` |
+| channel strip, two-byte | 240–259 | 20 | `strip.drive_*` ×4, `strip.chorus_*` ×7, `strip.comp_*` ×9 |
 
-**V2 fields** store `V2 raw / 128` (`params::v2_raw`); the V2 code runs on the raw value plus its Add routes. That
-holds for every appended V2 parameter and for the existing fields that a V2 type or mode reads: oscillator
-coarse/fine/gain/shape, filter cutoff/resonance, envelope fields, LFO fields, and voice pan/transpose with `v2.voice`
-on. The defaults are V2's initial patch values with the stage switches off, so an older patch is unchanged.
+**7-bit fields** store `step / 128` (`params::v2_raw`); that code runs on the step value plus its Add routes. That
+holds for every appended parameter and for the existing fields that a naive type or the frame law reads: oscillator
+coarse/fine/gain/shape, filter cutoff/resonance, envelope fields, LFO fields, and voice pan/transpose with
+`voice.stage` on. The defaults are V2's initial patch values with the stage switches off, so an older patch is unchanged.
 
 **Expanded choices.** Oscillator type, filter type, envelope mode, mod source and mod operation gained kinds without
 moving stored values. A choice of `n` kinds is read as `choice(p, 2n − 1)` (`params::kinds`): the old kind `k`
@@ -116,6 +117,7 @@ unused positions).
 | saw/pulse | waveform (saw → pulse), pulse width |
 | wavetable | bandwidth, harmonics, damp, scale, mod, drive, layers, layer detune, layer spread |
 | sampler | start, loop mode, loop boundary, loop start, loop length, reverse, interpolation, source (GSM / DLS instrument / DLS wave), (unused: the sample index is the raw value 177–179) |
+| cauldron | wave `choice(p, 6)`, voices `round(10p)`, version `choice(p, 3)` (0 v1, ½ v2 in a glide, 1 v2), clock `p·2²⁰` Hz, retrigger byte `round(255p)` = `2k + accent`, filter base `8p`, filter amount `8p`, filter decay `1 + (0.5 − p)/100`, filter damping `p` (see [Cauldron](#cauldron-us-osc-cauldron)) |
 
 Structural parameters (voice capacity, each oscillator type, each sampler source, the three sample indices) are read from the chunk
 only; `set_param` ignores them, so automation cannot change what was sized at load.
@@ -162,7 +164,7 @@ by a `u16` count of 255 or more. An index byte `b < 0xF0` is the index, and `0xF
 index `240 + 256k + x` (up to 4335). Chunks written before the escapes have the same bytes and the same meaning. The
 encoder writes the shortest form, and the reader rejects an escaped count below 255. A two-byte index is always 240 or
 more, so every index has one form. A version 2 chunk without `us-speech` fails with `UnsupportedModule(SPEECH)`. Reading
-escapes is module `us-chunk-wide` (implied by `us-chan`). Without it, an escape fails with
+escapes is module `us-chunk-wide` (implied by `us-strip`). Without it, an escape fails with
 `UnsupportedModule(CHUNK_WIDE)`, and the reader steps through 5-byte pairs as before, so a song without V2 pays
 nothing here (design D4, D11).
 
@@ -453,6 +455,82 @@ flowchart LR
   off; the converter never emits one.
 - The sampler has no phase input; its output can still be sent into the next slot (`pm-out`).
 
+### Cauldron (`us-osc-cauldron`)
+
+The waveforms of Probe's mini-cauldron, the precalc sample synth of TBL's Jizz and Stash (1997), for songs converted
+from those intros (`synth-convert xm`, change add-cauldron-xm-import). Algorithm and sources:
+`research/tbl-mini-cauldron/mini-cauldron-spec.md`. The type is stored at odd position 3 of the expanded type choice
+(0.375).
+
+- **Phase.** A signed 16-bit phase word as in the original, naive (not band-limited): the aliasing is the sound. The
+  original pitch word is `inc·65536/clock`, where `clock` is the phrase frames per output frame (`shape[3]`: the
+  original's internal rate 35 441.2 Hz times the playback ratio, over the song rate; 0 means one per output frame).
+- **Phrase clock.** The slot (waveform and filter) runs one original frame per phrase frame and a 4-point cubic
+  (Catmull-Rom) resamples it to the song rate, so the naive waveforms alias as the original's do at its own rate
+  (rendered directly at 44.1 kHz they aliased elsewhere: +3.7 dB in a 63 Hz band). Latency: 2 phrase frames.
+- **Note-on.** A non-legato note-on sets the phase to −32766 (the original's retrigger) and the phrase frame counter
+  `t` to `(velocity − 1)` eighths of a 3530-frame step: the converter writes each note's phrase position as its
+  velocity (an automation value is one byte, too coarse for a frame count). A legato note keeps both. Converted
+  instruments set the velocity sensitivity to 0.
+- **Phase byte** (`o::PM_OUT`; the cauldron slot sends nothing into the next slot). 0 keeps the second saw running
+  across note-ons; b ≥ 1 sets it to `(b − 1)/255` turn at a non-legato note-on. The converter replays the original's
+  second saw to write it before each retrigger: the starting phase decides how a low note's detuned pair beats.
+- **Age byte.** A cauldron slot always tracks the note, so its `o::TRACKING` is the filter envelope's age at a
+  note-on (`osc::cauldron_age`): 0 restarts the envelope at the amount (a retrigger), b ≥ 1 enters `(b − 1)` eighth
+  steps after the last retrigger, the envelope at `a·d^n` (a converted XM jumping into a phrase).
+- **Reconstruction low-pass.** Below one phrase frame per output frame the cubic leaves images of the phrase-rate
+  signal: the slot low-passes its output at `0.45·clock` of the output rate (4th-order Butterworth, `CauldronLp`,
+  coefficients recomputed when the clock changes), as the original's player band-limits a slowed sample; bypassed at
+  a clock of 1 or more.
+- **Playback rate.** The voice-wide transpose and bend are a playback rate for a voice with a cauldron slot (an XM
+  pitch slide resamples the precalc sample): the phrase clock is multiplied by `2^((transpose + bend)/12)`, so the
+  pitch word stays and the filter and phrase position move with it, and the voice's envelopes advance at that rate
+  too. Note, coarse, fine and octave stay pitch only. (Change add-cauldron-xm-import: a riser bent up within a
+  slow phrase clock aliased into sub-bass.)
+- **Word byte** (`o::FIXED_HZ`; the slot always tracks the note). b ≥ 1 makes the pitch word
+  `rint(f·65536/clock) + b − 128`: the original's integer word, which note + fine byte (±0.39 cents) cannot reach for
+  high words. 0, the default, keeps the frequency's word, so bends stay smooth. The converter writes it per note.
+- **Glide register** (version ½). The original's glide stores the signed interpolation of its words, so in a tied
+  step's first 1764 frames a word above 32767 is negative: the phase steps the same, the second saw by
+  `fistp(w·1.02)` of the signed word and the spike reads its dword. Version ½ holds a word above 32767 as `w − 65536`;
+  the converter sets it over such glide windows. Words above 32767 are otherwise played unsigned (the note asks for
+  `w·R·r/65536`, beyond the phrase clock's Nyquist), as Stash stores them.
+- **Voice.** A voice with a cauldron slot slides linearly in frequency (the original glides its pitch word), and a
+  timed attack of 0 is instant (the original has no attack; WaveSabre's minimum is 1 ms).
+- **Voices** (`shape[1]`, 0–10). Above 0, a second saw steps by `round(pitch·1.02)` per phrase frame and is added to
+  the first; it runs on across note-ons, as the original's does across retriggers.
+- **Waves** (`shape[0]`): 0 saw (the phase word, plus the second saw); 1 square (±30000 by the sign of the sum: PWM
+  with voices); 2 spike `32767·u⁷` of each half cycle, plus one copy offset by `t·voices·pitch/128` (only the
+  original loop's last voice survives); 3 pulse (30000 above 31000, else 0); 4 noise (`(r & 0xFFFFFF) mod 64001 −
+  32000`, a per-note seeded xorshift); 5 fold (`32767 − x` above 0).
+- **Version** (`shape[2]`). Version 1 (Jizz) plays saw for waves 1, 3 and 5, and its spike has a sign branch and
+  negates the copy's offset for even voices. Version 2 (Stash) has all six waves; its spike's base voice has no sign
+  branch (the negative half clips), `t·voices` is truncated to 16 bits (the copy jumps when it wraps), and the
+  oscillator output is clamped to ±32767.
+- **Scale.** The output is the 16-bit value / 32768, so the saw pair and the spike can reach about ±2.
+- **Fidelity.** The test vectors from the bit-exact Python references (`osc/cauldron_vectors.rs`, generated by
+  `research/tbl-mini-cauldron/tools/osc_vectors.py`) match exactly for every wave but the spike, which is within 3 LSB:
+  the shaping runs in f64 here and in x87 24-bit precision in the original.
+- **Filter** (`shape[5..8]`). The original's resonant low-pass, run on the slot's output before its gain (the filter
+  is linear, so this is the original's order): `v1 ·= d`, `c = v1 + base`, `y = (1 − q)·(y − c·(x + prev))`, output
+  `prev = y + prev`. All in phrase-frame units: base `c` (`shape[5]·8`), envelope amount (`shape[6]·8`), decay per
+  phrase frame (`1 + (0.5 − shape[7])/100`; above 1 the cutoff *rises* the longer a note is held, as in 7 of the
+  intros' patches), damping `q` (`shape[8]`). Base and amount both 0 (the defaults): no filter. Its DC gain is −1
+  and its resonance is not clipped: the converter clips the voice output at full scale, as the original's 16-bit
+  store did. `y` and `prev` saturate at ±65 536 (`CD_SATURATE`, the original's 32-bit integers of 16-bit samples)
+  and `v1` stops growing there: a rising cutoff held for long turns the filter unstable (Stash song 1's record 4
+  held 30 s ran to infinity and silenced the song), where the original's integers saturate.
+  - *Note-on.* A non-legato note-on is the original's retrigger: `prev` = 0, `v1` = the amount; `y` runs on. A legato
+    note keeps all three, so `v1` goes on decaying (or rising) across a tie chain.
+  - *Compounding.* The note's retrigger byte (`shape[4]`, one automation step before the note) is `2k + accent`. Base
+    and amount are multiplied by `mul` (the slot's `FEEDBACK` field, `4p`; the cauldron slot reads no feedback) k
+    times, each product rounded to f32 as the original stores it, then by the accent (×4 version 1, ×2 version 2).
+  - *Rate.* It runs at the phrase clock with the original coefficients (per phrase frame), before the resampler.
+  - *Fidelity.* The filter vectors (`osc/cauldron_filter_vectors.rs`, from
+    `research/tbl-mini-cauldron/tools/filter_vectors.py`: saw, resonant pair, spike, rising decay, the brightest
+    Stash patch, each with a retrigger) are within 1e-4 of their peak: the original rounds its output to an integer
+    every frame.
+
 ### Controllers: wheel, bend and bend range
 
 `ctl.wheel`, `ctl.bend` and `ctl.bend_range` (indices 180–182) are ordinary automatable parameters, so a song carries
@@ -536,77 +614,108 @@ are re-mapped by the converter). The matrix reaches it as Scale (on the normaliz
 to `0..19 980` Hz after the sum, as Slaughter does. All coefficients are computed for the song rate (cutoff clamped to
 0.49 · rate) once per control segment and ramp linearly across it.
 
-## V2 voice (change add-v2-import)
+## Mono-sum voice, drive, channel strip and speech (change add-v2-import; names: unify-v2-algorithms)
 
-`v2.voice` on switches a kind-64 instrument to Farbrausch V2's voice: its laws, its 128-frame control frame and its
-mono-then-pan output. The code ports V2's `synth_core.cpp` (public domain) and follows v2redux's `v2core.cpp` where the
-x87 assembly's rounding and bugs matter (fast sine below −π, the atan table path, `fistp` round-to-nearest, the
-integer-indefinite FM collapse). Every field below stores `V2 raw / 128`. `v2.era` holds the song's format version
-(0–6, 7 = the 2004 kkrieger build). Behaviour that changed between V2 builds is chosen from it, following v2redux's
-`v2eras.h` ledger.
+`voice.stage` on switches a kind-64 instrument to the mono-sum voice output: envelope 1 is the amplitude, a 128-frame
+control frame, and mono-then-pan output. Its parameters use 7-bit step laws (stored value = step / 128). `voice.era`
+holds the format version of a converted song (0–6, 7 = a 2004 build). It chooses the version-dependent behaviour until
+change unify-v2-algorithms turns those into settings and quirk flags (see Provenance).
 
 ```mermaid
 flowchart LR
-    o1["osc 1–3<br/>(type V2)"] -->|"Add / Mul / Set"| sum["voice sum<br/>(mono)"]
-    sum --> route{"v2.routing"}
+    o1["osc 1–3<br/>(naive generators)"] -->|"add / multiply / replace"| sum["voice sum<br/>(mono)"]
+    sum --> route{"voice.routing"}
     route -->|single| f1["filter 1"]
     route -->|serial| f12["filter 1 → filter 2"]
-    route -->|parallel| fp["filter 1 ‖ filter 2<br/>(v2.balance)"]
-    f1 --> vd["voice distortion"]
+    route -->|parallel| fp["filter 1 ‖ filter 2<br/>(voice.balance)"]
+    f1 --> vd["drive"]
     f12 --> vd
     fp --> vd
-    vd --> dc["DC filter (era ≥ 6)"] --> amp["× amp EG"] --> pan["pan → L/R"]
+    vd --> dc["DC filter"] --> amp["× envelope 1"] --> pan["pan → L/R"]
     pan --> vs["channel sum<br/>(all voices)"]
-    vs --> sp["Ronan speech<br/>(us-speech)"] --> ch["channel stage<br/>(us-chan)"] --> out["main L/R"]
+    vs --> sp["speech<br/>(us-speech)"] --> ch["channel strip<br/>(us-strip)"] --> out["main L/R"]
     ch -.->|"reverb, delay, aux A/B"| ext["extra output pairs 1–4"]
     auxin["extra input pairs 1–2"] -.-> ch
 ```
 
 | Module | Feature | What it is |
 |---|---|---|
-| oscillator type `V2` | `us-osc-v2` | modes tri/saw (`shape` morphs), pulse (`shape` = width), sine, noise (LRC-filtered; `v2.color`), FM (from the previous slot), aux A/B; `v2.mode` Add/Mul/Set into the sum; `v2.ring` multiplies by the running sum. Coarse/fine as V2 transpose/detune. Format < 3: 4× box-averaged tri/saw and pulse; < 5: the MSVC LCG noise and the native-sine FM |
-| filter types `V2_LP`…`V2_MOOG_HP` | `us-flt-v2` | V2's state-variable low/band/high/notch/all-pass and the 4-pole Moog low/high (bypass below format 6, as V2 then) |
-| `v2.routing`, `v2.balance` | `us-flt-route` | single, serial, parallel with V2's balance law |
-| voice distortion | `us-vdist` | V2's dist modes: off, overdrive (atan), clip, bitcrusher, decimator, LP/BP/HP/notch/all-pass/Moog; `vdist.*` in/out gain, param 1/2 |
-| envelope mode V2 | `us-env-v2` | per-frame (344.5 /s) attack/decay/sustain/release in V2's 0..128 space, sustain time slope, `envN.amplify`; format < 2: the year-2000 laws and 256-frame frame |
-| LFO mode V2 | `us-lfo-v2` | saw/tri/pulse/sine/S&H, `lfoN.polarity` (+, −, ±), `eg` one-shot hold, phase, keysync reseed |
-| V2 voice | `us-v2-voice` | the voice path above (sum, DC filter, keysync, pan after distortion) |
-| channel stage | `us-chan` | see below; needs `synth-core/pairs` |
-| speech | `us-speech` | Ronan; text in chunk version 2 |
-| matrix Add | `us-matrix-add` | V2's mod rule, CC2–CC7 and V2 note sources, slots 13–16 |
+| oscillator type `Naive` | `us-osc-naive` | generators saw/tri (`shape` morphs), pulse (`shape` = width), sine, coloured noise (state-variable filtered; colour), FM (from the running sum), aux in A/B; the mode Add/Mul/Set into the sum; ring multiplies by the running sum. Coarse/fine on 7-bit laws |
+| filter types `Feedback SVF …`, `4-pole 2× …` | `us-flt-feedback` | the feedback-resonance state-variable filter (low/band/high/notch/all-pass) and the 2× 4-pole filter (low/high) |
+| `voice.routing`, `voice.balance` | `us-flt-parallel` | filter slots 1 and 2 single, serial or parallel with a balance |
+| drive | `us-drive` | off, overdrive (arctangent), clip, bit crush, decimate, low/band/high/notch/all-pass/4-pole filter; `drive.*` input gain, param 1/2 |
+| envelope law `Frame` | `us-env-frame` | per-frame (344.5 /s) attack/decay/sustain/release in 0..128 steps, sustain slope, `envN.amplify` |
+| LFO law `frame` | `us-lfo-frame` | saw/tri/pulse/sine/sample-and-hold, `lfoN.polarity` (+, −, ±), `lfoN.one_shot`, phase, keysync reseed |
+| voice output | `us-voice-out` | the voice path above (sum, DC filter, keysync, pan after drive) |
+| channel strip | `us-strip` | see below; needs `synth-core/pairs` |
+| speech | `us-speech` | formant speech; text in chunk version 2 |
+| matrix Add | `us-matrix-add` | the Add rule, CC2–CC7 and centred-note sources, slots 13–16 |
 
-`us-v2` enables them all. In the V2 voice a V2 oscillator outputs the same mono signal to both channels and ignores
-the slot pan; the voice pan applies after the distortion, as V2 does.
+`us-all` enables them all. With `voice.stage` on, a naive oscillator outputs the same mono signal to both channels
+and ignores the slot pan; the voice pan applies after the drive.
 
-**Mixing.** Every module above is chosen per slot or by its own parameter, so a unisynth voice (`v2.voice` off) can
-use any of them beside the unisynth ones: a V2 filter kind or the Moog in any filter slot, a V2 oscillator next to a
-wavetable or BLIT slot, V2 envelope or LFO mode on any envelope or LFO, the voice distortion, and parallel routing of
-filter slots 1 and 2 (whatever their kinds). A V2 oscillator then pans like a unisynth slot (slot pan + voice pan,
-the unisynth pan law), and the voice keeps unisynth's gain, velocity and pan. The V2 laws stay as they are: V2
-parameters store `raw / 128`, and a V2 filter's cutoff moves with Scale and Add routes, not Offset (Hz). Only the V2
-voice is checked against V2; the mixed cases are checked by the `mix_*` tests in `src/instrument/tests/v2.rs`. V2's
-overdrive output gain (`vdist.p1`) defaults to 0, which is silent, as in V2.
+**Mixing.** Every module above is chosen per slot or by its own parameter. A unisynth voice (`voice.stage` off) can
+use any of them beside the unisynth ones:
+- a feedback SVF or 4-pole filter in any filter slot
+- a naive oscillator next to a wavetable or BLIT slot
+- the frame law on any envelope or LFO
+- the drive
+- parallel routing of filter slots 1 and 2, whatever their kinds
 
-### Channel stage
+A naive oscillator then pans like a unisynth slot (slot pan + voice pan, the unisynth pan law), and the voice keeps
+unisynth's gain, velocity and pan. The 7-bit laws stay as they are: a feedback SVF's cutoff moves with Scale and Add
+routes, not Offset (Hz). The mixed cases are checked by the `mix_*` tests in `src/instrument/tests/v2.rs`. The
+overdrive output gain (`drive.p1`) defaults to 0, which is silent.
 
-The channel stage runs once per instrument on the sum of its voices, in V2's order: aux receive, DC filter, compressor
-(peak or RMS, 5700-frame lookahead, shared body with compressor `v2`), bass boost (150 Hz shelf), then distortion and
-chorus/flanger in `ch.fxroute` order, DC filter, ×0.6 · volume. The reverb, delay and aux A/B sends leave on extra
-output pairs 1–4 (reverb and delay mono, copied to both sides). The aux receives come in on extra input pairs 1–2.
-The same input pairs feed the V2 aux oscillators (modes aux A/B, format version 6): `(l + r) · gain · 0.6`,
-replacing the voice sum or ring-multiplying it. An aux oscillator needs `us-chan`, and `needs` names it. V2 clears
-the aux buses every frame and renders channels in order, so `synth-convert v2m` wires each reader to the aux sends
-of the lower MIDI channels only (`v2-report.md`, "Aux buses").
-Channel parameters (`ch.*`, targets 118–141) are modulated from the newest voice. A muted V2 channel still renders
-but feeds no bus. Without sends, `run` behaves as before and writes no extra pair.
+### Channel strip
 
-### Speech (Ronan)
+The channel strip runs once per instrument on the sum of its voices, in this order:
+1. aux receive
+2. DC filter
+3. compressor (peak or RMS, 5700-frame look-ahead, shared body with compressor `Look-ahead`)
+4. bass boost (150 Hz shelf)
+5. drive and chorus/flanger, in `strip.order` order
+6. DC filter
+7. × 0.6 · volume
 
-`us-speech` ports V2's Ronan formant speech synth (`ronan.cpp`, public domain). The chunk's text section (version 2)
-holds V2's speech texts, separated by NUL. The phoneme strings use V2's syntax (phoneme names, durations, `!` waits for
-a note-on, `_` for a note-off). Ronan runs on the voice sum before the channel stage. `speech_ctl4` selects the text
-and sets the rate (V2 CC4), and `speech_ctl5` sets the pitch (CC5). Note-ons and note-offs advance the waits. The table is V2's 69
-phonemes and 52 syllables, decoded at build time.
+The reverb, delay and aux A/B sends leave on extra output pairs 1–4 (reverb and delay mono, copied to both sides). The
+aux receives come in on extra input pairs 1–2. The same input pairs feed the aux-in oscillators (format version 6):
+`(l + r) · gain · 0.6`, replacing the voice sum or ring-multiplying it. An aux-in oscillator needs `us-strip`, and
+`needs` names it. The aux buses are cleared every frame and channels render in order, so `synth-convert v2m` wires
+each reader to the aux sends of the lower MIDI channels only (`v2-report.md`, "Aux buses"). Strip parameters
+(`strip.*`, targets 118–141) are modulated from the newest voice. A muted channel still renders but feeds no bus.
+Without sends, `run` behaves as before and writes no extra pair.
+
+### Speech
+
+`us-speech` is a formant speech synth. The chunk's text section (version 2) holds the speech texts, separated by NUL.
+The phoneme strings use phoneme names and durations; `!` waits for a note-on and `_` for a note-off. Speech runs on
+the voice sum before the channel strip. `speech.select` selects the text and sets the rate (CC4 in converted songs),
+and `speech.pitch` sets the pitch (CC5). Note-ons and note-offs advance the waits. The table holds 69 phonemes and 52
+syllables, decoded at build time.
+
+### Provenance
+
+The functional names above come from these source modules. Source names appear only here, in the converters and in
+the parity tools.
+
+| here | source | original |
+|---|---|---|
+| naive oscillator generators, ring, Add/Mul/Set | Farbrausch V2 | `V2Osc` (`synth_core.cpp`; v2redux `v2core.cpp`) |
+| feedback SVF, 4-pole 2× filter | V2 | `V2Flt` LRC and Moog modes |
+| seconds-law envelope (quadratic) | WaveSabre | Slaughter/Falcon envelope |
+| rate-law envelope (power slope) | Tunefish 4 | `eTfEnvelope` |
+| frame-law envelope and LFO | V2 | `V2Env`, `V2LFO` |
+| drive | V2 | `V2Dist` (voice) |
+| channel strip | V2 | `V2Chan` (DCF, compressor, boost, distortion, chorus) |
+| speech | V2 | Ronan (`ronan.cpp`) |
+| cauldron oscillator, flanger `comb`, distortion `wrap` | TBL Jizz / Stash (1997) | Probe's mini-cauldron (`research/tbl-mini-cauldron`): waveforms, comb/doubler, wrap-around specials |
+| reverb `Comb`, delay `Modulated`, compressor `Look-ahead`, EQ `Cut` | V2 | `V2Reverb`, `V2ModDel`, `V2Comp`, post filters |
+| matrix Add, CC2–7, centred note | V2 | `storeV2Values` modulation |
+| `voice.era` behaviours (future quirk flags) | V2 format versions 0–6, the 2004 build | v2redux `v2eras.h` ledger |
+
+The port follows V2's `synth_core.cpp` (public domain) and v2redux's `v2core.cpp` where the x87 rounding and bugs
+matter (fast sine below −π, the arctangent table path, `fistp` round-to-nearest, the integer-indefinite FM collapse).
 
 ## Module features
 
@@ -616,10 +725,11 @@ build lacks fails at load with `UnsupportedModule(id)` (`module.rs` names the id
 | Feature | Module | Load check |
 |---|---|---|
 | `us-osc-pm`, `us-osc-blit`, `us-osc-wt`, `us-osc-sample` | the four oscillator types | the slot's type |
+| `us-osc-cauldron` | the cauldron oscillator (change add-cauldron-xm-import) | the slot's type |
 | `us-sample-gsm`, `us-sample-dls` | sampler sources (imply `us-osc-sample`) | the sampler's source, at chunk parse |
 | `us-noise` | noise source | level set above 0, or any matrix slot targeting the noise level |
 | `us-flt-svf`, `-ladder`, `-rbj`, `-notch` | filter families | each filter slot's type |
-| `us-env-timed`, `us-env-rate` | timed (WaveSabre) and rate (Tunefish) envelope modes | the mode of envelope 1, and of any envelope a matrix slot reads |
+| `us-env-seconds`, `us-env-rate` | timed (WaveSabre) and rate (Tunefish) envelope modes | the mode of envelope 1, and of any envelope a matrix slot reads |
 | `us-voice-lfo` | the two voice LFOs | any matrix slot whose source is LFO 1 or 2 |
 | `us-voice-glide` | glide and mono slide (pitch moves) | glide above 0, or slide above 0 in mono-legato mode |
 | `us-voice-mono` | mono-legato mode (the pool's note log) | mode is mono-legato |
@@ -627,8 +737,8 @@ build lacks fails at load with `UnsupportedModule(id)` (`module.rs` names the id
 | `us-voice-oneshot` | one-shot voices (sampler runs out, note-off ignored) | one-shot is on |
 | `us-matrix` | the mod matrix | any slot with a source and a target |
 | `us-automation` | the mixer's automation walk (song-level) | any track with an automation lane (refused by `Player::new`) |
-| `us-chunk-wide` | chunk escapes (index ≥ 240, ≥ 255 pairs); implied by `us-chan` | a chunk that uses an escape, at parse |
-| `us-matrix-add`, `us-speech`, `us-osc-v2`, `us-flt-v2`, `us-flt-route`, `us-vdist`, `us-env-v2`, `us-lfo-v2`, `us-v2-voice`, `us-chan` | the V2 modules ([V2 voice](#v2-voice-change-add-v2-import)) | an Add or controller route; non-empty speech text; the slot, filter, routing, distortion, envelope, LFO mode; `v2.voice`; any channel field off its default |
+| `us-chunk-wide` | chunk escapes (index ≥ 240, ≥ 255 pairs); implied by `us-strip` | a chunk that uses an escape, at parse |
+| `us-matrix-add`, `us-speech`, `us-osc-naive`, `us-flt-feedback`, `us-flt-parallel`, `us-drive`, `us-env-frame`, `us-lfo-frame`, `us-voice-out`, `us-strip` | the V2 modules ([V2 voice](#v2-voice-change-add-v2-import)) | an Add or controller route; non-empty speech text; the slot, filter, routing, distortion, envelope, LFO mode; `v2.voice`; any channel field off its default |
 
 Automating a parameter to a module the build lacks does not fail (the song is already loaded): a filter bypasses, an
 envelope runs the mode it has, an LFO reads 0, glide and slide snap, mono and unison play one poly voice, one-shot is off,
@@ -828,16 +938,25 @@ flowchart LR
 | 72 compressor | compressor (7): sidechain key, input gain, threshold, ratio, attack, release, output gain | | |
 | 73 formant | formant (2): vowel, wet | | |
 
-V2 modes (change add-v2-import, features `us-fx-eq-cut`, `-delay-v2`, `-reverb-v2`, `-compressor-v2`) port V2's global
-effects. Their parameters store `V2 raw / 128` in V2's order, with `era` (format version) last. Their mode values
-sit between the old ones (`fx::mode_value`), so old stored modes are unchanged.
+The 7-bit modes (change add-v2-import; names: unify-v2-algorithms; features `us-fx-eq-cut`, `-delay-modulated`,
+`-reverb-comb`, `-compressor-lookahead`) store `step / 128`, with `era` (format version) last. Their mode values sit
+between the old ones (`fx::mode_value`), so old stored modes are unchanged. Their sources are in "Provenance".
 
-| Kind | V2 mode |
+| Kind | mode |
 |---|---|
-| 67 EQ | cut (3): low cut, high cut, era (V2's post filters) |
-| 68 delay | v2 (8): volume, feedback, delay L, delay R, mod rate, mod depth, mod phase, era |
-| 71 reverb | v2 (5): time, high cut, low cut (no effect below format 4), volume, era; wet only, mono input |
-| 72 compressor | v2 (10): detect (off/peak/RMS), couple (stereo link), auto gain, lookahead, threshold, ratio, attack, release, out gain, era |
+| 67 EQ | Cut (3): low cut, high cut, era |
+| 68 delay | Modulated (8): volume, feedback, delay L, delay R, mod rate, mod depth, mod phase, era |
+| 71 reverb | Comb (5): time, high cut, low cut (no effect below format 4), volume, era; wet only, mono input |
+| 72 compressor | Look-ahead (10): detect (off/peak/RMS), couple (stereo link), auto gain, lookahead, threshold, ratio, attack, release, out gain, era |
+
+The mini-cauldron modes (change add-cauldron-xm-import, features `us-fx-flanger-comb`, `us-fx-distortion-wrap`) also
+sit at free stored positions: comb at flanger 0.5, wrap at distortion 0.25. Shaper 0, curve 0.5, power 1.0, phaser 0
+and ring 1.0 keep their meaning.
+
+| Kind | mode |
+|---|---|
+| 70 flanger | comb (4): delay K (`round(p·16384)` frames), amount g, sweep rate (`p·0.01` per frame), restart (a step restarts the sweep). Sweep 0: `y = x[n] − g·x[n − K]`; sweep s: `(x[n − K] + x[n − K + s·t])/2`, t = frames since the restart, offset capped at K (Stash's comb and doubler) |
+| 65 distortion | wrap (2): drive (`p·4`), offset (`2p − 1`); `v = x·drive + offset` wrapped into −1..1 (Stash's 8-bit wrap-around specials) |
 
 Properties that hold for every mode:
 
@@ -1036,7 +1155,7 @@ mkdir -p /tmp/uni && FEATURES_DUMP=/tmp/uni cargo test -q -p synth-convert --tes
 
 # a legacy song → unified kinds; warnings (voice cap, unison > 16, GenSlop) go to stderr
 $SC ws /tmp/uni/legacy/slaughter_automation.song /tmp/uni/slaughter.song
-$SC features /tmp/uni/slaughter.song                    # → us-osc-blit,us-noise,us-flt-svf,us-env-timed
+$SC features /tmp/uni/slaughter.song                    # → us-osc-blit,us-noise,us-flt-svf,us-env-seconds
 tools/check-song-features.sh /tmp/uni/slaughter.song --minimal   # exactly that list builds, loads, and each feature is needed
 
 # a .tfm song (tail = seconds after the last event, default 4)
@@ -1063,7 +1182,7 @@ prints them, ready for `--features`:
 
 ```text
 $ synth-convert features slaughter.song
-us-osc-blit,us-noise,us-flt-svf,us-env-timed
+us-osc-blit,us-noise,us-flt-svf,us-env-seconds
 ```
 
 The analysis (`unisynth::needs`, `crates/synth-convert/src/features.rs`) reads the **unified** song (a legacy device is an
@@ -1075,7 +1194,7 @@ error: convert first) and mirrors the load-time checks, so the build it describe
 | `us-sample-gsm` | the chunk carries a sample section (a GSM index must name one of its entries) |
 | `us-sample-dls` | a sampler slot's source is the GM.DLS bank |
 | `us-flt-svf`, `-ladder`, `-rbj`, `-notch` | a filter slot has such a type, **or a lane can step it to one**: the span of the lane's values is read, and every type between its lowest and highest value counts |
-| `us-env-timed`, `-tf` | envelope 1 always; the others when a mod slot reads them; the mode is the chunk's or any a lane reaches |
+| `us-env-seconds`, `-tf` | envelope 1 always; the others when a mod slot reads them; the mode is the chunk's or any a lane reaches |
 | `us-noise` | the noise level is above 0, a mod slot routes to it, or a lane can raise it |
 | `us-fx-<kind>-<mode>` | an effect device of that kind and mode |
 
@@ -1087,8 +1206,8 @@ itself and its voice framework have no feature. `us-osc-sample` is implied by th
 `unisynth` with exactly those features twice: on the host (`--example render` loads and renders the song, exit 1 names
 the missing module) and for the i686 core-only target (`-Zbuild-std=core`, no std). `--minimal` then drops each listed
 feature and requires the song to fail to load or to sound different. Checked on the converted WaveSabre test songs
-(Falcon `us-osc-pm,us-env-timed`; the showcase 16 features including both sample sources) and on a `.tfm`
-(`us-osc-wt,us-noise,us-env-timed,us-env-rate` and the seven Tunefish effect modes): every list builds and loads, and every
+(Falcon `us-osc-pm,us-env-seconds`; the showcase 16 features including both sample sources) and on a `.tfm`
+(`us-osc-wt,us-noise,us-env-seconds,us-env-rate` and the seven Tunefish effect modes): every list builds and loads, and every
 feature in every list is needed.
 
 ### Demo songs
@@ -1159,7 +1278,7 @@ flowchart LR
 - **V2.** `bun tools/unisynth-parity/v2.ts [--renders]` runs the 15 V2 acceptance songs: v2redux renders against
   `synth-convert v2m` → unisynth, with the same song metrics and both renders cut to the shorter one. It writes
   `v2-report.md` (15 of 15 pass) and reads the listening decision from `v2-signoff.json`. Without songs it skips.
-  V2 voice state sits in `v2::Opt` (zero-sized without a V2 voice feature, via the internal `us-v2-any`), so a build
+  V2 voice state sits in `v2::Opt` (zero-sized without a V2 voice feature, via the internal `us-mono-sum`), so a build
   without V2 does not carry it. A trusted build without a kind's V2 feature decodes that choice with the old law
   (`params::kinds::decode_in`). Songs without V2 now cost +180 to +470 B xz over the build before V2 (`size.md`,
   design D11).

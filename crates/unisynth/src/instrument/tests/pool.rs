@@ -86,8 +86,9 @@ fn sizes_are_what_the_slot_types_in_use_require() {
     // the tables are the whole difference: one per voice for the wavetable slot, nothing for phase-mod
     let tables = 16 * std::mem::size_of::<crate::wt::Wt>();
     assert!(table - pm >= tables && table - pm < tables + 64, "{} extra bytes for {tables} of tables", table - pm);
-    // (×4 since change add-v2-import: a voice also carries the V2 slot, distortion and envelope state)
-    assert!(pm * 4 < table, "a phase-mod patch needs {pm} bytes, a wavetable one {table}");
+    // (×4 since change add-v2-import: a voice also carries the V2 slot, distortion and envelope state; ×3 since
+    // add-cauldron-xm-import: a slot also carries the cauldron resampler's reconstruction filter)
+    assert!(pm * 3 < table, "a phase-mod patch needs {pm} bytes, a wavetable one {table}");
     // a wavetable table per voice and slot: three slots cost about three times one
     let three = UInstrument::need(&patch(&[osc_type_edit(0, osc_type::WAVETABLE), osc_type_edit(1, osc_type::WAVETABLE), osc_type_edit(2, osc_type::WAVETABLE)])).unwrap();
     assert!(three > 2 * table && three < 4 * table, "{three} vs {table}");

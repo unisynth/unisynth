@@ -15,6 +15,8 @@
 //! | 73 formant | 0 formant (Tunefish) |
 //!
 //! V2 modes (change add-v2-import, `fx/v2.rs`): 67 EQ 2 cut, 68 delay 2 v2, 71 reverb 3 v2, 72 compressor 1 v2.
+//! Mini-cauldron modes (change add-cauldron-xm-import): 65 distortion 3 wrap (`fx/wrap.rs`), 70 flanger 2 comb
+//! (`fx/comb.rs`).
 //!
 //! Every (kind, mode) is a Cargo feature (`us-fx-*`); a chunk that selects a mode the build lacks fails at load with
 //! `UnsupportedModule` naming it. The mode is chosen by the chunk only (`set_param(0, …)` is ignored): it sizes the
@@ -72,9 +74,13 @@ mod three_band;
 mod ring;
 #[cfg(feature = "us-fx-formant")]
 mod formant;
+#[cfg(feature = "us-fx-flanger-comb")]
+mod comb;
+#[cfg(feature = "us-fx-distortion-wrap")]
+mod wrap;
 #[cfg(feature = "us-fx-reverb-compact")]
 mod compact;
-#[cfg(any(feature = "us-fx-eq-cut", feature = "us-fx-delay-v2", feature = "us-fx-reverb-v2", feature = "us-fx-compressor-v2"))]
+#[cfg(any(feature = "us-fx-eq-cut", feature = "us-fx-delay-modulated", feature = "us-fx-reverb-comb", feature = "us-fx-compressor-lookahead"))]
 mod v2;
 
 /// The effect's own parameters of a chunk (the values after the mode), for sizing memory before the effect exists.
@@ -113,7 +119,7 @@ trait Effect<'a>: Sized {
 // Distortion: curve sits between shaper and power so the stored mode values keep their meaning (0 = shaper,
 // 1.0 = power, as before curve existed; curve = 0.5). The V2 modes (change add-v2-import) come after the modes of
 // chunk v1 ([`OLD_MODES`]) and are stored between them (`params::kinds`), so old values keep their meaning too.
-const MODES: [(u8, usize, u8); 20] = [
+const MODES: [(u8, usize, u8); 22] = [
     (kind::DISTORTION, 0, m::FX_DISTORTION_SHAPER),
     (kind::DISTORTION, 1, m::FX_DISTORTION_CURVE),
     (kind::DISTORTION, 2, m::FX_DISTORTION_POWER),
@@ -131,9 +137,12 @@ const MODES: [(u8, usize, u8); 20] = [
     (kind::COMPRESSOR, 0, m::FX_COMPRESSOR),
     (kind::FORMANT, 0, m::FX_FORMANT),
     (kind::EQ, 2, m::FX_EQ_CUT),
-    (kind::DELAY, 2, m::FX_DELAY_V2),
-    (kind::REVERB, 3, m::FX_REVERB_V2),
-    (kind::COMPRESSOR, 1, m::FX_COMPRESSOR_V2),
+    (kind::DELAY, 2, m::FX_DELAY_MODULATED),
+    (kind::REVERB, 3, m::FX_REVERB_COMB),
+    (kind::COMPRESSOR, 1, m::FX_COMPRESSOR_LOOKAHEAD),
+    // change add-cauldron-xm-import: stored at the free positions (distortion 0.25, flanger 0.5)
+    (kind::DISTORTION, 3, m::FX_DISTORTION_WRAP),
+    (kind::FLANGER, 2, m::FX_FLANGER_COMB),
 ];
 
 /// Modes per kind before change add-v2-import (`inv_choice(mode, mode_count(k))` still encodes them).
@@ -164,7 +173,12 @@ pub fn mode_total(k: u8) -> usize {
 #[inline]
 pub fn mode_of_value(k: u8, p: f32) -> usize {
     // a trusted build without the V2 modes reads only old ones (see `params::kinds::decode_in`)
-    let v2 = cfg!(feature = "us-fx-eq-cut") || cfg!(feature = "us-fx-delay-v2") || cfg!(feature = "us-fx-reverb-v2") || cfg!(feature = "us-fx-compressor-v2");
+    let v2 = cfg!(feature = "us-fx-eq-cut")
+        || cfg!(feature = "us-fx-delay-modulated")
+        || cfg!(feature = "us-fx-reverb-comb")
+        || cfg!(feature = "us-fx-compressor-lookahead")
+        || cfg!(feature = "us-fx-distortion-wrap")
+        || cfg!(feature = "us-fx-flanger-comb");
     if cfg!(feature = "us-trusted") && !v2 {
         return plaw::choice(p, mode_count(k));
     }
@@ -296,9 +310,11 @@ modes! {
     "us-fx-compressor" COMPRESSOR 0 Compressor compressor::Compressor<'a>,
     "us-fx-formant" FORMANT 0 Formant formant::Formant,
     "us-fx-eq-cut" EQ 2 Cut v2::Cut,
-    "us-fx-delay-v2" DELAY 2 DelayV2 v2::DelayV2<'a>,
-    "us-fx-reverb-v2" REVERB 3 ReverbV2 v2::ReverbV2<'a>,
-    "us-fx-compressor-v2" COMPRESSOR 1 CompressorV2 v2::CompressorV2<'a>,
+    "us-fx-delay-modulated" DELAY 2 DelayV2 v2::DelayV2<'a>,
+    "us-fx-reverb-comb" REVERB 3 ReverbV2 v2::ReverbV2<'a>,
+    "us-fx-compressor-lookahead" COMPRESSOR 1 CompressorV2 v2::CompressorV2<'a>,
+    "us-fx-distortion-wrap" DISTORTION 3 Wrap wrap::Wrap,
+    "us-fx-flanger-comb" FLANGER 2 Comb comb::Comb<'a>,
 }
 
 /// An effect device (kinds 65–73).

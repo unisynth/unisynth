@@ -63,7 +63,7 @@ fn names_are_unique_and_readable() {
     assert_eq!(names[modslot(13, m::TARGET)], "mod14.target");
     assert_eq!(names[cc(7)], "ctl.cc7");
     assert_eq!(names[lfo_ext(1, lx::POLARITY)], "lfo2.polarity");
-    assert_eq!(names[ch::COMP + 4], "ch.comp_threshold");
+    assert_eq!(names[ch::COMP + 4], "strip.comp_threshold");
     assert!(names.iter().all(|n| !n.starts_with("param")), "every index has a real name");
 }
 
@@ -73,7 +73,7 @@ fn every_index_has_a_law_of_the_right_kind() {
     assert_eq!(law_of(v::MASTER), Gain);
     assert_eq!(law_of(v::CAPACITY), Count(1, 64));
     assert_eq!(law_of(v::UNISON), Count(1, 16));
-    assert_eq!(law_of(osc(2, o::TYPE)), Kinds { old: 5, all: 6 });
+    assert_eq!(law_of(osc(2, o::TYPE)), Kinds { old: 5, all: 7 });
     assert_eq!(law_of(osc(0, o::SHAPE + 4)), Shape);
     assert_eq!(law_of(osc(1, o::FEEDBACK)), Feedback);
     assert_eq!(law_of(NOISE + n::HP), Cutoff);
@@ -166,6 +166,8 @@ fn expanded_choices_keep_every_old_stored_value() {
         assert!(bytes().all(|p| dec(p) < all));
     }
     assert_eq!(osc_type::encode(osc_type::V2), 1.0 / 8.0);
+    assert_eq!(osc_type::encode(osc_type::CAULDRON), 3.0 / 8.0);
+    assert_eq!(osc_type::decode(3.0 / 8.0), osc_type::CAULDRON);
     assert_eq!(crate::modmx::op::encode(crate::modmx::op::ADD), 0.5);
 }
 
@@ -452,4 +454,30 @@ fn controllers_have_rest_defaults_names_and_laws() {
     for st in [0.0f32, 2.0, 12.0, 24.0] {
         assert!(near(host::Law::BendRange.map(host::Law::BendRange.inverse(st).unwrap()), st, 1e-4));
     }
+}
+
+/// change unify-v2-algorithms 1.2: `rename::OLD` covers every parameter of the old layout, by old index, and its new
+/// names are unique and free of source-synth names. Before the rename `name(i)` is the old name, after it the new one.
+#[test]
+fn the_rename_map_covers_every_old_parameter() {
+    use super::rename::OLD;
+    assert_eq!(OLD.len(), 260);
+    for (i, (old, new)) in OLD.iter().enumerate() {
+        let now = super::name(i);
+        // a removed parameter keeps an interim functional name until the format switch (task 6.1)
+        assert!(now == *old || now == *new || (new.is_empty() && !has_source_name(&now)), "index {i}: {now} is neither {old} nor {new}");
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    for (_, new) in OLD.iter().filter(|(_, n)| !n.is_empty()) {
+        assert!(seen.insert(*new), "{new} twice");
+        assert!(!has_source_name(new), "{new} names a source synth");
+    }
+}
+
+/// A source-synth name (change unify-v2-algorithms, "Functional names"): substrings, or the short forms as a token.
+pub(crate) fn has_source_name(s: &str) -> bool {
+    // words, not substrings: `env2` is envelope 2, not V2
+    let l = s.to_ascii_lowercase();
+    ["tunefish", "wavesabre", "ronan", "moog", "slaughter", "falcon"].iter().any(|x| l.contains(x))
+        || l.split(|c: char| !c.is_ascii_alphanumeric()).any(|t| t == "tf" || t == "ws" || t.starts_with("v2"))
 }

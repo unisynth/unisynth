@@ -106,21 +106,21 @@ fn check_v2(values: &[f32; COUNT]) -> Result<(), LoadError> {
     use crate::module as m;
     let uses = |on: bool, id: u8| if on { Err(LoadError::UnsupportedModule(id)) } else { Ok(()) };
     let raw = |i: usize| pm::v2_raw(values[i]) as i32;
-    if !cfg!(feature = "us-lfo-v2") {
+    if !cfg!(feature = "us-lfo-frame") {
         let read = |k: usize| (0..pm::MOD_SLOTS).any(|s| crate::modmx::source::decode(values[pm::modslot(s, pm::m::SOURCE)]) == crate::modmx::source::LFO1 + k);
-        uses((0..pm::LFO_SLOTS).any(|k| read(k) && law::choice(values[pm::lfo_ext(k, pm::lx::MODE)], 2) == 1), m::LFO_V2)?;
+        uses((0..pm::LFO_SLOTS).any(|k| read(k) && law::choice(values[pm::lfo_ext(k, pm::lx::MODE)], 2) == 1), m::LFO_FRAME)?;
     }
-    if !cfg!(feature = "us-vdist") {
-        uses(raw(pm::VDIST + pm::dist::MODE) != 0, m::VDIST)?;
+    if !cfg!(feature = "us-drive") {
+        uses(raw(pm::VDIST + pm::dist::MODE) != 0, m::DRIVE)?;
     }
-    if !cfg!(feature = "us-flt-route") {
-        uses(raw(pm::v2::ROUTING) == 2, m::FILTER_ROUTE)?;
+    if !cfg!(feature = "us-flt-parallel") {
+        uses(raw(pm::v2::ROUTING) == 2, m::FILTER_PARALLEL)?;
     }
-    if !cfg!(feature = "us-v2-voice") {
-        uses(law::choice(values[pm::v2::VOICE], 2) == 1, m::V2_VOICE)?;
+    if !cfg!(feature = "us-voice-out") {
+        uses(law::choice(values[pm::v2::VOICE], 2) == 1, m::VOICE_OUT)?;
     }
-    if !cfg!(feature = "us-chan") {
-        uses(law::choice(values[pm::ch::ON], 2) == 1 || (0..pm::OSC_SLOTS).any(|i| crate::osc::v2_aux(values, i)), m::CHAN)?;
+    if !cfg!(feature = "us-strip") {
+        uses(law::choice(values[pm::ch::ON], 2) == 1 || (0..pm::OSC_SLOTS).any(|i| crate::osc::v2_aux(values, i)), m::STRIP)?;
     }
     Ok(())
 }
@@ -139,7 +139,7 @@ pub struct UInstrument<'a> {
     rng: Xorshift,
     voices: VoicePool<'a, Voice<'a>>,
     events: Events<MAX_EVENTS>,
-    /// The channel stage (`ch::ON`, `us-chan`).
+    /// The channel stage (`ch::ON`, `us-strip`).
     chan: Option<crate::chan::Chan<'a>>,
     /// Note-ons so far (`NoteCx::seq`).
     seq: u32,
@@ -286,7 +286,7 @@ fn render_span(
     r: &mut [f32],
     base: usize,
     #[cfg(feature = "probe")] mut tap: Option<&mut crate::probe::Ring>,
-    #[cfg(feature = "us-chan")] aux: &[&mut [f32]],
+    #[cfg(feature = "us-strip")] aux: &[&mut [f32]],
 ) {
     let mut pos = 0;
     while pos < l.len() {
@@ -310,7 +310,7 @@ fn render_span(
                 &mut r[pos..pos + seg],
                 #[cfg(feature = "probe")]
                 tap.as_deref_mut().map(|t| (t, base + pos)),
-                #[cfg(feature = "us-chan")]
+                #[cfg(feature = "us-strip")]
                 (aux, base + pos),
             );
         }
@@ -333,7 +333,7 @@ fn play(
     r: &mut [f32],
     #[cfg(feature = "probe")] mut tap: Option<&mut crate::probe::Ring>,
     #[cfg(feature = "us-speech")] mut speech: Option<&mut crate::speech::Ronan>,
-    #[cfg(feature = "us-chan")] aux: &[&mut [f32]],
+    #[cfg(feature = "us-strip")] aux: &[&mut [f32]],
 ) {
     events.run(n, |step| match step {
         Step::Event { at, kind } => {
@@ -368,7 +368,7 @@ fn play(
                 start,
                 #[cfg(feature = "probe")]
                 tap.as_deref_mut(),
-                #[cfg(feature = "us-chan")]
+                #[cfg(feature = "us-strip")]
                 aux,
             );
         }
@@ -445,7 +445,7 @@ impl Device for UInstrument<'_> {
 
     /// With the channel stage, the extra pairs carry its sends (outputs 1–4: reverb, delay — mono mixes on both
     /// channels — aux A, aux B) and its aux receive (inputs 1–2). Without it, the default (`run`) applies.
-    #[cfg(feature = "us-chan")]
+    #[cfg(feature = "us-strip")]
     fn run_ext(&mut self, io: &mut Io, ext: &mut [&mut [f32]], n: usize, ctx: &mut Ctx) {
         self.render(io, ext, n, ctx);
     }
@@ -477,7 +477,7 @@ impl UInstrument<'_> {
         #[cfg(feature = "us-speech")]
         let frame0 = ctx.frame;
         // V2 renders a channel (its speech and its strip) only while one of its voices sounds
-        let sounding = (cfg!(feature = "us-speech") || cfg!(feature = "us-chan")) && (voices.voices().iter().any(|v| v.is_on()) || events.has_note_on(n));
+        let sounding = (cfg!(feature = "us-speech") || cfg!(feature = "us-strip")) && (voices.voices().iter().any(|v| v.is_on()) || events.has_note_on(n));
         let sh = Shared { p, rate: *rate };
         let (l, r) = (&mut l[..n], &mut r[..n]);
         // the editor's taps (`probe` builds only)
@@ -485,8 +485,8 @@ impl UInstrument<'_> {
         if let Some(t) = taps.as_mut() {
             t.begin(n);
         }
-        // the aux A/B input pairs, which V2's aux oscillators read (`us-chan`: only it brings the extra pairs)
-        #[cfg(feature = "us-chan")]
+        // the aux A/B input pairs, which V2's aux oscillators read (`us-strip`: only it brings the extra pairs)
+        #[cfg(feature = "us-strip")]
         let aux: &[&mut [f32]] = if ext.len() >= synth_core::device::EXT_CH { &ext[2 * synth_core::device::OUT_PAIRS..] } else { &[] };
         play(
             events,
@@ -502,7 +502,7 @@ impl UInstrument<'_> {
             taps.as_mut(),
             #[cfg(feature = "us-speech")]
             speech.as_mut(),
-            #[cfg(feature = "us-chan")]
+            #[cfg(feature = "us-strip")]
             aux,
         );
         #[cfg(feature = "probe")]
@@ -526,7 +526,7 @@ impl UInstrument<'_> {
                 pos += len;
             }
         }
-        if let Some(c) = chan.as_mut().filter(|_| cfg!(feature = "us-chan") && sounding) {
+        if let Some(c) = chan.as_mut().filter(|_| cfg!(feature = "us-strip") && sounding) {
             // the strip's settings follow the parameters with the newest voice's channel routes (once per call: the
             // player's sub-blocks are on the absolute grid)
             let mut cp = *p;
@@ -551,7 +551,7 @@ impl UInstrument<'_> {
 }
 
 /// A patch that uses an optional voice path loads only in a build that has it.
-#[cfg(all(test, feature = "us-env-timed"))]
+#[cfg(all(test, feature = "us-env-seconds"))]
 mod voice_gating {
     use super::*;
     use crate::law::host::{inv_choice, inv_count};
@@ -599,5 +599,5 @@ mod voice_gating {
 }
 
 // the tests play patches with envelopes in both modes
-#[cfg(all(test, feature = "us-osc-pm", feature = "us-env-timed", feature = "us-env-rate"))]
+#[cfg(all(test, feature = "us-osc-pm", feature = "us-env-seconds", feature = "us-env-rate"))]
 mod tests;

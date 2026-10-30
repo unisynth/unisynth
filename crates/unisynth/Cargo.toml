@@ -36,7 +36,7 @@ us-flt-svf = []
 us-flt-ladder = []
 us-flt-rbj = []
 us-flt-notch = []
-us-env-timed = []
+us-env-seconds = []
 us-env-rate = []
 # optional voice paths (shrink-unified-synth 4.2): LFOs, glide/slide, mono-legato, unison > 1, one-shot
 us-voice-lfo = []
@@ -50,59 +50,65 @@ us-voice-oneshot = []
 us-trusted = []
 # the mod matrix (4.3): without it no slot routes; target groups were measured and are not worth a feature
 us-matrix = []
-# V2 modules (change add-v2-import): oscillator type, filter types, parallel filter routing, voice distortion,
-# envelope mode, LFO mode, the V2 voice output stage (V2 laws, DC filter, pan), the channel stage
-us-osc-v2 = ["us-v2-any"]
-us-flt-v2 = ["us-v2-any"]
-us-flt-route = ["us-v2-any"]
-us-vdist = ["us-v2-any"]
-us-env-v2 = ["us-v2-any"]
-us-lfo-v2 = ["us-v2-any"]
-us-v2-voice = ["us-v2-any"]
-# internal: the voice keeps V2 state (`v2::Opt`) only with one of the V2 voice features
-us-v2-any = []
-us-chan = ["synth-core/pairs", "us-chunk-wide"]
-# chunk escapes: an index of 240 or more (the V2 channel stage's two-byte part) or 255 or more pairs
+# naive oscillator generators, feedback-resonance and 4-pole filters, parallel filter routing, the voice drive stage,
+# the frame-law envelope and LFO, the voice output settings, the channel strip (change add-v2-import; names:
+# unify-v2-algorithms)
+us-osc-naive = ["us-mono-sum"]
+# mini-cauldron oscillator (change add-cauldron-xm-import)
+us-osc-cauldron = []
+us-flt-feedback = ["us-mono-sum"]
+us-flt-parallel = ["us-mono-sum"]
+us-drive = ["us-mono-sum"]
+us-env-frame = ["us-mono-sum"]
+us-lfo-frame = ["us-mono-sum"]
+us-voice-out = ["us-mono-sum"]
+# internal: the voice keeps the mono-sum slot and voice-stage state (`v2::Opt`) only with one of those features
+us-mono-sum = []
+us-strip = ["synth-core/pairs", "us-chunk-wide"]
+# chunk escapes: an index of 240 or more (the channel strip's two-byte part) or 255 or more pairs
 us-chunk-wide = []
-# V2's Ronan speech stage (change add-v2-import): chunk version 2 text section and the formant speech synthesizer
+# the formant speech stage (change add-v2-import): chunk version 2 text section and the speech synthesizer
 us-speech = []
-# V2's matrix extensions (change add-v2-import): the Add operation, the controller and V2-note sources, slots 13–16
+# matrix extensions (change add-v2-import): the Add operation, the controller and centred-note sources, slots 13–16
 us-matrix-add = ["us-matrix"]
 # automation lanes (4.5): without it the mixer skips the automation walk and a song with lanes fails to load
 us-automation = []
 
 # --- effect kinds and modes (kind = any of its modes) ---
-us-fx-distortion = ["us-fx-distortion-shaper", "us-fx-distortion-curve", "us-fx-distortion-power"]
+us-fx-distortion = ["us-fx-distortion-shaper", "us-fx-distortion-curve", "us-fx-distortion-power", "us-fx-distortion-wrap"]
 us-fx-distortion-shaper = []
 us-fx-distortion-power = []
 us-fx-distortion-curve = []
+# mini-cauldron wrap-around (change add-cauldron-xm-import)
+us-fx-distortion-wrap = []
 us-fx-crusher = []
 us-fx-eq = ["us-fx-eq-parametric", "us-fx-eq-3band", "us-fx-eq-cut"]
 us-fx-eq-cut = []
 us-fx-eq-parametric = []
 us-fx-eq-3band = []
-us-fx-delay = ["us-fx-delay-tempo", "us-fx-delay-ms", "us-fx-delay-v2"]
-us-fx-delay-v2 = []
+us-fx-delay = ["us-fx-delay-tempo", "us-fx-delay-ms", "us-fx-delay-modulated"]
+us-fx-delay-modulated = []
 us-fx-delay-tempo = []
 us-fx-delay-ms = []
 us-fx-chorus = []
-us-fx-flanger = ["us-fx-flanger-phaser", "us-fx-flanger-ring"]
+us-fx-flanger = ["us-fx-flanger-phaser", "us-fx-flanger-ring", "us-fx-flanger-comb"]
 us-fx-flanger-phaser = []
 us-fx-flanger-ring = []
-us-fx-reverb = ["us-fx-reverb-freeverb", "us-fx-reverb-compact", "us-fx-reverb-rooms", "us-fx-reverb-v2"]
-us-fx-reverb-v2 = []
+# mini-cauldron comb and doubler (change add-cauldron-xm-import)
+us-fx-flanger-comb = []
+us-fx-reverb = ["us-fx-reverb-freeverb", "us-fx-reverb-compact", "us-fx-reverb-rooms", "us-fx-reverb-comb"]
+us-fx-reverb-comb = []
 us-fx-reverb-freeverb = []
 us-fx-reverb-compact = []
 us-fx-reverb-rooms = []
 us-fx-compressor = []
-us-fx-compressor-v2 = []
+us-fx-compressor-lookahead = []
 us-fx-formant = []
 
-us-osc = ["us-osc-pm", "us-osc-blit", "us-osc-wt", "us-osc-sample", "us-sample-gsm", "us-sample-dls", "us-osc-v2"]
-us-flt = ["us-flt-svf", "us-flt-ladder", "us-flt-rbj", "us-flt-notch", "us-flt-v2", "us-flt-route"]
-us-env = ["us-env-timed", "us-env-rate", "us-env-v2"]
-us-v2 = ["us-osc-v2", "us-flt-v2", "us-flt-route", "us-vdist", "us-env-v2", "us-lfo-v2", "us-v2-voice", "us-chan", "us-chunk-wide", "us-speech", "us-matrix-add"]
+us-osc = ["us-osc-pm", "us-osc-blit", "us-osc-wt", "us-osc-sample", "us-sample-gsm", "us-sample-dls", "us-osc-naive", "us-osc-cauldron"]
+us-flt = ["us-flt-svf", "us-flt-ladder", "us-flt-rbj", "us-flt-notch", "us-flt-feedback", "us-flt-parallel"]
+us-env = ["us-env-seconds", "us-env-rate", "us-env-frame"]
 us-fx = ["us-fx-distortion", "us-fx-crusher", "us-fx-eq", "us-fx-delay", "us-fx-chorus", "us-fx-flanger",
-         "us-fx-reverb", "us-fx-compressor", "us-fx-compressor-v2", "us-fx-formant"]
-us-voice = ["us-voice-lfo", "us-voice-glide", "us-voice-mono", "us-voice-unison", "us-voice-oneshot"]
-us-all = ["us-osc", "us-noise", "us-flt", "us-env", "us-voice", "us-matrix", "us-matrix-add", "us-speech", "us-v2", "us-automation", "us-fx"]
+         "us-fx-reverb", "us-fx-compressor", "us-fx-compressor-lookahead", "us-fx-formant"]
+us-voice = ["us-voice-lfo", "us-voice-glide", "us-voice-mono", "us-voice-unison", "us-voice-oneshot", "us-drive", "us-lfo-frame", "us-voice-out"]
+us-all = ["us-osc", "us-noise", "us-flt", "us-env", "us-voice", "us-matrix", "us-matrix-add", "us-speech", "us-strip", "us-chunk-wide", "us-automation", "us-fx"]

@@ -4,6 +4,7 @@
 
 pub mod auto;
 pub mod capacity;
+pub mod cauldron;
 pub mod features;
 pub mod fx;
 pub mod instr;
@@ -15,6 +16,7 @@ pub mod tf;
 pub mod tfm;
 pub mod v2conv;
 pub mod v2m;
+pub mod xm;
 
 use model::{Auto, Dev, SongM};
 use std::fmt;

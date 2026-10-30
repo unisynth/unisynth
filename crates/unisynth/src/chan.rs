@@ -1,4 +1,4 @@
-//! The channel stage of the instrument (change add-v2-import, design D5, `us-chan`): V2's per-channel strip after the
+//! The channel stage of the instrument (change add-v2-import, design D5, `us-strip`): V2's per-channel strip after the
 //! voice sum. Aux receive, DC filter (format version 6), compressor, bass boost, then distortion → DC filter → chorus
 //! or chorus → distortion → DC filter (`ch::FXROUTE`), then the sends (reverb and delay as mono mixes, aux A/B
 //! stereo) and the channel volume (`0.6 · vol/128`). Settings are V2 raw values (`params::v2_raw`) read every
@@ -19,7 +19,7 @@ const GAIN_H: f32 = 0.6;
 
 /// Whether the patch runs the channel stage.
 pub fn on(p: &[f32; pm::COUNT]) -> bool {
-    cfg!(feature = "us-chan") && crate::law::choice(p[ch::ON], 2) == 1
+    cfg!(feature = "us-strip") && crate::law::choice(p[ch::ON], 2) == 1
 }
 
 /// The settings of one control step.

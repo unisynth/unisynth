@@ -7,7 +7,7 @@
 //!   with one Euler step per control segment. Quirks: the decay can rise when `d·M` is above ≈ 1.02 (here it then holds
 //!   at the peak instead of growing past 1), and the sustain level is fixed at note-on (no chase).
 //!
-//! - V2 mode (change add-v2-import, `us-env-v2`): V2's per-frame envelope (344.53 frames per second at every rate):
+//! - V2 mode (change add-v2-import, `us-env-frame`): V2's per-frame envelope (344.53 frames per second at every rate):
 //!   attack adds `2^(7 − 0.09375·ar)` per frame up to 128, decay multiplies by `1 − 2^(−11·dr/128)` down to the
 //!   sustain level, sustain multiplies by `2^(0.0019375·(sr − 64))` (the sustain time: falls below 64, rises above,
 //!   clamped at 128), release multiplies by `1 − 2^(−11·rr/128)`; below `2^-13` it stops. Output `val/128 · amplify`.
@@ -16,7 +16,7 @@
 //! Parameters are snapshotted at note-on ([`EnvP`]), like the original envelopes, except V2 mode, which V2 re-reads
 //! every frame (the voice passes the current, matrix-modulated values).
 
-#[cfg(feature = "us-env-timed")]
+#[cfg(feature = "us-env-seconds")]
 use crate::law;
 use crate::params::{self as pm, e};
 
@@ -54,22 +54,25 @@ pub struct EnvP {
     pub s: f32,
     pub r: f32,
     pub slope: f32,
+    /// A timed attack of 0 is instant instead of 1 ms: a voice with a cauldron slot sets it (the mini-cauldron has no
+    /// attack; change add-cauldron-xm-import).
+    pub instant: bool,
 }
 
 /// The mode this build runs for a requested one: a build with one mode runs it for both (a patch that asks for the
 /// other fails at load; only automating the mode can get here).
 const fn of_mode(by_rate: bool) -> bool {
-    if cfg!(all(feature = "us-env-timed", feature = "us-env-rate")) {
+    if cfg!(all(feature = "us-env-seconds", feature = "us-env-rate")) {
         by_rate
     } else {
         cfg!(feature = "us-env-rate")
     }
 }
 
-/// Fails with `UnsupportedModule(ENV_V2)` for a V2-mode envelope in a build without `us-env-v2`.
+/// Fails with `UnsupportedModule(ENV_V2)` for a V2-mode envelope in a build without `us-env-frame`.
 pub fn check_v2(v2: bool) -> Result<(), synth_core::mix::LoadError> {
-    if v2 && !cfg!(feature = "us-env-v2") {
-        return Err(synth_core::mix::LoadError::UnsupportedModule(crate::module::ENV_V2));
+    if v2 && !cfg!(feature = "us-env-frame") {
+        return Err(synth_core::mix::LoadError::UnsupportedModule(crate::module::ENV_FRAME));
     }
     Ok(())
 }
@@ -79,7 +82,7 @@ pub fn check(by_rate: bool) -> Result<(), synth_core::mix::LoadError> {
     let (have, id) = if by_rate {
         (cfg!(feature = "us-env-rate"), crate::module::ENV_RATE)
     } else {
-        (cfg!(feature = "us-env-timed"), crate::module::ENV_TIMED)
+        (cfg!(feature = "us-env-seconds"), crate::module::ENV_SECONDS)
     };
     if have {
         Ok(())
@@ -89,27 +92,28 @@ pub fn check(by_rate: bool) -> Result<(), synth_core::mix::LoadError> {
 }
 
 impl EnvP {
-    pub const DEFAULT: EnvP = EnvP { by_rate: false, v2: false, amp: 1.0, v2_old: false, a: 0.0, d: 0.3, s: 1.0, r: 0.1, slope: 0.5 };
+    pub const DEFAULT: EnvP = EnvP { by_rate: false, v2: false, amp: 1.0, v2_old: false, a: 0.0, d: 0.3, s: 1.0, r: 0.1, slope: 0.5, instant: false };
 
     pub fn read(p: &[f32; pm::COUNT], i: usize) -> Self {
         let mode = pm::env_mode::decode(p[pm::env(i, e::MODE)]);
         EnvP {
             by_rate: of_mode(mode == pm::env_mode::RATE),
-            v2: cfg!(feature = "us-env-v2") && mode == pm::env_mode::V2,
-            amp: if cfg!(feature = "us-env-v2") { p[pm::env_amp(i)] } else { 1.0 },
-            v2_old: cfg!(feature = "us-env-v2") && pm::era(p).0 < 2,
+            v2: cfg!(feature = "us-env-frame") && mode == pm::env_mode::V2,
+            amp: if cfg!(feature = "us-env-frame") { p[pm::env_amp(i)] } else { 1.0 },
+            v2_old: cfg!(feature = "us-env-frame") && pm::era(p).0 < 2,
             a: p[pm::env(i, e::ATTACK)],
             d: p[pm::env(i, e::DECAY)],
             s: p[pm::env(i, e::SUSTAIN)],
             r: p[pm::env(i, e::RELEASE)],
             slope: p[pm::env(i, e::SLOPE)],
+            instant: false,
         }
     }
 }
 
 /// Seconds of a timed-mode time parameter.
 #[inline]
-#[cfg(feature = "us-env-timed")]
+#[cfg(feature = "us-env-seconds")]
 fn ws_s(p: f32) -> f32 {
     law::env_ms(p) * 0.001
 }
@@ -123,7 +127,7 @@ pub struct Env {
     v: f32,
     from: f32,
     /// V2 mode: V2's `val` (0..128).
-    #[cfg_attr(not(feature = "us-env-v2"), allow(dead_code))]
+    #[cfg_attr(not(feature = "us-env-frame"), allow(dead_code))]
     val: crate::v2::Opt<f32>,
 }
 
@@ -167,8 +171,8 @@ impl Env {
 
     /// Advances by `dt` seconds. `decay_mod` scales the rate-mode decay (mod matrix `M(decay)`; 1 = none).
     pub fn advance(&mut self, dt: f32, ep: &EnvP, decay_mod: f32) {
-        #[cfg(feature = "us-env-v2")]
-        if cfg!(feature = "us-env-v2") && ep.v2 {
+        #[cfg(feature = "us-env-frame")]
+        if cfg!(feature = "us-env-frame") && ep.v2 {
             return self.advance_v2(dt, ep);
         }
         #[cfg(feature = "us-env-rate")]
@@ -176,18 +180,18 @@ impl Env {
             return self.advance_tf(dt, ep, decay_mod);
         }
         let _ = decay_mod;
-        #[cfg(feature = "us-env-timed")]
+        #[cfg(feature = "us-env-seconds")]
         self.advance_ws(dt, ep);
-        #[cfg(not(feature = "us-env-timed"))]
+        #[cfg(not(feature = "us-env-seconds"))]
         let _ = (dt, ep);
     }
 
-    #[cfg(feature = "us-env-timed")]
+    #[cfg(feature = "us-env-seconds")]
     fn advance_ws(&mut self, mut t: f32, ep: &EnvP) {
         loop {
             match self.stage {
                 Stage::Attack => {
-                    let a = ws_s(ep.a);
+                    let a = if ep.instant && ep.a == 0.0 { 0.0 } else { ws_s(ep.a) };
                     if t >= a - self.pos {
                         t -= a - self.pos;
                         self.stage = Stage::Decay;
@@ -277,7 +281,7 @@ impl Env {
     }
 }
 
-#[cfg(feature = "us-env-v2")]
+#[cfg(feature = "us-env-frame")]
 impl Env {
     /// V2 mode: `val` is V2's `val` (0..128), `v` the output `val/128 · amplify`.
     fn advance_v2(&mut self, dt: f32, ep: &EnvP) {
@@ -351,11 +355,11 @@ impl Default for Env {
     }
 }
 
-#[cfg(all(test, feature = "us-env-timed", feature = "us-env-rate"))]
+#[cfg(all(test, feature = "us-env-seconds", feature = "us-env-rate"))]
 mod tests {
     use super::*;
 
-    const WS: EnvP = EnvP { by_rate: false, v2: false, amp: 1.0, v2_old: false, a: 0.0, d: 0.0, s: 0.5, r: 0.0, slope: 0.5 };
+    const WS: EnvP = EnvP { by_rate: false, v2: false, amp: 1.0, v2_old: false, a: 0.0, d: 0.0, s: 0.5, r: 0.0, slope: 0.5, instant: false };
 
     /// Advances `t` seconds in steps of `step`, returns the value.
     fn run(e: &mut Env, ep: &EnvP, t: f32, step: f32) -> f32 {
@@ -366,9 +370,23 @@ mod tests {
         e.value()
     }
 
+    #[test]
+    fn an_instant_attack_starts_at_full_level() {
+        // a cauldron voice's timed attack of 0 (the original has no attack): full at once, then the decay as usual
+        let ep = EnvP { instant: true, s: 1.0, ..WS };
+        let mut e = Env::new();
+        e.trigger();
+        e.advance(1e-6, &ep, 1.0);
+        assert_eq!(e.value(), 1.0);
+        let mut e = Env::new();
+        e.trigger();
+        e.advance(1e-6, &EnvP { s: 1.0, ..WS }, 1.0);
+        assert!(e.value() < 0.01, "a plain attack of 0 is 1 ms: {}", e.value());
+    }
+
     fn ep_ms(a_ms: f32, d_ms: f32, s: f32, r_ms: f32) -> EnvP {
         let inv = |ms: f32| crate::law::host::inv_env_ms(ms);
-        EnvP { by_rate: false, v2: false, amp: 1.0, v2_old: false, a: inv(a_ms), d: inv(d_ms), s, r: inv(r_ms), slope: 0.5 }
+        EnvP { by_rate: false, v2: false, amp: 1.0, v2_old: false, a: inv(a_ms), d: inv(d_ms), s, r: inv(r_ms), slope: 0.5, instant: false }
     }
 
     #[test]
@@ -423,7 +441,7 @@ mod tests {
     }
 
     fn tf(a: f32, d: f32, s: f32, r: f32, slope: f32) -> EnvP {
-        EnvP { by_rate: true, v2: false, amp: 1.0, v2_old: false, a, d, s, r, slope }
+        EnvP { by_rate: true, v2: false, amp: 1.0, v2_old: false, a, d, s, r, slope, instant: false }
     }
 
     /// The original per-block recurrence, step 1 block, as an independent model.
@@ -541,7 +559,7 @@ mod tests {
 }
 
 /// A patch that asks for a mode the build lacks fails at load; modes of envelopes nobody reads do not count.
-#[cfg(all(test, feature = "us-env-timed"))]
+#[cfg(all(test, feature = "us-env-seconds"))]
 mod gating {
     use super::*;
     use crate::chunk::encode;

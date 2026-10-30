@@ -226,9 +226,11 @@ fn a_mode_the_build_lacks_is_named_at_load() {
             m::FX_COMPRESSOR => cfg!(feature = "us-fx-compressor"),
             m::FX_FORMANT => cfg!(feature = "us-fx-formant"),
             m::FX_EQ_CUT => cfg!(feature = "us-fx-eq-cut"),
-            m::FX_DELAY_V2 => cfg!(feature = "us-fx-delay-v2"),
-            m::FX_REVERB_V2 => cfg!(feature = "us-fx-reverb-v2"),
-            m::FX_COMPRESSOR_V2 => cfg!(feature = "us-fx-compressor-v2"),
+            m::FX_DELAY_MODULATED => cfg!(feature = "us-fx-delay-modulated"),
+            m::FX_REVERB_COMB => cfg!(feature = "us-fx-reverb-comb"),
+            m::FX_COMPRESSOR_LOOKAHEAD => cfg!(feature = "us-fx-compressor-lookahead"),
+            m::FX_DISTORTION_WRAP => cfg!(feature = "us-fx-distortion-wrap"),
+            m::FX_FLANGER_COMB => cfg!(feature = "us-fx-flanger-comb"),
             _ => false,
         };
         if built {
@@ -376,6 +378,81 @@ fn three_band_eq_band_gains_at_spot_values() {
     assert!((gain([0.0, 0.0, 1.0], 12000.0) - 11.0).abs() < 2.0, "{}", gain([0.0, 0.0, 1.0], 12000.0));
     // the high band is the 3-sample-delayed input minus the 5 kHz low-pass: a 100 Hz tone is nearly cancelled
     assert!(gain([0.0, 0.0, 1.0], 100.0) < 0.6, "{}", gain([0.0, 0.0, 1.0], 100.0));
+}
+
+#[test]
+#[cfg(feature = "us-fx-eq-3band")]
+fn three_band_eq_gain_changes_ramp_over_the_block() {
+    // all bands equal (flat): a gain step from 0.5 to 1.0 between blocks ramps over the next block, with no jump
+    let rate = 44100.0f64;
+    let x = std::vec![0.5f32; 400];
+    with_fx(kind::EQ, &[1.0, 0.25, 0.25, 0.25], rate, 120, |fx| {
+        let mut rng = Lcg(1);
+        let mut out = Vec::new();
+        for (k, chunk) in x.chunks(100).enumerate() {
+            if k == 2 {
+                (1..=3).for_each(|i| fx.set_param(i, 0.5));
+            }
+            let (mut l, mut r, mut a, mut b) = (chunk.to_vec(), chunk.to_vec(), std::vec![0.0; 100], std::vec![0.0; 100]);
+            let mut ctx = Ctx { rate, tempo: 120, frame: (k * 100) as u64, rng: &mut rng };
+            fx.run(&mut Io { ch: [&mut l, &mut r, &mut a, &mut b] }, 100, &mut ctx);
+            out.extend(l);
+        }
+        assert!((out[150] - 0.25).abs() < 1e-6, "flat at 0.5: {}", out[150]);
+        assert!((out[399] - 0.5).abs() < 1e-6, "flat at 1.0 after the ramp: {}", out[399]);
+        // past the 3-frame delay filling at the start
+        let jump = out[10..].windows(2).map(|w| (w[1] - w[0]).abs()).fold(0.0f32, f32::max);
+        assert!(jump < 0.01, "largest step {jump}");
+    });
+}
+
+#[test]
+#[cfg(feature = "us-fx-eq-3band")]
+fn three_band_eq_pans_after_the_bands() {
+    // pan 0 (absent from older chunks) leaves both channels; 1..255 is an equal-power pan, hard left to hard right,
+    // ramped like the gains
+    let rate = 44100.0f64;
+    let x = std::vec![0.5f32; 400];
+    let byte = |b: f32| b / 255.0;
+    for (pan, want) in [(None, [0.25f32, 0.25]), (Some(0.0), [0.25, 0.25]), (Some(byte(1.0)), [0.25, 0.0]), (Some(1.0), [0.0, 0.25]), (Some(byte(128.0)), [0.25 * (127.0f32 / 254.0).sqrt(), 0.25 * (127.0f32 / 254.0).sqrt()])] {
+        let mut chunk = std::vec![1.0, 0.25, 0.25, 0.25];
+        chunk.extend(pan);
+        with_fx(kind::EQ, &chunk, rate, 120, |fx| {
+            let (_, l, r) = run3(fx, rate, &x);
+            assert!((l[300] - want[0]).abs() < 1e-5 && (r[300] - want[1]).abs() < 1e-5, "pan {pan:?}: {} {}", l[300], r[300]);
+        });
+    }
+    // a pan change ramps over its block
+    with_fx(kind::EQ, &[1.0, 0.25, 0.25, 0.25, byte(1.0)], rate, 120, |fx| {
+        let mut rng = Lcg(1);
+        let mut out = Vec::new();
+        for (k, chunk) in x.chunks(100).enumerate() {
+            if k == 2 {
+                fx.set_param(4, 1.0);
+            }
+            let (mut l, mut r, mut a, mut b) = (chunk.to_vec(), chunk.to_vec(), std::vec![0.0; 100], std::vec![0.0; 100]);
+            let mut ctx = Ctx { rate, tempo: 120, frame: (k * 100) as u64, rng: &mut rng };
+            fx.run(&mut Io { ch: [&mut l, &mut r, &mut a, &mut b] }, 100, &mut ctx);
+            out.extend(l);
+        }
+        let jump = out[10..].windows(2).map(|w| (w[1] - w[0]).abs()).fold(0.0f32, f32::max);
+        assert!(jump < 0.01 && out[399].abs() < 1e-6, "largest step {jump}, end {}", out[399]);
+    });
+}
+
+/// Runs `x` on both channels in 100-frame blocks: (unused, left, right).
+#[cfg(feature = "us-fx-eq-3band")]
+fn run3(fx: &mut UFx, rate: f64, x: &[f32]) -> ((), Vec<f32>, Vec<f32>) {
+    let mut rng = Lcg(1);
+    let (mut lo, mut ro) = (Vec::new(), Vec::new());
+    for (k, chunk) in x.chunks(100).enumerate() {
+        let (mut l, mut r, mut a, mut b) = (chunk.to_vec(), chunk.to_vec(), std::vec![0.0; 100], std::vec![0.0; 100]);
+        let mut ctx = Ctx { rate, tempo: 120, frame: (k * 100) as u64, rng: &mut rng };
+        fx.run(&mut Io { ch: [&mut l, &mut r, &mut a, &mut b] }, 100, &mut ctx);
+        lo.extend(l);
+        ro.extend(r);
+    }
+    ((), lo, ro)
 }
 
 #[test]
@@ -735,7 +812,7 @@ fn v2_modes_sit_between_the_old_ones() {
 }
 
 #[test]
-#[cfg(feature = "us-fx-reverb-v2")]
+#[cfg(feature = "us-fx-reverb-comb")]
 fn the_v2_reverb_has_no_low_cut_before_version_4() {
     let (l, r) = noise(9, 8000);
     let render = |lowcut: f32, era: u32| {
@@ -744,4 +821,119 @@ fn the_v2_reverb_has_no_low_cut_before_version_4() {
     };
     assert_eq!(render(0.0, 3), render(1.0, 3), "version 3: the low cut does nothing");
     assert_ne!(render(0.0, 4), render(1.0, 4), "version 4: it cuts");
+}
+
+// ---- change add-cauldron-xm-import: comb (flanger mode 2) and wrap (distortion mode 3) ----
+
+#[test]
+fn the_cauldron_modes_take_free_positions_and_old_values_keep_their_modes() {
+    // distortion: 3 old modes on 5 positions; flanger: 2 old modes on 3 positions
+    for (k, v, want) in [
+        (kind::DISTORTION, 0.0, 0),
+        (kind::DISTORTION, 0.5, 1),
+        (kind::DISTORTION, 1.0, 2),
+        (kind::DISTORTION, 0.25, 3),
+        (kind::FLANGER, 0.0, 0),
+        (kind::FLANGER, 1.0, 1),
+        (kind::FLANGER, 0.5, 2),
+    ] {
+        assert_eq!(mode_of(k, &encode(&[v])), want, "kind {k} value {v}");
+    }
+    assert_eq!((mode_value(kind::DISTORTION, 3), mode_value(kind::FLANGER, 2)), (0.25, 0.5));
+    assert_eq!((module_of(kind::DISTORTION, 3), module_of(kind::FLANGER, 2)), (Some(m::FX_DISTORTION_WRAP), Some(m::FX_FLANGER_COMB)));
+}
+
+/// Comb parameters: delay `k` frames, amount, sweep rate (fraction per frame), restart.
+#[cfg(feature = "us-fx-flanger-comb")]
+fn comb(k: usize, g: f32, s: f32) -> [f32; 5] {
+    [mode_value(kind::FLANGER, 2), k as f32 / 16384.0, g, s / 0.01, 0.0]
+}
+
+#[test]
+#[cfg(feature = "us-fx-flanger-comb")]
+fn the_difference_comb_nulls_a_sine_at_rate_over_k() {
+    let x = sine(441.0, 44100.0, 4000, 0.8);
+    let (y, _) = with_fx(kind::FLANGER, &comb(100, 1.0, 0.0), 44100.0, 120, |fx| run(fx, 44100.0, 120, &x, &x, 100));
+    assert_eq!(y[..100], x[..100], "nothing is delayed in yet");
+    assert!(peak(&y[100..]) < 1e-4, "{}", peak(&y[100..])); // the f32 test sine itself drifts by ~1e-5
+    // half the amount leaves half of the sine
+    let (y, _) = with_fx(kind::FLANGER, &comb(100, 0.5, 0.0), 44100.0, 120, |fx| run(fx, 44100.0, 120, &x, &x, 100));
+    assert!((peak(&y[200..]) - 0.4).abs() < 1e-3);
+}
+
+#[test]
+#[cfg(feature = "us-fx-flanger-comb")]
+fn the_sweep_reads_further_ahead_until_a_restart_resets_it() {
+    let (x, _) = noise(9, 6000);
+    let k = 200;
+    let y = with_fx(kind::FLANGER, &comb(k, 1.0, 0.003), 44100.0, 120, |fx| {
+        let a = run(fx, 44100.0, 120, &x[..3000], &x[..3000], 3000).0;
+        fx.set_param(4, 1.0); // a step of the restart parameter
+        let mut b = run(fx, 44100.0, 120, &x[3000..], &x[3000..], 3000).0;
+        let mut all = a;
+        all.append(&mut b);
+        all
+    });
+    // the second read runs s·t frames ahead of the delayed one (linear interpolation): at frame k, 0.6 frames
+    let lerp = |i: usize, f: f32| x[i] + f * (x[i + 1] - x[i]);
+    assert!((y[k] - (x[0] + lerp(0, 0.6)) / 2.0).abs() < 1e-4);
+    assert!((y[2000] - (x[2000 - k] + x[2000 - k + 6]) / 2.0).abs() < 1e-4, "t = 2000: 6 frames ahead");
+    // a restart sets t to 0: both reads are the delayed sample
+    assert_eq!(y[3000], x[3000 - k]);
+}
+
+/// The original doubler (Stash, `0x402FF0`), in place: `buf[j − 1] = (buf[j] + buf[i]) / 2`, `j = (i·0xFF3B + 0x8000) >> 16`.
+#[cfg(feature = "us-fx-flanger-comb")]
+fn doubler(x: &[f32]) -> Vec<f32> {
+    let mut b = x.to_vec();
+    for i in 2..b.len() {
+        let j = ((i as u64 * 0xFF3B + 0x8000) >> 16) as usize;
+        b[j - 1] = (b[j] + b[i]) / 2.0;
+    }
+    b
+}
+
+#[test]
+#[cfg(feature = "us-fx-flanger-comb")]
+fn the_sweep_is_the_original_doubler_delayed() {
+    // a band-limited phrase-like signal at the original's rate; the sweep with latency D reproduces the doubler
+    let rate = 35441.0;
+    let n = 58000;
+    let x: Vec<f32> = (0..n).map(|i| {
+        let t = i as f32 / rate;
+        0.4 * libm::sinf(2.0 * core::f32::consts::PI * 216.0 * t) + 0.3 * libm::sinf(2.0 * core::f32::consts::PI * 1300.0 * t + 1.0)
+    }).collect();
+    let want = doubler(&x);
+    // original: y[m] = (x[m + 1] + x[(m + 1)·(1 + s')])/2 with s' = 65536/0xFF3B − 1; the sweep matches it with
+    // latency d + 1 when t restarts d frames after the phrase start: y[n] = (x[n − d] + x[n − d + s'·(n − d)])/2
+    let d = 180;
+    let s = 65536.0 / 0xFF3B as f32 - 1.0;
+    let (y, _) = with_fx(kind::FLANGER, &comb(d, 1.0, s), rate as f64, 120, |fx| {
+        let mut a = run(fx, rate as f64, 120, &x[..d], &x[..d], d).0;
+        fx.set_param(4, 1.0);
+        a.extend(run(fx, rate as f64, 120, &x[d..], &x[d..], 1000).0);
+        (a, ())
+    });
+    let (mut err, mut sig) = (0.0f64, 0.0f64);
+    for m in 1000..n - d - 2 {
+        let e = (y[m + d + 1] - want[m]) as f64;
+        err += e * e;
+        sig += (want[m] as f64).powi(2);
+    }
+    let db = 10.0 * (err / sig).log10();
+    assert!(db < -20.0, "error {db:.1} dB below the signal");
+}
+
+#[test]
+#[cfg(feature = "us-fx-distortion-wrap")]
+fn wrap_distortion_wraps_around_full_scale() {
+    // drive p·4, offset 2p − 1
+    let at = |drive: f32, offset: f32, x: f32| {
+        let v = [mode_value(kind::DISTORTION, 3), drive / 4.0, (offset + 1.0) / 2.0];
+        with_fx(kind::DISTORTION, &v, 44100.0, 120, |fx| run(fx, 44100.0, 120, &[x; 2], &[x; 2], 2).0[1])
+    };
+    assert!((at(1.25, 0.0, 0.9) - -0.875).abs() < 1e-6, "1.125 wraps to -0.875");
+    assert!((at(1.25, 0.0, 0.5) - 0.625).abs() < 1e-6, "inside the range: drive only");
+    assert!((at(1.0, 0.375, 0.7) - (1.075 - 2.0)).abs() < 1e-6, "Stash's +48: 0.7 + 0.375 wraps");
+    assert!((at(1.0, 0.375, -0.5) - -0.125).abs() < 1e-6);
 }

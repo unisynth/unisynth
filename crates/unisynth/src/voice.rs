@@ -49,10 +49,10 @@ fn tuning(p: &[f32; pm::COUNT]) -> f32 {
     tr + law::bend_semitones(p[pm::ctl::BEND], p[pm::ctl::BEND_RANGE])
 }
 
-/// The V2 voice is on (`v2::VOICE`, `us-v2-voice`).
+/// The V2 voice is on (`v2::VOICE`, `us-voice-out`).
 #[inline]
 fn v2_voice(p: &[f32; pm::COUNT]) -> bool {
-    cfg!(feature = "us-v2-voice") && law::choice(p[pm::v2::VOICE], 2) == 1
+    cfg!(feature = "us-voice-out") && law::choice(p[pm::v2::VOICE], 2) == 1
 }
 
 /// The V2 format version the patch came from (`v2::ERA`, 6 for patches that are not V2's).
@@ -67,10 +67,10 @@ fn new_math(p: &[f32; pm::COUNT]) -> bool {
     pm::era(p).1
 }
 
-/// LFO `k` runs V2's laws (`lfo_ext(k, MODE)`, `us-lfo-v2`).
+/// LFO `k` runs V2's laws (`lfo_ext(k, MODE)`, `us-lfo-frame`).
 #[inline]
 fn lfo_v2(p: &[f32; pm::COUNT], k: usize) -> bool {
-    cfg!(feature = "us-lfo-v2") && law::choice(p[pm::lfo_ext(k, pm::lx::MODE)], 2) == 1
+    cfg!(feature = "us-lfo-frame") && law::choice(p[pm::lfo_ext(k, pm::lx::MODE)], 2) == 1
 }
 
 /// A V2-mode LFO's settings.
@@ -121,6 +121,9 @@ enum Move {
     Linear(f32),
     /// Time constant in frames (> 0).
     Expo(f32),
+    /// Linear in frequency (the mini-cauldron's glide, change add-cauldron-xm-import): from `from` semitones, `t`
+    /// of the way (0..1), advancing `per_frame` per frame.
+    Hz { from: f32, t: f32, per_frame: f32 },
 }
 
 /// Voice pitch in semitones with its movement towards a target (slide = linear, glide = exponential).
@@ -152,6 +155,16 @@ impl Pitch {
                     self.cur += step.copysign(d);
                 }
             }
+            Move::Hz { from, t, per_frame } => {
+                let t = t + per_frame * dt as f32;
+                if t >= 1.0 {
+                    *self = Pitch::snap(self.target);
+                } else {
+                    let ratio = crate::fm::exp2f((self.target - from) / 12.0);
+                    self.cur = from + 12.0 * libm::log2f(1.0 + (ratio - 1.0) * t);
+                    self.mv = Move::Hz { from, t, per_frame };
+                }
+            }
             Move::Expo(tau) => {
                 let d = (self.target - self.cur) * crate::fm::expf(-(dt as f32) / tau);
                 if libm::fabsf(d) < 1e-3 {
@@ -161,6 +174,13 @@ impl Pitch {
                 }
             }
         }
+    }
+
+    /// A slide linear in frequency over `frames` (the mini-cauldron's glide).
+    fn slide_hz_to(&mut self, note: f32, frames: f32) {
+        let from = self.cur;
+        self.target = note;
+        self.mv = if frames >= 1.0 && note != from { Move::Hz { from, t: 0.0, per_frame: 1.0 / frames } } else { Move::Snap };
     }
 
     fn slide_to(&mut self, note: f32, frames: f32) {
@@ -182,6 +202,9 @@ struct Fixed {
     key: f32,
     /// Note number (V2's note source).
     note: f32,
+    /// A voice with a cauldron slot: transpose and bend are a playback rate (the slot's phrase clock follows them),
+    /// so its envelopes run at that rate too (an XM slide resamples the precalc sample, fades and all).
+    resample: bool,
 }
 
 /// The part of the voice that advances with time at control rate.
@@ -210,16 +233,17 @@ impl Ctl {
         let sh = &Shared { p: eff.as_ref().unwrap_or(sh.p), rate: sh.rate };
         self.pitch.advance(dt);
         let secs = dt as f32 / sh.rate;
+        let env_secs = if fx.resample { secs * crate::fm::exp2f(tuning(sh.p) / 12.0) } else { secs };
         for (i, e) in self.env.iter_mut().enumerate() {
             // V2 re-reads its envelope every frame (the matrix may move it); the other modes keep the note-on values
             let live;
-            let ep = if cfg!(feature = "us-env-v2") && fx.envp[i].v2 {
+            let ep = if cfg!(feature = "us-env-frame") && fx.envp[i].v2 {
                 live = EnvP::read(sh.p, i);
                 &live
             } else {
                 &fx.envp[i]
             };
-            e.advance(secs, ep, self.mm.scale(target::ENV_DECAY + i as u8));
+            e.advance(env_secs, ep, self.mm.scale(target::ENV_DECAY + i as u8));
         }
         if cfg!(feature = "us-voice-lfo") {
             for (k, l) in self.lfo.iter_mut().enumerate() {
@@ -288,9 +312,9 @@ struct Targets {
     noise_hp: [f32; flt::NC],
     /// Kind and coefficients of the filter slots.
     flt: [(flt::Kind, [f32; flt::NC], bool); pm::FILT_SLOTS],
-    /// Filter slots 1–2 in parallel: their gains (`v2::ROUTING`, `us-flt-route`).
+    /// Filter slots 1–2 in parallel: their gains (`v2::ROUTING`, `us-flt-parallel`).
     par: Opt<Option<(f32, f32)>>,
-    /// The voice distortion (`us-vdist`).
+    /// The voice distortion (`us-drive`).
     dist: Opt<crate::v2::DistP>,
     /// The V2 voice output stage: left/right volume and whether the DC filter runs (format version 6).
     v2out: Opt<Option<(f32, f32, bool)>>,
@@ -322,7 +346,7 @@ pub struct Voice<'a> {
     noise_band: bool,
     noise_width: f32,
     flt: [flt::Slot; pm::FILT_SLOTS],
-    slots: [Slot; pm::OSC_SLOTS],
+    pub(crate) slots: [Slot; pm::OSC_SLOTS],
     /// Pool-backed wavetable state of the slots that are wavetables.
     wt: [Option<&'a mut Wt>; pm::OSC_SLOTS],
     /// Sample data of the sampler slots (a DLS-instrument slot holds the region its last note-on picked).
@@ -364,7 +388,7 @@ impl<'a> Voice<'a> {
             pan: 0.5,
             rng: Xorshift::new(1),
             has_pitch: false,
-            fx: Fixed { envp: [EnvP::DEFAULT; pm::ENV_SLOTS], vel: 0.0, key: 0.0, note: 0.0 },
+            fx: Fixed { envp: [EnvP::DEFAULT; pm::ENV_SLOTS], vel: 0.0, key: 0.0, note: 0.0, resample: false },
             start: c,
             end: c,
             seg_pos: 0,
@@ -424,13 +448,13 @@ impl<'a> Voice<'a> {
     }
 
     /// The playable cycle of wavetable slot `i`.
-    #[cfg(all(test, feature = "us-osc-pm", feature = "us-osc-wt", feature = "us-env-timed", feature = "us-env-rate"))]
+    #[cfg(all(test, feature = "us-osc-pm", feature = "us-osc-wt", feature = "us-env-seconds", feature = "us-env-rate"))]
     pub(crate) fn wt_wave(&self, i: usize) -> Option<[f32; crate::wt::BINS]> {
         self.wt[i].as_deref().map(|w| *w.table.wave())
     }
 
     /// Phase of oscillator slot `i` in turns.
-    #[cfg(all(test, feature = "us-osc-pm", feature = "us-osc-blit", feature = "us-env-timed", feature = "us-env-rate"))]
+    #[cfg(all(test, feature = "us-osc-pm", feature = "us-osc-blit", feature = "us-env-seconds", feature = "us-env-rate"))]
     pub(crate) fn slot_phase(&self, i: usize) -> f64 {
         self.slots[i].phase
     }
@@ -458,7 +482,7 @@ impl<'a> Voice<'a> {
             }),
             cutoff: core::array::from_fn(|i| match flt::Kind::of(pm::filter_type::decode(p[pm::filt(i, pm::f::TYPE)])) {
                 flt::Kind::Off => None,
-                #[cfg(feature = "us-flt-v2")]
+                #[cfg(feature = "us-flt-feedback")]
                 flt::Kind::V2(_) => None,
                 _ => {
                     // normalized cutoff after the Scale routes and the Offset routes in Hz: `law::cutoff` is applied by
@@ -510,13 +534,13 @@ impl<'a> Voice<'a> {
             None
         };
         let raw = |i: usize| pm::v2_raw(p[i]);
-        let par = if cfg!(feature = "us-flt-route") && raw(pm::v2::ROUTING) as i32 == 2 {
+        let par = if cfg!(feature = "us-flt-parallel") && raw(pm::v2::ROUTING) as i32 == 2 {
             let x = (raw(pm::v2::BALANCE) - 64.0) / 64.0;
             Some(if x >= 0.0 { (1.0 - x, 1.0) } else { (1.0, 1.0 + x) })
         } else {
             None
         };
-        let dist = if cfg!(feature = "us-vdist") {
+        let dist = if cfg!(feature = "us-drive") {
             let d = pm::VDIST;
             crate::v2::DistP::new(raw(d), raw(d + pm::dist::GAIN), raw(d + pm::dist::P1), raw(d + pm::dist::P2), sh.rate).native_atan(!new_math(p))
         } else {
@@ -543,7 +567,7 @@ impl<'a> Voice<'a> {
             if kind == flt::Kind::Off {
                 return (kind, [0.0; flt::NC], false);
             }
-            #[cfg(feature = "us-flt-v2")]
+            #[cfg(feature = "us-flt-feedback")]
             if let flt::Kind::V2(_) = kind {
                 // V2 laws on the raw values (after the Add routes); a Scale route still multiplies the normalized value
                 let (tc, tr) = (target::filter_cutoff(i), target::filter_resonance(i));
@@ -566,7 +590,7 @@ impl<'a> Voice<'a> {
         let p = sh.p;
         let f = |fld: usize| pm::osc(i, fld);
         let t = |fld: u8| target::osc(i, fld);
-        if cfg!(feature = "us-osc-v2") && self.slots[i].kind == Kind::V2 {
+        if cfg!(feature = "us-osc-naive") && self.slots[i].kind == Kind::V2 {
             return self.v2_slot_targets(mm, sh, i, key, shift);
         }
         let semis = key
@@ -576,7 +600,9 @@ impl<'a> Voice<'a> {
             + mm.offset(t(target::OSC_PITCH));
         let ratio = law::ratio(p[f(pm::o::RATIO)]) + law::ratio_fine(p[f(pm::o::RATIO_FINE)]);
         let hz_scale = mm.scale(target::PITCH) * mm.scale(t(target::OSC_PITCH));
-        let hz = if law::choice(p[f(pm::o::TRACKING)], 2) == 1 {
+        // a cauldron slot always tracks the note: its `TRACKING` is the age byte, its `FIXED_HZ` the word byte
+        let cauldron = self.slots[i].kind == Kind::Cauldron;
+        let hz = if !cauldron && law::choice(p[f(pm::o::TRACKING)], 2) == 1 {
             law::fixed_hz(p[f(pm::o::FIXED_HZ)]) * hz_scale
         } else {
             440.0 * crate::fm::exp2f((semis - 69.0) / 12.0) * ratio * hz_scale
@@ -609,8 +635,22 @@ impl<'a> Voice<'a> {
         } else {
             hz / sh.rate
         };
-        let smp = smp::Cfg::from_shape(&core::array::from_fn(|k| self.shape_value(mm, sh, i, k)), &self.smp[i]);
-        SlotT { inc, gain, mix, pan_l, pan_r, pm_out, feedback, wf, pw, leak, det, spread, drive, layers: layers as usize, smp, v2: Opt::default() }
+        let shapes: [f32; pm::o::SHAPES] = core::array::from_fn(|k| self.shape_value(mm, sh, i, k));
+        let smp = smp::Cfg::from_shape(&shapes, &self.smp[i]);
+        let cd = if cfg!(feature = "us-osc-cauldron") && self.slots[i].kind == Kind::Cauldron {
+            let mut cd = osc::CauldronT::from_shape(&shapes, sh.rate, p[f(pm::o::FEEDBACK)], p[f(pm::o::PM_OUT)], p[f(pm::o::FIXED_HZ)]);
+            cd.age = osc::cauldron_age(p[f(pm::o::TRACKING)]);
+            // transpose and bend are a playback-rate change (an XM pitch slide resamples the whole precalc sample):
+            // the phrase clock follows them, so the pitch word stays and the filter and phrase position speed up too
+            let tu = tuning(p);
+            if tu != 0.0 {
+                cd.clock *= crate::fm::exp2f(tu / 12.0);
+            }
+            cd
+        } else {
+            osc::CauldronT::default()
+        };
+        SlotT { inc, gain, mix, pan_l, pan_r, pm_out, feedback, wf, pw, leak, det, spread, drive, layers: layers as usize, smp, v2: Opt::default(), cd }
     }
 
     /// Control values of a V2 oscillator slot (`V2Osc::set` / `chgPitch`): transpose `raw − 64`, detune `(raw − 64)/128`
@@ -853,14 +893,14 @@ impl<'a> Voice<'a> {
     /// Adds this voice's output for `l.len()` frames (never across a control grid frame). `aux` is the device's aux
     /// input (V2 aux oscillators), `None` when it has none.
     /// `tap` (`probe` builds only): the instrument's filter-tap ring for this call and the ring frame of `l[0]`.
-    /// `aux` (`us-chan`): the instrument's extra input pairs (aux A l/r, aux B l/r, or none) and the offset of `l[0]`
+    /// `aux` (`us-strip`): the instrument's extra input pairs (aux A l/r, aux B l/r, or none) and the offset of `l[0]`
     /// in them, for the V2 aux oscillators.
     pub fn render(
         &mut self,
         l: &mut [f32],
         r: &mut [f32],
         #[cfg(feature = "probe")] tap: Option<(&mut crate::probe::Ring, usize)>,
-        #[cfg(feature = "us-chan")] aux: (&[&mut [f32]], usize),
+        #[cfg(feature = "us-strip")] aux: (&[&mut [f32]], usize),
     ) {
         // the editor's taps: one loop-invariant branch, so the player's loop is unchanged
         #[cfg(feature = "probe")]
@@ -868,7 +908,7 @@ impl<'a> Voice<'a> {
             Some((t, a)) => (Some(t), a),
             None => (None, 0),
         };
-        #[cfg_attr(not(feature = "us-chan"), allow(unused_variables))]
+        #[cfg_attr(not(feature = "us-strip"), allow(unused_variables))]
         for (j, (lo, ro)) in l.iter_mut().zip(r.iter_mut()).enumerate() {
             let amp = self.amp.next();
             let (mut bl, mut br, mut send, mut mono) = (0.0f32, 0.0f32, 0.0f32, 0.0f32);
@@ -879,14 +919,14 @@ impl<'a> Voice<'a> {
                     send = 0.0;
                     continue;
                 }
-                if cfg!(feature = "us-osc-v2") && slot.kind == Kind::V2 {
+                if cfg!(feature = "us-osc-naive") && slot.kind == Kind::V2 {
                     // V2 works on the voice's running sum: add, multiply (ring) or replace (FM, aux)
-                    #[cfg(feature = "us-chan")]
+                    #[cfg(feature = "us-strip")]
                     let ax = match aux.0 {
                         [al, ar, bl, br] => [(al[aux.1 + j], ar[aux.1 + j]), (bl[aux.1 + j], br[aux.1 + j])],
                         _ => [(0.0, 0.0); 2],
                     };
-                    #[cfg(not(feature = "us-chan"))]
+                    #[cfg(not(feature = "us-strip"))]
                     let ax = [(0.0, 0.0); 2];
                     // (pl, pr) = (1, 1) in the V2 voice; the running mono sum (ring, FM) stays unpanned
                     let (out, pl, pr) = osc::v2_sample(slot, ramps, mono, ax);
@@ -911,7 +951,7 @@ impl<'a> Voice<'a> {
                 bl += nl * pl;
                 br += nr * pr;
             }
-            if let Some((g1, g2)) = self.par.get().filter(|_| cfg!(feature = "us-flt-route")) {
+            if let Some((g1, g2)) = self.par.get().filter(|_| cfg!(feature = "us-flt-parallel")) {
                 let (a, b) = self.flt[0].process(bl, br);
                 let (c, d) = self.flt[1].process(bl, br);
                 #[cfg(feature = "probe")]
@@ -959,11 +999,11 @@ impl<'a> Voice<'a> {
             {
                 at += 1;
             }
-            if cfg!(feature = "us-vdist") && self.dist_p.get().mode != 0 {
+            if cfg!(feature = "us-drive") && self.dist_p.get().mode != 0 {
                 let dp = self.dist_p.get();
                 (bl, br) = self.dist.with(|d| d.run(&dp, bl, br));
             }
-            let (ol, or) = match self.v2out.get().filter(|_| cfg!(feature = "us-v2-voice")) {
+            let (ol, or) = match self.v2out.get().filter(|_| cfg!(feature = "us-voice-out")) {
                 // the V2 voice: DC filter (format version 6) on the mono voice, the envelope, then V2's pan
                 Some((lv, rv, dcf)) => {
                     let r = self.dcf_r.get();
@@ -1018,18 +1058,21 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
             Pitch::snap(n)
         };
         self.has_pitch = true;
+        // a cauldron instrument's timed attack of 0 is instant: the mini-cauldron has no attack
+        let instant = cfg!(feature = "us-osc-cauldron") && self.slots.iter().any(|s| s.kind == Kind::Cauldron);
         self.fx = Fixed {
-            envp: core::array::from_fn(|i| EnvP::read(sh.p, i)),
+            envp: core::array::from_fn(|i| EnvP { instant, ..EnvP::read(sh.p, i) }),
             vel: self.vel,
             key: note as f32 / 127.0,
             note: note as f32,
+            resample: instant,
         };
         // V2: key sync none keeps the counters, 1 zeros them, 2 (version 6) also resets the voice's state
         let p = sh.p;
-        let sync = if cfg!(feature = "us-osc-v2") || cfg!(feature = "us-v2-voice") { (pm::v2_raw(p[pm::v2::KEYSYNC]) as i32).clamp(0, 2) } else { 0 };
-        let full = cfg!(feature = "us-v2-voice") && sync == 2 && era(p) >= 6;
+        let sync = if cfg!(feature = "us-osc-naive") || cfg!(feature = "us-voice-out") { (pm::v2_raw(p[pm::v2::KEYSYNC]) as i32).clamp(0, 2) } else { 0 };
+        let full = cfg!(feature = "us-voice-out") && sync == 2 && era(p) >= 6;
         for (i, s) in self.slots.iter_mut().enumerate() {
-            if !cfg!(feature = "us-osc-v2") || s.kind != Kind::V2 {
+            if !cfg!(feature = "us-osc-naive") || s.kind != Kind::V2 {
                 continue;
             }
             s.v2s.with(|s| {
@@ -1047,13 +1090,13 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
             self.flt = [flt::Slot::new(); pm::FILT_SLOTS];
             self.dist = Opt::default();
         }
-        if cfg!(feature = "us-v2-voice") {
+        if cfg!(feature = "us-voice-out") {
             self.dcf = Opt::default();
             self.dcf_r = Opt::new(crate::v2::dcf_r(sh.rate));
         }
         let mut env = [Env::new(); pm::ENV_SLOTS];
         for (i, e) in env.iter_mut().enumerate() {
-            let v2 = cfg!(feature = "us-env-v2") && self.fx.envp[i].v2;
+            let v2 = cfg!(feature = "us-env-frame") && self.fx.envp[i].v2;
             if v2 && !full {
                 *e = self.end.env[i]; // V2 restarts the attack from where the envelope is
                 e.trigger_v2();
@@ -1088,6 +1131,13 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
         let spread = sh.p[v::START_SPREAD];
         for (s, st) in self.slots.iter_mut().zip(&t.slot) {
             s.start(phase, spread, st.inc);
+        }
+        for i in 0..pm::OSC_SLOTS {
+            if cfg!(feature = "us-osc-cauldron") && self.slots[i].kind == Kind::Cauldron {
+                // the phrase frame of this note: the converter writes it as the velocity
+                let t0 = osc::cauldron_t0(libm::roundf(self.vel * 128.0) as u8);
+                self.slots[i].cauldron_start(t0, &t.slot[i].cd);
+            }
         }
         #[cfg(feature = "us-osc-wt")]
         for w in self.wt.iter_mut().flatten() {
@@ -1139,7 +1189,11 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
         let sh = cx.sh;
         let frames = law::time(sh.p[v::SLIDE]) * sh.rate;
         self.note = note;
-        if cfg!(feature = "us-voice-glide") {
+        // a cauldron instrument glides linearly in frequency, as the original moves its pitch word
+        let hz = cfg!(feature = "us-osc-cauldron") && self.slots.iter().any(|s| s.kind == Kind::Cauldron);
+        if cfg!(feature = "us-voice-glide") && hz {
+            self.edit(&sh, |c| c.pitch.slide_hz_to(note as f32, frames));
+        } else if cfg!(feature = "us-voice-glide") {
             self.edit(&sh, |c| c.pitch.slide_to(note as f32, frames));
         } else {
             self.edit(&sh, |c| c.pitch = Pitch::snap(note as f32));
@@ -1148,4 +1202,35 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
 
     const MONO: bool = cfg!(feature = "us-voice-mono");
     const UNISON: bool = cfg!(feature = "us-voice-unison");
+}
+
+#[cfg(all(test, feature = "us-voice-glide"))]
+mod pitch_tests {
+    use super::*;
+
+    #[test]
+    fn a_frequency_slide_is_linear_in_hz() {
+        // the mini-cauldron's glide: the pitch word moves linearly, so halfway up an octave is 1.5×, not √2×
+        let mut p = Pitch::snap(36.0);
+        p.slide_hz_to(48.0, 1000.0);
+        p.advance(500);
+        assert!((crate::fm::exp2f((p.cur - 36.0) / 12.0) - 1.5).abs() < 1e-3, "{}", p.cur);
+        p.advance(499);
+        assert!(p.cur < 48.0);
+        p.advance(1);
+        assert_eq!((p.cur, p.target), (48.0, 48.0));
+        // downwards too: halfway down an octave is 0.75×
+        let mut p = Pitch::snap(48.0);
+        p.slide_hz_to(36.0, 1000.0);
+        p.advance(500);
+        assert!((crate::fm::exp2f((p.cur - 48.0) / 12.0) - 0.75).abs() < 1e-3, "{}", p.cur);
+    }
+
+    #[test]
+    fn a_plain_slide_stays_linear_in_semitones() {
+        let mut p = Pitch::snap(36.0);
+        p.slide_to(48.0, 1000.0);
+        p.advance(500);
+        assert!((p.cur - 42.0).abs() < 1e-4);
+    }
 }

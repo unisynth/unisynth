@@ -13,6 +13,8 @@ wavesabre = { workspace = true, features = ["ws-all"] }
 tfsynth = { workspace = true, features = ["tf-fx-all"] }
 gsm.workspace = true
 unisynth = { path = "../unisynth", features = ["std"] }
+# mini-cauldron patch data (`research/tbl-mini-cauldron/ref/patches_*.json`, change add-cauldron-xm-import)
+serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
 
 [[bin]]
 name = "synth-convert"
@@ -21,4 +23,3 @@ path = "src/main.rs"
 [dev-dependencies]
 # examples/library.rs: converted library entries as song/1 devices
 song = { path = "../song" }
-serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }

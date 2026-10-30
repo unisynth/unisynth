@@ -209,7 +209,7 @@ pub fn name(i: usize) -> String {
     ];
     const N: [&str; n::LEN] = ["band_on", "hp", "lp"];
     const F: [&str; f::LEN] = ["type", "cutoff", "resonance"];
-    const E: [&str; e::LEN] = ["mode", "attack", "decay", "sustain", "release", "slope"];
+    const E: [&str; e::LEN] = ["law", "attack", "decay", "sustain", "release", "curve_slope"];
     const L: [&str; l::LEN] = ["shape", "rate", "depth", "sync"];
     const M: [&str; m::LEN] = ["source", "target", "amount", "operation"];
     let slot = |base: usize, stride: usize, names: &[&str], group: &str| {
@@ -237,30 +237,33 @@ pub fn name(i: usize) -> String {
     } else if i == ext::NOISE_WIDTH {
         String::from("noise.width")
     } else if i < VDIST {
-        String::from(["v2.voice", "v2.keysync", "v2.era", "v2.routing", "v2.balance"][i - V2G])
+        // `voice.stage` and `voice.era` leave the layout at the format switch (change unify-v2-algorithms D4)
+        String::from(["voice.stage", "voice.keysync", "voice.era", "voice.routing", "voice.balance"][i - V2G])
     } else if i < ENV_AMP {
-        format!("vdist.{}", ["mode", "gain", "p1", "p2"][i - VDIST])
+        format!("drive.{}", ["mode", "gain", "p1", "p2"][i - VDIST])
     } else if i < LFO_EXT {
         format!("env{}.amplify", i - ENV_AMP + 1)
     } else if i < MOD2 {
         let r = i - LFO_EXT;
-        format!("lfo{}.{}", r / lx::LEN + 1, ["mode", "phase", "polarity", "eg"][r % lx::LEN])
+        format!("lfo{}.{}", r / lx::LEN + 1, ["law", "phase", "polarity", "one_shot"][r % lx::LEN])
     } else if i < CC {
         slot(MOD2 - MOD_SLOTS1 * m::LEN, m::LEN, &M, "mod")
     } else if i < CH {
         format!("ctl.cc{}", i - CC + 2)
     } else if i < CH + ch::LEN {
-        format!(
-            "ch.{}",
-            ["on", "volume", "boost", "fx_order", "send_reverb", "send_delay", "send_aux_a", "send_aux_b", "recv_aux_a", "recv_aux_b", "speech", "speech_ctl4", "speech_ctl5"][i - CH]
+        String::from(
+            [
+                "strip.on", "strip.volume", "strip.boost", "strip.order", "strip.send_reverb", "strip.send_delay", "strip.send_aux_a", "strip.send_aux_b",
+                "strip.recv_aux_a", "strip.recv_aux_b", "speech.on", "speech.select", "speech.pitch",
+            ][i - CH],
         )
     } else if i >= ch::DIST && i < ch::CHORUS {
-        format!("ch.dist_{}", ["mode", "gain", "p1", "p2"][i - ch::DIST])
+        format!("strip.drive_{}", ["mode", "gain", "p1", "p2"][i - ch::DIST])
     } else if i >= ch::CHORUS && i < ch::COMP {
-        format!("ch.chorus_{}", ["amount", "feedback", "delay_l", "delay_r", "rate", "depth", "phase"][i - ch::CHORUS])
+        format!("strip.chorus_{}", ["amount", "feedback", "delay_l", "delay_r", "rate", "depth", "phase"][i - ch::CHORUS])
     } else if i >= ch::COMP && i < COUNT {
         format!(
-            "ch.comp_{}",
+            "strip.comp_{}",
             ["mode", "couple", "auto_gain", "lookahead", "threshold", "ratio", "attack", "release", "out_gain"][i - ch::COMP]
         )
     } else {

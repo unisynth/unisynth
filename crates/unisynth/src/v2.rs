@@ -7,18 +7,18 @@
 //! V2 works on raw parameter values (`0..128`, `params::v2_raw`) and on 128-sample frames at 44.1 kHz
 //! ([`FRAMES_PER_S`] frames per second at any rate).
 
-/// V2 voice state that only a V2 voice feature uses (`us-v2-any`): stored with it, zero-sized without, so a build
+/// V2 voice state that only a V2 voice feature uses (`us-mono-sum`): stored with it, zero-sized without, so a build
 /// without V2 does not carry, copy or initialise it. Without the feature, reads give `T::default()` and writes are
 /// dropped (every use sits behind its feature's `cfg!`).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct Opt<T>(#[cfg(feature = "us-v2-any")] T, #[cfg(not(feature = "us-v2-any"))] core::marker::PhantomData<T>);
+pub struct Opt<T>(#[cfg(feature = "us-mono-sum")] T, #[cfg(not(feature = "us-mono-sum"))] core::marker::PhantomData<T>);
 
 impl<T: Copy + Default> Opt<T> {
     #[inline(always)]
     pub const fn new(v: T) -> Self {
-        #[cfg(feature = "us-v2-any")]
+        #[cfg(feature = "us-mono-sum")]
         return Opt(v);
-        #[cfg(not(feature = "us-v2-any"))]
+        #[cfg(not(feature = "us-mono-sum"))]
         {
             let _ = v;
             Opt(core::marker::PhantomData)
@@ -30,17 +30,17 @@ impl<T: Copy + Default> Opt<T> {
     }
     #[inline(always)]
     pub fn get(&self) -> T {
-        #[cfg(feature = "us-v2-any")]
+        #[cfg(feature = "us-mono-sum")]
         return self.0;
-        #[cfg(not(feature = "us-v2-any"))]
+        #[cfg(not(feature = "us-mono-sum"))]
         T::default()
     }
     /// Runs `f` on the value (without the feature: on a default, discarded).
     #[inline(always)]
     pub fn with<R>(&mut self, f: impl FnOnce(&mut T) -> R) -> R {
-        #[cfg(feature = "us-v2-any")]
+        #[cfg(feature = "us-mono-sum")]
         return f(&mut self.0);
-        #[cfg(not(feature = "us-v2-any"))]
+        #[cfg(not(feature = "us-mono-sum"))]
         f(&mut T::default())
     }
 }

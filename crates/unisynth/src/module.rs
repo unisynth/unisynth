@@ -48,8 +48,8 @@ modules! {
     FILTER_LADDER = 9, "us-flt-ladder", "ladder filter";
     FILTER_RBJ = 10, "us-flt-rbj", "RBJ filter";
     FILTER_NOTCH = 11, "us-flt-notch", "resonator notch filter";
-    ENV_TIMED = 12, "us-env-timed", "timed envelope";
-    ENV_RATE = 13, "us-env-rate", "rate envelope";
+    ENV_SECONDS = 12, "us-env-seconds", "seconds-law envelope";
+    ENV_RATE = 13, "us-env-rate", "rate-law envelope";
     // effect (kind, mode) pairs
     FX_DISTORTION_SHAPER = 16, "us-fx-distortion-shaper", "distortion, shaper mode";
     FX_DISTORTION_POWER = 17, "us-fx-distortion-power", "distortion, power mode";
@@ -77,20 +77,23 @@ modules! {
     // added after the first release of the table: ids are never renumbered
     FX_DISTORTION_CURVE = 38, "us-fx-distortion-curve", "distortion, curve mode";
     MATRIX_ADD = 39, "us-matrix-add", "mod matrix Add operation, controller sources, slots 13–16";
-    SPEECH = 40, "us-speech", "Ronan speech stage";
-    ENV_V2 = 41, "us-env-v2", "V2 envelope";
-    OSC_V2 = 42, "us-osc-v2", "V2 oscillator";
-    FILTER_V2 = 43, "us-flt-v2", "V2 filter";
-    FILTER_ROUTE = 44, "us-flt-route", "parallel filter routing";
-    VDIST = 45, "us-vdist", "voice distortion";
-    LFO_V2 = 46, "us-lfo-v2", "V2 LFO";
-    V2_VOICE = 47, "us-v2-voice", "V2 voice output stage";
-    CHAN = 48, "us-chan", "channel stage";
-    FX_EQ_CUT = 49, "us-fx-eq-cut", "EQ, cut mode (V2 post filters)";
-    FX_DELAY_V2 = 50, "us-fx-delay-v2", "delay, v2 mode";
-    FX_REVERB_V2 = 51, "us-fx-reverb-v2", "reverb, v2 mode";
-    FX_COMPRESSOR_V2 = 52, "us-fx-compressor-v2", "compressor, v2 mode";
+    SPEECH = 40, "us-speech", "formant speech stage";
+    ENV_FRAME = 41, "us-env-frame", "frame-law envelope";
+    OSC_NAIVE = 42, "us-osc-naive", "naive oscillator generators";
+    FILTER_FEEDBACK = 43, "us-flt-feedback", "feedback-resonance and 4-pole filters";
+    FILTER_PARALLEL = 44, "us-flt-parallel", "parallel filter routing";
+    DRIVE = 45, "us-drive", "voice drive stage";
+    LFO_FRAME = 46, "us-lfo-frame", "frame-law LFO";
+    VOICE_OUT = 47, "us-voice-out", "voice output settings";
+    STRIP = 48, "us-strip", "channel strip";
+    FX_EQ_CUT = 49, "us-fx-eq-cut", "EQ, cut mode";
+    FX_DELAY_MODULATED = 50, "us-fx-delay-modulated", "delay, modulated mode";
+    FX_REVERB_COMB = 51, "us-fx-reverb-comb", "reverb, comb mode";
+    FX_COMPRESSOR_LOOKAHEAD = 52, "us-fx-compressor-lookahead", "compressor, look-ahead mode";
     CHUNK_WIDE = 53, "us-chunk-wide", "chunk escapes (index 240 or more, 255 or more pairs)";
+    OSC_CAULDRON = 54, "us-osc-cauldron", "mini-cauldron oscillator";
+    FX_DISTORTION_WRAP = 55, "us-fx-distortion-wrap", "distortion, wrap mode";
+    FX_FLANGER_COMB = 56, "us-fx-flanger-comb", "flanger, comb mode";
 }
 
 /// Whether this build contains every module in `ids`: generated songs assert it at compile time
@@ -126,6 +129,6 @@ mod tests {
     fn compiled_follows_the_cargo_features() {
         assert_eq!(compiled(OSC_PM), cfg!(feature = "us-osc-pm"));
         assert_eq!(compiled(MATRIX), cfg!(feature = "us-matrix"));
-        assert_eq!(compiled_all(&[NOISE, ENV_TIMED]), cfg!(feature = "us-noise") && cfg!(feature = "us-env-timed"));
+        assert_eq!(compiled_all(&[NOISE, ENV_SECONDS]), cfg!(feature = "us-noise") && cfg!(feature = "us-env-seconds"));
     }
 }

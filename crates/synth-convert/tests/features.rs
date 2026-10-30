@@ -48,7 +48,7 @@ fn a_slaughter_without_effects_needs_the_saw_pulse_oscillator_the_state_variable
         p[2] = 1.0;
     });
     let f = of(&s);
-    assert!(f.contains(&"us-osc-blit") && f.contains(&"us-flt-svf") && f.contains(&"us-env-timed"), "{f:?}");
+    assert!(f.contains(&"us-osc-blit") && f.contains(&"us-flt-svf") && f.contains(&"us-env-seconds"), "{f:?}");
     assert!(!f.contains(&"us-noise"), "a silent noise source costs no code: {f:?}");
     assert!(f.iter().all(|x| !x.starts_with("us-fx") && !x.contains("osc-pm") && !x.contains("osc-wt")), "{f:?}");
     // with noise
@@ -203,7 +203,7 @@ fn envelopes_other_than_the_first_count_when_read_or_when_a_lane_can_route_them(
     assert!(of(&lane).contains(&"us-env-rate") && of(&lane).contains(&"us-noise"), "{:?}", of(&lane));
     // envelope 1 in rate mode
     let one = many(1, |_, p| p[mode(0)] = tf, &[]);
-    assert!(of(&one).contains(&"us-env-rate") && !of(&one).contains(&"us-env-timed"), "{:?}", of(&one));
+    assert!(of(&one).contains(&"us-env-rate") && !of(&one).contains(&"us-env-seconds"), "{:?}", of(&one));
 }
 
 #[test]
@@ -323,9 +323,9 @@ fn the_explained_map_lists_the_same_features_and_names_each_cause() {
     assert!(e.iter().all(|n| !n.why.is_empty() && n.cost.is_none()));
     assert_eq!(why(&s, "us-noise"), ["instrument device 0: noise_level is above 0"]);
     assert_eq!(why(&s, "us-osc-blit"), ["instrument device 0: osc1.type is saw/pulse"]);
-    let ws = why(&s, "us-env-timed");
-    assert_eq!(ws[0], "instrument device 0: env1.mode is timed mode, envelope 1 ends the voice");
-    assert!(ws[1].starts_with("instrument device 0: env2.mode is timed mode, mod"), "{ws:?}");
+    let ws = why(&s, "us-env-seconds");
+    assert_eq!(ws[0], "instrument device 0: env1.law is the seconds law, envelope 1 ends the voice");
+    assert!(ws[1].starts_with("instrument device 0: env2.law is the seconds law, mod"), "{ws:?}");
 }
 
 #[test]
@@ -338,7 +338,7 @@ fn a_cause_through_an_automation_lane_says_so() {
     // a lane on a routing parameter can reach the noise and every envelope
     let r = unified(|_| {}, &[(pm::modslot(0, pm::m::TARGET), &[(0, 0), (100, 255)])]);
     assert_eq!(why(&r, "us-noise"), ["instrument device 0: a lane on mod1 can route to the noise level"]);
-    assert!(why(&r, "us-env-timed").iter().any(|w| w.contains("a lane on mod1 can route envelope 2")), "{:?}", why(&r, "us-env-timed"));
+    assert!(why(&r, "us-env-seconds").iter().any(|w| w.contains("a lane on mod1 can route envelope 2")), "{:?}", why(&r, "us-env-seconds"));
 }
 
 #[test]

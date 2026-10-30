@@ -38,7 +38,7 @@ pub mod voice;
 #[cfg(feature = "us-osc-wt")]
 pub mod wt;
 
-#[cfg(all(test, feature = "us-osc-pm", feature = "us-env-timed", feature = "us-env-rate"))]
+#[cfg(all(test, feature = "us-osc-pm", feature = "us-env-seconds", feature = "us-env-rate"))]
 // the song-level tests that use it are gated on us-matrix or us-voice-glide + us-voice-unison
 #[cfg_attr(not(any(feature = "us-matrix", all(feature = "us-voice-glide", feature = "us-voice-unison"))), allow(dead_code))]
 mod testing;
@@ -71,7 +71,7 @@ pub mod kind {
 }
 
 /// A song with an automation lane loads only in a build with `us-automation`; one without lanes loads in any build.
-#[cfg(all(test, feature = "us-osc-pm", feature = "us-env-timed", feature = "us-env-rate"))]
+#[cfg(all(test, feature = "us-osc-pm", feature = "us-env-seconds", feature = "us-env-rate"))]
 mod automation_gating {
     use crate::device::UDevice;
     use crate::rng::Xorshift;

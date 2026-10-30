@@ -59,7 +59,8 @@ pub fn instrument_why(chunk: &[u8], reach: Reach) -> Result<Why, LoadError> {
         match ty {
             osc_type::PM => add(&mut out, m::OSC_PM, kind("phase-mod")),
             osc_type::BLIT => add(&mut out, m::OSC_BLIT, kind("saw/pulse")),
-            osc_type::V2 => add(&mut out, m::OSC_V2, kind("a V2 oscillator")),
+            osc_type::V2 => add(&mut out, m::OSC_NAIVE, kind("a naive oscillator")),
+            osc_type::CAULDRON => add(&mut out, m::OSC_CAULDRON, kind("a cauldron oscillator")),
             osc_type::WAVETABLE => add(&mut out, m::OSC_WAVETABLE, kind("wavetable")),
             osc_type::SAMPLER => {
                 add(&mut out, m::OSC_SAMPLER, kind("sampler"));
@@ -84,7 +85,7 @@ pub fn instrument_why(chunk: &[u8], reach: Reach) -> Result<Why, LoadError> {
                 ft::LADDER_LP => (m::FILTER_LADDER, "the ladder filter"),
                 ft::RBJ_HP | ft::RBJ_BP => (m::FILTER_RBJ, "an RBJ filter"),
                 ft::NOTCH => (m::FILTER_NOTCH, "the notch filter"),
-                ft::V2_LP..=ft::V2_MOOG_HP => (m::FILTER_V2, "a V2 filter"),
+                ft::V2_LP..=ft::V2_MOOG_HP => (m::FILTER_FEEDBACK, "a feedback-resonance or 4-pole filter"),
                 _ => continue,
             };
             add(&mut out, id, format!("{} can be {what}{}", n(t), lane(t)));
@@ -109,10 +110,10 @@ pub fn instrument_why(chunk: &[u8], reach: Reach) -> Result<Why, LoadError> {
             for mode in kinds(mt, pm::env_mode::COUNT, pm::env_mode::ALL, pm::env_mode::TIMED) {
                 let (id, what) = match mode {
                     pm::env_mode::RATE => (m::ENV_RATE, "rate"),
-                    pm::env_mode::V2 => (m::ENV_V2, "V2"),
-                    _ => (m::ENV_TIMED, "timed"),
+                    pm::env_mode::V2 => (m::ENV_FRAME, "frame"),
+                    _ => (m::ENV_SECONDS, "seconds"),
                 };
-                add(&mut out, id, format!("{} is {what} mode, {why}{}", n(mt), lane(mt)));
+                add(&mut out, id, format!("{} is the {what} law, {why}{}", n(mt), lane(mt)));
             }
         }
     }
@@ -169,30 +170,30 @@ pub fn instrument_why(chunk: &[u8], reach: Reach) -> Result<Why, LoadError> {
     if !c.text().is_empty() {
         add(&mut out, m::SPEECH, format!("the chunk holds {} bytes of speech text", c.text().len()));
     }
-    // the V2 modules (`instrument::check_v2`)
+    // the mono-sum and voice-stage modules (`instrument::check_v2`)
     let raw_hi = |i: usize| (pm::v2_raw(span(i).1) as i32, pm::v2_raw(span(i).0) as i32);
     for k in 0..pm::LFO_SLOTS {
         let t = pm::lfo_ext(k, pm::lx::MODE);
         let read = (0..pm::MOD_SLOTS).any(|s| source::decode(val[pm::modslot(s, pm::m::SOURCE)]) == source::LFO1 + k) || rerouting.is_some();
         if read && choices(t, 2).any(|c| c == 1) {
-            add(&mut out, m::LFO_V2, format!("{} is V2 mode and read{}", n(t), lane(t)));
+            add(&mut out, m::LFO_FRAME, format!("{} is the frame law and read{}", n(t), lane(t)));
         }
     }
     let vd = pm::VDIST + pm::dist::MODE;
     if raw_hi(vd).0 != 0 || raw_hi(vd).1 != 0 {
-        add(&mut out, m::VDIST, format!("{} is on{}", n(vd), lane(vd)));
+        add(&mut out, m::DRIVE, format!("{} is on{}", n(vd), lane(vd)));
     }
     let (rhi, rlo) = raw_hi(pm::v2::ROUTING);
     if rhi >= 2 && rlo <= 2 {
-        add(&mut out, m::FILTER_ROUTE, format!("{} is parallel{}", n(pm::v2::ROUTING), lane(pm::v2::ROUTING)));
+        add(&mut out, m::FILTER_PARALLEL, format!("{} is parallel{}", n(pm::v2::ROUTING), lane(pm::v2::ROUTING)));
     }
-    for (i, id, what) in [(pm::v2::VOICE, m::V2_VOICE, "the V2 voice"), (pm::ch::ON, m::CHAN, "the channel stage")] {
+    for (i, id, what) in [(pm::v2::VOICE, m::VOICE_OUT, "the voice output settings"), (pm::ch::ON, m::STRIP, "the channel strip")] {
         if choices(i, 2).any(|c| c == 1) {
             add(&mut out, id, format!("{} is on ({what}){}", n(i), lane(i)));
         }
     }
     if let Some(i) = (0..pm::OSC_SLOTS).find(|&i| crate::osc::v2_aux(&val, i)) {
-        add(&mut out, m::CHAN, format!("osc{} reads an aux bus (the extra input pairs)", i + 1));
+        add(&mut out, m::STRIP, format!("osc{} reads an aux bus (the extra input pairs)", i + 1));
     }
     if choices(v::ONE_SHOT, 2).any(|c| c == 1) {
         add(&mut out, m::VOICE_ONESHOT, format!("{} is on{}", n(v::ONE_SHOT), lane(v::ONE_SHOT)));

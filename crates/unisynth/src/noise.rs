@@ -98,7 +98,7 @@ mod tests {
     }
 
     /// A patch that uses noise needs the feature: set, or routed from the matrix; unused noise costs nothing.
-    #[cfg(feature = "us-env-timed")] // the default patch
+    #[cfg(feature = "us-env-seconds")] // the default patch
     #[cfg(feature = "us-matrix")]
     #[test]
     fn the_noise_module_is_named_when_a_patch_uses_it_without_the_feature() {

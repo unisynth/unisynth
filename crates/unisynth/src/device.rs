@@ -74,8 +74,8 @@ impl Device for UDevice<'_> {
     fn run(&mut self, io: &mut Io, n: usize, ctx: &mut Ctx) {
         forward!(self, d => d.run(io, n, ctx))
     }
-    /// Only the instrument's channel stage uses the extra pairs (`us-chan`); without it the default calls `run`.
-    #[cfg(feature = "us-chan")]
+    /// Only the instrument's channel stage uses the extra pairs (`us-strip`); without it the default calls `run`.
+    #[cfg(feature = "us-strip")]
     fn run_ext(&mut self, io: &mut Io, ext: &mut [&mut [f32]], n: usize, ctx: &mut Ctx) {
         forward!(self, d => d.run_ext(io, ext, n, ctx))
     }

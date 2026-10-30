@@ -150,7 +150,7 @@ fn target_table() {
     assert_eq!(COUNT, PARAM + 64);
     assert_eq!(param(PARAM), Some(crate::params::v::PAN));
     assert_eq!(param(PARAM - 1), None);
-    assert!(!is_channel(PARAM + 39) && is_channel(PARAM + 40), "lfo2.depth is the last voice target, ch.volume the first channel one");
+    assert!(!is_channel(PARAM + 39) && is_channel(PARAM + 40), "lfo2.depth is the last voice target, strip.volume the first channel one");
     for t in [PITCH, GAIN, NOISE_LEVEL, osc(0, OSC_PITCH), osc(2, OSC_GAIN), SLOT, SLOT + 11] {
         assert!(scales_physical(t), "{}", name(t));
     }

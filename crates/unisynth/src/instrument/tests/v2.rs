@@ -170,9 +170,9 @@ fn the_channel_stage_volume_and_the_newest_voice_s_routes() {
     assert!(db(rms(&x[24000..44100]), rms(&x[2000..22000])) < -10.0, "the quiet note sets the channel volume");
 }
 
-/// V2's aux oscillator (format version 6, `us-chan`): it plays the aux bus it reads, (l + r) · gain · 0.6, through the
+/// V2's aux oscillator (format version 6, `us-strip`): it plays the aux bus it reads, (l + r) · gain · 0.6, through the
 /// voice; aux A and aux B are the instrument's extra input pairs 1 and 2.
-#[cfg(feature = "us-chan")]
+#[cfg(feature = "us-strip")]
 #[test]
 fn an_aux_oscillator_plays_its_aux_bus() {
     use synth_core::device::{EXT_CH, OUT_PAIRS};
@@ -209,7 +209,7 @@ fn an_aux_oscillator_needs_the_channel_stage() {
     let p = crate::chunk::Chunk::parse(&c).unwrap().values();
     assert!(crate::osc::v2_aux(&p, 0));
     let why = crate::needs::instrument_why(&c, &|_| None).unwrap();
-    assert!(why.contains_key(&crate::module::CHAN), "{why:?}");
+    assert!(why.contains_key(&crate::module::STRIP), "{why:?}");
     // before version 6 V2 had no aux buses: the mode is silent and needs nothing
     let old = v2patch(&[(6, 0, 64, 64)], &[(v2::ERA, pm::kinds::encode(5, 7))]);
     assert!(!crate::osc::v2_aux(&crate::chunk::Chunk::parse(&old).unwrap().values(), 0));
