@@ -326,6 +326,9 @@ fn cut_hz(mm: &impl Query, base: f32, t: u8) -> f32 {
     (law::cutoff((base * mm.scale(t)).max(0.0).min(1.0)) + mm.offset(t)).max(0.0).min(19_980.0)
 }
 
+/// A cauldron restart's declick fade (see `Voice::dk`).
+const DECLICK_MS: f32 = 1.0;
+
 pub struct Voice<'a> {
     on: bool,
     note: u8,
@@ -372,6 +375,13 @@ pub struct Voice<'a> {
     dcf_r: Opt<f32>,
     /// Note-on order (`NoteCx::seq`).
     pub seq: u32,
+    /// A cauldron restart's declick: the last output frame, the step carried into the new note, frames of it left
+    /// and the fade's length (`DECLICK_MS`), `pending` until the new note's first frame measures the step.
+    last: (f32, f32),
+    dk: (f32, f32),
+    dk_n: u32,
+    dk_len: u32,
+    dk_pending: bool,
     #[cfg(test)]
     pub(crate) starts: u32,
 }
@@ -388,6 +398,11 @@ impl<'a> Voice<'a> {
             pan: 0.5,
             rng: Xorshift::new(1),
             has_pitch: false,
+            last: (0.0, 0.0),
+            dk: (0.0, 0.0),
+            dk_n: 0,
+            dk_len: 0,
+            dk_pending: false,
             fx: Fixed { envp: [EnvP::DEFAULT; pm::ENV_SLOTS], vel: 0.0, key: 0.0, note: 0.0, resample: false },
             start: c,
             end: c,
@@ -1013,6 +1028,21 @@ impl<'a> Voice<'a> {
                 }
                 None => (bl * amp, br * amp),
             };
+            let (mut ol, mut or) = (ol, or);
+            if cfg!(feature = "us-osc-cauldron") {
+                if self.dk_pending {
+                    self.dk_pending = false;
+                    self.dk = (self.last.0 - ol, self.last.1 - or);
+                    self.dk_n = self.dk_len;
+                }
+                if self.dk_n > 0 {
+                    let g = self.dk_n as f32 / self.dk_len as f32;
+                    ol += self.dk.0 * g;
+                    or += self.dk.1 * g;
+                    self.dk_n -= 1;
+                }
+                self.last = (ol, or);
+            }
             *lo += ol;
             *ro += or;
             self.lvl += ol.abs() + or.abs();
@@ -1037,6 +1067,9 @@ impl VoiceState for Voice<'_> {
 impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
     fn note_on(&mut self, note: u8, velocity: u8, detune: f32, pan: f32, cx: &mut NoteCx<'c>) {
         let sh = cx.sh;
+        if !self.on {
+            self.last = (0.0, 0.0);
+        }
         self.on = true;
         self.seq = cx.seq;
         self.note = note;
@@ -1060,6 +1093,12 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
         self.has_pitch = true;
         // a cauldron instrument's timed attack of 0 is instant: the mini-cauldron has no attack
         let instant = cfg!(feature = "us-osc-cauldron") && self.slots.iter().any(|s| s.kind == Kind::Cauldron);
+        // its restart zeroes the filter's output: a note cut while sounding (a ping-pong joint) would drop in one
+        // frame, so the step is carried and faded out; a forward retrigger's old note has faded to 0 (no step)
+        if instant {
+            self.dk_pending = true;
+            self.dk_len = (sh.rate * DECLICK_MS / 1000.0).max(1.0) as u32;
+        }
         self.fx = Fixed {
             envp: core::array::from_fn(|i| EnvP { instant, ..EnvP::read(sh.p, i) }),
             vel: self.vel,

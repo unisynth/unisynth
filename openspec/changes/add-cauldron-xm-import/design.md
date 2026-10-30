@@ -358,9 +358,13 @@ calibration of 6.2.
   The original's clamps and wraps ran on the sample before decimation and playback, ours at the output rate: the
   band-limiting low-pass is two SVF stages (`LP_STAGES`, 24 dB/octave) and a sliding track gets it even when not
   decimated (`slide_lowpass`), its cut automated to the stored Nyquist times the playing ratio. Song 1's record 10
-  (+48 wrap, decimated 4) went from 98 HF bursts to the reference's count. Open: a ping-pong's reversed steps join
-  unrelated step ends, and a capacity-1 voice restarts at each with an edge (records 5, 8, 13 and the drums at 24 s
-  still click more than the reference).
+  (+48 wrap, decimated 4) went from 98 HF bursts to the reference's count. A cut restart: a ping-pong's reversed
+  steps join unrelated step ends, and the one voice restarted with its filter output at 0, dropping the sounding
+  note in a frame; the voice now fades that step out over 1 ms (unisynth restart declick): record 5 from 26 HF
+  bursts to the reference's count, the goldens and phrases unchanged. Left: records 6 and 8 (8 / 82 vs 0 / 57):
+  a reversed step's attack belongs at its end (D9: ours plays it forwards, the attack at its start); record 13
+  (70 vs 42): openmpt ramps each new sample start (≈ 0.36 ms) and ours starts sharper; the drums at 24 s
+  (interpolation edges of a 15.8 kHz playback that openmpt's sinc smooths).
 - **Pan after the chain** (song 1, heard at 8–22 s). XM pan is the tracker's, applied to the finished sample; the
   voice pan put it before the comb, echo and doubler, which smeared each tick's pan into both sides (record 1's
   tremor pans hard left/right every tick: ours played it on both sides, +4 dB). A phrase voice now plays centred (√2,

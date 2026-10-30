@@ -216,6 +216,29 @@ fn a_legato_note_keeps_the_cauldron_filter_rising() {
     assert!(restarted.iter().any(|&x| rel(x, amount * d.powi(100))), "{restarted:?}");
 }
 
+#[cfg(feature = "us-voice-mono")]
+#[test]
+fn a_cauldron_restart_fades_the_cut_note_out() {
+    // one mono voice, a note cut by the next one in the same frame (the converter's ping-pong joints): the restart
+    // zeroes the filter's output, so the old note dropped to 0 in one frame (a click, multiplied by the chain's comb
+    // and doubler). Now the step at the restart is carried and faded out over 1 ms
+    use crate::params::shape as sp;
+    let sh = |i| osc(0, o::SHAPE + i);
+    let edits = [
+        (osc(0, o::TYPE), osc_type::encode(osc_type::CAULDRON)),
+        (v::MODE, 1.0),
+        (v::CAPACITY, cap(1)),
+        (sh(sp::CD_F_BASE), 0.02 / 8.0),
+        (sh(sp::CD_F_DAMP), 0.5),
+        (pm::env(0, pm::e::RELEASE), inv::inv_env_ms(200.0)),
+    ];
+    let (l, _) = with_ins(&patch(&edits), 44100.0, |ins| render(ins, 44100.0, &[on(0, 48), off(1000, 48), on(1000, 48)], 1200, 1200));
+    let d = |i: usize| (l[i] - l[i - 1]).abs();
+    let smooth = (500..1000).map(d).fold(0.0f32, f32::max);
+    assert!(l[999].abs() > 4.0 * smooth, "the old note sounds at the cut: {} vs step {smooth}", l[999]);
+    assert!(d(1000) <= 2.0 * smooth, "restart step {} vs the wave's {smooth}", d(1000));
+}
+
 #[cfg(feature = "us-osc-cauldron")]
 #[test]
 fn transpose_and_bend_resample_the_cauldron_phrase() {

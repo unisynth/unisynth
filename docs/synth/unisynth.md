@@ -482,6 +482,10 @@ from those intros (`synth-convert xm`, change add-cauldron-xm-import). Algorithm
   signal: the slot low-passes its output at `0.45·clock` of the output rate (4th-order Butterworth, `CauldronLp`,
   coefficients recomputed when the clock changes), as the original's player band-limits a slowed sample; bypassed at
   a clock of 1 or more.
+- **Restart declick.** A note-on restarts a cauldron voice with the filter's output at 0. A note cut while it sounds
+  (a converted ping-pong joint, an XM jump) would drop in one frame, so the voice carries the step between its last
+  output and the new note's first frame and fades it out linearly over 1 ms (`DECLICK_MS`). A forward retrigger's
+  old note has faded to 0 already: no step, no change.
 - **Playback rate.** The voice-wide transpose and bend are a playback rate for a voice with a cauldron slot (an XM
   pitch slide resamples the precalc sample): the phrase clock is multiplied by `2^((transpose + bend)/12)`, so the
   pitch word stays and the filter and phrase position move with it, and the voice's envelopes advance at that rate
