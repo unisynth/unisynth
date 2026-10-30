@@ -23,6 +23,37 @@ fn db_gain_round_trip() {
     assert!(close(gain_to_db(0.5), -6.0206, 1e-3));
 }
 
+/// `lerp` is `a + (b−a)·t` exactly (operation order, no fusing), differs from `mix` in the last bit for some inputs, and
+/// for every lane value a song can hold (byte/255) and every `t` the player forms from two points it stays within a few
+/// ulp of the segment: the range a consumer's preflight widens by (Glorp `MARGIN` 1e-5) covers both forms.
+#[test]
+fn lerp_is_a_plus_delta_t_and_stays_inside_the_segment() {
+    assert_eq!(lerp(2.0, 4.0, 0.25), 2.5);
+    assert_eq!((lerp(0.3, 0.9, 0.0), lerp(0.3, 0.9, 1.0)), (0.3, 0.3 + (0.9 - 0.3)));
+    let byte = |b: u32| (b as f64 / 255.0) as f32;
+    let (mut differ, mut total, mut worst) = (0u32, 0u32, 0.0f32);
+    // spans of 1, 100 frames to the i32 maximum; pos in [0, span) like the player's walk
+    for span in [1i64, 7, 100, 997, 44_100, 1 << 20, (1 << 31) - 1] {
+        for k in 0..=64i64 {
+            let pos = (span - 1) * k / 64;
+            let t = pos as f32 / span as f32;
+            assert!((0.0..=1.0).contains(&t), "t {t} span {span}");
+            for (a, b) in (0..256u32).step_by(5).flat_map(|a| (0..256u32).step_by(7).map(move |b| (a, b))) {
+                let (a, b) = (byte(a), byte(b));
+                let (l, m) = (lerp(a, b, t), mix(a, b, t));
+                assert_eq!(l.to_bits(), (a + (b - a) * t).to_bits());
+                let (lo, hi) = (a.min(b), a.max(b));
+                worst = worst.max(lo - l).max(l - hi).max(lo - m).max(m - hi);
+                assert!(l.is_finite() && m.is_finite());
+                total += 1;
+                differ += (l.to_bits() != m.to_bits()) as u32;
+            }
+        }
+    }
+    assert!(differ > 0 && differ < total / 2, "the forms must differ, not always: {differ} of {total}");
+    assert!(worst <= 2.0 * f32::EPSILON, "outside the segment by {worst}");
+}
+
 #[test]
 fn equal_power_pan() {
     assert!(close(pan_left(0.5), core::f32::consts::FRAC_1_SQRT_2, 1e-6));
@@ -1872,5 +1903,495 @@ mod either_tests {
         let mut b = b;
         b.run(&mut Io { ch: [&mut l, &mut r, &mut s0, &mut s1] }, 4, &mut ctx);
         assert_eq!(l, [37.0; 4]);
+    }
+}
+
+// ---- mix: song-level preflight hook + required block size (Glorp player wiring) ----
+mod hook_tests {
+    use super::blob::W;
+    use crate::device::*;
+    use crate::mix::*;
+    use crate::pool::Pool;
+    use std::cell::Cell;
+
+    // Per thread: libtest runs sibling tests concurrently, a global counter would count their builds too.
+    thread_local! {
+        static BUILT: Cell<usize> = const { Cell::new(0) };
+    }
+    fn built() -> usize {
+        BUILT.with(Cell::get)
+    }
+
+    /// Accepts kinds 1..=10, refuses any song that holds an automation lane (preflight), needs 128-frame blocks
+    /// (only for a song that actually holds one of its kinds).
+    struct Gate;
+    impl Device for Gate {
+        fn param_count(&self) -> usize {
+            2
+        }
+        fn set_param(&mut self, _: usize, _: f32) {}
+        fn reset(&mut self) {}
+        fn run(&mut self, io: &mut Io, n: usize, _: &mut Ctx) {
+            io.ch[MAIN_L][..n].fill(1.0);
+        }
+    }
+    impl<'a> Kinds<'a> for Gate {
+        fn block(song: &Song<'a>, _: &Env<'a>) -> Result<Option<usize>, LoadError> {
+            Ok(song.devices().any(|d| (1..=10).contains(&d.kind)).then_some(128))
+        }
+        fn need(k: u8, _: &'a [u8], _: &Env<'a>) -> Result<usize, LoadError> {
+            if (1..=10).contains(&k) { Ok(0) } else { Err(LoadError::UnsupportedKind(k)) }
+        }
+        fn preflight(song: &Song<'a>, _: &Env<'a>) -> Result<(), LoadError> {
+            if song.tracks().any(|t| t.automations().count() > 0) { Err(LoadError::UnsupportedModule(42)) } else { Ok(()) }
+        }
+        fn load(k: u8, c: &'a [u8], e: &Env<'a>, _: &mut Pool<'a>, _: &mut dyn crate::rng::Rng) -> Result<Self, LoadError> {
+            Self::need(k, c, e)?;
+            BUILT.with(|b| b.set(b.get() + 1));
+            Ok(Gate)
+        }
+    }
+
+    /// Second block-bound engine (kinds 11..=19, 64-frame blocks): the "both owned, conflicting" case.
+    struct Pin64;
+    impl Device for Pin64 {
+        fn param_count(&self) -> usize {
+            1
+        }
+        fn set_param(&mut self, _: usize, _: f32) {}
+        fn reset(&mut self) {}
+        fn run(&mut self, _: &mut Io, _: usize, _: &mut Ctx) {}
+    }
+    impl<'a> Kinds<'a> for Pin64 {
+        fn block(song: &Song<'a>, _: &Env<'a>) -> Result<Option<usize>, LoadError> {
+            Ok(song.devices().any(|d| (11..=19).contains(&d.kind)).then_some(64))
+        }
+        fn need(k: u8, _: &'a [u8], _: &Env<'a>) -> Result<usize, LoadError> {
+            if (11..=19).contains(&k) { Ok(0) } else { Err(LoadError::UnsupportedKind(k)) }
+        }
+        fn load(k: u8, c: &'a [u8], e: &Env<'a>, _: &mut Pool<'a>, _: &mut dyn crate::rng::Rng) -> Result<Self, LoadError> {
+            Self::need(k, c, e).map(|_| Pin64)
+        }
+    }
+
+    /// Engine with the defaults: no preflight, any block size.
+    struct Plain;
+    impl Device for Plain {
+        fn param_count(&self) -> usize {
+            1
+        }
+        fn set_param(&mut self, _: usize, _: f32) {}
+        fn reset(&mut self) {}
+        fn run(&mut self, _: &mut Io, _: usize, _: &mut Ctx) {}
+    }
+    impl<'a> Kinds<'a> for Plain {
+        fn need(k: u8, _: &'a [u8], _: &Env<'a>) -> Result<usize, LoadError> {
+            if (20..=30).contains(&k) { Ok(0) } else { Err(LoadError::UnsupportedKind(k)) }
+        }
+        fn load(k: u8, c: &'a [u8], e: &Env<'a>, _: &mut Pool<'a>, _: &mut dyn crate::rng::Rng) -> Result<Self, LoadError> {
+            Self::need(k, c, e).map(|_| Plain)
+        }
+    }
+
+    #[derive(Clone)]
+    struct Zero;
+    impl crate::rng::Rng for Zero {
+        fn next_f32(&mut self) -> f32 {
+            0.0
+        }
+    }
+
+    /// One kind-1 device on a single master track; with or without one automation lane on it.
+    fn song(auto: bool) -> Vec<u8> {
+        let mut w = W::default();
+        w.i(120).i(44100).d(1.0).i(1);
+        w.b(1).i(4).i(4);
+        w.i(1).i(0); // one empty lane
+        w.i(1).f(1.0).i(0).i(1).i(0).i(0);
+        if auto {
+            w.i(1).i(0).i(0).i(1).i(0).b(7);
+        } else {
+            w.i(0);
+        }
+        w.0
+    }
+
+    /// One track holding one device per entry of `kinds` (empty chunks, no automation).
+    fn song_of(kinds: &[u8]) -> Vec<u8> {
+        let mut w = W::default();
+        w.i(120).i(44100).d(1.0).i(kinds.len() as i32);
+        for &k in kinds {
+            w.b(k).i(4).i(4);
+        }
+        w.i(1).i(0); // one empty lane
+        w.i(1).f(1.0).i(0).i(kinds.len() as i32);
+        for d in 0..kinds.len() {
+            w.i(d as i32);
+        }
+        w.i(0).i(0);
+        w.0
+    }
+
+    /// `Player::new` of `K` for `bytes` at `sub`; only the verdict.
+    fn load<K: for<'a> Kinds<'a>>(bytes: &[u8], sub: usize) -> Result<(), LoadError> {
+        let s = Song::parse(bytes).unwrap();
+        let env = Env::for_song(&s, None);
+        let mut mem = vec![0u8; 1 << 20];
+        let mut pool = Pool::new(&mut mem);
+        Player::<K, Zero>::new(s, &env, &mut pool, Zero, sub).map(|_| ())
+    }
+
+    fn player(bytes: &[u8], sub: usize) -> Result<(), LoadError> {
+        let s = Song::parse(bytes).unwrap();
+        let env = Env::for_song(&s, None);
+        let mut mem = vec![0u8; 1 << 16];
+        let mut pool = Pool::new(&mut mem);
+        let mut p = Player::<Gate, Zero>::new(s, &env, &mut pool, Zero, sub)?;
+        let mut out = [0.0f32; 256];
+        p.render_f32(&mut out);
+        assert_eq!(out[0], 1.0);
+        Ok(())
+    }
+
+    #[test]
+    fn load_devices_runs_the_preflight_before_building_anything() {
+        let bytes = song(true);
+        let s = Song::parse(&bytes).unwrap();
+        let env = Env::for_song(&s, None);
+        let mut mem = vec![0u8; 4096];
+        let mut pool = Pool::new(&mut mem);
+        let before = built();
+        assert_eq!(load_devices::<Gate>(&s, &env, &mut pool, &mut Zero).err(), Some(LoadError::UnsupportedModule(42)));
+        assert_eq!(built(), before, "a device was built for a refused song");
+    }
+
+    /// The build counter must only see this thread's builds: libtest runs sibling tests concurrently.
+    #[test]
+    fn build_counter_ignores_builds_on_other_threads() {
+        let before = built();
+        std::thread::spawn(|| load::<Gate>(&song(false), 128).unwrap()).join().unwrap();
+        assert_eq!(built(), before, "another thread's build leaked into this counter");
+    }
+
+    #[test]
+    fn player_new_cannot_skip_the_preflight() {
+        assert_eq!(player(&song(true), 128), Err(LoadError::UnsupportedModule(42)));
+        assert_eq!(player(&song(false), 128), Ok(()));
+    }
+
+    #[test]
+    fn player_new_refuses_a_wrong_sub_block_size() {
+        assert_eq!(player(&song(false), 100), Err(LoadError::Malformed));
+        assert_eq!(player(&song(false), 129), Err(LoadError::Malformed));
+        assert_eq!(player(&song(false), 128), Ok(()));
+    }
+
+    #[test]
+    fn defaults_change_nothing_for_other_engines() {
+        let bytes = song(true);
+        let s = Song::parse(&bytes).unwrap();
+        let env = Env::for_song(&s, None);
+        assert_eq!(Plain::block(&s, &env), Ok(None));
+        assert_eq!(Plain::preflight(&s, &env), Ok(()));
+    }
+
+    #[test]
+    fn block_is_judged_per_song_by_what_the_registry_owns() {
+        let own = song_of(&[1]);
+        let foreign = song_of(&[20]);
+        let (o, f) = (Song::parse(&own).unwrap(), Song::parse(&foreign).unwrap());
+        assert_eq!(Gate::block(&o, &Env::for_song(&o, None)), Ok(Some(128)));
+        assert_eq!(Gate::block(&f, &Env::for_song(&f, None)), Ok(None));
+    }
+
+    #[test]
+    fn either_forwards_the_preflight() {
+        let bytes = song(true);
+        let s = Song::parse(&bytes).unwrap();
+        let env = Env::for_song(&s, None);
+        assert_eq!(<Either<Gate, Plain>>::preflight(&s, &env), Err(LoadError::UnsupportedModule(42)));
+        assert_eq!(<Either<Plain, Gate>>::preflight(&s, &env), Err(LoadError::UnsupportedModule(42)));
+        assert_eq!(<Either<Plain, Plain>>::preflight(&s, &env), Ok(()));
+        let mut mem = vec![0u8; 4096];
+        let mut pool = Pool::new(&mut mem);
+        assert_eq!(
+            load_devices::<Either<Plain, Gate>>(&s, &env, &mut pool, &mut Zero).err(),
+            Some(LoadError::UnsupportedModule(42))
+        );
+    }
+
+    #[test]
+    fn either_block_follows_the_songs_actual_owner() {
+        let foreign = song_of(&[20]);
+        let own = song_of(&[1]);
+        let mixed = song_of(&[20, 1]);
+        // foreign-only song: the block-bound registry owns nothing in it, so any sub-block plays (both orders)
+        for sub in [1, 100, 128, 4096] {
+            assert_eq!(load::<Either<Gate, Plain>>(&foreign, sub), Ok(()), "foreign-only, Gate first, sub {sub}");
+            assert_eq!(load::<Either<Plain, Gate>>(&foreign, sub), Ok(()), "foreign-only, Gate second, sub {sub}");
+        }
+        // a song with an owned device needs 128 (both orders, alone and mixed with a foreign device)
+        for bytes in [&own, &mixed] {
+            for sub in [1, 100, 127, 129] {
+                assert_eq!(load::<Either<Gate, Plain>>(bytes, sub), Err(LoadError::Malformed), "sub {sub}");
+                assert_eq!(load::<Either<Plain, Gate>>(bytes, sub), Err(LoadError::Malformed), "sub {sub}");
+            }
+            assert_eq!(load::<Either<Gate, Plain>>(bytes, 128), Ok(()));
+            assert_eq!(load::<Either<Plain, Gate>>(bytes, 128), Ok(()));
+        }
+        // the engine alone is not relaxed
+        assert_eq!(load::<Gate>(&own, 100), Err(LoadError::Malformed));
+        assert_eq!(load::<Gate>(&own, 128), Ok(()));
+    }
+
+    #[test]
+    fn either_with_both_registries_bound_to_different_blocks_refuses_the_song() {
+        let both = song_of(&[1, 11]);
+        let s = Song::parse(&both).unwrap();
+        assert_eq!(<Either<Gate, Pin64>>::block(&s, &Env::for_song(&s, None)), Err(LoadError::Malformed));
+        assert_eq!(<Either<Pin64, Gate>>::block(&s, &Env::for_song(&s, None)), Err(LoadError::Malformed));
+        for sub in [64, 100, 128] {
+            assert_eq!(load::<Either<Gate, Pin64>>(&both, sub), Err(LoadError::Malformed), "sub {sub}");
+            assert_eq!(load::<Either<Pin64, Gate>>(&both, sub), Err(LoadError::Malformed), "sub {sub}");
+        }
+        // each alone (the other registry owns nothing in the song) keeps its own requirement
+        let g = song_of(&[1]);
+        let p = song_of(&[11]);
+        assert_eq!(load::<Either<Gate, Pin64>>(&g, 128), Ok(()));
+        assert_eq!(load::<Either<Gate, Pin64>>(&g, 64), Err(LoadError::Malformed));
+        assert_eq!(load::<Either<Pin64, Gate>>(&p, 64), Ok(()));
+        assert_eq!(load::<Either<Pin64, Gate>>(&p, 128), Err(LoadError::Malformed));
+    }
+
+    #[test]
+    fn either_with_two_registries_agreeing_on_the_block_accepts_it() {
+        // same pin on both sides is not a conflict
+        let both = song_of(&[1, 2]);
+        assert_eq!(load::<Either<Gate, Gate>>(&both, 128), Ok(()));
+        assert_eq!(load::<Either<Gate, Gate>>(&both, 100), Err(LoadError::Malformed));
+    }
+}
+
+/// Per-device lane interpolation (`Device::lane_lerp`): two engines in one song, each lane with its target's form.
+mod lane_lerp_tests {
+    use super::blob::W;
+    use crate::device::*;
+    use crate::mix::*;
+    use crate::pool::Pool;
+
+    /// A device that records every parameter write (in render order); it answers `Delta` only when `OV` is set, so the
+    /// default of `Device` is itself under test.
+    #[derive(Default)]
+    struct Rec<const KIND_LO: u8, const OVERRIDE: bool> {
+        writes: Vec<(usize, f32)>,
+    }
+    impl<const LO: u8, const OV: bool> Device for Rec<LO, OV> {
+        fn param_count(&self) -> usize {
+            2
+        }
+        fn lane_lerp(&self) -> LaneLerp {
+            if OV { LaneLerp::Delta } else { LaneLerp::default() }
+        }
+        fn set_param(&mut self, i: usize, v: f32) {
+            self.writes.push((i, v));
+        }
+        fn reset(&mut self) {
+            self.writes.clear();
+        }
+        fn run(&mut self, _: &mut Io, _: usize, _: &mut Ctx) {}
+    }
+    /// Owns kinds `LO..LO + 4`.
+    impl<'a, const LO: u8, const OV: bool> Kinds<'a> for Rec<LO, OV> {
+        fn need(k: u8, _: &'a [u8], _: &Env<'a>) -> Result<usize, LoadError> {
+            if (LO..LO + 4).contains(&k) { Ok(0) } else { Err(LoadError::UnsupportedKind(k)) }
+        }
+        fn load(k: u8, c: &'a [u8], e: &Env<'a>, _: &mut Pool<'a>, _: &mut dyn crate::rng::Rng) -> Result<Self, LoadError> {
+            Self::need(k, c, e).map(|_| Self::default())
+        }
+    }
+    type MixDev = Rec<1, false>;
+    type DeltaDev = Rec<5, true>;
+
+    #[derive(Clone)]
+    struct Zero;
+    impl crate::rng::Rng for Zero {
+        fn next_f32(&mut self) -> f32 {
+            0.0
+        }
+    }
+
+    /// Lane points: bytes at 0 and at `span` frames (two points, delta-coded).
+    type Pts = Vec<(i32, u8)>;
+
+    /// `(device kind, [(local device, param, points)])` tracks: track `i` holds devices `devs[i]`; every non-master
+    /// track feeds the master (the last). All devices have empty chunks.
+    fn song(kinds: &[u8], tracks: &[(Vec<i32>, Vec<(i32, i32, Pts)>)]) -> Vec<u8> {
+        let mut w = W::default();
+        w.i(120).i(44100).d(1.0).i(kinds.len() as i32);
+        for &k in kinds {
+            w.b(k).i(4).i(4);
+        }
+        w.i(1).i(0); // one empty lane
+        w.i(tracks.len() as i32);
+        for (i, (devs, autos)) in tracks.iter().enumerate() {
+            w.f(1.0);
+            if i + 1 == tracks.len() {
+                w.i(i as i32); // master receives every other track
+                for j in 0..i {
+                    w.i(j as i32).i(0).f(1.0);
+                }
+            } else {
+                w.i(0);
+            }
+            w.i(devs.len() as i32);
+            for &d in devs {
+                w.i(d);
+            }
+            w.i(0).i(autos.len() as i32);
+            for (d, p, pts) in autos {
+                w.i(*d).i(*p).i(pts.len() as i32);
+                for &(dt, v) in pts {
+                    w.i(dt).b(v);
+                }
+            }
+        }
+        w.0
+    }
+
+    fn with<K: for<'a> Kinds<'a>, R>(bytes: &[u8], f: impl FnOnce(&mut Player<'_, K, Zero>) -> R) -> R {
+        let s = Song::parse(bytes).unwrap();
+        let env = Env::for_song(&s, None);
+        let mut mem = vec![0u8; 1 << 16];
+        let mut pool = Pool::new(&mut mem);
+        f(&mut Player::<K, Zero>::new(s, &env, &mut pool, Zero, 100).unwrap())
+    }
+
+    fn byte(b: u8) -> f32 {
+        (b as f64 / 255.0) as f32
+    }
+
+    /// What the walk must write for points `(0, a)` and `(span, b)` at sub-block `k` of 100 frames.
+    fn expect(a: u8, b: u8, span: i32, k: usize, delta: bool) -> f32 {
+        let pos = (k * 100) as i32;
+        if pos >= span {
+            return byte(b);
+        }
+        let t = pos as f32 / span as f32;
+        let (a, b) = (byte(a), byte(b));
+        if delta { crate::math::lerp(a, b, t) } else { crate::math::mix(a, b, t) }
+    }
+
+    const SPAN: i32 = 9973;
+    const BLOCKS: usize = 100;
+    fn ramp(a: u8, b: u8) -> Pts {
+        vec![(0, a), (SPAN, b)]
+    }
+    fn render<'a, K: Kinds<'a>>(p: &mut Player<'a, K, Zero>) {
+        p.render_f32(&mut vec![0.0f32; 2 * BLOCKS * 100]);
+    }
+
+    /// Writes of `dev` for param `p` must equal `expect(..)` bit for bit, block by block.
+    fn check(w: &[(usize, f32)], p: usize, lane: (u8, u8), delta: bool, what: &str) {
+        let got: Vec<f32> = w.iter().filter(|x| x.0 == p).map(|x| x.1).collect();
+        assert_eq!(got.len(), BLOCKS, "{what}: one write per sub-block");
+        for (k, g) in got.iter().enumerate() {
+            let want = expect(lane.0, lane.1, SPAN, k, delta);
+            assert_eq!(g.to_bits(), want.to_bits(), "{what}: block {k}: {g} vs {want}");
+        }
+    }
+
+    /// The lane must tell the forms apart, or the test proves nothing.
+    fn forms_differ(a: u8, b: u8) -> usize {
+        (0..BLOCKS).filter(|&k| expect(a, b, SPAN, k, true).to_bits() != expect(a, b, SPAN, k, false).to_bits()).count()
+    }
+
+    #[test]
+    fn the_test_lanes_tell_the_forms_apart() {
+        for (a, b) in [(17, 203), (250, 9), (3, 131), (77, 200)] {
+            assert!(forms_differ(a, b) > 0, "lane {a}->{b}");
+        }
+    }
+
+    /// Two engines in one song, interleaved on two tracks, several lanes per device: each lane follows **its** device.
+    #[test]
+    fn a_mixed_registry_interpolates_per_device() {
+        // devices: 0 Mix (kind 1), 1 Delta (kind 5), 2 Delta (kind 6), 3 Mix (kind 2); each track lists lanes of both forms
+        let b = song(
+            &[1, 5, 6, 2],
+            &[
+                (vec![0, 1], vec![(0, 0, ramp(17, 203)), (1, 0, ramp(17, 203)), (1, 1, ramp(250, 9)), (0, 1, ramp(250, 9))]),
+                (vec![2, 3], vec![(0, 0, ramp(3, 131)), (1, 1, ramp(3, 131))]),
+            ],
+        );
+        let writes = |d: &Either<MixDev, DeltaDev>| match d {
+            Either::A(d) => d.writes.clone(),
+            Either::B(d) => d.writes.clone(),
+        };
+        let pass = |devs: &[Either<MixDev, DeltaDev>]| {
+            assert!(matches!(devs[0], Either::A(_)) && matches!(devs[1], Either::B(_)));
+            assert!(matches!(devs[2], Either::B(_)) && matches!(devs[3], Either::A(_)));
+            check(&writes(&devs[0]), 0, (17, 203), false, "dev0 (Mix) P0");
+            check(&writes(&devs[0]), 1, (250, 9), false, "dev0 (Mix) P1");
+            check(&writes(&devs[1]), 0, (17, 203), true, "dev1 (Delta) P0");
+            check(&writes(&devs[1]), 1, (250, 9), true, "dev1 (Delta) P1");
+            check(&writes(&devs[2]), 0, (3, 131), true, "dev2 (Delta) P0");
+            check(&writes(&devs[3]), 1, (3, 131), false, "dev3 (Mix) P1");
+        };
+        with::<Either<MixDev, DeltaDev>, _>(&b, |p| {
+            render(p);
+            pass(p.devices());
+            // seek restarts the walk: the same writes, the same forms
+            p.seek(0);
+            render(p);
+            pass(p.devices());
+        });
+    }
+
+    /// The same two devices behind the registries swapped: the form follows the device, not the position in `Either`.
+    #[test]
+    fn the_form_follows_the_device_not_the_either_side() {
+        let b = song(&[1, 5], &[(vec![0], vec![(0, 0, ramp(17, 203))]), (vec![1], vec![(0, 0, ramp(17, 203))])]);
+        with::<Either<DeltaDev, MixDev>, _>(&b, |p| {
+            render(p);
+            let (Either::B(m), Either::A(d)) = (&p.devices()[0], &p.devices()[1]) else { panic!("kinds 1 / 5 routing") };
+            check(&m.writes, 0, (17, 203), false, "Mix behind B");
+            check(&d.writes, 0, (17, 203), true, "Delta behind A");
+        });
+    }
+
+    /// The default is the existing behaviour: a registry that says nothing plays `mix`, a Delta one plays `lerp`.
+    #[test]
+    fn default_registry_keeps_mix_and_delta_is_opt_in() {
+        let b = song(&[1], &[(vec![0], vec![(0, 0, ramp(17, 203))])]);
+        with::<MixDev, _>(&b, |p| {
+            assert_eq!(p.devices()[0].lane_lerp(), LaneLerp::Mix);
+            render(p);
+            check(&p.devices()[0].writes, 0, (17, 203), false, "default");
+        });
+        let b = song(&[5], &[(vec![0], vec![(0, 0, ramp(17, 203))])]);
+        with::<DeltaDev, _>(&b, |p| {
+            render(p);
+            check(&p.devices()[0].writes, 0, (17, 203), true, "delta");
+        });
+    }
+
+    /// The mixer's thread path walks the same `TrackSrc` state: it writes the same floats as the serial walk (`par`
+    /// feature only; a `Rec` is `Send`, but draws no random numbers while rendering only if `RENDER_RNG` says so).
+    #[cfg(feature = "threads")]
+    #[test]
+    fn parallel_walk_uses_the_same_forms() {
+        struct Serial;
+        impl Par for Serial {
+            fn run(&self, jobs: usize, f: &(dyn Fn(usize) + Sync)) {
+                (0..jobs).for_each(f);
+            }
+        }
+        let b = song(&[1, 5], &[(vec![0], vec![(0, 0, ramp(17, 203))]), (vec![1], vec![(0, 0, ramp(17, 203))])]);
+        with::<Either<MixDev, DeltaDev>, _>(&b, |p| {
+            p.render_f32_par(&mut vec![0.0f32; 2 * BLOCKS * 100], &Serial);
+            let (Either::A(m), Either::B(d)) = (&p.devices()[0], &p.devices()[1]) else { panic!() };
+            check(&m.writes, 0, (17, 203), false, "par Mix");
+            check(&d.writes, 0, (17, 203), true, "par Delta");
+        });
     }
 }

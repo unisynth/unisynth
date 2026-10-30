@@ -46,6 +46,15 @@ pub fn mix(a: f32, b: f32, t: f32) -> f32 {
     a * (1.0 - t) + b * t
 }
 
+/// `a + (b−a)·t`, written as one subtraction, one multiplication, one addition, in this order (the form the original
+/// Glorp engine writes its lanes in, see `LaneLerp::Delta`). The source requests no fused multiply-add, but Rust does
+/// not guarantee the compiler never fuses or reassociates float ops on a given target, so bit-exactness is not
+/// promised by the language: revalidate against the Glorp reference whenever the target or toolchain changes.
+/// Differs from [`mix`] in the last bit for a few percent of inputs.
+pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
+    a + (b - a) * t
+}
+
 pub fn exp2(x: f32) -> f32 {
     libm::exp2f(x)
 }

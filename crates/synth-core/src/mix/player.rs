@@ -9,7 +9,7 @@ use super::mixer::{Mixer, Source, TrackSource};
 use super::registry::{devices_need, load_devices, Env, Kinds};
 use super::song::{LaneEvents, Points, Receive, Song, Track};
 use super::LoadError;
-use crate::device::{Device, EventKind};
+use crate::device::{Device, EventKind, LaneLerp};
 use crate::pool::Pool;
 use crate::rng::Rng;
 
@@ -27,12 +27,24 @@ struct AutoState<'a> {
     prev: (i32, f32),
     cur: (i32, f32),
     pos: i64,
+    /// Interpolation form of the target device, read once at load (`Device::lane_lerp`); constant afterwards.
+    lerp: LaneLerp,
 }
 
 impl<'a> AutoState<'a> {
-    fn new(device: usize, param: usize, points: Points<'a>, len: usize) -> Self {
-        let mut s =
-            AutoState { device, param, points, len, iter: points, idx: 0, prev: (0, 0.0), cur: (0, 0.0), pos: 0 };
+    fn new(device: usize, param: usize, points: Points<'a>, len: usize, lerp: LaneLerp) -> Self {
+        let mut s = AutoState {
+            device,
+            param,
+            points,
+            len,
+            iter: points,
+            idx: 0,
+            prev: (0, 0.0),
+            cur: (0, 0.0),
+            pos: 0,
+            lerp,
+        };
         s.reset();
         s
     }
@@ -65,7 +77,10 @@ impl<'a> AutoState<'a> {
         } else {
             let span = self.cur.0.wrapping_sub(self.prev.0);
             let t = if span > 0 { (self.pos - self.prev.0 as i64) as f32 / span as f32 } else { 0.0 };
-            crate::math::mix(self.prev.1, self.cur.1, t)
+            match self.lerp {
+                LaneLerp::Mix => crate::math::mix(self.prev.1, self.cur.1, t),
+                LaneLerp::Delta => crate::math::lerp(self.prev.1, self.cur.1, t),
+            }
         };
         self.pos += n as i64;
         Some(v)
@@ -112,7 +127,8 @@ impl<'a> BlobSource<'a> {
         n
     }
 
-    fn new(song: &Song<'a>, pool: &mut Pool<'a>) -> Result<Self, LoadError> {
+    /// `devices` = the song's loaded devices: each lane takes its target's `lane_lerp` here, once.
+    fn new<K: Device>(song: &Song<'a>, devices: &[K], pool: &mut Pool<'a>) -> Result<Self, LoadError> {
         let nt = song.track_count();
         let slots = pool.uninit::<TrackSrc>(nt)?;
         let mut built = 0;
@@ -122,7 +138,9 @@ impl<'a> BlobSource<'a> {
             let autos = pool.slice_with(t.automations().count(), |_| {
                 let a = autos.next().unwrap_or_else(|| unreachable!());
                 let d = t.devices().nth(a.device).unwrap_or(0);
-                AutoState::new(d, a.param, a.points(), a.len())
+                // `Player::new` has validated `d` against `devices`; an index it did not check stays default
+                let lerp = devices.get(d).map_or_else(LaneLerp::default, Device::lane_lerp);
+                AutoState::new(d, a.param, a.points(), a.len(), lerp)
             })?;
             let mut st = TrackSrc { track: t, lane, events: lane, acc: 0, next: None, autos };
             st.reset();
@@ -222,6 +240,9 @@ impl<'a, K: Kinds<'a>, R: Rng + Clone> Player<'a, K, R> {
     /// `rng` is the song random source: devices draw from it while loading, and its post-load state is what
     /// seek restores. `sub` is the internal sub-block size (≥ 1).
     pub fn new(song: Song<'a>, env: &Env<'a>, pool: &mut Pool<'a>, mut rng: R, sub: usize) -> Result<Self, LoadError> {
+        if K::block(&song, env)?.is_some_and(|b| b != sub) {
+            return Err(LoadError::Malformed);
+        }
         let devices = load_devices::<K>(&song, env, pool, &mut rng)?;
         for t in song.tracks() {
             for a in t.automations() {
@@ -234,7 +255,7 @@ impl<'a, K: Kinds<'a>, R: Rng + Clone> Player<'a, K, R> {
                 }
             }
         }
-        let src = BlobSource::new(&song, pool)?;
+        let src = BlobSource::new(&song, devices, pool)?;
         let mut src = src;
         let mut mixer = Mixer::new(&mut src, pool, sub)?;
         mixer.update_look(devices, &mut src);

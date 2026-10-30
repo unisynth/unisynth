@@ -1,0 +1,10 @@
+[package]
+name = "glorp"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "no_std Glorp-compatible devices (effects and instruments) written from observed behaviour and checked against the original in an isolated reference harness; see AGENTS.md for the covered device IDs"
+
+[dependencies]
+libm.workspace = true
+synth-core.workspace = true

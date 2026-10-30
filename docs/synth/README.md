@@ -8,6 +8,7 @@ The intro's music runs on two synth engines that sit on one shared core, and a t
 | [`wavesabre.md`](wavesabre.md) | `crates/wavesabre`: Rust port of the 13 WaveSabre devices (5 instruments, 8 effects) |
 | [`tunefish4.md`](tunefish4.md) | `crates/tfsynth`: MIT Tunefish 4-compatible engine (spectral wavetable synth, mod matrix, 10-slot effect chain, `.tfm` player) |
 | [`unisynth.md`](unisynth.md) | `crates/unisynth` + `crates/synth-convert`: the unified synth that will replace both engines (change `add-unified-synth`): slot-based instrument, parameter laws, chunk format, the nine effect kinds, the converter, the parity, speed and size report |
+| [`glorp.md`](glorp.md) | `crates/glorp` on the player: twelve independent Glorp-song device kinds behind `GlorpDevice` (`Device` + `Kinds`), the song preflight that refuses unmodelled settings / lanes, fault latch, reference results |
 
 Higher-level context lives in `docs/architecture.md` (section "Audio"). Measurements (parity, speed, size) are in
 `research/softsynth-research.md`. The specs are `openspec/specs/{synth-core,synth-mix,ws-synth,tf-synth,tf-song}`.

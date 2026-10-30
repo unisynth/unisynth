@@ -241,6 +241,34 @@ short chunk leaves the remaining parameters at their defaults. Sample devices pu
 registries for a mixed-engine song: it tries `A`, and falls back to `B` on `UnsupportedKind`. Example:
 `Either<WsDevice, TfDevice>` plays WaveSabre kinds 0–12 and Tunefish kinds 32–39 in one song.
 
+Two defaulted hooks serve engines whose `Device::set_param` cannot report a refusal (Glorp player wiring, first user:
+`crates/glorp`, see [`glorp.md`](glorp.md)):
+
+- `Kinds::preflight(song, env)`: a whole-song check that `load_devices` — so `Player::new` — runs **before any kind is
+  resolved or device built**. It sees what only the song shows (automation lanes against the chunk values, the rate)
+  and refuses with a `LoadError`; default `Ok`. **Judge only devices whose kinds the registry owns** and leave the rest
+  to `need` (an `Either` runs both registries' hooks on the whole song, so a registry that refuses a foreign kind
+  breaks the facade). A caller cannot skip it by building the `Player` directly.
+- `Kinds::block(song, env) -> Result<Option<usize>, LoadError>`: the only sub-block size this registry's devices were
+  checked at **for this song** (default `Ok(None)` = any); `Player::new` returns `Malformed` for another `sub`. It is
+  judged per song from what the registry owns in it, so a block-bound engine answers `Some(n)` only when the song holds
+  one of its devices (a foreign-only song is not pinned by it). `Either` combines both answers: one owner decides, two
+  owners must agree, **two owners with different sizes refuse the song** (`Malformed`, no `sub` can satisfy both);
+  both preflights run. `Either` dispatches to the first registry
+  whose `need` is not `UnsupportedKind`: registries with overlapping kind numbers cannot be mixed (the earlier one
+  takes them, the later one's hook still judges them); only disjoint kind sets are supported.
+
+One more defaulted hook is per **device**, not per registry or song: `Device::lane_lerp() -> LaneLerp`
+(`Mix` = `a·(1−t) + b·t`, the default and WaveSabre's form; `Delta` = `a + (b−a)·t`, the original Glorp engine's; the
+floats differ in the last bit for a few percent of inputs, enough to change a device that hashes parameter bits). The
+player reads it **once per lane**, from the loaded target device, so a song that mixes engines (`Either`) plays every
+lane in its own device's form, and a registry that says nothing keeps today's output. Contract: constant for the
+device's lifetime; a wrapper that forwards `Device` must forward it (`Either` does; a wrapper that forgets plays its
+devices in the default form, silently); a custom `Source` that evaluates lanes itself must honour it (the live
+`synth-wasm` host has its own walk and only `Mix` devices). No combination of devices is unrepresentable, so nothing is
+refused for it. Each lane is validated against the same preflight box either way: both forms stay within 2 ε of the
+segment (`math::lerp` test), far inside Glorp's `MARGIN` 1e-5.
+
 ## Player (`mix/player.rs`)
 
 `Player<'a, K: Kinds, R: Rng + Clone>` is a single-threaded port of upstream `SongRenderer`.
@@ -250,7 +278,9 @@ registries for a mixed-engine song: it tries `A`, and falls back to `B` on `Unsu
 ```mermaid
 flowchart TD
     A["Player::required_pool(song, env, sub)"] --> B["caller allocates one byte slice → Pool"]
-    B --> C["load_devices: every device in song order<br/>(kinds checked first; Kinds::load draws from rng)"]
+    B --> C0["Player::new: Kinds::block(song, env) must equal sub (else Malformed)"]
+    C0 --> C1["load_devices: Kinds::preflight(song, env) first<br/>(nothing built when it refuses)"]
+    C1 --> C["every device in song order<br/>(kinds checked first; Kinds::load draws from rng)"]
     C --> D["check every automation param < param_count"]
     D --> E["track order: repeated passes in index order,<br/>take each track whose senders are done,<br/>until the master (last track) is done"]
     E -->|"a pass adds nothing"| X["BadIndex (receive cycle)"]
@@ -264,7 +294,7 @@ flowchart TD
 flowchart TD
     S["render_sub(t0)"] --> T{"next track in dependency order"}
     T --> E1["1. events: deliver lane events with frame < t0 + sub + lookahead<br/>to every device on the track (note_on/off with offset)"]
-    E1 --> E2["2. automations: value at t0 (linear between points,<br/>held after the last) → device.set_param"]
+    E1 --> E2["2. automations: value at t0 (linear between points in the<br/>target device's lane_lerp form, held after the last) → device.set_param"]
     E2 --> E3["3. clear the 4 track buffers"]
     E3 --> E4["4. receives: sender main L/R (or extra output pair) × volume<br/>→ channel 0 (main), 2 (sidechain) or an extra input pair"]
     E4 --> E5["5. devices in chain order: run(io, sub, ctx)"]

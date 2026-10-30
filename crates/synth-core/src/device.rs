@@ -70,6 +70,19 @@ pub struct Ctx<'r> {
     pub rng: &'r mut dyn Rng,
 }
 
+/// How a lane's value is interpolated between two automation points, **per device** (the device a lane targets
+/// decides, not the registry or the song, so devices of different engines coexist in one song, `Either`). The result
+/// is not the same float: the forms differ in the last bit for a few percent of inputs, which a device that hashes the
+/// bits of a parameter (Glorp ID 21 seeds on P7) turns into other sound.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum LaneLerp {
+    /// `a·(1−t) + b·t` ([`crate::math::mix`]): upstream WaveSabre's `Mix`, the default of every engine.
+    #[default]
+    Mix,
+    /// `a + (b−a)·t` ([`crate::math::lerp`]): the original Glorp engine.
+    Delta,
+}
+
 pub trait Device {
     /// Runs with the track's extra pairs (feature `pairs`): `ext[2k..2k+2]` is output pair `k + 1` (cleared by the
     /// mixer before the track's devices run), `ext[8..12]` input pairs 1 and 2 (filled by receives). The default
@@ -85,6 +98,14 @@ pub trait Device {
     #[inline]
     fn automation(&self) -> Result<(), u8> {
         Ok(())
+    }
+    /// Interpolation of the lanes that target this device. `Player::new` reads it **once**, from the loaded device, so it
+    /// must not change for the device's lifetime; a wrapper that forwards `Device` (like `Either`) must forward it, or
+    /// its devices are silently played with the default. A custom `Source` that evaluates lanes itself must honour it
+    /// too. Default: [`LaneLerp::Mix`] (every existing engine).
+    #[inline]
+    fn lane_lerp(&self) -> LaneLerp {
+        LaneLerp::Mix
     }
     fn param_count(&self) -> usize;
     /// Sets parameter `index` to `value` (normally in [0, 1]; not clamped). `index ≥ param_count()` is ignored.

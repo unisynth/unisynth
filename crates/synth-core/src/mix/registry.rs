@@ -29,6 +29,22 @@ pub trait Kinds<'a>: Device + Sized {
     /// constructors) come from the song random source `rng`, in song device order.
     fn load(kind: u8, chunk: &'a [u8], env: &Env<'a>, pool: &mut Pool<'a>, rng: &mut dyn Rng)
         -> Result<Self, LoadError>;
+    /// Frames per internal render call `song` needs from this registry (`None` = any). Judged per song, from what the
+    /// registry actually owns in it: a block-bound engine answers `Some(n)` only when the song holds one of its devices,
+    /// so a song of other engines' devices is not pinned by it (`Either`). `Player::new` refuses another `sub` with
+    /// `Malformed`, so a block-bound engine cannot be run at a granularity it was never checked at (Glorp player
+    /// wiring). Default: any block size. An error (e.g. `Either` with two owners bound to different sizes) refuses the song.
+    fn block(_song: &Song<'a>, _env: &Env<'a>) -> Result<Option<usize>, LoadError> {
+        Ok(None)
+    }
+    /// Whole-song check, run by [`load_devices`] (so by `Player::new`) before any kind is resolved or device built. For
+    /// engines whose `Device::set_param` cannot report a refusal: judge what only the song shows (automation lanes
+    /// against the chunk values, the song's rate) and refuse it here, so no lane can later drive a device into a
+    /// setting it cannot play. Judge only devices whose kinds the registry owns; leave the rest to `need`. Default:
+    /// accept (Glorp player wiring).
+    fn preflight(_song: &Song<'a>, _env: &Env<'a>) -> Result<(), LoadError> {
+        Ok(())
+    }
     /// Whether a device of this registry draws from the shared song random source (`Ctx::rng`) while rendering.
     /// Such songs render on the single-thread path only, because parallel tracks would reorder the draws. Engines
     /// whose devices own their render-time random state set it to `false` (change add-synth-threads).
@@ -52,6 +68,7 @@ pub fn load_devices<'a, K: Kinds<'a>>(
     pool: &mut Pool<'a>,
     rng: &mut dyn Rng,
 ) -> Result<&'a mut [K], LoadError> {
+    K::preflight(song, env)?;
     for d in song.devices() {
         K::need(d.kind, d.chunk, env)?;
     }
@@ -70,6 +87,8 @@ pub fn load_devices<'a, K: Kinds<'a>>(
 
 /// Facade for songs that mix engines: tries `A`'s kinds first and falls back to `B`'s when `A` reports
 /// `UnsupportedKind` (e.g. `Either<WsDevice, TfDevice>` holds WaveSabre kinds 0–12 and Tunefish kinds 32–39).
+/// The registries must own **disjoint** kind numbers: `A` takes every kind it does not refuse, and both
+/// [`Kinds::preflight`] hooks see the whole song, so an overlapping `B` would judge devices `A` plays.
 pub enum Either<A, B> {
     A(A),
     B(B),
@@ -78,6 +97,20 @@ pub enum Either<A, B> {
 impl<'a, A: Kinds<'a>, B: Kinds<'a>> Kinds<'a> for Either<A, B> {
     #[cfg(feature = "threads")]
     const RENDER_RNG: bool = A::RENDER_RNG || B::RENDER_RNG;
+
+    /// Both registries' per-song requirements, combined: one owner decides; two owners must agree, else the song is
+    /// refused (`Malformed`): no single sub-block size can be valid for both.
+    fn block(song: &Song<'a>, env: &Env<'a>) -> Result<Option<usize>, LoadError> {
+        match (A::block(song, env)?, B::block(song, env)?) {
+            (Some(a), Some(b)) if a != b => Err(LoadError::Malformed),
+            (a, b) => Ok(a.or(b)),
+        }
+    }
+
+    fn preflight(song: &Song<'a>, env: &Env<'a>) -> Result<(), LoadError> {
+        A::preflight(song, env)?;
+        B::preflight(song, env)
+    }
 
     fn need(kind: u8, chunk: &'a [u8], env: &Env<'a>) -> Result<usize, LoadError> {
         match A::need(kind, chunk, env) {
@@ -107,6 +140,9 @@ macro_rules! forward {
 impl<A: Device, B: Device> Device for Either<A, B> {
     fn param_count(&self) -> usize {
         forward!(self, d => d.param_count())
+    }
+    fn lane_lerp(&self) -> crate::device::LaneLerp {
+        forward!(self, d => d.lane_lerp())
     }
     fn set_param(&mut self, index: usize, value: f32) {
         forward!(self, d => d.set_param(index, value))
