@@ -329,6 +329,9 @@ pub struct Host {
     out: Vec<f32>,
     peaks: Vec<[f32; 2]>,
     load: f32,
+    /// The track whose instrument the editor watches (`watch`), and the probe's flat output.
+    watch: Option<usize>,
+    probe_out: Vec<f32>,
 }
 
 impl Default for Host {
@@ -386,6 +389,8 @@ impl Host {
             out: vec![0.0; MAX_FRAMES * 2],
             peaks: vec![],
             load: 0.0,
+            watch: None,
+            probe_out: vec![],
         }
     }
 
@@ -451,6 +456,7 @@ impl Host {
         self.playing = false;
         self.stop_pos = 0;
         self.seek_to(0);
+        self.apply_watch();
         Ok(())
     }
 
@@ -586,6 +592,7 @@ impl Host {
                 mb.mixer.update_look(&self.slots, &mut self.sched);
             }
         }
+        self.apply_watch();
         Ok(e)
     }
 
@@ -793,6 +800,65 @@ impl Host {
                 _ => 0,
             })
             .collect()
+    }
+
+    /// Watches `track`'s instrument (its first kind-64 device): its filter taps run and `probe` reports its voices.
+    /// `None` stops: no instrument collects taps. Survives edits and reloads (by track index).
+    pub fn watch(&mut self, track: Option<usize>) {
+        self.watch = track;
+        self.apply_watch();
+    }
+
+    /// The device slot of the watched track's instrument.
+    fn watched_slot(&self) -> Option<usize> {
+        let t = self.sched.tracks.get(self.watch?)?;
+        t.devices.iter().copied().find(|&s| matches!(self.slots[s].dev, Some(UDevice::Instrument(_))))
+    }
+
+    fn apply_watch(&mut self) {
+        let w = self.watched_slot();
+        for (i, s) in self.slots.iter_mut().enumerate() {
+            if let Some(UDevice::Instrument(ins)) = &mut s.dev {
+                ins.set_taps(Some(i) == w);
+            }
+        }
+    }
+
+    /// The watched instrument's probe, flat (`PROBE_*` layout in lib.rs); empty when nothing is watched. Allocates:
+    /// called about every 30 ms between render calls, never inside one.
+    pub fn probe(&mut self) -> &[f32] {
+        self.probe_out.clear();
+        let Some(s) = self.watched_slot() else { return &self.probe_out };
+        let Some(UDevice::Instrument(ins)) = &self.slots[s].dev else { return &self.probe_out };
+        let p = ins.probe();
+        let o = &mut self.probe_out;
+        o.extend([1.0, p.voices.len() as f32, p.taps.len() as f32, unisynth::probe::TAP_LEN as f32]);
+        let opt = |x: Option<f32>| x.unwrap_or(-1.0);
+        for v in &p.voices {
+            o.extend([v.id as f32, v.note as f32, v.amp, v.released as u8 as f32, v.age_s]);
+            for (lvl, st) in v.env {
+                o.extend([lvl, st as u8 as f32]);
+            }
+            o.extend(v.lfo);
+            o.extend(v.smp.map(opt));
+            o.extend(v.cutoff.map(|c| opt(c.map(unisynth::probe::cutoff_hz))));
+        }
+        for t in &p.taps {
+            match t {
+                Some((i, out)) => {
+                    o.push(1.0);
+                    o.extend(i);
+                    o.extend(out);
+                }
+                None => o.push(0.0),
+            }
+        }
+        &self.probe_out
+    }
+
+    /// The buffer `probe` filled last.
+    pub fn probe_ptr(&self) -> *const f32 {
+        self.probe_out.as_ptr()
     }
 
     /// Render time of the last call as a fraction of its real-time duration.

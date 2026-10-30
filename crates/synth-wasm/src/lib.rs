@@ -224,6 +224,27 @@ pub extern "C" fn peaks_len() -> usize {
     host().peaks().len() * 2
 }
 
+/// Watches a track's instrument for the editor's live displays (`track` < 0: none). See `Host::watch`.
+#[unsafe(no_mangle)]
+pub extern "C" fn probe_watch(track: i32) {
+    host().watch(usize::try_from(track).ok());
+}
+
+/// Fills the probe of the watched instrument and returns its length in floats (0 = nothing watched). Layout:
+/// header `[1 (version), voices, filter slots (4), tap frames (2048)]`; per voice 22 floats `id, note, amp,
+/// released, age_s, (env level, env stage 0 attack…4 finished)×4, lfo phase×2, sampler position×3 (−1 none),
+/// cutoff Hz×4 (−1 none)`; per filter slot `1` + input + output (tap frames each, oldest first) or `0`.
+#[unsafe(no_mangle)]
+pub extern "C" fn probe_len() -> usize {
+    host().probe().len()
+}
+
+/// The probe filled by the last `probe_len` call.
+#[unsafe(no_mangle)]
+pub extern "C" fn probe_ptr() -> *const f32 {
+    host().probe_ptr()
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn load_ratio() -> f32 {
     host().load_ratio()

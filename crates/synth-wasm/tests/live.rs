@@ -203,3 +203,31 @@ fn random_edits_between_calls_never_panic() {
         assert!(out.iter().all(|v| v.is_finite()), "step {step}");
     }
 }
+
+#[test]
+fn watching_a_track_reports_its_voices_and_taps_and_never_changes_the_sound() {
+    let b = blob(&song_json(64));
+    let mut a = loaded(&b);
+    a.play(0);
+    let want = live(&mut a, 44100 * 2, 128);
+    assert!(a.probe().is_empty(), "nothing watched: no probe");
+    let mut h = loaded(&b);
+    h.watch(Some(1)); // the pad: a held two-note chord
+    h.play(0);
+    let mut got = live(&mut h, 128 * 300, 128);
+    let p = h.probe().to_vec();
+    assert_eq!((p[0], p[1], p[2], p[3]), (1.0, 2.0, 4.0, 2048.0), "two pad voices, 4 filter slots");
+    let notes: Vec<f32> = (0..2).map(|v| p[4 + v * 22 + 1]).collect();
+    assert!(notes.contains(&48.0) && notes.contains(&55.0), "{notes:?}");
+    // the pad has no filter on: every slot reports no taps
+    assert_eq!(&p[4 + 2 * 22..], &[0.0, 0.0, 0.0, 0.0]);
+    got.extend(live(&mut h, 44100 * 2 - 128 * 300, 128));
+    assert!(got == want, "watching changed the output");
+    h.watch(Some(0)); // the lead has filter 1 on: its taps come with the probe
+    let _ = live(&mut h, 44100, 128);
+    let p = h.probe().to_vec();
+    let nv = p[1] as usize;
+    assert_eq!(p[4 + nv * 22], 1.0, "filter 1 tapped");
+    // the layout the page parses (packages/daw/src/app.js `parseProbe`, VREC = 22): header, voices, slot 1 + taps, 3 flags
+    assert_eq!(p.len(), 4 + nv * 22 + 1 + 2 * 2048 + 3);
+}

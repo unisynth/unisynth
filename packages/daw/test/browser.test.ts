@@ -162,6 +162,82 @@ test("the computer keyboard auditions the armed track while stopped (5.8)", asyn
   expect(await page.locator("#keys button.on").count()).toBe(0); // released
 }, 60_000);
 
+test("a watched track's chord comes back in the status as one probe record per voice", async () => {
+  await open();
+  await page.locator('.thdr.track[data-track="pad"] .arm').click();
+  await page.locator("#lanes-wrap").focus();
+  await page.evaluate(() => (window as any).DAW.engine.watch(3)); // the pad (track index 3)
+  for (const k of ["z", "c", "b"]) await page.keyboard.down(k); // C, E, G
+  await page.waitForTimeout(600);
+  const p: number[] = await page.evaluate(() => [...((window as any).DAW.engine.status.probe ?? [])]);
+  for (const k of ["z", "c", "b"]) await page.keyboard.up(k);
+  expect(p.slice(0, 4)).toEqual([1, 3, 4, 2048]);
+  const notes = [0, 1, 2].map((v) => p[4 + v * 22 + 1]).sort();
+  expect(notes[1] - notes[0]).toBe(4); // a major triad
+  expect(notes[2] - notes[0]).toBe(7);
+  await page.evaluate(() => (window as any).DAW.engine.watch(-1));
+  await page.waitForTimeout(200);
+  expect(await page.evaluate(() => (window as any).DAW.engine.status.probe ?? null)).toBe(null);
+}, 60_000);
+
+test("live view off: no watch, no probe, no overlays; the choice survives a reload", async () => {
+  await open();
+  await page.locator('.thdr.track[data-track="lead"] .name').click();
+  await page.locator("#tab-dev").click();
+  const btn = page.locator('#device button.livev');
+  expect(await btn.getAttribute("aria-pressed")).toBe("true");
+  await btn.click();
+  expect(await btn.getAttribute("aria-pressed")).toBe("false");
+  await page.locator("#lanes-wrap").focus();
+  for (const k of ["z", "c"]) await page.keyboard.down(k);
+  await page.waitForTimeout(600);
+  const probe = await page.evaluate(() => (window as any).DAW.engine.status.probe);
+  const chips = await page.locator("#device .vox i").count();
+  const live = await page.locator("#device svg g.live").count();
+  for (const k of ["z", "c"]) await page.keyboard.up(k);
+  expect(probe).toBeNull();
+  expect(chips).toBe(0);
+  expect(live).toBe(0);
+  await page.reload();
+  await page.locator('.thdr.track[data-track="lead"] .name').click();
+  await page.locator("#tab-dev").click();
+  expect(await page.locator('#device button.livev').getAttribute("aria-pressed")).toBe("false");
+  await page.locator('#device button.livev').click(); // back on for the next tests
+  expect(await page.locator('#device button.livev').getAttribute("aria-pressed")).toBe("true");
+}, 60_000);
+
+test("live displays: a chord shows one chip and one marker per voice; silence clears them", async () => {
+  await open();
+  await page.locator('.thdr.track[data-track="lead"] .name').click(); // selecting arms it; lead: 2 saws into a low-pass
+  await page.locator("#tab-dev").click();
+  await page.locator("#lanes-wrap").focus();
+  for (const k of ["z", "c", "b", "m"]) await page.keyboard.down(k); // C E G B
+  // the overlay follows the ~30 ms status; under a loaded test run it can take longer than a fixed wait
+  await page.waitForFunction(() => document.querySelectorAll("#device .vox i").length >= 4, null, { timeout: 10_000 });
+  await page.waitForTimeout(200);
+  const chips = await page.locator("#device .vox i").allTextContents();
+  const envDots = await page.locator('#device .grp.slot[aria-label="Env 1"] svg.env g.live .vm').count();
+  const spec = await page.locator('#device .grp.slot[aria-label="Filter 1"] svg.scr g.live path.sout').count();
+  const ticks = await page.locator('#device .grp.slot[aria-label="Filter 1"] svg.scr g.live line.ct').count();
+  // the low-pass at work: the tapped output of filter 1 carries less energy than its input
+  const [ein, eout] = await page.evaluate(() => {
+    const p = (window as any).DAW.engine.status.probe as Float32Array, o = 4 + p[1] * 22, L = p[3];
+    const e = (a: Float32Array) => a.reduce((s, x) => s + x * x, 0);
+    return p[o] === 1 ? [e(p.subarray(o + 1, o + 1 + L)), e(p.subarray(o + 1 + L, o + 1 + 2 * L))] : [0, 0];
+  });
+  for (const k of ["z", "c", "b", "m"]) await page.keyboard.up(k);
+  expect(chips.length).toBe(4);
+  expect(new Set(chips.map((c) => c.replace(/\d+$/, "")))).toEqual(new Set(["C", "E", "G", "B"]));
+  expect(envDots).toBeGreaterThanOrEqual(4);
+  expect(spec).toBe(1);
+  expect(ticks).toBe(4);
+  expect(ein).toBeGreaterThan(0);
+  expect(eout).toBeLessThan(ein);
+  await page.waitForTimeout(2500); // release and tails
+  expect(await page.locator("#device .vox i").count()).toBe(0);
+  expect(await page.locator('#device svg g.live').count()).toBe(0);
+}, 60_000);
+
 test("no critical or serious accessibility violations (axe)", async () => {
   await open();
   await page.locator("#tab-dev").click();

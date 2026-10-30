@@ -13,7 +13,7 @@ song = { path = "../song", default-features = false }
 dls.workspace = true
 gsm.workspace = true
 synth-core.workspace = true
-unisynth = { path = "../unisynth", features = ["std"] }
+unisynth = { path = "../unisynth", features = ["std", "probe"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 
