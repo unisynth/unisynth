@@ -475,6 +475,13 @@ from those intros (`synth-convert xm`, change add-cauldron-xm-import). Algorithm
 - **Phase byte** (`o::PM_OUT`; the cauldron slot sends nothing into the next slot). 0 keeps the second saw running
   across note-ons; b ≥ 1 sets it to `(b − 1)/255` turn at a non-legato note-on. The converter replays the original's
   second saw to write it before each retrigger: the starting phase decides how a low note's detuned pair beats.
+- **Filter settings latch at a note-on** (`CauldronSlot::flt`): base, amount (after the retrigger byte's compounding
+  and accent), decay and damping are taken at a non-legato note-on and kept for the note, as the original computes a
+  step's filter at its retrigger. So the retrigger, phase and age bytes matter only around note-ons, and the converter
+  writes them as `latched_lane`s: each note's byte holds from its step (`LANE_LEAD` before the note) through
+  `LATCH_WINDOW` (lead + 128 frames), free between, so a count rising by one per note is one ramp (Jizz: retrigger
+  points 10 874 → 3 637). Before, the next note's byte reached the sounding note `LANE_LEAD` early; parity is the same
+  (85 of 88, the songs' figures unchanged).
 - **Age byte.** A cauldron slot always tracks the note, so its `o::TRACKING` is the filter envelope's age at a
   note-on (`osc::cauldron_age`): 0 restarts the envelope at the amount (a retrigger), b ≥ 1 enters `(b − 1)` eighth
   steps after the last retrigger, the envelope at `a·d^n` (a converted XM jumping into a phrase).
@@ -1109,7 +1116,9 @@ stay exact; the transpose, restart and start lanes are never thinned. Stash song
 35.3 KB; BLUISH 616 853 / 30.5 KB → 426 623 / 27.8 KB at 4; Jizz 17.9 → 17.6 KB. The raw size falls by up to 30 %,
 the packed by 1–9 % (xz already packs regular steps); loudness and octave bands against the reference stay within
 0.15 dB and 0.1 dB of `tick`, render time is unchanged. About 47 000 of song 1's 122 000 changes are jumps of 20 bytes
-or more (tremor gates, hard pans), which no tolerance removes.
+or more (tremor gates, hard pans), which no tolerance removes. The demo songs (`make_demos.py`) use `--thin 2`:
+Jizz 43 468 → 30 892 automation points with the latched per-note lanes, files 2.8 / 13.2 / 5.3 MB → 2.1 / 9.7 /
+3.4 MB. Pitch (`osc1.fine`, coarse, word) stays exact: the oscillator reads it continuously.
 
 **Known deviations** (all accepted with the A/B sign-off, `tools/unisynth-parity/cauldron-signoff.json`): reversed
 step attacks land at a step's start, not its end; the echo cannot wrap a phrase's end into its start (song0

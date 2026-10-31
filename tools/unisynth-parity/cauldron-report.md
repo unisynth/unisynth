@@ -1,6 +1,6 @@
 # Mini-cauldron parity (change add-cauldron-xm-import)
 
-Generated 2026-10-30 by `bun tools/unisynth-parity/cauldron.ts`. Reference: `openmpt123` (44.1 kHz) of the XMs rebuilt from the bit-exact Python references, and each phrase at the full internal rate cut at its stored Nyquist (the port drops the decimation, so its aliasing is not judged), resampled to 44.1 kHz; ours: `synth-convert xm` / `xm-phrase` → `unisynth` (`--profile fast`). Loudness within 1 dB, octave bands within 3 dB (bands 24 dB under the loudest skipped; phrases judge only bands lying wholly below their stored Nyquist), onset-strength alignment (lag within 100 frames, correlation ≥ 0.5). Audio stays in `research/tbl-mini-cauldron/out`.
+Generated 2026-10-31 by `bun tools/unisynth-parity/cauldron.ts`. Reference: `openmpt123` (44.1 kHz) of the XMs rebuilt from the bit-exact Python references, and each phrase at the full internal rate cut at its stored Nyquist (the port drops the decimation, so its aliasing is not judged), resampled to 44.1 kHz; ours: `synth-convert xm` / `xm-phrase` → `unisynth` (`--profile fast`). Loudness within 1 dB, octave bands within 3 dB (bands 24 dB under the loudest skipped; phrases judge only bands lying wholly below their stored Nyquist), onset-strength alignment (lag within 100 frames, correlation ≥ 0.5). Audio stays in `research/tbl-mini-cauldron/out`.
 
 ## Songs
 
@@ -21,33 +21,33 @@ Generated 2026-10-30 by `bun tools/unisynth-parity/cauldron.ts`. Reference: `ope
 | jizz_Probe111 | PASS | -0.06 | 13.29 @ 16000 | 0.93 |  |
 | jizz_Probe121 | PASS | -0.08 | 4.58 @ 16000 | 0.99 |  |
 | jizz_Probe122 | PASS | -0.09 | -2.59 @ 8000 | 1.00 |  |
-| jizz_Probe91 | PASS | -0.13 | 4.67 @ 16000 | 0.99 |  |
-| jizz_Probe101 | PASS | -0.02 | 3.49 @ 16000 | 0.99 |  |
-| jizz_Probe61 | PASS | 0.09 | 8.82 @ 16000 | 0.97 |  |
-| jizz_Probe62 | PASS | -0.03 | -2.33 @ 8000 | 0.99 |  |
-| jizz_Probe71 | PASS | 0.25 | 4.39 @ 16000 | 0.99 |  |
-| jizz_Probe72 | PASS | 0.16 | 12.34 @ 16000 | 0.96 |  |
-| jizz_Probe41 | PASS | -0.12 | 10.78 @ 16000 | 0.93 |  |
-| jizz_Probe42 | PASS | -0.19 | 5.72 @ 16000 | 0.95 |  |
-| jizz_Probe43 | PASS | -0.17 | 2.63 @ 16000 | 0.98 |  |
-| jizz_Probe44 | PASS | -0.19 | -3.63 @ 8000 | 0.97 |  |
+| jizz_Probe91 | PASS | -0.13 | 4.68 @ 16000 | 0.99 |  |
+| jizz_Probe101 | PASS | -0.02 | 3.50 @ 16000 | 0.99 |  |
+| jizz_Probe61 | PASS | 0.09 | 8.80 @ 16000 | 0.97 |  |
+| jizz_Probe62 | PASS | -0.03 | -2.32 @ 8000 | 0.98 |  |
+| jizz_Probe71 | PASS | 0.25 | 4.40 @ 16000 | 0.99 |  |
+| jizz_Probe72 | PASS | 0.16 | 12.35 @ 16000 | 0.96 |  |
+| jizz_Probe41 | PASS | -0.13 | 10.61 @ 16000 | 0.94 |  |
+| jizz_Probe42 | PASS | -0.20 | 5.64 @ 16000 | 0.97 |  |
+| jizz_Probe43 | PASS | -0.17 | 2.65 @ 16000 | 0.98 |  |
+| jizz_Probe44 | PASS | -0.19 | -3.57 @ 8000 | 0.96 |  |
 | jizz_Probe81 | PASS | 0.56 | 22.56 @ 16000 | 0.98 |  |
-| jizz_Probe11 | PASS | -0.07 | 15.46 @ 16000 | 0.91 |  |
+| jizz_Probe11 | PASS | -0.07 | 15.47 @ 16000 | 0.91 |  |
 | jizz_Probe12 | PASS | -0.03 | 11.76 @ 16000 | 0.98 |  |
 | jizz_Probe13 | PASS | -0.10 | 7.16 @ 16000 | 0.97 |  |
 | jizz_Probe14 | PASS | -0.18 | 2.67 @ 16000 | 0.93 |  |
-| jizz_Probe31 | PASS | -0.06 | 14.18 @ 16000 | 0.88 |  |
-| jizz_Probe32 | PASS | 0.02 | 11.02 @ 16000 | 0.97 |  |
-| jizz_Probe33 | PASS | -0.08 | 5.07 @ 16000 | 0.99 |  |
+| jizz_Probe31 | PASS | -0.06 | 14.16 @ 16000 | 0.88 |  |
+| jizz_Probe32 | PASS | 0.02 | 11.01 @ 16000 | 0.98 |  |
+| jizz_Probe33 | PASS | -0.08 | 5.06 @ 16000 | 0.99 |  |
 | jizz_Probe34 | PASS | -0.16 | -2.57 @ 8000 | 0.97 |  |
-| jizz_Probe51 | PASS | 0.09 | 9.15 @ 16000 | 0.96 |  |
-| jizz_Probe52 | PASS | 0.11 | 7.22 @ 16000 | 0.97 |  |
+| jizz_Probe51 | PASS | 0.09 | 9.14 @ 16000 | 0.96 |  |
+| jizz_Probe52 | PASS | 0.11 | 7.23 @ 16000 | 0.97 |  |
 | jizz_Probe53 | PASS | 0.14 | 6.28 @ 16000 | 0.96 |  |
 | jizz_Probe54 | PASS | 0.14 | 4.09 @ 16000 | 0.96 |  |
-| jizz_Probe55 | PASS | 0.20 | -2.76 @ 8000 | 0.96 |  |
+| jizz_Probe55 | PASS | 0.20 | -2.77 @ 8000 | 0.96 |  |
 | jizz_Probe56 | PASS | 0.17 | -3.38 @ 8000 | 0.96 |  |
 | jizz_Probe57 | PASS | 0.13 | -3.18 @ 8000 | 0.95 |  |
-| jizz_Probe58 | PASS | 0.02 | -2.85 @ 8000 | 0.94 |  |
+| jizz_Probe58 | PASS | 0.03 | -2.85 @ 8000 | 0.94 |  |
 | jizz_Probe21 | PASS | -0.48 | 16.57 @ 16000 | 0.91 |  |
 | jizz_Probe22 | PASS | -0.01 | 9.61 @ 16000 | 0.93 |  |
 | stash_bluish_0_0_Jace11 | PASS | -0.06 | 25.78 @ 16000 | 0.95 |  |

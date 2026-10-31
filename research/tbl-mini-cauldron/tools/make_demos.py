@@ -14,6 +14,7 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # research/t
 ROOT = os.path.dirname(os.path.dirname(HERE))
 OUT = os.path.join(ROOT, "project/music/released")
 BIN = os.path.join(ROOT, "target/release")
+THIN = 2
 
 # slug, XM, patches, production facts (Demozoo productions 12 and 13, pouet 2 and 3); nothing invented
 SONGS = [
@@ -53,7 +54,8 @@ def main():
             continue
         tmp = tempfile.mkdtemp()
         blob, names = os.path.join(tmp, "u.song"), os.path.join(tmp, "names.json")
-        log = run([f"{BIN}/synth-convert", "xm", xm, os.path.join(HERE, "ref", patches), blob, "--names", names]).stderr
+        # --thin 2: volume, pan and pitch-bend lanes within 2/255 of the per-tick steps (slides and fades as ramps)
+        log = run([f"{BIN}/synth-convert", "xm", xm, os.path.join(HERE, "ref", patches), blob, "--names", names, "--thin", str(THIN)]).stderr
         tracks = next(l for l in log.splitlines() if l.startswith("tracks "))  # "tracks N phrase, M stored"
         plain = os.path.join(tmp, "s.json")
         run([f"{BIN}/song", "import", blob, "-o", plain])

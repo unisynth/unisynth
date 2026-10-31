@@ -105,6 +105,9 @@ pub struct CauldronSlot {
     pub y: f64,
     pub prev: f64,
     pub v1: f64,
+    /// The filter settings of the last note-on: the original computes a step's filter at its retrigger, so a later
+    /// change (the converter's retrigger byte, free between notes) reaches it only at the next note-on.
+    pub flt: Option<CauldronF>,
     /// The resampler: the last four phrase-rate samples (newest last) and the phrase-frame fraction past `h[1]` the
     /// next output sits at ([`cauldron`]).
     pub h: [f32; 4],
@@ -281,7 +284,7 @@ impl Slot {
             smp: smp::State::new(),
             fresh: true,
             v2s: crate::v2::Opt::new(V2Slot { cnt: 0, nf: crate::v2::Lrc { l: 0.0, b: 0.0 }, nseed: 0, init: false }),
-            cd: CauldronSlot { phase2: 0.0, t: 0.0, rng: 0, y: 0.0, prev: 0.0, v1: 0.0, h: [0.0; 4], frac: 0.0, lp: CauldronLp { k: 0.0, c: [[0.0; 5]; 2], s: [[0.0; 2]; 2] } },
+            cd: CauldronSlot { phase2: 0.0, t: 0.0, rng: 0, y: 0.0, prev: 0.0, v1: 0.0, flt: None, h: [0.0; 4], frac: 0.0, lp: CauldronLp { k: 0.0, c: [[0.0; 5]; 2], s: [[0.0; 2]; 2] } },
         }
     }
 
@@ -293,6 +296,7 @@ impl Slot {
         if let Some(p) = c.phase2 {
             self.cd.phase2 = p;
         }
+        self.cd.flt = c.flt;
         if let Some(f) = c.flt {
             self.cd.prev = 0.0;
             self.cd.v1 = match c.age {
@@ -846,8 +850,8 @@ pub(crate) fn cauldron_frame(slot: &mut Slot, pitch: f64, c: &CauldronT) -> f64 
     slot.phase -= libm::floor(slot.phase);
     slot.cd.t += 1.0;
     let x = out as f64 / 32768.0;
-    match &c.flt {
-        Some(f) => cauldron_filter(&mut slot.cd, x, f),
+    match slot.cd.flt {
+        Some(f) => cauldron_filter(&mut slot.cd, x, &f),
         None => x,
     }
 }
@@ -1190,6 +1194,26 @@ mod tests {
                 }
                 // the original rounds its output to an integer every frame and works in 24-bit precision
                 assert!(worst <= 1e-4 * peak, "{name}: worst error {worst:.1} of peak {peak}");
+            }
+        }
+
+        #[test]
+        fn the_filter_keeps_the_settings_of_its_note_on() {
+            // the original computes a step's filter at its retrigger: a later change (the converter's next retrigger
+            // byte, ramping towards the next note) reaches the filter only at the next note-on
+            let (mut s, g) = filtered(1, 0, 2, 211, 0.4, 0.05, 0.9998, 0.05);
+            let (mut r, _) = filtered(1, 0, 2, 211, 0.4, 0.05, 0.9998, 0.05);
+            let moved = CauldronT { flt: Some(CauldronF { a: 1.6, b: 0.4, ..g.cd.flt.unwrap() }), ..g.cd };
+            for _ in 0..2000 {
+                assert_eq!(cauldron_frame(&mut s, g.pitch, &moved), cauldron_frame(&mut r, g.pitch, &g.cd));
+            }
+            // a note-on takes the new settings
+            s.start(0.7, 0.0, 0.0);
+            s.cauldron_start(2000.0, &moved);
+            r.start(0.7, 0.0, 0.0);
+            r.cauldron_start(2000.0, &moved);
+            for _ in 0..200 {
+                assert_eq!(cauldron_frame(&mut s, g.pitch, &g.cd), cauldron_frame(&mut r, g.pitch, &moved));
             }
         }
 

@@ -680,9 +680,10 @@ pub fn note_lanes(evs: impl Iterator<Item = (i64, PEv)>, values: &mut [f32; unis
     values[fid] = f0 as f32 / 255.0;
     values[pid] = p0 as f32 / 255.0;
     let mut autos = vec![
-        Auto { device: 0, param: rid, points: byte_lane(r0, &retrig) },
+        // the retrigger and phase bytes are read at note-ons only (the filter keeps its note-on settings): free between
+        Auto { device: 0, param: rid, points: latched_lane(r0, &retrig, LATCH_WINDOW) },
         Auto { device: 0, param: fid, points: byte_lane(f0, &fine) },
-        Auto { device: 0, param: pid, points: byte_lane(p0, &phase) },
+        Auto { device: 0, param: pid, points: latched_lane(p0, &phase, LATCH_WINDOW) },
     ];
     if !glide.is_empty() {
         let vid = pm::osc(0, o::SHAPE + sp::CD_VERSION);
@@ -692,7 +693,7 @@ pub fn note_lanes(evs: impl Iterator<Item = (i64, PEv)>, values: &mut [f32; unis
     let (a0, aid) = (age.first().map_or(0, |x| x.1), pm::osc(0, o::TRACKING));
     values[aid] = a0 as f32 / 255.0;
     if age.iter().any(|x| x.1 != a0) {
-        autos.push(Auto { device: 0, param: aid, points: byte_lane(a0, &age) });
+        autos.push(Auto { device: 0, param: aid, points: latched_lane(a0, &age, LATCH_WINDOW) });
     }
     // the word byte (`o::FIXED_HZ`, the slot's exact integer word)
     let (w0, wid) = (word.first().map_or(128, |x| x.1), pm::osc(0, o::FIXED_HZ));
@@ -760,28 +761,7 @@ pub(crate) fn thin_lane(initial: u8, changes: &[(i64, u8)], tol: u8, breaks: &[i
     // the next segment's start (a hard one, where the step is exact: two points at one frame)
     let mut out: Vec<(i64, u8)> = vec![];
     let mut run: Vec<(i64, f64)> = vec![];
-    let fit = |run: &[(i64, f64)], out: &mut Vec<(i64, u8)>| {
-        // greedy: from each vertex, the farthest sample whose line keeps every sample between within `tol`
-        let mut i = 0;
-        out.push((run[0].0, run[0].1 as u8));
-        while i + 1 < run.len() {
-            let mut j = i + 1;
-            while j + 1 < run.len() {
-                let (a, b) = (run[i], run[j + 1]);
-                let ok = (i + 1..=j).all(|m| {
-                    let (f, v) = run[m];
-                    let line = a.1 + (b.1 - a.1) * (f - a.0) as f64 / (b.0 - a.0) as f64;
-                    (line - v).abs() <= tol
-                });
-                if !ok {
-                    break;
-                }
-                j += 1;
-            }
-            out.push((run[j].0, run[j].1 as u8));
-            i = j;
-        }
-    };
+    let fit = |run: &[(i64, f64)], out: &mut Vec<(i64, u8)>| fit_line(run, tol, out);
     for k in 0..seg.len() {
         let (s0, v) = (seg[k].0, seg[k].1 as f64);
         if run.last().is_none_or(|x: &(i64, f64)| x.0 < s0) {
@@ -802,13 +782,67 @@ pub(crate) fn thin_lane(initial: u8, changes: &[(i64, u8)], tol: u8, breaks: &[i
     if !run.is_empty() {
         fit(&run, &mut out);
     }
-    let mut pts = vec![];
-    let mut last = 0i64;
-    for (f, v) in out {
-        pts.push(((f - last) as i32, v));
-        last = f;
+    deltas(out)
+}
+
+/// Greedy polyline through `run` (frames ascending, byte values): from each vertex, the farthest sample whose line
+/// keeps every sample between within `tol`; vertices are samples, so their bytes are exact.
+fn fit_line(run: &[(i64, f64)], tol: f64, out: &mut Vec<(i64, u8)>) {
+    let mut i = 0;
+    out.push((run[0].0, run[0].1 as u8));
+    while i + 1 < run.len() {
+        let mut j = i + 1;
+        while j + 1 < run.len() {
+            let (a, b) = (run[i], run[j + 1]);
+            let ok = (i + 1..=j).all(|m| {
+                let (f, v) = run[m];
+                let line = a.1 + (b.1 - a.1) * (f - a.0) as f64 / (b.0 - a.0) as f64;
+                (line - v).abs() <= tol
+            });
+            if !ok {
+                break;
+            }
+            j += 1;
+        }
+        out.push((run[j].0, run[j].1 as u8));
+        i = j;
     }
-    pts
+}
+
+/// Absolute `(frame, byte)` points → automation points (frame deltas).
+fn deltas(out: Vec<(i64, u8)>) -> Vec<(i32, u8)> {
+    let mut last = 0i64;
+    out.into_iter()
+        .map(|(f, v)| {
+            let d = (f - last) as i32;
+            last = f;
+            (d, v)
+        })
+        .collect()
+}
+
+/// Frames after a per-note byte's step (`LANE_LEAD` before its note) through which the byte must hold: the lead plus a
+/// player sub-block (100 frames by default; the note-on reads the parameter there).
+pub const LATCH_WINDOW: i64 = LANE_LEAD + 128;
+
+/// A per-note byte lane the oscillator reads only at note-ons (the cauldron's retrigger, start phase and age bytes):
+/// each change's byte holds exactly (within half a byte, so it decodes to the same byte) from its frame for `window`
+/// frames (or until the next change); between those windows the lane is free, so notes whose bytes lie on a line
+/// (a retrigger count rising by one per note) share one ramp.
+pub(crate) fn latched_lane(initial: u8, changes: &[(i64, u8)], window: i64) -> Vec<(i32, u8)> {
+    let mut run: Vec<(i64, f64)> = vec![(0, initial as f64)];
+    for (k, &(f, v)) in changes.iter().enumerate() {
+        let f = f.max(run.last().unwrap().0 + 1);
+        // the last byte needs no window end: a lane holds its last point
+        let end = changes.get(k + 1).map_or(f, |n| (f + window).min(n.0 - 1));
+        run.push((f, v as f64));
+        if end > f {
+            run.push((end, v as f64));
+        }
+    }
+    let mut out = vec![];
+    fit_line(&run, 0.45, &mut out);
+    deltas(out)
 }
 
 /// One trigger of `variant` of `call`'s record `record` at native speed as a song at `rate` (the per-phrase parity

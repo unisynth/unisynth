@@ -556,3 +556,62 @@ mod thinning {
         assert!(pts.len() < 10, "{pts:?}");
     }
 }
+
+mod latched {
+    use super::super::*;
+
+    fn at(pts: &[(i32, u8)], f: i64) -> f64 {
+        let mut abs = vec![];
+        let mut t = 0i64;
+        for &(d, v) in pts {
+            t += d as i64;
+            abs.push((t, v as f64));
+        }
+        let mut val = abs[0].1;
+        for w in abs.windows(2) {
+            let ((t0, a), (t1, b)) = (w[0], w[1]);
+            if f >= t1 {
+                val = b;
+            } else if f >= t0 && t1 > t0 {
+                return a + (b - a) * (f - t0) as f64 / (t1 - t0) as f64;
+            }
+        }
+        val
+    }
+
+    #[test]
+    fn a_staircase_read_at_note_ons_is_one_line() {
+        // a retrigger count rising by 2 per note, a note every 3530 frames: 10, 12, … read only around each note-on
+        let ch: Vec<(i64, u8)> = (0..50).map(|i| (1000 + i * 3530, 10 + 2 * i as u8)).collect();
+        let pts = latched_lane(10, &ch, LATCH_WINDOW);
+        assert!(pts.len() <= 4, "{} points: {pts:?}", pts.len());
+        for &(f, v) in &ch {
+            for g in [f, f + LATCH_WINDOW] {
+                assert!((at(&pts, g) - v as f64).abs() < 0.5, "at {g}: {} for {v}", at(&pts, g));
+            }
+        }
+    }
+
+    #[test]
+    fn unrelated_values_keep_each_note_exact() {
+        // start phases with no pattern: every note's window holds its own byte
+        let vals = [3u8, 200, 17, 90, 250, 1, 128];
+        let ch: Vec<(i64, u8)> = vals.iter().enumerate().map(|(i, &v)| (500 + i as i64 * 2000, v)).collect();
+        let pts = latched_lane(3, &ch, LATCH_WINDOW);
+        for &(f, v) in &ch {
+            for g in [f, f + LATCH_WINDOW / 2, f + LATCH_WINDOW] {
+                assert!((at(&pts, g) - v as f64).abs() < 0.5, "at {g}: {} for {v}", at(&pts, g));
+            }
+        }
+        assert!(pts.len() <= byte_lane(3, &ch).len());
+    }
+
+    #[test]
+    fn notes_closer_than_the_window_still_read_their_own_byte() {
+        let ch = [(1000i64, 40u8), (1100, 80), (1150, 20)];
+        let pts = latched_lane(40, &ch, LATCH_WINDOW);
+        assert!((at(&pts, 1000) - 40.0).abs() < 0.5);
+        assert!((at(&pts, 1100) - 80.0).abs() < 0.5);
+        assert!((at(&pts, 1150 + LATCH_WINDOW) - 20.0).abs() < 0.5);
+    }
+}
