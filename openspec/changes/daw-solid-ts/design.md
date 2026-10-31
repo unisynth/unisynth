@@ -44,19 +44,38 @@ the token, COOP/COEP and `/dsp` are untouched. The dev server (`pnpm --filter @6
 engine files to the CLI server. Alternative: a Bun plugin running `babel-preset-solid` would need maintenance and
 gives no hot reload.
 
-### D2. One typed song store and an actions module; app.js becomes a client of it
-`ui/state/song.ts` holds `createStore<SongState>` (tracks, master, tempo, signature, bars, loop, selection, armed).
-`ui/state/actions.ts` owns every edit: it calls the store setter, `commit(before, msg)` and `livePush()`. These are
-moved from `app.js`, where they become calls to the store and actions. Undo keeps its semantics: `snap()` =
-`JSON.stringify(unwrap(state))`, and `restore()` = `setState(reconcile(parsed, { key: "id" }))`, so an undo only
-touches the nodes that differ.
-- Alternative `createMutable` (`app.js` keeps mutating a reactive proxy): least code to start with, but every read in
-  hot loops (piano-roll canvas over about 1,000 notes, export) goes through a proxy. It also allows writes from
-  anywhere, which is the current problem. Rejected.
-- Alternative: keep the spike's view-projection bridge (`syncMixer`) for every panel. That duplicates every model
-  field into a view type and a sync call. It stays only as a step for the Mixer, until D2 lands. Rejected as the end
-  state.
-- Canvas drawers and export read `unwrap(state)` (plain objects, no tracking) and redraw from an explicit effect.
+### D2. One song store, reached in steps: `createMutable` while app.js mutates, `createStore` at the end
+The model stays one object tree (`fromSong`), held in a Solid store in `ui/state/song.ts`, with every edit in
+`ui/state/actions.ts` (wrapped in `batch`) in the end state. The doubt-driven review (task 2.1) rejected getting there
+in one step. Each point below was checked against solid-js 1.9 in the browser build:
+- **No big bang.** `app.js` mutates the model on 113 lines in every section, and `main` changes it daily. Under
+  `createStore`, raw writes leave tracked readers stale, and writes through the proxy are silently ignored (a
+  warning in dev builds only). A missed site breaks the DAW without an error.
+- **Transition: `createMutable`.** `app.js`'s `tracks` and `master` become the mutable proxy (one step). All 113 sites
+  keep working, and they now notify Solid. A `splice` of 1,000 notes notifies once. DOM nodes and class instances are
+  not wrapped. Hot loops (canvas draw, `toSong` export, snapshots) read `unwrap(song)`, which is the raw object and
+  costs O(1). `app.js` holds only proxies; mixing in raw references breaks `indexOf` and Map keys.
+- **Ratchet.** Each panel port moves its writes into actions. A test counts the direct model writes left in `app.js`,
+  and the count may only go down. At 0, the store swaps to `createStore`: action bodies use `setState(produce(…))`
+  and components see a `DeepReadonly` type, so a direct write fails to compile.
+- **View fields leave the song objects first.** `_lane`, `rollClip`, `override`, `_dev` and `_edited` are skipped by
+  the snapshot. Reconcile would delete them from live objects, so they move to an id-keyed view store before
+  reconcile-based undo. `clip.sel` and `note.sel` stay: they are part of the undoable state today.
+- **Undo.** Reconcile per top-level key, never at the root (a root reconcile deletes `tempo`, `bars`, `meta` and the
+  other keys the snapshot does not hold): `tracks` keyed by `id`, then `master`. Arrays without ids (clips, notes,
+  sends, lane points) merge by position: the values are right, but identity shifts (a held clip proxy shows the next
+  clip after an undone delete). So keyed lists (arrangement clips) get stable runtime ids before they are rendered
+  with `<For>`, and view state holds ids, not object references. Until a panel is ported, `restore()` keeps rebuilding
+  its views.
+- **Snapshot cost.** `JSON.stringify` of the whole song happens per gesture (start and commit compare). This is
+  measured on a 50-track song with GSM samples. If the cost is over 4 ms, samples move to a content-addressed asset
+  table outside the snapshot, and commit uses a dirty flag set by actions instead of a string compare.
+- **Per-frame values are never song state.** Automation playback values, meters and the playhead live in
+  `ui/state/live.ts` (D3). They are not undoable, never pushed to the engine, and knobs show the live value if
+  present, otherwise the song value. `toSong` and canvases read raw data outside tracking scopes; canvases redraw on a
+  coarse revision signal that actions bump.
+- Rejected: projection bridges for every panel (the spike's `syncMixer`), because they duplicate every field. The
+  Mixer bridge stays until the store owns the Mixer's fields (task 2.6).
 
 ### D3. Display state outside the song store
 Values that change per frame live in their own signals or stores in `ui/state/live.ts`: position (bars),
@@ -124,13 +143,15 @@ own modules (hot reload keeps state; found in the spike).
 - [Accessibility regressions from windowing (screen readers see fewer rows)] → Headers keep `aria-setsize` and
   `aria-posinset`. axe stays in the browser test.
 - [Reactive proxies in hot loops] → Canvases and export read `unwrap()`. The bench catches regressions.
+- [Direct writes survive in app.js after the swap to `createStore` (silently ignored)] → The ratchet test reaches 0
+  before the swap, and components get a `DeepReadonly` type.
 - [Bundle grows (Solid is about 7 KB)] → Irrelevant: the DAW is an editor, not part of the 64k.
 
 ## Migration Plan
 
 1. Land the spike on `main`: Vite, Solid, Mixer, contract test, bench.
-2. Song store and actions (D2), with a doubt-driven review of the store shape before panels depend on it. The Mixer
-   switches from `syncMixer` to the store.
+2. Song store (D2): view fields off the model, then the `createMutable` transition, the live store, per-key undo,
+   the Mixer on the store, and the write-count ratchet.
 3. Transport bar and playback display (D3).
 4. Files, dialogs, menus, library.
 5. Arrangement: headers, lanes, clips, automation lanes, windowing (D6), then track/clip commands and keys (D7).

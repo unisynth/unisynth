@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { laneEl, overrides, overrideSet, rollClips } from "./ui/state/view.ts";
 import { mountMixer, syncMixer, patchStrip, patchSend, setPeak, setMixerShown } from "./ui/mixer.tsx";
 // DAW UI (change add-synth-daw): the reviewed mockup's views and interactions on the real song/1 model,
 // engine (AudioWorklet + synth-wasm live host), device panels generated from the engine's parameter tables and
@@ -77,7 +78,7 @@ function* clipNotes(t, c) {
   }
 }
 function renderLane(t) {
-  const lane = t._lane; if (!lane || t.bus) return;
+  const lane = laneEl.get(t.id); if (!lane || t.bus) return;
   lane.querySelectorAll(".clip").forEach(e => e.remove());
   for (const c of t.clips) lane.append(makeClip(t, c));
 }
@@ -135,18 +136,18 @@ function paramTarget(t, ln) { const d = t.devices[ln.dev]; return d && paramOf(d
 function applyAutomation() {
   for (const t of tracks) for (const ln of t.lanes || []) {
     const tg = paramTarget(t, ln); if (!tg) continue;
-    const key = ln.dev + ":" + ln.param, ovr = !!t.override?.has(key), el = knobReg.get(tg.store)?.get(tg.field);
+    const key = ln.dev + ":" + ln.param, ovr = !!overrides.get(t.id)?.has(key), el = knobReg.get(tg.store)?.get(tg.field);
     const av = autoVal.get(tg.store) || autoVal.set(tg.store, {}).get(tg.store);
     // write a knob only when its value or override state changed (this runs every frame while playing)
     if (!ovr) { const nv = laneValue(ln.pts, SONG_POS), moved = av[tg.field] !== nv; av[tg.field] = nv; if (moved && el?.isConnected) el._set(nv); } else delete av[tg.field];
     if (el?.isConnected && (el._lane?.key !== key || el._ovr !== ovr)) { el._lane = { t, key }; el._ovr = ovr; el.classList.add("auto"); el.classList.toggle("ovr", ovr); el.title = ovr ? "Automation overridden by hand · Re-enable automation to follow the lane again" : "Automated: follows its lane"; }
   }
-  for (const l of laneVals) l.ah.classList.toggle("ovr", !!l.t.override?.has(l.ln.dev + ":" + l.ln.param));
+  for (const l of laneVals) l.ah.classList.toggle("ovr", !!overrides.get(l.t.id)?.has(l.ln.dev + ":" + l.ln.param));
 }
 function updateReauto(t = selected) {
-  const ctx = document.getElementById("ctx"); ctx.querySelector("#reauto")?.remove(); if (!t.override?.size) return;
-  const b = Object.assign(document.createElement("button"), { id: "reauto", textContent: `↺ Re-enable automation (${t.override.size})`, title: "Knobs you turned by hand stopped following their lanes; click to follow them again" });
-  b.onclick = () => { t.override.clear(); applyAutomation(); updateReauto(t); live.textContent = `${t.name}: automation re-enabled`; }; ctx.append(b);
+  const ctx = document.getElementById("ctx"); ctx.querySelector("#reauto")?.remove(); if (!overrides.get(t.id)?.size) return;
+  const b = Object.assign(document.createElement("button"), { id: "reauto", textContent: `↺ Re-enable automation (${overrides.get(t.id).size})`, title: "Knobs you turned by hand stopped following their lanes; click to follow them again" });
+  b.onclick = () => { overrides.get(t.id).clear(); applyAutomation(); updateReauto(t); live.textContent = `${t.name}: automation re-enabled`; }; ctx.append(b);
 }
 // ---- Automation record (●, Shift+R; design D8f). While playing, a device knob you turn or hold writes its lane at
 // the playhead on a 1/64-bar grid, creating the lane if needed. Touch overwrite: points between this gesture's last
@@ -170,14 +171,14 @@ function recordPoint(t, d, p, v) {
   const last = recLast.get(key), from = last !== undefined && last <= b ? last : b;
   ln.pts = ln.pts.filter(([x]) => x <= from && x !== b || x > b); ln.pts.push([b, v]); ln.pts.sort((a, c) => a[0] - c[0]);
   if (recHold?.d === d && recHold.p === p) recLast.set(key, b); else recLast.delete(key);  // a pass lasts while the knob is held
-  t.override?.delete(`${di}:${p.name}`);
+  overrides.get(t.id)?.delete(`${di}:${p.name}`);
   if (fresh) rebuildTracks(); else { const l = laneVals.find(x => x.ln === ln); l?.draw(); l?.val(); }
   const now = performance.now(); if (now - recPushAt > 200) { recPushAt = now; pushSong(); } else livePush();
   return true;
 }
 // A hand edit: overrides automation on that knob, marks the preset edited (*).
 function knobEdited(t, el) {
-  if (el._lane) { (el._lane.t.override ??= new Set()).add(el._lane.key); el.classList.add("ovr"); applyAutomation(); updateReauto(el._lane.t); }
+  if (el._lane) { overrideSet(el._lane.t.id).add(el._lane.key); el.classList.add("ovr"); applyAutomation(); updateReauto(el._lane.t); }
   const d = el._dev; if (d && d.kind === 64 && !d._edited) {
     d._edited = true; const k = el.closest(".devbox")?.querySelector("h3 .kind"); if (k) k.textContent = k.textContent.replace(/(preset [^·]*?)(\s*·|$)/, (m0, n, rest) => `${n.replace(/\*$/, "")}*${rest}`);
     const h = document.querySelector(`.thdr.track[data-track="${t.id}"] .dev`); if (h) h.textContent = devLabel(t);
@@ -289,7 +290,7 @@ function buildTrack(t) {
   const lane = document.createElement("div"); lane.className = "lane track" + (t === selected ? " sel" : ""); lane.dataset.track = t.id; lane.setAttribute("aria-label", t.name + " clips");
   if (t.mute) lane.style.opacity = .45;
   if (t.bus) { lane.classList.add("buslane"); lane.innerHTML = `<span class="busnote">bus track · no clips · audio from sends</span>`; }
-  t._lane = lane; renderLane(t); rowAdd(lane);
+  laneEl.set(t.id, lane); renderLane(t); rowAdd(lane);
   const box = { h: document.createElement("div"), l: document.createElement("div") };
   box.h.className = "lanegrp"; box.l.className = "lanegrp"; box.h.hidden = box.l.hidden = !t.open;
   for (const ln of t.lanes) addLane(t, ln, box);
@@ -777,7 +778,7 @@ function useGsm(t, d, b64, label, slot = gsmSlot(d)) {
   const before = snap(); d.samples ??= [];
   let k = d.samples.indexOf(b64); if (k < 0) { d.samples.push(b64); k = d.samples.length - 1; }
   Object.assign(d.values, { [`osc${slot}.type`]: 1, [`osc${slot}.s7`]: 0, [`osc${slot}.sample`]: k + 1 });
-  t.override?.clear(); livePush(); rebuildTracks(); renderAll(); commit(before, `${t.name}: osc ${slot} plays ${label} (GSM sample ${k + 1})`);
+  overrides.get(t.id)?.clear(); livePush(); rebuildTracks(); renderAll(); commit(before, `${t.name}: osc ${slot} plays ${label} (GSM sample ${k + 1})`);
 }
 // Samples no GSM sampler slot plays still cost bytes in the intro: drop them and renumber the slots.
 function gsmUsed(d) { return new Set([1, 2, 3].filter(i => oscType(d, i) === 4 && choice(vget(d, ip(`osc${i}.s7`)), 3) === 0).map(i => Math.round(vget(d, ip(`osc${i}.sample`))))); }
@@ -1041,8 +1042,8 @@ for (let n = HI; n >= LO; n--) {
 let rollNotes = [], rollClip = null, rollLen = 64;
 let rollCC = { wheel: [], bend: [] };
 function rollClipOf(t) {
-  const r = t.rollClip, keep = r && (t.clips.includes(r) ? r : t.clips.find(c => c.name === r.name && c.start === r.start));
-  return t.rollClip = keep || t.clips.find(c => c.sel) || t.clips[0] || null;
+  const r = rollClips.get(t.id), keep = r && (t.clips.includes(r) ? r : t.clips.find(c => c.name === r.name && c.start === r.start));
+  const c = keep || t.clips.find(c => c.sel) || t.clips[0] || null; rollClips.set(t.id, c); return c;
 }
 function genRoll(t) {
   rollClip = t.bus || t.master ? null : rollClipOf(t);
@@ -1261,12 +1262,12 @@ const clipboard = { notes: null, clips: null };
 // Undo: one snapshot per gesture/command (clips of every track + notes per track).
 const undoStack = [], redoStack = [];
 // Undo: one whole-song snapshot per gesture or command (tracks, clips, notes, devices, automation, mixer).
-const SKIP = new Set(["_lane", "rollClip", "override", "_dev"]);
+const SKIP = new Set(["_dev"]);
 const snap = () => JSON.stringify({ tracks, master, sel: selected.id, armed: armed?.id }, (k, v) => SKIP.has(k) ? undefined : v);
 function restore(js) {
-  const d = JSON.parse(js), rc = new Map(tracks.map(t => [t.id, t.rollClip]));
+  const d = JSON.parse(js);
+  overrides.clear();  // as before the view store: restored tracks follow their automation lanes again
   tracks.splice(0, tracks.length, ...d.tracks); Object.assign(master, d.master);
-  for (const t of tracks) t.rollClip = rc.get(t.id);
   selected = tracks.find(t => t.id === d.sel) || (d.sel === "master" ? master : tracks[0]); armed = tracks.find(t => t.id === d.armed) || null;
   rebuildTracks(); selectTrack(selected); updateArmed(); if (typeof dirtyUpd === "function") dirtyUpd(); livePush();
 }
@@ -1423,7 +1424,7 @@ lanesEl.addEventListener("pointerdown", e => {
     if (e.shiftKey) { c.sel = !c.sel; renderLane(t); return; }
     if (!c.sel) { clearClipSel(); c.sel = true; }
     aDrag = { mode: e.target.classList.contains("rz") ? "resize" : "move", alt: e.altKey, bars0: BARS, bar0: bar, before: snap(), t0: t, orig: selClips().map(x => ({ ...x, start: x.c.start, len: x.c.len })) };
-    t.rollClip = c; selectTrack(t); if (!document.getElementById("p-roll").hidden) centreRoll();
+    rollClips.set(t.id, c); selectTrack(t); if (!document.getElementById("p-roll").hidden) centreRoll();
   } else {
     if (!e.shiftKey) clearClipSel();
     aCursor = Math.max(1, 1 + Math.floor((bar - 1) / (arrSnap() || 1)) * (arrSnap() || 1)); drawCursor();
@@ -1453,7 +1454,7 @@ lanesEl.addEventListener("pointermove", e => {
   else { const x0 = (Math.min(aDrag.bar0, bar) - 1) * BW, x1 = (Math.max(aDrag.bar0, bar) - 1) * BW, y0 = Math.min(aDrag.y0, y), y1 = Math.max(aDrag.y0, y);
     Object.assign(aDrag.box.style, { left: x0 + "px", top: y0 + "px", width: x1 - x0 + "px", height: y1 - y0 + "px" }); if (!aDrag.box.isConnected) lanesEl.append(aDrag.box);
     const lr = lanesEl.getBoundingClientRect();
-    for (const t of tracks) for (const c of t.clips) { const ly = t._lane?.offsetTop ?? -1, lh = t._lane?.offsetHeight ?? 0, cx0 = (c.start - 1) * BW, cx1 = cx0 + c.len * BW;
+    for (const t of tracks) for (const c of t.clips) { const ly = laneEl.get(t.id)?.offsetTop ?? -1, lh = laneEl.get(t.id)?.offsetHeight ?? 0, cx0 = (c.start - 1) * BW, cx1 = cx0 + c.len * BW;
       c.sel = aDrag.keep.has(c) || (cx0 < x1 && cx1 > x0 && ly < y1 && ly + lh > y0); } void lr; }
   if (aDrag.mode !== "marquee") fitSong(true);
   tracks.forEach(renderLane);
@@ -1464,7 +1465,7 @@ lanesEl.addEventListener("pointerup", () => {
   if (aDrag.mode === "resize" && aDrag.moved) { for (const o of aDrag.orig) place(o.t, o.c); commit(aDrag.before, "clip length changed"); }
   if (aDrag.mode === "marquee") { aDrag.box.remove(); if (aDrag.moved) say(`${selClips().length} clips selected`);
     else if (aDrag.pend) { const { c, t, shift } = aDrag.pend; if (shift) c.sel = !c.sel; else { clearClipSel(); c.sel = true; }
-      t.rollClip = c; selectTrack(t); if (!document.getElementById("p-roll").hidden) { centreRoll(); } } }
+      rollClips.set(t.id, c); selectTrack(t); if (!document.getElementById("p-roll").hidden) { centreRoll(); } } }
   if (aDrag.mode === "move" || aDrag.mode === "resize") { fitSong(); if (aDrag.moved && BARS > aDrag.bars0) say(`${editStatus.textContent} · song extended to ${BARS} bars`); }
   aDrag = null; tracks.forEach(renderLane); renderDevice();
 });
@@ -1560,7 +1561,7 @@ async function loadInto(t, src, it) {
     delete inst.values[`osc${slot}.s8`];
     inst.preset = `GM ${it.gm.name}`; inst._edited = false;
   }
-  t.override?.clear(); rebuildTracks(); renderAll(); say(`${t.name}: loaded “${it.name}” (one undo step)`); commit(before, `${t.name}: loaded ${it.name}`);
+  overrides.get(t.id)?.clear(); rebuildTracks(); renderAll(); say(`${t.name}: loaded “${it.name}” (one undo step)`); commit(before, `${t.name}: loaded ${it.name}`);
 }
 function openLibrary(src = "project") { libQ.value = ""; renderLibrary(src); libTree.querySelector(`details[data-src="${src}"] summary`)?.focus(); }
 libQ.addEventListener("input", () => renderLibrary());
@@ -1712,7 +1713,7 @@ document.addEventListener("click", e => {
   const solo = b.getAttribute("aria-label").startsWith("Solo"), name = b.getAttribute("aria-label").slice(5), t = tracks.find(x => x.name === name); if (!t) return;
   const before = snap(); t[solo ? "solo" : "mute"] = !t[solo ? "solo" : "mute"]; if (!solo) setTimeout(() => commit(before, `${name} ${t.mute ? "muted" : "unmuted"}`));
   document.querySelectorAll(`button[aria-label="${solo ? "Solo" : "Mute"} ${name}"]`).forEach(x => x.setAttribute("aria-pressed", !!t[solo ? "solo" : "mute"]));
-  if (t._lane) t._lane.style.opacity = t.mute ? .45 : ""; patchStrip(t.id, { mute: !!t.mute, solo: !!t.solo });
+  if (laneEl.get(t.id)) laneEl.get(t.id).style.opacity = t.mute ? .45 : ""; patchStrip(t.id, { mute: !!t.mute, solo: !!t.solo });
   say(`${name} ${solo ? (t.solo ? "soloed" : "unsoloed") : (t.mute ? "muted" : "unmuted")}`); livePush();
 });
 // Audible = not muted, and soloed, a send source of a soloed track, or a bus it sends to when any solo is on (model.ts).
@@ -1851,7 +1852,7 @@ function tick(now) {
 }
 let lastLane = 0;
 function laneTick(now) { if (now - lastLane < 100) return; lastLane = now; laneVals.forEach(l => { if (!l.box.l.hidden) l.val(); });
-  for (const t of tracks) t._lane?.querySelectorAll(".clip").forEach(el => el.classList.toggle("playing", SONG_POS >= el._clip.start && SONG_POS < el._clip.start + el._clip.len)); }
+  for (const t of tracks) laneEl.get(t.id)?.querySelectorAll(".clip").forEach(el => el.classList.toggle("playing", SONG_POS >= el._clip.start && SONG_POS < el._clip.start + el._clip.len)); }
 // Meters: per-track peaks from the engine (master last), falling 20 dB/s.
 const lvl = {};
 let loadShown = -1, loadAvg = 0;  // engine load: mean render time per real time, averaged over about 0.5 s
@@ -2184,7 +2185,7 @@ function createClip(t, bar) {
   if (t.bus) return say("bus tracks have no clips; they play what other tracks send");
   const q = arrSnap() >= 1 ? arrSnap() : 1, start = 1 + Math.floor((bar - 1) / q) * q, name = `clip ${clipN++}`;
   const before = snap(); clearClipSel(); (t.pats ??= {})[name] = { len: 1, notes: [], cc: { wheel: [], bend: [] } };
-  const c = { start, len: 1, name, sel: true }; place(t, c); fitSong(true); t.rollClip = c;
+  const c = { start, len: 1, name, sel: true }; place(t, c); fitSong(true); rollClips.set(t.id, c);
   tracks.forEach(renderLane); selectTrack(t); commit(before, `${name} created on ${t.name} at bar ${start}; double-click the roll to add notes`);
   show(tabs.find(x => x.id === "tab-roll")); centreRoll();
 }
@@ -2207,7 +2208,7 @@ lanesEl.addEventListener("pointerup", e => {
 function laneDouble(e) {
   const lane = laneAtY(e.clientY); if (!lane) return; const t = tracks.find(x => x.id === lane.dataset.track), bar = lpos(e)[0];
   const c = t.clips.find(c1 => bar >= c1.start && bar < c1.start + c1.len);
-  if (c) { t.rollClip = c; selectTrack(t); show(tabs.find(x => x.id === "tab-roll")); centreRoll(); return; }
+  if (c) { rollClips.set(t.id, c); selectTrack(t); show(tabs.find(x => x.id === "tab-roll")); centreRoll(); return; }
   createClip(t, bar);
 }
 lanesEl.addEventListener("contextmenu", e => {
@@ -2215,7 +2216,7 @@ lanesEl.addEventListener("contextmenu", e => {
   const t = tracks.find(x => x.id === lane.dataset.track), el = e.target.closest(".clip"), bar = lpos(e)[0];
   if (!el) return popMenu(e.clientX, e.clientY, [["Create clip here", "double-click", () => createClip(t, bar), t.bus], ["Paste here", "Ctrl+V", () => { aCursor = 1 + Math.floor(bar - 1); drawCursor(); if (selected !== t) selectTrack(t); arrCmd("paste"); }, !clipboard.clips]], "Lane menu");
   const c = el._clip; if (!c.sel) { clearClipSel(); c.sel = true; tracks.forEach(renderLane); }
-  popMenu(e.clientX, e.clientY, [["Open in piano roll", "", () => { t.rollClip = c; selectTrack(t); show(tabs.find(x => x.id === "tab-roll")); centreRoll(); }],
+  popMenu(e.clientX, e.clientY, [["Open in piano roll", "", () => { rollClips.set(t.id, c); selectTrack(t); show(tabs.find(x => x.id === "tab-roll")); centreRoll(); }],
     ["Duplicate", "Ctrl+D", () => arrCmd("dup", false)], ["Duplicate linked", "Ctrl+Shift+D", () => arrCmd("dup", true)],
     ["Make unique", "", () => makeUnique(t, c), links(t, c.name) < 2], [c.loop ? "Loop off (crop)" : "Loop clip", "Alt+drag edge", () => toggleClipLoop(t, c)], "-",
     ["Cut", "Ctrl+X", () => arrCmd("cut")], ["Copy", "Ctrl+C", () => arrCmd("copy")], ["Delete", "Del", () => arrCmd("del")]], `Clip ${c.name} menu`);

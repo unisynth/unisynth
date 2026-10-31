@@ -17,24 +17,36 @@ before → `AGENTS.md` rows → land on `main`.
   and meter-only mutations while playing).
 - [x] 1.5 Mixer in Solid (`ui/mixer.tsx`, `ui/mixer-store.ts`, path updates `patchStrip`/`patchSend`). Verified: 54/54
   tests; `bench/ui-mixer.ts` on trashpanda: select 23 → 16 ms, fader 0.37 and mute 2.1 ms (equal), frames equal.
-- [ ] 1.6 Rebase `daw-solid-spike` on `main`, re-run the gate (tests, tsc, bench, `build-static.ts`, `/daw` from
+- [x] 1.6 Rebase `daw-solid-spike` on `main`, re-run the gate (tests, tsc, bench, `build-static.ts`, `/daw` from
   `serve`), add a "Dev loop" section to `docs/synth/daw.md` (two commands, ports, proxy), and merge. Verify: the
   documented commands start a working hot-reload session.
 
 ## 2. Song store, actions and history (D2, D3)
 
-- [ ] 2.1 Doubt-driven review of the `SongState` shape (tracks, master, song settings, loop, selection, armed) and the
-  `app.js` ↔ store boundary before code. Record the outcome in design.md D2.
-- [ ] 2.2 `ui/state/song.ts`, `ui/state/history.ts` (`snap` = `unwrap` JSON, `restore` = `reconcile` by id, `commit`,
-  `undo`, `redo`), plus unit tests (`bun test`): undo/redo round trip equals the saved song; restore keeps object
-  identity of unchanged tracks.
-- [ ] 2.3 `ui/state/live.ts` (position, playing, peaks, load, drops, lane values, probe), written from `onStatus` with
-  the change thresholds of `showPos` and `meters`. Unit test: an unchanged value does not notify.
-- [ ] 2.4 Point `app.js` at the store: `tracks`/`master`/`selected`/`armed` and `snap`/`restore`/`commit` come from the
-  modules; edits go through `ui/state/actions.ts`. Verify: all browser tests green, `DAW.debug.song()` unchanged
-  on the demo and every `project/music` song (model round trip test).
-- [ ] 2.5 Mixer reads the song store and `live.ts` directly; delete `syncMixer`, `patchStrip`, `patchSend` and
-  `setPeak`. Verify: mixer test and bench unchanged.
+- [x] 2.1 Doubt-driven review of the store shape and the `app.js` ↔ store boundary (fresh-context reviewer; findings
+  checked in the browser build of solid-js 1.9: raw writes leave tracked readers stale, proxy writes are ignored,
+  root reconcile deletes keys, track reconcile deletes view fields, id-less arrays merge by position, a
+  `createMutable` splice notifies once). Outcome recorded in design.md D2: strangler via `createMutable`, ratchet,
+  `createStore` at the end.
+- [x] 2.2 Move view-only fields off the song objects into an id-keyed view store (`ui/state/view.ts`): `_lane`,
+  `rollClip`, `override` (`_dev` is a knob element property and `_edited` is undoable device state: both stay). `snap()` no longer needs a replacer for them. Verify: all browser tests,
+  `DAW.debug.song()` unchanged on the demo and every `project/music` song.
+- [ ] 2.3 `ui/state/song.ts`: `song = createMutable(fromSong(…))`; `app.js` `tracks`/`master` point at it; `toSong`,
+  snapshots and canvas draws read `unwrap(song)`. Verify: all tests; `bench/ui.ts` select/fader/knob/play and
+  roll open time not more than 10 % slower than before.
+- [ ] 2.4 `ui/state/live.ts`: position, playing, peaks, load, drops, automation values at the playhead, probe;
+  written from `onStatus`/`applyAutomation` only on a shown change, never into the song or undo. Unit test: an
+  unchanged value does not notify; browser test: playing an automated song adds no undo step and does not change
+  `DAW.debug.song()`.
+- [ ] 2.5 `ui/state/history.ts`: `commit`/`undo`/`redo` moved from `app.js`; restore reconciles `tracks` (key `id`) and
+  `master` separately, never the root. Measure the snapshot cost on a 50-track song with GSM samples; if over 4 ms,
+  add the asset table and dirty-flag commit (design D2). Unit tests: undo/redo round trip equals the saved song;
+  unchanged tracks keep identity; `tempo`/`bars`/`meta` survive an undo.
+- [ ] 2.6 Mixer reads `song` and `live` directly; delete `syncMixer`, `patchStrip`, `patchSend` and `setPeak`. Verify:
+  mixer test and bench unchanged.
+- [ ] 2.7 Ratchet test (`bun test`): counts direct model writes left in `app.js` (assignments, `splice`/`push`/`sort`
+  on model arrays, `Object.assign` on model objects) and fails when the count rises above the number recorded in the
+  test. Verify: an added write fails the test.
 
 ## 3. Transport and playback display (D3)
 
