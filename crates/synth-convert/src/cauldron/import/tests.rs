@@ -473,3 +473,15 @@ fn a_stored_sample_plays_at_the_xm_frequency() {
         }
     }
 }
+
+#[test]
+fn tracks_are_named_by_sample_record_and_class() {
+    // phrase tracks: the XM sample, the record and the class (none at 0); stored ones: the sample; repeats numbered
+    let names = track_names(&[
+        (Some(4), "Jace41 ".into(), 0),
+        (Some(4), "Jace41".into(), 12),
+        (Some(4), "Jace41".into(), 12),
+        (None, "Jace11.smp".into(), 0),
+    ]);
+    assert_eq!(names, ["Jace41 (record 4)", "Jace41 (record 4, +12) 1", "Jace41 (record 4, +12) 2", "Jace11 (sample)"]);
+}

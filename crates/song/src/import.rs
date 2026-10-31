@@ -67,31 +67,35 @@ fn device(k: u8, c: &[u8]) -> Result<Device, String> {
 }
 
 /// Lane events → notes in ticks: each note-on pairs with the next note-off of its pitch; notes still open at the end
-/// last until `end`.
+/// last until `end`. A note ended at the sample where another note started just before it (a mono instrument's legato:
+/// on, then off at one sample) lasts one tick longer, since song/1 puts note-offs first at one sample: the export plays
+/// the new note first again.
 fn notes(s: &Song, ev: &[(i64, EventKind)], end: i64) -> Vec<Note> {
     let mut open: [Option<(i64, u8)>; 128] = [None; 128];
     let mut out = vec![];
     let tick = |x: i64| sample_to_tick(s, x as f64).round() as i64;
-    let mut close = |p: usize, at: i64, open: &mut [Option<(i64, u8)>; 128]| {
+    let mut close = |p: usize, at: i64, after_on: bool, open: &mut [Option<(i64, u8)>; 128]| {
         if let Some((st, v)) = open[p].take() {
-            let (a, b) = (tick(st), tick(at));
+            let (a, b) = (tick(st), tick(at) + i64::from(after_on && st < at));
             // velocity: the blob holds a byte; a song's velocity is 1..=127 (128 and up, seen in released intros, play
             // as 127 within 1 %)
             out.push(Note { start: a, len: (b - a).max(1), pitch: p as u8, vel: v.clamp(1, 127) });
         }
     };
+    let mut last_on = None;
     for &(at, k) in ev {
         match k {
             EventKind::NoteOn { note, velocity } => {
                 let p = note as usize & 127;
-                close(p, at, &mut open);
+                close(p, at, false, &mut open);
                 open[p] = Some((at, velocity));
+                last_on = Some(at);
             }
-            EventKind::NoteOff { note } => close(note as usize & 127, at, &mut open),
+            EventKind::NoteOff { note } => close(note as usize & 127, at, last_on == Some(at), &mut open),
         }
     }
     for p in 0..128 {
-        close(p, end, &mut open);
+        close(p, end, false, &mut open);
     }
     out.sort_by_key(|n| (n.start, n.pitch));
     out

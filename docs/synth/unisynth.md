@@ -1278,6 +1278,14 @@ Engage 0.00 dB, Eladamri −0.24 dB, no_remorse −0.04 dB, tf4testsong +0.13 dB
 closed (noise width and the fine window: it now reads 0.00 dB). The current figures are in
 `tools/unisynth-parity/report.md` (see Parity, speed and size).
 
+Released songs (local only, `project/music/released/`, git-ignored: no licence) are written by
+`tools/ws-extract/make-demos.py` (25 WaveSabre intros) and `research/tbl-mini-cauldron/tools/make_demos.py` (TBL's
+three cauldron soundtracks: Jizz "Smokeout", Stash "over2" and "bluish" by Probe, as `tbl-jizz-smokeout`,
+`tbl-stash-over2`, `tbl-stash-bluish`; `synth-convert xm … --names` gives the track names, `<sample> (record r,
+class)`). The cauldron songs are large (2.8, 13.2 and 5.3 MB of JSON: per-tick automation). Through `song/1` they
+render within ~0.1 dB median and 4.3 dB worst per octave band and second of the converter's own blob: notes land on the
+960-ticks-per-beat grid (±3 frames at Jizz's 470 BPM).
+
 ## Parity, speed and size
 
 `tools/unisynth-parity` (`bun tools/unisynth-parity/parity.ts`, opt-in; `WS_SONG_DIR` and `TF_SONGS` name the synth lab

@@ -638,6 +638,36 @@ pub struct Converted {
     pub tracks: (usize, usize),
     /// Per song track (the master excluded): its record, `None` for a stored sample.
     pub records: Vec<Option<usize>>,
+    /// Per song track (the master excluded): a name from its XM sample, record and class ([`track_names`]).
+    pub names: Vec<String>,
+}
+
+/// Track names from (record, XM sample name, class; `.smp` dropped): `<sample> (record <r>, <class>)` (no class at 0) for a phrase
+/// track, `<sample> (sample)` for a stored one; a name used more than once is numbered.
+pub fn track_names(tracks: &[(Option<usize>, String, i32)]) -> Vec<String> {
+    let base: Vec<String> = tracks
+        .iter()
+        .map(|(rec, sample, class)| {
+            let s = sample.trim();
+            let s = s.strip_suffix(".smp").unwrap_or(s);
+            match (rec, class) {
+                (Some(r), 0) => format!("{s} (record {r})"),
+                (Some(r), c) => format!("{s} (record {r}, {c:+})"),
+                (None, _) => format!("{s} (sample)"),
+            }
+        })
+        .collect();
+    let mut seen: BTreeMap<&str, usize> = BTreeMap::new();
+    base.iter()
+        .map(|b| {
+            if base.iter().filter(|x| *x == b).count() < 2 {
+                return b.clone();
+            }
+            let n = seen.entry(b).or_default();
+            *n += 1;
+            format!("{b} {n}")
+        })
+        .collect()
 }
 
 /// The call of `p` an XM was made with: Jizz's only call, or the Stash call whose generated and drum samples count the
@@ -881,6 +911,14 @@ pub fn convert(p: &Patches, xm: &Xm, rate: i32) -> Result<Converted, String> {
     song.lanes.push(vec![]);
     // openmpt123 renders 0.1 s past the end
     song.length = (lead as f64 + (r.length + 0.1) * rate as f64) / rate as f64;
+    let sample_name = |i: usize| sample(&r.triggers[i]).name.clone();
+    let names = track_names(
+        &plans
+            .iter()
+            .map(|t| (Some(t.record), sample_name(t.triggers[0]), t.class))
+            .chain(stored.iter().map(|(_, trig)| (None, sample_name(trig[0]), 0)))
+            .collect::<Vec<_>>(),
+    );
     Ok(Converted { song, lead: lead as usize, warnings, pingpong, muted, tracks: (plans.len(), stored.len()),
-        records: plans.iter().map(|t| Some(t.record)).chain(stored.iter().map(|_| None)).collect() })
+        records: plans.iter().map(|t| Some(t.record)).chain(stored.iter().map(|_| None)).collect(), names })
 }

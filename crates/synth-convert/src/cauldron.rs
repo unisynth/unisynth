@@ -375,7 +375,8 @@ pub fn effects(call: &Call, record: usize, ratio: f64, rate: f64, tempo: i32) ->
             fine = 200.0;
             out.echo_clamped = Some(ms);
         }
-        let (c, f) = (((coarse + 0.5) / 16.0) as f32, ((fine + 0.5) / 200.0) as f32);
+        // half a step up survives the engine's truncation; the top (16 quarter beats, 200 ms) is exact at 1
+        let (c, f) = ((((coarse + 0.5) / 16.0) as f32).min(1.0), (((fine + 0.5) / 200.0) as f32).min(1.0));
         out.devices.push((DELAY, vec![mode_value(DELAY, 0), c, f, c, f, 0.0, 1.0, e as f32, 0.0, (e / (1.0 + e)) as f32]));
         level = 1.0 / (1.0 + e);
         out.devices.push(clip(level)); // the wet mix scaled the original's full scale by 1/(1 + e)

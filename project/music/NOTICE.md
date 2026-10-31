@@ -33,6 +33,11 @@ or Demozoo link, and says that it is an adapted version (converted to the unifie
 ~1 dB per octave band of the original engine). Track names are derived from instrument and notes, not the authors'.
 The full list and the productions that could not be extracted are in `research/wavesabre-intros.md`.
 
+It also holds three songs of The Black Lotus's 1997 64K intros, music by Probe: "Smokeout" (Jizz, 1st at Wired 1997)
+and "over2" and "bluish" (Stash, 1st at The Party 1997), titles from Demozoo, `tbl-*.song.json`. They are converted
+from the intros' XMs with their synthesized samples played by the unified synth's cauldron oscillator
+(`research/tbl-mini-cauldron/tools/make_demos.py`); same rules: no licence, local only, adapted version.
+
 ## MIT (WaveSabre)
 
 Copyright 2012-2021 WaveSabre Team

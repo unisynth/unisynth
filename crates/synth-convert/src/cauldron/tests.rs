@@ -176,6 +176,27 @@ mod effects {
         effects(c, record, ratio, RATE, TEMPO)
     }
 
+    #[test]
+    fn every_chain_value_is_a_parameter_in_range() {
+        // a song file stores parameters 0..1 (`song check`); the echo's longest time (16 quarter beats, 200 ms) must
+        // not step past 1 to dodge truncation
+        for (f, calls) in [("patches_jizz.json", &["jizz"][..]), ("patches_stash.json", &["song0", "bluish"][..])] {
+            let p = load(&data(f)).unwrap();
+            for name in calls {
+                let c = p.call(name).unwrap();
+                for r in 0..c.records.len() {
+                    for ratio in [0.125, 0.5, 1.0, 2.0, 8.0] {
+                        for tempo in [32, 125, 151, 255] {
+                            for (k, v) in effects(c, r, ratio, RATE, tempo).devices {
+                                assert!(v.iter().all(|x| (0.0..=1.0).contains(x)), "{name} record {r} ×{ratio} {tempo} BPM kind {k}: {v:?}");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     fn kinds(c: &Chain) -> Vec<(u8, f32)> {
         c.devices.iter().map(|(k, v)| (*k, v[0])).collect()
     }

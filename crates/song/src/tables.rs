@@ -84,6 +84,8 @@ pub const EFFECT_MODES: &[(u8, usize)] = &[
     (kind::DELAY, 2),
     (kind::REVERB, 3),
     (kind::COMPRESSOR, 1),
+    (kind::DISTORTION, 3),
+    (kind::FLANGER, 2),
 ];
 
 pub fn kind_name(k: u8) -> &'static str {
@@ -104,12 +106,12 @@ pub fn kind_name(k: u8) -> &'static str {
 
 pub fn mode_names(k: u8) -> &'static [&'static str] {
     match k {
-        kind::DISTORTION => &["Shaper", "Curve", "Power"],
+        kind::DISTORTION => &["Shaper", "Curve", "Power", "Wrap"],
         kind::CRUSHER => &["Crusher"],
         kind::EQ => &["Parametric", "3-band", "Cut"],
         kind::DELAY => &["Tempo", "Ms", "Modulated"],
         kind::CHORUS => &["Chorus"],
-        kind::FLANGER => &["Phaser", "Ring"],
+        kind::FLANGER => &["Phaser", "Ring", "Comb"],
         kind::REVERB => &["Freeverb", "Compact", "Rooms", "Comb"],
         kind::COMPRESSOR => &["Compressor", "Look-ahead"],
         kind::FORMANT => &["Formant"],
@@ -178,6 +180,10 @@ fn effect_params(k: u8, mode: usize) -> Vec<(&'static str, f32)> {
             ("detect", 0.0), ("couple", 0.0), ("auto_gain", 1.0 / 128.0), ("lookahead", 2.0 / 128.0), ("threshold", 90.0 / 128.0),
             ("ratio", 0.25), ("attack", 20.0 / 128.0), ("release", 0.5), ("out_gain", 0.5), ("era", 1.0),
         ],
+        // mini-cauldron modes (change add-cauldron-xm-import); defaults pass the signal unchanged: drive p·4 (0.25 = ×1),
+        // offset 2p − 1; comb delay p·16384 frames, amount, sweep p·0.01 per frame, restart (any change)
+        (kind::DISTORTION, 3) => vec![("drive", 0.25), ("offset", 0.5)],
+        (kind::FLANGER, 2) => vec![("delay", 0.0), ("amount", 0.0), ("sweep", 0.0), ("restart", 0.0)],
         _ => vec![],
     }
 }

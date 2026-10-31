@@ -349,6 +349,20 @@ fn automation_after_the_song_end_is_cut_at_the_end_not_stretching_the_song() {
 }
 
 #[test]
+fn a_note_on_before_a_note_off_at_one_sample_keeps_its_order() {
+    // a blob may start the next note before it ends the last at the same sample (a mono instrument's legato, the
+    // cauldron converter's tied phrases); song/1 puts note-offs first at one sample, so the import holds the ended
+    // note one tick longer: the export plays the new note first again. A note ended at its own start (on, off at one
+    // sample) keeps its shortest length.
+    let mut m = song::export::export_model(&song_of(&base())).unwrap();
+    let l = m.tracks[0].lane;
+    m.lanes[l] = vec![(1000, on(64, 100)), (5000, on(67, 90)), (5000, off(64)), (9000, on(69, 80)), (9000, off(69)), (9000, off(67))];
+    let back = export(&import(&m.write()).unwrap()).unwrap();
+    let kinds: Vec<EventKind> = events(&back, l).into_iter().map(|e| e.1).collect();
+    assert_eq!(kinds, [on(64, 100), on(67, 90), off(64), on(69, 80), off(67), off(69)]);
+}
+
+#[test]
 fn imported_released_songs_quirks_become_valid_songs() {
     // velocity 128 in the blob (a byte) imports as 127
     let mut v = base();
@@ -435,6 +449,18 @@ fn effect_tables_match_the_engine_parameter_counts() {
         let fx = unisynth::fx::UFx::new(kind, &chunk, &env, &mut pool).unwrap();
         assert_eq!(fx.param_count(), t.params.len(), "{kind}/{mode}");
         assert_eq!(unisynth::fx::mode_of(kind, &chunk), mode);
+    }
+}
+
+#[test]
+fn every_engine_effect_mode_has_a_table() {
+    // a mode the engine plays (the cauldron's wrap and comb too) must load into a song
+    for kind in unisynth::kind::DISTORTION..=unisynth::kind::FORMANT {
+        for mode in 0..unisynth::fx::mode_total(kind) {
+            assert!(tables::EFFECT_MODES.contains(&(kind, mode)), "{kind}/{mode} missing from EFFECT_MODES");
+            assert!(tables::table(kind, mode).is_some(), "no table for {kind}/{mode}");
+            assert!(tables::mode_names(kind).len() > mode, "no name for {kind}/{mode}");
+        }
     }
 }
 
