@@ -14,12 +14,17 @@ essence of the sound must stay, but the output need not match the original sampl
 - **Layers dropped (default).** A trigger that repeats a sounding trigger (same instrument, sample, note and offset, on
   another channel) is dropped. That covers one at the same tick and one that starts later while the first still sounds
   and is quieter (an echo tap). The kept trigger takes the dropped same-tick copies' level, centred (equal-power sum),
-  so the pair keeps its loudness. Echo taps leave no trace: the result is dry.
+  so the pair keeps its loudness. Copies at the kept one's pitch add as amplitudes; detuned copies (`E11`) add as
+  powers.
+- **Dropped layers come back as track effects (default).** No extra tracks are added. A track whose triggers mostly
+  had echo taps gets a two-tap stereo tempo delay (no feedback) with the taps' times and sides. A layered phrase
+  track gets a small freeverb. The track volume keeps the dry level. `--dry` leaves both out. The freeverb now
+  answers `quiet_after` (unisynth), so the quiet-track skip still applies to these tracks.
 - **Pitch tracks merged (default).** Phrase triggers of one record share tracks whatever their playback ratio. A
   trigger joins the first track of its record that it overlaps nowhere and whose pitch range it fits within one
   track's reach. The track class is the most-played class, moved inside that range. Stored-sample triggers pack the
   same way, ignoring the channel.
-- **Options keep the old ways.** `--keep-layers` and `--split-pitches`. With both, the output is byte-identical to the
+- **Options keep the old ways.** `--keep-layers`, `--split-pitches` and `--dry`. With both, the output is byte-identical to the
   current default. The parity tool passes both.
 - `stderr` reports `layers N dropped (P same-tick, E echoes)`.
 - Measured in `tools/unisynth-parity/cauldron-compact.md`: tracks, song size, xz, render time, loudness and bands
@@ -35,11 +40,13 @@ essence of the sound must stay, but the output need not match the original sampl
 
 ### Modified Capabilities
 
-- `synth-convert`: mini-cauldron XM import (layer and pitch-track options), track grouping (merged across ratios),
-  song parity (judged on the split, layered conversion).
+- `synth-convert`: mini-cauldron XM import (layer, pitch-track and dry options), track grouping (merged across
+  ratios), song parity (judged on the split, layered conversion), dropped layers as track effects.
+- `unified-synth`: quiet-track answers (freeverb).
 
 ## Impact
 
-`crates/synth-convert` (`cauldron/import.rs`, new `cauldron/import/compact.rs`, `main.rs`),
+`crates/synth-convert` (`cauldron.rs` `delay_time`, `cauldron/import.rs`, new `cauldron/import/compact.rs`,
+`main.rs`), `crates/unisynth` (`fx/freeverb.rs` `quiet_after`),
 `tools/unisynth-parity/cauldron.ts` (passes the two options), docs. The default `synth-convert xm` output changes. The
 demo songs (`make_demos.py`) become compact on their next build.

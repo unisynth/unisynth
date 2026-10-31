@@ -331,6 +331,18 @@ pub struct Chain {
 /// the original, wrapped before decimation, has nothing above 4.4 kHz).
 pub const LP_STAGES: usize = 2;
 
+/// A tempo delay's time parameters for `ms` at `tempo` BPM: (coarse, fine, clamped). The unit is an eighth of
+/// `120/tempo` s (16 at most), the rest whole milliseconds (200 at most: past that `clamped`). Half a step up survives
+/// the engine's truncation; the top (16 units, 200 ms) is exact at 1.
+pub(crate) fn delay_time(ms: f64, tempo: i32) -> (f32, f32, bool) {
+    let unit = 120.0 / tempo as f64 / 8.0 * 1000.0;
+    let coarse = (ms / unit).floor().min(16.0);
+    let fine = (ms - coarse * unit).round();
+    let clamped = fine > 200.0;
+    let fine = fine.min(200.0);
+    ((((coarse + 0.5) / 16.0) as f32).min(1.0), (((fine + 0.5) / 200.0) as f32).min(1.0), clamped)
+}
+
 /// The decimation low-pass's high-cut value for `hz`: the tempo delay's SVF law, 20 Hz–20 kHz, open above.
 pub fn lowpass_p(hz: f64) -> f32 {
     ((hz.clamp(20.0, 20_000.0) - 20.0) / 19980.0).sqrt() as f32
@@ -368,15 +380,10 @@ pub fn effects(call: &Call, record: usize, ratio: f64, rate: f64, tempo: i32) ->
         // y = x + e·y[n − D], D = 3 steps of 3529 phrase frames: the tempo delay with feedback e, wet e/(1 + e)
         let e = r.echo;
         let ms = 3.0 * 3529.0 / kappa / rate * 1000.0;
-        let unit = 120.0 / tempo as f64 / 8.0 * 1000.0;
-        let coarse = (ms / unit).floor().min(16.0);
-        let mut fine = (ms - coarse * unit).round();
-        if fine > 200.0 {
-            fine = 200.0;
+        let (c, f, clamped) = delay_time(ms, tempo);
+        if clamped {
             out.echo_clamped = Some(ms);
         }
-        // half a step up survives the engine's truncation; the top (16 quarter beats, 200 ms) is exact at 1
-        let (c, f) = ((((coarse + 0.5) / 16.0) as f32).min(1.0), (((fine + 0.5) / 200.0) as f32).min(1.0));
         out.devices.push((DELAY, vec![mode_value(DELAY, 0), c, f, c, f, 0.0, 1.0, e as f32, 0.0, (e / (1.0 + e)) as f32]));
         level = 1.0 / (1.0 + e);
         out.devices.push(clip(level)); // the wet mix scaled the original's full scale by 1/(1 + e)

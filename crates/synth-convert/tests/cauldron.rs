@@ -321,6 +321,14 @@ fn the_xm_cli_converts_and_writes_nothing_on_error() {
     let samples: usize = song.devices.iter().filter(|d| d.kind == unisynth::kind::INSTRUMENT).map(|d| unisynth::chunk::Chunk::parse(&d.chunk).unwrap().sample_count()).sum();
     assert!(err.contains("11 stored"), "{err}");
     assert_eq!(samples, 11);
+    // the dropped layers' echo and room as effects on the tracks (no extra tracks); none with --dry
+    let fx = |s: &synth_convert::model::SongM, k: u8| s.devices.iter().filter(|d| d.kind == k).count();
+    assert!(err.contains("ambience ") && fx(&song, unisynth::kind::REVERB) > 0, "{err}");
+    let dry = dir.join("dry.song");
+    let o = run_with(&xm, &dry, &["--dry"]);
+    let dry = synth_convert::model::SongM::read(&std::fs::read(&dry).unwrap()).unwrap();
+    assert!(o.status.success() && fx(&dry, unisynth::kind::REVERB) == 0 && dry.tracks.len() == song.tracks.len());
+    assert!(fx(&dry, unisynth::kind::DELAY) < fx(&song, unisynth::kind::DELAY));
     // an unsupported effect
     let bad = dir.join("bad.xm");
     std::fs::write(&bad, with_tremolo(&std::fs::read(&xm).unwrap())).unwrap();

@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Mini-cauldron XM import
-`synth-convert xm <in.xm> <patches.json> <out.song> [options]` (`--names`, `--controls`, `--thin`, `--keep-layers`, `--split-pitches`) SHALL convert an XM made by mini-cauldron (TBL Jizz, Stash song 1, Stash BLUISH), given that intro's decoded patch data, into a unified song that holds no generated sample data and whose every effect parameter lies in 0..1. `--names` SHALL write the track names (master excluded) as a JSON array; `--controls` SHALL set how often XM volume, pan and pitch reach the song (default `tick`). By default the converter SHALL drop layered triggers and merge pitch tracks (Requirement "Layered triggers dropped", "Track grouping"); `--keep-layers` and `--split-pitches` SHALL keep them, and with both the output SHALL be byte-identical to the conversion before this change.
+`synth-convert xm <in.xm> <patches.json> <out.song> [options]` (`--names`, `--controls`, `--thin`, `--keep-layers`, `--split-pitches`, `--dry`) SHALL convert an XM made by mini-cauldron (TBL Jizz, Stash song 1, Stash BLUISH), given that intro's decoded patch data, into a unified song that holds no generated sample data and whose every effect parameter lies in 0..1. `--names` SHALL write the track names (master excluded) as a JSON array; `--controls` SHALL set how often XM volume, pan and pitch reach the song (default `tick`). By default the converter SHALL drop layered triggers and merge pitch tracks (Requirement "Layered triggers dropped", "Track grouping"); `--keep-layers` and `--split-pitches` SHALL keep them, and with both the output SHALL be byte-identical to the conversion before this change. By default the dropped layers SHALL come back as effects on their tracks (Requirement "Dropped layers as track effects"); `--dry` SHALL leave them out.
 
 #### Scenario: Jizz converts
 - **WHEN** the Jizz XM and `patches_jizz.json` are converted
@@ -69,8 +69,27 @@ By default the converter SHALL drop a trigger that repeats a kept one (same inst
 - **THEN** both triggers remain
 
 ### Requirement: Absorbed layers keep their level
-A kept trigger SHALL take the level of the same-tick copies it absorbs: its pan and a gain factor become the equal-power sum of its and the copies' first-tick left and right levels, applied to all its ticks. Dropped echo taps SHALL leave no trace (dry).
+A kept trigger SHALL take the level of the same-tick copies it absorbs. Per side, the first-tick levels of copies at its own first-tick frequency SHALL add as amplitudes and those of detuned copies as powers. The sum SHALL set its pan (equal-power) and scale its volume on all its ticks.
 
 #### Scenario: Centred pair
 - **WHEN** a hard-left and a hard-right copy at full volume are absorbed into one
 - **THEN** it plays centred at √2 times the volume
+
+#### Scenario: Detuned pair
+- **WHEN** a hard-left copy and a detuned copy panned 15/16 right, both at full volume, are absorbed into one
+- **THEN** it plays at √2 times the volume, panned at the right side's share of the power
+
+### Requirement: Dropped layers as track effects
+Without `--dry`, a track SHALL get effects after its post gain for what its triggers' dropped layers did, and no extra track, when at least half of its triggers had layers. A phrase track SHALL get a small stereo reverb. The track volume SHALL keep the dry signal at its level.
+
+#### Scenario: Echo taps
+- **WHEN** most of a track's triggers had echo taps
+- **THEN** it gets a two-tap stereo delay without feedback at the most common pattern's first left and first right tap times, each tap at the taps' RMS level relative to the dry signal, and the song tempo reaches the longest tap
+
+#### Scenario: Jizz pads
+- **WHEN** Jizz is converted
+- **THEN** its pad tracks have a tempo delay with taps 3 and 6 rows after the note on opposite sides, and a reverb; the song's loudness stays within 1 dB of the reference
+
+#### Scenario: Dry on request
+- **WHEN** Jizz is converted with `--dry`
+- **THEN** no track has a reverb, and the song has the same tracks

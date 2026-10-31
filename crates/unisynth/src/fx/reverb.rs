@@ -28,7 +28,7 @@ const QUIET: f32 = 1e-7;
 /// Silent frames after which the reverb sleeps. Every comb stores one loop of at most 1640 frames at 44.1 kHz (3 600 at
 /// 96 kHz) and its output is that loop read back, so a silent output over more than the longest loop means the whole
 /// state is as quiet as the output: the lines are then cleared and the reverb costs nothing until the input returns.
-const SLEEP: u32 = 8192;
+pub(super) const SLEEP: u32 = 8192;
 
 pub struct Combs<'a> {
     comb: [[Comb<'a>; 8]; 2],

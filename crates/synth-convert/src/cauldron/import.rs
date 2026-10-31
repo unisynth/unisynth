@@ -649,6 +649,8 @@ pub struct Converted {
     pub names: Vec<String>,
     /// Layered triggers dropped ([`compact::layers`]): same-tick copies, echo taps.
     pub dropped: (usize, usize),
+    /// Tracks given a stereo delay, and a reverb, for their dropped layers ([`compact::ambience`]).
+    pub ambience: (usize, usize),
 }
 
 /// Track names from (record, XM sample name, class; `.smp` dropped): `<sample> (record <r>, <class>)` (no class at 0) for a phrase
@@ -751,11 +753,13 @@ pub struct Options {
     pub keep_layers: bool,
     /// One track group per record, channel and ratio class (`--split-pitches`); default: packed ([`compact::pack`]).
     pub split_pitches: bool,
+    /// No effects for the dropped layers (`--dry`); default: [`compact::ambience`] (stereo delay, reverb).
+    pub dry: bool,
 }
 
 impl Default for Options {
     fn default() -> Self {
-        Options { controls: ControlRate::Tick, thin: 0, keep_layers: false, split_pitches: false }
+        Options { controls: ControlRate::Tick, thin: 0, keep_layers: false, split_pitches: false, dry: false }
     }
 }
 
@@ -788,24 +792,27 @@ pub fn convert_with(p: &Patches, xm: &Xm, rate: i32, opts: Options) -> Result<Co
         })
         .collect();
     // the stereo and echo layers dropped (compact::layers): kept triggers and their paths
+    // what each kept trigger absorbed (its track's ambience)
     let mut dropped = (0, 0);
-    let (r, paths) = if opts.keep_layers {
-        (r, paths)
+    let (r, paths, absorbed) = if opts.keep_layers {
+        let n = r.triggers.len();
+        (r, paths, vec![compact::Absorbed::default(); n])
     } else {
         let l = compact::layers(&mut r, |i| paths[i].end, rate as f64);
         dropped = (l.same_tick, l.echoes);
         let triggers = l.keep.iter().map(|&i| r.triggers[i].clone()).collect();
         let paths = l.keep.iter().map(|&i| paths[i].clone()).collect();
-        (crate::xm::replay::Replay { triggers, length: r.length }, paths)
+        (crate::xm::replay::Replay { triggers, length: r.length }, paths, l.absorbed)
     };
     // a slide past one track's reach hands over: its segments become triggers of their own (handovers, clip)
-    let (r, paths) = {
-        let (mut trig, mut ps) = (vec![], vec![]);
-        for (t, p) in r.triggers.iter().zip(paths) {
+    let (r, paths, absorbed) = {
+        let (mut trig, mut ps, mut ab) = (vec![], vec![], vec![]);
+        for ((t, p), took) in r.triggers.iter().zip(paths).zip(absorbed) {
             let cuts = ids[t.instrument][t.sample].map_or(vec![], |(rec, _)| handovers(t, dec(rec), p.end));
             if cuts.is_empty() {
                 trig.push(t.clone());
                 ps.push(p);
+                ab.push(took);
                 continue;
             }
             let mut b = vec![0];
@@ -816,9 +823,10 @@ pub fn convert_with(p: &Patches, xm: &Xm, rate: i32, opts: Options) -> Result<Co
                 let (a, z) = (ticks[0].frame as f64, t.ticks.get(w[1]).map_or(f64::MAX, |k| k.frame as f64));
                 trig.push(crate::xm::replay::Trigger { tick: t.tick + w[0], frame: ticks[0].frame, at: ticks[0].at, ticks, ..t.clone() });
                 ps.push(clip(&p, a, z));
+                ab.push(took.clone());
             }
         }
-        (crate::xm::replay::Replay { triggers: trig, length: r.length }, ps)
+        (crate::xm::replay::Replay { triggers: trig, length: r.length }, ps, ab)
     };
     let span = |i: usize| (r.triggers[i].frame as f64, paths[i].end);
     let plans = if opts.split_pitches { group(&r, &ids, dec, span) } else { compact::pack(&r, &ids, dec, span) };
@@ -834,7 +842,19 @@ pub fn convert_with(p: &Patches, xm: &Xm, rate: i32, opts: Options) -> Result<Co
     } else {
         compact::pack_by(&r, |i| Some(&r.triggers[i]).filter(|t| is_stored(t)).map(|t| (t.instrument, t.sample)), span)
     };
+    // the dropped layers come back as effects (compact::ambience): phrase tracks a stereo delay and a reverb, stored
+    // ones the delay alone
+    let amb = |triggers: &[usize], reverb: bool| {
+        if opts.dry {
+            return compact::Ambience::default();
+        }
+        let a = compact::ambience(&triggers.iter().map(|&i| &absorbed[i]).collect::<Vec<_>>());
+        compact::Ambience { reverb: a.reverb && reverb, ..a }
+    };
+    let plan_amb: Vec<compact::Ambience> = plans.iter().map(|t| amb(&t.triggers, true)).collect();
+    let stored_amb: Vec<compact::Ambience> = stored.iter().map(|(_, t)| amb(t, false)).collect();
     let longest = plans.iter().filter(|t| call.records[t.record].echo > 0.0).map(|t| echo_ms(t.ratio())).filter(|&ms| ms <= ECHO_MAX_MS).fold(0.0, f64::max);
+    let longest = plan_amb.iter().chain(&stored_amb).map(|a| a.longest_ms()).filter(|&ms| ms <= ECHO_MAX_MS).fold(longest, f64::max);
     let tempo = tempo_for(longest);
     // a track whose triggers slide more than a semitone gets the band-limiting low-pass (slide_lowpass)
     let slides = |t: &TrackPlan| t.triggers.iter().any(|&i| {
@@ -914,7 +934,7 @@ pub fn convert_with(p: &Patches, xm: &Xm, rate: i32, opts: Options) -> Result<Co
     };
     let (mut pingpong, mut muted) = (0.0, 0.0);
     let mut backward_samples: Vec<(usize, usize)> = vec![];
-    for (plan, chain) in plans.iter().zip(&chains) {
+    for ((plan, chain), ambience) in plans.iter().zip(&chains).zip(&plan_amb) {
         let rec = &call.records[plan.record];
         if let Some(ms) = chain.echo_clamped {
             warnings.push(format!("record {} at {:+} semitones: echo of {ms:.0} ms clamped to the delay's longest", plan.record, plan.class));
@@ -961,12 +981,14 @@ pub fn convert_with(p: &Patches, xm: &Xm, rate: i32, opts: Options) -> Result<Co
         song.devices.push(Dev { kind: unisynth::kind::INSTRUMENT, chunk: unisynth::chunk::encode(&values, &[]) });
         song.devices.extend(chain.devices.iter().map(|(k, v)| Dev { kind: *k, chunk: unisynth::fx::encode(v) }));
         song.devices.push(Dev { kind: unisynth::kind::EQ, chunk: unisynth::fx::encode(&post_gain()) });
+        let (extra, make_up) = ambience.devices(tempo);
+        song.devices.extend(extra.iter().map(|(k, v)| Dev { kind: *k, chunk: unisynth::fx::encode(v) }));
         let halve = if call.version == Version::V1 && plan.record == 7 { 0.5 } else { 1.0 };
         let devices = (base..song.devices.len()).collect();
-        song.tracks.push(Trk { volume: (XM_GAIN * halve / chain.level) as f32, receives: vec![], devices, lane: song.lanes.len(), autos });
+        song.tracks.push(Trk { volume: (XM_GAIN * halve / chain.level * make_up) as f32, receives: vec![], devices, lane: song.lanes.len(), autos });
         song.lanes.push(lane);
     }
-    for ((ins, smp), trig) in &stored {
+    for (((ins, smp), trig), ambience) in stored.iter().zip(&stored_amb) {
         let s = &xm.instruments[*ins].samples[*smp];
         let st = sampler(s, rate as u32);
         let mut values = st.values;
@@ -997,7 +1019,10 @@ pub fn convert_with(p: &Patches, xm: &Xm, rate: i32, opts: Options) -> Result<Co
         }
         let base = song.devices.len();
         song.devices.push(Dev { kind: unisynth::kind::INSTRUMENT, chunk: unisynth::chunk::encode(&values, &[&st.gsm]) });
-        song.tracks.push(Trk { volume: XM_GAIN as f32, receives: vec![], devices: vec![base], lane: song.lanes.len(), autos });
+        let (extra, make_up) = ambience.devices(tempo);
+        song.devices.extend(extra.iter().map(|(k, v)| Dev { kind: *k, chunk: unisynth::fx::encode(v) }));
+        let devices = (base..song.devices.len()).collect();
+        song.tracks.push(Trk { volume: (XM_GAIN * make_up) as f32, receives: vec![], devices, lane: song.lanes.len(), autos });
         song.lanes.push(lane);
     }
     // the master: every track summed, no devices
@@ -1015,5 +1040,6 @@ pub fn convert_with(p: &Patches, xm: &Xm, rate: i32, opts: Options) -> Result<Co
             .collect::<Vec<_>>(),
     );
     Ok(Converted { song, lead: lead as usize, warnings, pingpong, muted, tracks: (plans.len(), stored.len()), dropped,
+        ambience: (plan_amb.iter().chain(&stored_amb).filter(|a| a.echo.is_some()).count(), plan_amb.iter().chain(&stored_amb).filter(|a| a.reverb).count()),
         records: plans.iter().map(|t| Some(t.record)).chain(stored.iter().map(|_| None)).collect(), names })
 }

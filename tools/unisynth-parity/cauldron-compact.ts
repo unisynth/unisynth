@@ -1,6 +1,7 @@
 // Compact vs layered conversion of the three TBL songs (change compact-cauldron-xm-import): each song converted by
-// `synth-convert xm` by default (layers dropped, pitch tracks packed) and with `--keep-layers --split-pitches` (the
-// parity layout), rendered by `unisynth`, judged against the `openmpt123` reference with the parity metrics; tracks,
+// `synth-convert xm` by default (layers dropped, pitch tracks packed, their echo and room as a stereo delay and
+// reverb), with `--dry` (no effects for the dropped layers) and with `--keep-layers --split-pitches` (the parity
+// layout), rendered by `unisynth`, judged against the `openmpt123` reference with the parity metrics; tracks,
 // song bytes, xz -9e bytes and render time per song. Writes `cauldron-compact.md` (metrics only); the songs, WAVs,
 // MP3s and a listening page (`index.html`: reference, layered, compact) go to the git-ignored
 // `research/tbl-mini-cauldron/out/compact/`.
@@ -15,7 +16,7 @@ import { PROFILE } from "./parity.ts";
 
 const ROOT = resolve(import.meta.dir, "../..");
 const RESEARCH = join(ROOT, "research/tbl-mini-cauldron");
-const MODES: Record<string, string[]> = { layered: PARITY_OPTIONS, compact: [] };
+const MODES: Record<string, string[]> = { layered: PARITY_OPTIONS, dry: ["--dry"], compact: [] };
 
 function sh(cmd: string[]): { ok: boolean; out: string; err: string } {
   const p = Bun.spawnSync(cmd, { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
@@ -69,14 +70,15 @@ function page(rows: Row[]): string {
   return `<!doctype html><meta charset="utf-8"><title>TBL cauldron: compact vs layered</title>
 <style>body{font:15px system-ui,sans-serif;max-width:52rem;margin:2rem auto;padding:0 1rem}audio{width:100%}h2{margin-top:2rem}</style>
 <h1>TBL cauldron conversion: compact vs layered</h1>
-<p>Reference: openmpt123 playing the rebuilt XM. Layered: <code>synth-convert xm --keep-layers --split-pitches</code> (the parity layout). Compact: the default (stereo/echo layers dropped, pitch tracks packed).</p>
+<p>Reference: openmpt123 playing the rebuilt XM. Layered: <code>synth-convert xm --keep-layers --split-pitches</code> (the parity layout). Dry: <code>--dry</code> (stereo/echo layers dropped, pitch tracks packed). Compact: the default (as dry, plus a stereo delay from the dropped echo taps and a small reverb on the layered tracks).</p>
 ${songs
   .map((s) => {
     const r = (m: string) => rows.find((x) => x.song === s && x.mode === m)!;
     return `<h2>${s}</h2>
 ${player("Reference (openmpt123)", `../listen/${s}.mp3`)}
 ${player(`Layered: ${r("layered").tracks}, ${r("layered").xz} B xz`, `${s}.layered.mp3`)}
-${player(`Compact: ${r("compact").tracks}, ${r("compact").xz} B xz, ${r("compact").layers} layers dropped`, `${s}.compact.mp3`)}`;
+${player(`Compact, dry (--dry): ${r("dry").tracks}, ${r("dry").xz} B xz, ${r("dry").layers} layers dropped`, `${s}.dry.mp3`)}
+${player(`Compact (default: stereo delay + reverb for the dropped layers): ${r("compact").tracks}, ${r("compact").xz} B xz`, `${s}.compact.mp3`)}`;
   })
   .join("\n")}
 `;
@@ -108,7 +110,7 @@ function main() {
   const L = [
     "# Mini-cauldron: compact vs layered conversion (change compact-cauldron-xm-import)",
     "",
-    `Generated ${new Date().toISOString().slice(0, 10)} by \`bun tools/unisynth-parity/cauldron-compact.ts\`. Layered: \`synth-convert xm --keep-layers --split-pitches\` (the parity layout); compact: the default. Both rendered by \`unisynth\` (\`--profile ${PROFILE}\`) and judged against the \`openmpt123\` reference with the parity metrics (loudness, octave bands, onset alignment). Audio and the listening page stay in \`research/tbl-mini-cauldron/out/compact/\`.`,
+    `Generated ${new Date().toISOString().slice(0, 10)} by \`bun tools/unisynth-parity/cauldron-compact.ts\`. Layered: \`synth-convert xm --keep-layers --split-pitches\` (the parity layout); dry: \`--dry\`; compact: the default (dry plus the stereo delay and reverb). Both rendered by \`unisynth\` (\`--profile ${PROFILE}\`) and judged against the \`openmpt123\` reference with the parity metrics (loudness, octave bands, onset alignment). Audio and the listening page stay in \`research/tbl-mini-cauldron/out/compact/\`.`,
     "",
     "| song | mode | tracks | layers dropped | song bytes | xz -9e bytes | render s | loudness Δ dB | worst band Δ dB | alignment corr |",
     "|---|---|---|---:|---:|---:|---:|---:|---:|---:|",

@@ -2,7 +2,7 @@
 //! on the wet signal. Parameters after the mode: freeze, room, damp, width, low cut, high cut, dry/wet, pre-delay.
 
 use super::law::{ms_to_len, param_to_boolean, param_to_frequency};
-use super::reverb::Combs;
+use super::reverb::{Combs, SLEEP};
 use super::svf::{Svf, SvfKind};
 use super::{Effect, Params};
 use synth_core::device::{Ctx, Io};
@@ -83,6 +83,11 @@ impl<'a> Effect<'a> for FreeverbReverb<'a> {
         self.core.clear();
         self.pre.clear();
         self.lc.iter_mut().chain(self.hc.iter_mut()).for_each(Svf::clear);
+    }
+    /// Its memory: the core's sleep span (a silent output longer than its longest loop leaves the whole state as
+    /// quiet) plus the pre-delay line; frozen, unknown (the loops sustain).
+    fn quiet_after(&self) -> Option<u32> {
+        (!self.freeze).then(|| SLEEP + self.pre.capacity() as u32)
     }
     fn run(&mut self, io: &mut Io, n: usize, ctx: &mut Ctx) {
         for c in 0..2 {

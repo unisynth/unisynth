@@ -1026,3 +1026,15 @@ fn a_woken_comb_sweeps_on_as_if_it_had_run() {
     assert!(peak(&want[1500..]) > 0.1, "the comb sounds");
     assert_eq!(got, want);
 }
+
+/// The freeverb mode's memory (change compact-cauldron-xm-import: a reverb on the TBL songs' layered tracks): the
+/// core's sleep span (more than its longest loop) plus the pre-delay line; frozen, unknown (it sustains forever).
+#[cfg(feature = "us-fx-reverb-freeverb")]
+#[test]
+fn a_freeverb_answers_its_memory() {
+    let r = kind::REVERB;
+    let q = |freeze: f32| with_fx(r, &[mode_value(r, 0), freeze, 0.3, 0.5, 1.0, 0.0, 1.0, 0.12, 0.02], 44100.0, 120, |fx| synth_core::device::Device::quiet_after(fx));
+    let n = q(0.0).expect("a known memory") as usize;
+    assert!(n >= 8192 + super::law::ms_to_len(500.0, 44100.0), "{n}");
+    assert_eq!(q(1.0), None, "frozen");
+}

@@ -833,7 +833,7 @@ build lacks fails at load with `UnsupportedModule(id)` (`module.rs` names the id
 | `us-voice-oneshot` | one-shot voices (sampler runs out, note-off ignored) | one-shot is on |
 | `us-matrix` | the mod matrix | any slot with a source and a target |
 | `us-automation` | the mixer's automation walk (song-level) | any track with an automation lane (refused by `Player::new`) |
-| `us-quiet` | quiet-track skip (`Device::quiet_skip`; [synth-core](synth-core.md#quiet-tracks-sleep-devicequiet_skip-quiet_after-wake)): a silent track skips its devices. A speed option, not a module: no song needs it, `features` does not list it, a build without it plays the same. The instrument answers `quiet_after` 0 without voices, queued events, channel stage or speech; shaper, EQ 3band, wrap (no offset) 0, tempo delay and comb their line capacity; every other mode unknown (keeps its track awake). Costs Jizz's build +512 raw / +484 xz / +512 squishy | none |
+| `us-quiet` | quiet-track skip (`Device::quiet_skip`; [synth-core](synth-core.md#quiet-tracks-sleep-devicequiet_skip-quiet_after-wake)): a silent track skips its devices. A speed option, not a module: no song needs it, `features` does not list it, a build without it plays the same. The instrument answers `quiet_after` 0 without voices, queued events, channel stage or speech; shaper, EQ 3band, wrap (no offset) 0, tempo delay and comb their line capacity; freeverb (not frozen) its core's sleep span + pre-delay line; every other mode unknown (keeps its track awake). Costs Jizz's build +512 raw / +484 xz / +512 squishy | none |
 | `us-chunk-wide` | chunk escapes (index ≥ 240, ≥ 255 pairs); implied by `us-strip` | a chunk that uses an escape, at parse |
 | `us-matrix-add`, `us-speech`, `us-osc-naive`, `us-flt-feedback`, `us-flt-parallel`, `us-drive`, `us-env-frame`, `us-lfo-frame`, `us-voice-out`, `us-strip` | the mono-sum voice modules ([Mono-sum voice](#mono-sum-voice-drive-channel-strip-and-speech-change-add-v2-import-names-unify-v2-algorithms)) | an Add or controller route; non-empty speech text; the slot, filter, routing, distortion, envelope, LFO law; `voice.stage`; any strip field off its default |
 
@@ -1176,26 +1176,35 @@ plays one note hard left and hard right (one side detuned by `E11`), then 1–2 
 panned in turn (Jizz +3/+6 rows, Stash song 1 +1/+2, BLUISH +2/+4), and Jizz doubles its hi-hat left and right.
 `compact::layers` drops a trigger repeating a kept one (same instrument, sample, note, offset; another channel) at the
 same frame, or later while the kept one sounds (≤ 2.5 s) at a lower first-tick volume; the kept one takes the
-same-frame copies' equal-power left/right level (a hard pair: centred, ×√2; its post gain can pass 1, encoded through
-the EQ 3band law: `post_value`). Echo taps leave nothing: the songs are dry. `compact::pack` then puts a record's
+same-frame copies' level, per side: copies at its own pitch add as amplitudes, detuned ones (`E11`) as powers (a hard
+pair: centred, ×√2; its post gain can pass 1, encoded through the EQ 3band law: `post_value`). `compact::pack` then puts a record's
 triggers on the first track they overlap nowhere whose pitch range stays within one track's reach (94 semitones),
 whatever the channel and ratio; the class is the most frequent one moved into reach (the transpose and bend carry
 the rest; the chain's echo, comb and doubler times stay the class's). Stored samples pack per (instrument, sample)
-the same way. `--keep-layers --split-pitches` gives the layered layout byte for byte (the parity tool uses it).
+the same way. What the dropped layers did comes back as effects on their tracks, no extra tracks
+(`compact::ambience`, when at least half of a track's triggers had layers): after the post gain, a two-tap stereo
+tempo delay without feedback at the most common tap pattern (first left tap, first right tap; Jizz 298/596 ms on
+opposite sides) at the taps' RMS level, and on phrase tracks a small freeverb (`compact::REVERB`: room 0.3, 12 % wet,
+150 Hz–7 kHz); the track volume keeps the dry level, and the song tempo reaches the longest tap. The freeverb answers
+`quiet_after` (core sleep span + pre-delay), so these tracks still sleep. `--dry` leaves the effects out;
+`--keep-layers --split-pitches` gives the layered layout byte for byte (the parity tool uses it).
 Measured 2026-10-31 (`bun tools/unisynth-parity/cauldron-compact.ts`, `tools/unisynth-parity/cauldron-compact.md`;
 render: `fast` profile; loudness against the OpenMPT reference):
 
 | Song | Layout | Tracks (phrase + stored) | Song | xz | Render | Loudness |
 |---|---|---:|---:|---:|---:|---:|
-| Jizz | layered | 58 + 13 | 327 810 | 17.8 KB | 23.8 s | +0.33 dB |
-| | compact | 13 + 11 | 144 935 | 14.3 KB | 7.8 s | +0.23 dB |
-| Stash song 1 | layered | 106 + 13 | 1 379 893 | 38.8 KB | 68.7 s | +0.23 dB |
-| | compact | 35 + 10 | 794 825 | 30.2 KB | 29.1 s | +0.18 dB |
-| Stash BLUISH | layered | 64 + 12 | 573 993 | 31.0 KB | 26.8 s | +0.13 dB |
-| | compact | 29 + 10 | 335 155 | 25.0 KB | 10.9 s | +0.03 dB |
+| Jizz | layered | 58 + 13 | 327 810 | 17.8 KB | 23.5 s | +0.33 dB |
+| | `--dry` | 13 + 11 | 144 935 | 14.3 KB | 7.7 s | −0.58 dB |
+| | compact | 13 + 11 | 146 004 | 14.4 KB | 9.8 s | +0.58 dB |
+| Stash song 1 | layered | 106 + 13 | 1 379 893 | 38.8 KB | 70.6 s | +0.23 dB |
+| | `--dry` | 35 + 10 | 794 645 | 30.1 KB | 29.8 s | −0.05 dB |
+| | compact | 35 + 10 | 796 481 | 30.3 KB | 35.3 s | +0.17 dB |
+| Stash BLUISH | layered | 64 + 12 | 573 993 | 31.0 KB | 28.7 s | +0.13 dB |
+| | `--dry` | 29 + 10 | 335 155 | 25.1 KB | 12.6 s | −0.36 dB |
+| | compact | 29 + 10 | 336 530 | 25.3 KB | 14.6 s | +0.03 dB |
 
-Layers dropped: Jizz 591 of 2 061 triggers, song 1 656, BLUISH 414. Octave bands stay within 3.3 dB of the
-reference; the stereo image narrows (pads centred) and the echo tails are gone.
+Layers dropped: Jizz 591 of 2 061 triggers, song 1 656, BLUISH 414. Octave bands stay within 3.4 dB of the
+reference in every layout; the pads are centred, the echoes come from the delay instead of channels.
 
 **Control rate (`--controls tick|row|note`).** The XM's volume, pan and pitch reach the song every tracker tick
 (`tick`, the default), only at row starts (`row`: slides and fades become steps, tremor and vibrato go), or once per
