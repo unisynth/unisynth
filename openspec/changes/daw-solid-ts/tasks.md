@@ -59,8 +59,12 @@ before → `AGENTS.md` rows → land on `main`.
   `laneValue`. Bench vs pre-port (trashpanda; tbl-stash-over2): select-dev 56 → 33 (83 → 53), knob 6.5 → 1.2
   (245 → 31), undo 380 → 430 (6 187 → 6 166), select-mix 13.6 → 12.5, mute 2.1 → 0.9 (71 → 46). Undo still
   rebuilds every view until the arrangement and device panels are ported (5, 6).
-- [ ] 2.6 Mixer reads `song` and `live` directly; delete `syncMixer`, `patchStrip`, `patchSend` and `setPeak`. Verify:
+- [x] 2.6 Mixer reads `song` and `live` directly; delete `syncMixer`, `patchStrip`, `patchSend` and `setPeak`. Verify:
   mixer test and bench unchanged.
+  Done: 62/62 (+ mixer test "edits while hidden"). `selectTrack` normalises `selected` to the store proxy (raw
+  references from JSON-built tracks would write without notifying). Bench within noise (trashpanda select-mix 12.7,
+  fader 0.4, mute 1.1; tbl-stash-over2 undo 6.4–6.7 s, play-mix 1–2 frames > 20 ms; one outlier run of 36 under
+  machine load).
 - [ ] 2.7 Ratchet test (`bun test`): counts direct model writes left in `app.js` (assignments, `splice`/`push`/`sort`
   on model arrays, `Object.assign` on model objects) and fails when the count rises above the number recorded in the
   test. Verify: an added write fails the test.

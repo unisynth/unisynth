@@ -1,6 +1,10 @@
 // Editor view state kept OFF the song objects, keyed by track id (change daw-solid-ts, design D2): the song store's
 // undo reconciles track objects and would delete fields it does not snapshot, and DOM nodes do not belong in a store.
 // Not saved, not undoable.
+import { createSignal } from "solid-js";
+
+/** Id of the selected track ("master" for the master). */
+export const [selectedId, setSelectedId] = createSignal("");
 
 /** Arrangement lane element of each track (set when the lane is built). */
 export const laneEl = new Map<string, HTMLElement>();

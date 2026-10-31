@@ -137,6 +137,22 @@ test("a hidden mixer has no DOM; showing it again rebuilds the strips", async ()
   expect(await page.locator("#mixer .strip").count()).toBe(6);
 });
 
+test("edits while the mixer is hidden show when it opens (header mute, then undo of a fader step)", async () => {
+  await page.locator("#tab-dev").click();
+  await page.locator('.thdr.track[data-track="lead"]').getByRole("button", { name: "Mute Lead" }).click();
+  await page.locator("#tab-mix").click();
+  expect(await strip("Lead").getByRole("button", { name: "Mute Lead" }).getAttribute("aria-pressed")).toBe("true");
+  const f = strip("Lead").locator(".fader"), db0 = Number(await f.inputValue());
+  await f.focus(); await page.keyboard.press("ArrowDown"); await f.blur();
+  await page.locator("#tab-dev").click();
+  await page.waitForTimeout(50);
+  await page.keyboard.press("Control+z"); await page.waitForTimeout(50); await page.keyboard.press("Control+z");
+  await page.locator("#tab-mix").click();
+  expect(Number(await strip("Lead").locator(".fader").inputValue())).toBeCloseTo(db0, 5);
+  expect(await strip("Lead").locator(".db").textContent()).toBe(`${db0.toFixed(1)} dB`);
+  expect(await strip("Lead").getByRole("button", { name: "Mute Lead" }).getAttribute("aria-pressed")).toBe("false");
+});
+
 test("meters follow the engine while playing (meter attributes only, no strip rebuilt) and fall back after stop", async () => {
   await page.locator("#tab-mix").click();
   await page.evaluate(() => {

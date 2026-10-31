@@ -2,8 +2,8 @@
 import { batch, createSong, raw, restoreSong } from "./ui/state/song.ts";
 import { createHistory } from "./ui/state/history.ts";
 import * as liveState from "./ui/state/live.ts";  // not `live`: that is the aria-live status element below
-import { laneEl, overrides, overrideSet, rollClips } from "./ui/state/view.ts";
-import { mountMixer, syncMixer, patchStrip, patchSend, setMixerShown } from "./ui/mixer.tsx";
+import { laneEl, overrides, overrideSet, rollClips, setSelectedId } from "./ui/state/view.ts";
+import { mountMixer, setMixerShown } from "./ui/mixer.tsx";
 // DAW UI (change add-synth-daw): the reviewed mockup's views and interactions on the real song/1 model,
 // engine (AudioWorklet + synth-wasm live host), device panels generated from the engine's parameter tables and
 // /api/music. Started by main.ts with { engine, model, api, tables, initial, files, library }.
@@ -1199,13 +1199,8 @@ vel.addEventListener("wheel", e => { if (!e.ctrlKey && !e.metaKey && !e.altKey &
 const mixer = document.getElementById("mixer");
 const FX = () => effectChoices().map(tb => tb.label);
 const trackById = id => id === master.id ? master : tracks.find(x => x.id === id);
-const stripView = t => ({
-  id: t.id, name: t.name, col: t.col, master: !!t.master, bus: !!t.bus, sel: t === selected, vol: t.vol, mute: !!t.mute, solo: !!t.solo,
-  inserts: t.devices.map((d, i) => [d, i]).filter(([d]) => d.kind !== 64).map(([d, i]) => ({ id: String(i), i, name: devName(d), bypass: !!d.bypass })),
-  sends: t.sends.map(([to, ch, db], i) => ({ id: `${to}|${ch}`, i, to, side: ch === "side", db })),
-});
 let sendBefore = null;  // undo snapshot of a send-level gesture
-mountMixer(mixer, {
+mountMixer(mixer, song, {
   select: id => selectTrack(trackById(id)),
   openInsert: id => { selectTrack(trackById(id)); show(tabs[1]); },
   bypass: (id, i) => devBypass(trackById(id), i),
@@ -1222,17 +1217,18 @@ mountMixer(mixer, {
   sendLevel: (id, i, db, done) => {
     const t = trackById(id), sd = t.sends[i];
     if (done) { if (sendBefore) commit(sendBefore, `send ${t.name} level ${db.toFixed(1)} dB`); sendBefore = null; return; }
-    sendBefore ??= snap(); sd[2] = db; sd[3] = undefined; patchSend(id, i, db); livePush();
+    sendBefore ??= snap(); sd[2] = db; sd[3] = undefined; livePush();
   },
   addBus: () => addTrack(true),
+  devName,
 });
-function renderMixer() { syncMixer({ tracks: tracks.map(stripView), master: stripView(master) }); }
 function renderAll() {
   for (const t of tracks) { const d = document.querySelector(`.thdr.track[data-track="${t.id}"] .dev`); if (d) d.textContent = devLabel(t); }
-  renderMixer(); renderDevice();
+  renderDevice();  // the mixer follows the song store by itself
 }
 function selectTrack(t) {
-  selected = t;
+  t = (t.master ? master : tracks.find(x => x.id === t.id)) || t;  // always the store proxy (writes must notify)
+  selected = t; setSelectedId(t.id);
   if (!t.bus && !t.master && instOf(t) && armed !== t) { armed = t; updateArmed(); }  // the keyboard plays the selected track
   document.querySelectorAll(".thdr.track").forEach(h => { const on = h.dataset.track === t.id; h.classList.toggle("sel", on); if (on) h.setAttribute("aria-current", "true"); else h.removeAttribute("aria-current"); });
   document.querySelectorAll(".lane.track").forEach(l => l.classList.toggle("sel", l.dataset.track === t.id));
@@ -1727,7 +1723,7 @@ document.addEventListener("click", e => {
   const solo = b.getAttribute("aria-label").startsWith("Solo"), name = b.getAttribute("aria-label").slice(5), t = tracks.find(x => x.name === name); if (!t) return;
   const before = snap(); t[solo ? "solo" : "mute"] = !t[solo ? "solo" : "mute"]; if (!solo) setTimeout(() => commit(before, `${name} ${t.mute ? "muted" : "unmuted"}`));
   document.querySelectorAll(`button[aria-label="${solo ? "Solo" : "Mute"} ${name}"]`).forEach(x => x.setAttribute("aria-pressed", !!t[solo ? "solo" : "mute"]));
-  if (laneEl.get(t.id)) laneEl.get(t.id).style.opacity = t.mute ? .45 : ""; patchStrip(t.id, { mute: !!t.mute, solo: !!t.solo });
+  if (laneEl.get(t.id)) laneEl.get(t.id).style.opacity = t.mute ? .45 : "";
   say(`${name} ${solo ? (t.solo ? "soloed" : "unsoloed") : (t.mute ? "muted" : "unmuted")}`); livePush();
 });
 // Audible = not muted, and soloed, a send source of a soloed track, or a bus it sends to when any solo is on (model.ts).
@@ -2250,7 +2246,6 @@ document.addEventListener("input", e => {
   el._before ??= snap(); t.vol = +el.value;
   document.querySelectorAll(`input[aria-label="${CSS.escape(name)} volume"]`).forEach(x => { if (x !== el) x.value = t.vol; x.setAttribute("aria-valuetext", `${t.vol.toFixed(1)} dB`); });
   document.querySelectorAll(`.thdr.track[data-track="${t.id}"] .vol .num`).forEach(x => x.textContent = `${t.vol.toFixed(1)} dB`);
-  patchStrip(t.id, { vol: t.vol });
 });
 document.addEventListener("change", e => { const el = e.target; if (el._before) { commit(el._before, `${el.getAttribute("aria-label")} ${(+el.value).toFixed(1)} dB`); el._before = null; } });
 document.addEventListener("input", e => { const el = e.target; if (el instanceof HTMLInputElement && el.type === "range" && /( volume| level)$/.test(el.getAttribute("aria-label") || "")) livePush(); });

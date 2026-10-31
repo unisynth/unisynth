@@ -1,25 +1,27 @@
-// Mixer panel in SolidJS (change daw-solid-ts, spike). The song model stays in app.js; app.js pushes a plain view
-// of every strip (`syncMixer`); meter levels come from `state/live.ts`; Solid diffs them (`reconcile`, keyed by track id)
-// and touches only the DOM that changed. Edits go back through `MixerActions` (app.js: model, undo, livePush).
-// The panel is mounted only while the Mixer tab shows (`setMixerShown`): a hidden mixer has no DOM to update.
-// State lives in mixer-store.ts (survives a hot reload of this file).
+// Mixer panel in SolidJS (change daw-solid-ts). Strips read the song store directly (`state/song.ts`: app.js writes
+// through the store proxies, so a fader, mute or send write updates just its control) and the meters from
+// `state/live.ts`. Edits go through `MixerActions` (app.js: model, undo, livePush). Mounted only while the Mixer
+// tab shows (`setMixerShown`): a hidden mixer has no DOM to update.
 import { createSignal, For, Show, type JSX } from "solid-js";
 import { render } from "solid-js/web";
+import type { UITrack } from "../model.ts";
 import { peaks } from "./state/live.ts";
-import { shown, view, type MixerActions, type StripView } from "./mixer-store.ts";
+import type { SongRoot } from "./state/song.ts";
+import { selectedId } from "./state/view.ts";
+import { shown, type MixerActions } from "./mixer-store.ts";
 
-export { patchSend, patchStrip, setMixerShown, syncMixer } from "./mixer-store.ts";
+export { setMixerShown } from "./mixer-store.ts";
 
-export function mountMixer(el: HTMLElement, actions: MixerActions): () => void {
+export function mountMixer(el: HTMLElement, song: SongRoot, actions: MixerActions): () => void {
   el.replaceChildren();
-  return render(() => <Show when={shown()}><Mixer a={actions} /></Show>, el);
+  return render(() => <Show when={shown()}><Mixer song={song} a={actions} /></Show>, el);
 }
 
-function Mixer(p: { a: MixerActions }): JSX.Element {
+function Mixer(p: { song: SongRoot; a: MixerActions }): JSX.Element {
   return <>
-    <For each={view.tracks}>{(s) => <Strip s={s} a={p.a} />}</For>
+    <For each={p.song.tracks}>{(t) => <Strip t={t} a={p.a} />}</For>
     <button class="addbus" title="Add a bus track: no instrument, fed by sends" onClick={() => p.a.addBus()}>+ Bus</button>
-    <Show when={view.master}>{(m) => <Strip s={m()} a={p.a} />}</Show>
+    <Strip t={p.song.master} a={p.a} />
   </>;
 }
 
@@ -47,54 +49,57 @@ function Meter(p: { id: string; name: string; c: 0 | 1 }): JSX.Element {
     aria-valuenow={v().toFixed(2)} aria-valuemin="0" aria-valuemax="1"><i style={{ height: `${(1 - v()) * 100}%` }} /></div>;
 }
 
-function Strip(p: { s: StripView; a: MixerActions }): JSX.Element {
-  const s = p.s, a = p.a;
-  return <div role="group" aria-label={`${s.name} channel strip`}
-    class={"strip" + (s.master ? " master" : "") + (s.bus ? " bus" : "") + (s.sel ? " sel" : "")}>
-    <button class="sn" aria-label={`Select ${s.name}`} onClick={() => a.select(s.id)}><i style={{ background: `var(${s.col})` }} />{s.name}</button>
+function Strip(p: { t: UITrack; a: MixerActions }): JSX.Element {
+  const t = p.t, a = p.a;
+  return <div role="group" aria-label={`${t.name} channel strip`}
+    class={"strip" + (t.master ? " master" : "") + (t.bus ? " bus" : "") + (selectedId() === t.id ? " sel" : "")}>
+    <button class="sn" aria-label={`Select ${t.name}`} onClick={() => a.select(t.id)}><i style={{ background: `var(${t.col})` }} />{t.name}</button>
     <div class="sec"><div class="sh">Inserts</div>
       <ul class="inslist">
-        <For each={s.inserts} fallback={<li class="dim none">none</li>}>{(d) =>
-          <li class={d.bypass ? "off" : undefined}>
-            <button class="ins" title={`Open ${d.name} in the device panel`} onClick={() => a.openInsert(s.id)}>{d.name}</button>
-            <button class="byp" aria-pressed={d.bypass} aria-label={`Bypass ${d.name} on ${s.name}`} title="Bypass" onClick={() => a.bypass(s.id, d.i)}>⏻</button>
-          </li>}
+        <For each={t.devices}>{(d, i) =>
+          <Show when={d.kind !== 64}>
+            <li class={d.bypass ? "off" : undefined}>
+              <button class="ins" title={`Open ${a.devName(d)} in the device panel`} onClick={() => a.openInsert(t.id)}>{a.devName(d)}</button>
+              <button class="byp" aria-pressed={!!d.bypass} aria-label={`Bypass ${a.devName(d)} on ${t.name}`} title="Bypass" onClick={() => a.bypass(t.id, i())}>⏻</button>
+            </li>
+          </Show>}
         </For>
+        <Show when={t.devices.every((d) => d.kind === 64)}><li class="dim none">none</li></Show>
       </ul>
-      <Picker label={`Effect to insert on ${s.name}`} button="addins" buttonLabel={`Add insert effect to ${s.name}`} empty="choose effect…"
-        options={() => a.effects().map((f) => [f, f])} pick={(f) => a.addInsert(s.id, f)} />
+      <Picker label={`Effect to insert on ${t.name}`} button="addins" buttonLabel={`Add insert effect to ${t.name}`} empty="choose effect…"
+        options={() => a.effects().map((f) => [f, f])} pick={(f) => a.addInsert(t.id, f)} />
     </div>
-    <Show when={!s.master}>
+    <Show when={!t.master}>
       <div class="sec"><div class="sh">Sends <span class="dim">post</span></div>
         <ul class="sendlist">
-          <For each={s.sends} fallback={<li class="dim none">none</li>}>{(sd) => {
+          <For each={t.sends} fallback={<li class="dim none">none</li>}>{(sd, i) => {
             let gesture = false;
             return <li>
-              <span>→ {sd.to}<Show when={sd.side}> <em>side</em></Show></span>
-              <input class="sendlvl" type="range" min="-60" max="6" step="0.1" value={sd.db}
-                aria-label={`Send ${s.name} to ${sd.to} ${sd.side ? "side" : "main"} level`} aria-valuetext={`${dB(sd.db)} dB`}
-                onInput={(e) => { gesture = true; a.sendLevel(s.id, sd.i, +e.currentTarget.value, false); }}
-                onChange={(e) => { if (gesture) { gesture = false; a.sendLevel(s.id, sd.i, +e.currentTarget.value, true); } }} />
-              <span class="num">{dB(sd.db)}</span>
-              <button class="srm" aria-label={`Remove send ${s.name} to ${sd.to}`} title="Remove send" onClick={() => a.removeSend(s.id, sd.i)}>✕</button>
+              <span>→ {sd[0]}<Show when={sd[1] === "side"}> <em>side</em></Show></span>
+              <input class="sendlvl" type="range" min="-60" max="6" step="0.1" value={sd[2]}
+                aria-label={`Send ${t.name} to ${sd[0]} ${sd[1] === "side" ? "side" : "main"} level`} aria-valuetext={`${dB(sd[2])} dB`}
+                onInput={(e) => { gesture = true; a.sendLevel(t.id, i(), +e.currentTarget.value, false); }}
+                onChange={(e) => { if (gesture) { gesture = false; a.sendLevel(t.id, i(), +e.currentTarget.value, true); } }} />
+              <span class="num">{dB(sd[2])}</span>
+              <button class="srm" aria-label={`Remove send ${t.name} to ${sd[0]}`} title="Remove send" onClick={() => a.removeSend(t.id, i())}>✕</button>
             </li>;
           }}</For>
         </ul>
-        <Picker label={`Send target for ${s.name}`} button="addsend" buttonLabel={`Add send from ${s.name}`} empty="send to…"
-          options={() => a.sendTargets(s.id).map(([n, ch]) => [`${n}|${ch}`, `${n} · ${ch === "side" ? "sidechain" : "main"}`])}
-          pick={(v) => { const [to, ch] = v.split("|"); a.addSend(s.id, to, ch as "main" | "side"); }} />
+        <Picker label={`Send target for ${t.name}`} button="addsend" buttonLabel={`Add send from ${t.name}`} empty="send to…"
+          options={() => a.sendTargets(t.id).map(([n, ch]) => [`${n}|${ch}`, `${n} · ${ch === "side" ? "sidechain" : "main"}`])}
+          pick={(v) => { const [to, ch] = v.split("|"); a.addSend(t.id, to, ch as "main" | "side"); }} />
       </div>
     </Show>
     <div class="fm">
       {/* volume edits go through app.js's document-level " volume" handler (keeps the header fader in sync) */}
-      <input class="fader" type="range" min="-60" max="6" step="0.1" value={s.vol} aria-label={`${s.name} volume`} aria-valuetext={`${dB(s.vol)} dB`} />
-      <Meter id={s.id} name={s.name} c={0} />
-      <Meter id={s.id} name={s.name} c={1} />
+      <input class="fader" type="range" min="-60" max="6" step="0.1" value={t.vol} aria-label={`${t.name} volume`} aria-valuetext={`${dB(t.vol)} dB`} />
+      <Meter id={t.id} name={t.name} c={0} />
+      <Meter id={t.id} name={t.name} c={1} />
     </div>
-    <div class="db num">{dB(s.vol)} dB</div>
-    <Show when={!s.master} fallback={<div class="dim" style={{ "font-size": "10px" }}>→ song output</div>}>
+    <div class="db num">{dB(t.vol)} dB</div>
+    <Show when={!t.master} fallback={<div class="dim" style={{ "font-size": "10px" }}>→ song output</div>}>
       {/* mute/solo go through app.js's document-level handler (one state for header + strip) */}
-      <div class="ms"><button aria-pressed={s.mute} aria-label={`Mute ${s.name}`}>M</button><button aria-pressed={s.solo} aria-label={`Solo ${s.name}`}>S</button></div>
+      <div class="ms"><button aria-pressed={!!t.mute} aria-label={`Mute ${t.name}`}>M</button><button aria-pressed={!!t.solo} aria-label={`Solo ${t.name}`}>S</button></div>
     </Show>
   </div>;
 }
