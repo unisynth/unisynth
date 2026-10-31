@@ -728,6 +728,89 @@ pub(crate) fn byte_lane(initial: u8, changes: &[(i64, u8)]) -> Vec<(i32, u8)> {
     pts
 }
 
+/// [`byte_lane`] with fewer points: the lane may differ from the step function the changes mean by up to `tol` bytes
+/// at any frame (the player interpolates linearly between points). Small steps (a slide, a fade) become ramps through
+/// as few points as fit; a step larger than `tol`, or one at a frame in `breaks`, stays an exact step. `tol` 0 is
+/// [`byte_lane`].
+pub(crate) fn thin_lane(initial: u8, changes: &[(i64, u8)], tol: u8, breaks: &[i64]) -> Vec<(i32, u8)> {
+    if tol == 0 {
+        return byte_lane(initial, changes);
+    }
+    // the step function as segments (start frame, value), as `byte_lane` reads the changes
+    let mut seg: Vec<(i64, u8)> = vec![(0, initial)];
+    for &(f, v) in changes {
+        let (lf, lv) = *seg.last().unwrap();
+        if v == lv {
+            continue;
+        }
+        let f = f.max(lf);
+        if f == lf && seg.len() > 1 {
+            // a zero-length segment: the later value wins (merged into the one before if equal)
+            seg.last_mut().unwrap().1 = v;
+            if seg[seg.len() - 2].1 == v {
+                seg.pop();
+            }
+            continue;
+        }
+        seg.push((f, v));
+    }
+    let tol = tol as f64;
+    let hard = |k: usize| (seg[k + 1].1 as f64 - seg[k].1 as f64).abs() > tol || breaks.contains(&seg[k + 1].0);
+    // runs of samples between hard steps: each segment contributes its start and its last frame (a soft boundary) or
+    // the next segment's start (a hard one, where the step is exact: two points at one frame)
+    let mut out: Vec<(i64, u8)> = vec![];
+    let mut run: Vec<(i64, f64)> = vec![];
+    let fit = |run: &[(i64, f64)], out: &mut Vec<(i64, u8)>| {
+        // greedy: from each vertex, the farthest sample whose line keeps every sample between within `tol`
+        let mut i = 0;
+        out.push((run[0].0, run[0].1 as u8));
+        while i + 1 < run.len() {
+            let mut j = i + 1;
+            while j + 1 < run.len() {
+                let (a, b) = (run[i], run[j + 1]);
+                let ok = (i + 1..=j).all(|m| {
+                    let (f, v) = run[m];
+                    let line = a.1 + (b.1 - a.1) * (f - a.0) as f64 / (b.0 - a.0) as f64;
+                    (line - v).abs() <= tol
+                });
+                if !ok {
+                    break;
+                }
+                j += 1;
+            }
+            out.push((run[j].0, run[j].1 as u8));
+            i = j;
+        }
+    };
+    for k in 0..seg.len() {
+        let (s0, v) = (seg[k].0, seg[k].1 as f64);
+        if run.last().is_none_or(|x: &(i64, f64)| x.0 < s0) {
+            run.push((s0, v));
+        }
+        if k + 1 == seg.len() {
+            break;
+        }
+        let next = seg[k + 1].0;
+        if hard(k) {
+            run.push((next, v));
+            fit(&run, &mut out);
+            run.clear();
+        } else if next - 1 > s0 {
+            run.push((next - 1, v));
+        }
+    }
+    if !run.is_empty() {
+        fit(&run, &mut out);
+    }
+    let mut pts = vec![];
+    let mut last = 0i64;
+    for (f, v) in out {
+        pts.push(((f - last) as i32, v));
+        last = f;
+    }
+    pts
+}
+
 /// One trigger of `variant` of `call`'s record `record` at native speed as a song at `rate` (the per-phrase parity
 /// entry, `synth-convert xm-phrase`): the record's instrument and effect chain on one track, its phrase events as
 /// notes, the retrigger and fine bytes as lanes, the doubler's restart at the phrase start. Returns the song and the

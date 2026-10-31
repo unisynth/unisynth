@@ -480,3 +480,79 @@ fn the_phase_byte_rounds_a_word_to_1_of_255_turn() {
     assert_eq!(phase_byte(32768), 1 + 128);
     assert_eq!(phase_byte(65535), 1, "a whole turn is 0");
 }
+
+mod thinning {
+    use super::super::*;
+
+    /// The lane's value at absolute frame `f` (linear between points; a zero delta is a step).
+    fn at(pts: &[(i32, u8)], f: i64) -> f64 {
+        let mut abs = vec![];
+        let mut t = 0i64;
+        for &(d, v) in pts {
+            t += d as i64;
+            abs.push((t, v as f64));
+        }
+        let mut val = abs[0].1;
+        for w in abs.windows(2) {
+            let ((t0, a), (t1, b)) = (w[0], w[1]);
+            if f >= t1 {
+                val = b;
+            } else if f >= t0 && t1 > t0 {
+                return a + (b - a) * (f - t0) as f64 / (t1 - t0) as f64;
+            }
+        }
+        val
+    }
+
+    /// The step function a byte lane means: `initial`, then each change from its frame on.
+    fn step(initial: u8, ch: &[(i64, u8)], f: i64) -> f64 {
+        ch.iter().take_while(|c| c.0 <= f).last().map_or(initial, |c| c.1) as f64
+    }
+
+    fn worst(initial: u8, ch: &[(i64, u8)], pts: &[(i32, u8)], end: i64) -> f64 {
+        (0..end).map(|f| (at(pts, f) - step(initial, ch, f)).abs()).fold(0.0, f64::max)
+    }
+
+    #[test]
+    fn tolerance_zero_is_the_exact_step_lane() {
+        let ch = [(700, 10), (1400, 12), (2100, 200)];
+        assert_eq!(thin_lane(0, &ch, 0, &[]), byte_lane(0, &ch));
+    }
+
+    #[test]
+    fn a_slide_becomes_a_few_ramps_within_the_tolerance() {
+        // a fade from 200 down by 1 or 2 per 700-frame tick over 100 ticks
+        let ch: Vec<(i64, u8)> = (1..100).map(|i| (i * 700, (200 - i * 3 / 2) as u8)).collect();
+        let exact = byte_lane(200, &ch);
+        for tol in [1u8, 2, 4] {
+            let pts = thin_lane(200, &ch, tol, &[]);
+            let w = worst(200, &ch, &pts, 100 * 700);
+            assert!(w <= tol as f64 + 1e-9, "tol {tol}: off by {w}");
+            // its steps are up to 2 bytes: a ramp needs a tolerance of a step (below it, the steps stay)
+            if tol >= 2 {
+                assert!(pts.len() * 4 < exact.len(), "tol {tol}: {} points vs {}", pts.len(), exact.len());
+            }
+        }
+    }
+
+    #[test]
+    fn a_jump_past_the_tolerance_stays_a_step() {
+        // a tremor gate: 200, 0, 200 on alternate ticks
+        let ch: Vec<(i64, u8)> = (1..20).map(|i| (i * 700, if i % 2 == 1 { 0 } else { 200 })).collect();
+        let pts = thin_lane(200, &ch, 4, &[]);
+        // within one frame of each jump the lane may ramp (the vertex pair); elsewhere it is exact
+        let off = (0..20 * 700).filter(|&f| (at(&pts, f) - step(200, &ch, f)).abs() > 4.0).count();
+        assert!(off <= 19, "{off} frames off");
+    }
+
+    #[test]
+    fn a_break_frame_keeps_its_step() {
+        // a slide whose 1-byte step at frame 7000 must land exactly there (a transpose change re-centres the bend)
+        let ch: Vec<(i64, u8)> = (1..20).map(|i| (i * 700, 100 + i as u8)).collect();
+        let pts = thin_lane(100, &ch, 4, &[7000]);
+        // the lane reaches the old value at the break and steps from there
+        assert!((at(&pts, 6999) - 109.0).abs() < 0.01, "{}", at(&pts, 6999));
+        assert_eq!(at(&pts, 7000), 110.0);
+        assert!(pts.len() < 10, "{pts:?}");
+    }
+}

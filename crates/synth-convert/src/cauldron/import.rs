@@ -730,13 +730,30 @@ pub fn hold_controls(r: &mut crate::xm::replay::Replay, rate: ControlRate) {
     }
 }
 
-/// Converts a mini-cauldron XM with its patch data to a unified song at `rate` (spec "Mini-cauldron XM import").
-pub fn convert(p: &Patches, xm: &Xm, rate: i32) -> Result<Converted, String> {
-    convert_at(p, xm, rate, ControlRate::Tick)
+/// Conversion options (`synth-convert xm --controls`, `--thin`); the default is the full-detail conversion.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Options {
+    /// How often the XM's volume, pan and pitch reach the song.
+    pub controls: ControlRate,
+    /// Bytes (of 255) the volume, pan, pitch and low-pass lanes may differ from the XM's per-tick steps, so slides
+    /// and fades become ramps through few points ([`crate::cauldron::thin_lane`]); 0 keeps every step.
+    pub thin: u8,
 }
 
-/// [`convert`] with the XM control reaching the song at `control_rate`.
-pub fn convert_at(p: &Patches, xm: &Xm, rate: i32, control_rate: ControlRate) -> Result<Converted, String> {
+impl Default for Options {
+    fn default() -> Self {
+        Options { controls: ControlRate::Tick, thin: 0 }
+    }
+}
+
+/// Converts a mini-cauldron XM with its patch data to a unified song at `rate` (spec "Mini-cauldron XM import").
+pub fn convert(p: &Patches, xm: &Xm, rate: i32) -> Result<Converted, String> {
+    convert_with(p, xm, rate, Options::default())
+}
+
+/// [`convert`] with [`Options`].
+pub fn convert_with(p: &Patches, xm: &Xm, rate: i32, opts: Options) -> Result<Converted, String> {
+    let thin = opts.thin;
     use crate::model::{Auto, Dev, SongM, Trk};
     use crate::xm::replay::replay;
     use unisynth::law::host as inv;
@@ -744,7 +761,7 @@ pub fn convert_at(p: &Patches, xm: &Xm, rate: i32, control_rate: ControlRate) ->
     let call = pick_call(p, xm)?;
     let ids = identify(call, xm)?;
     let mut r = replay(xm, rate as u32)?;
-    hold_controls(&mut r, control_rate);
+    hold_controls(&mut r, opts.controls);
     let dec = |rec: usize| call.records[rec].decimation(call.version);
     let sample = |t: &crate::xm::replay::Trigger| &xm.instruments[t.instrument].samples[t.sample];
     let loop_of = |s: &crate::xm::Sample| Loop { len: s.data.len() as u32, start: s.loop_start, length: s.loop_len, kind: s.loop_kind };
@@ -831,36 +848,39 @@ pub fn convert_at(p: &Patches, xm: &Xm, rate: i32, control_rate: ControlRate) ->
         };
         let at = |f: u64| lead - latency + f as i64 - LANE_LEAD;
         let byte = |p: f32| (p.clamp(0.0, 1.0) * 255.0).round() as u8;
-        let mut lane = |param: usize, pts: &[(u64, f64)], to_p: &dyn Fn(f64) -> f32| {
+        // a transpose change re-centres the bend: there the bend steps exactly, with the transpose (never thinned)
+        let breaks: Vec<i64> = trans.windows(2).filter(|w| w[0].1 != w[1].1).map(|w| at(w[1].0)).collect();
+        let mut lane = |param: usize, pts: &[(u64, f64)], to_p: &dyn Fn(f64) -> f32, tol: u8| {
             let ch: Vec<(i64, u8)> = pts.iter().map(|&(f, x)| (at(f), byte(to_p(x)))).collect();
             let b0 = ch.first().map_or(byte(values[param]), |x| x.1);
             values[param] = b0 as f32 / 255.0;
             if ch.iter().any(|x| x.1 != b0) {
-                autos.push(Auto { device: 0, param, points: byte_lane(b0, &ch) });
+                autos.push(Auto { device: 0, param, points: thin_lane(b0, &ch, tol, &breaks) });
             }
         };
-        lane(v::MASTER, if post.is_some() { &c.master } else { &c.gain }, &|g| inv::inv_gain(g as f32));
+        lane(v::MASTER, if post.is_some() { &c.master } else { &c.gain }, &|g| inv::inv_gain(g as f32), thin);
         // a phrase voice plays centred: its pan is the post device's
         let centre = [(0u64, 0.5f64)];
-        lane(v::PAN, if post.is_some() { &centre } else { &c.pan }, &|p| p as f32);
+        lane(v::PAN, if post.is_some() { &centre } else { &c.pan }, &|p| p as f32, thin);
         if back > 0.0 {
-            lane(ctl::BEND, &bends, &|b| (0.5 + b / (2.0 * back)) as f32);
+            lane(ctl::BEND, &bends, &|b| (0.5 + b / (2.0 * back)) as f32, thin);
         }
         if lane_t {
-            lane(v::TRANSPOSE, &trans, &|x| inv::inv_transpose(x as f32));
+            lane(v::TRANSPOSE, &trans, &|x| inv::inv_transpose(x as f32), 0);
         }
         if let Some(d) = post {
             // EQ 3band, all three bands at the gain (linear below 0.5): flat, 3 frames late; it sees output frame
             // `lead + f` at `lead + f − 3`
             let ch: Vec<(i64, u8)> = c.post.iter().map(|&(f, g)| (lead + f - POST_DELAY, byte((g / 2.0) as f32))).collect();
             let b0 = ch.first().map_or(0, |x| x.1);
+            let pts = thin_lane(b0, &ch, thin, &[]);
             for param in 1..=3 {
-                autos.push(Auto { device: d, param, points: byte_lane(b0, &ch) });
+                autos.push(Auto { device: d, param, points: pts.clone() });
             }
             // its pan: a byte 1..255, hard left to hard right
             let ch: Vec<(i64, u8)> = c.post_pan.iter().map(|&(f, p)| (lead + f - POST_DELAY, 1 + (p.clamp(0.0, 1.0) * 254.0).round() as u8)).collect();
             let b0 = ch.first().map_or(128, |x| x.1);
-            autos.push(Auto { device: d, param: 4, points: byte_lane(b0, &ch) });
+            autos.push(Auto { device: d, param: 4, points: thin_lane(b0, &ch, thin, &[]) });
         }
     };
     let (mut pingpong, mut muted) = (0.0, 0.0);
@@ -901,7 +921,7 @@ pub fn convert_at(p: &Patches, xm: &Xm, rate: i32, control_rate: ControlRate) ->
             let ch: Vec<(i64, u8)> = c.bend.iter().map(|&(f, b)| (lead + f as i64 - LANE_LEAD - POST_DELAY, byte(open(nyq * plan.ratio() * 2f64.powf(b / 12.0))))).collect();
             if ch.iter().any(|x| x.1 != ch[0].1) {
                 for s in 0..LP_STAGES {
-                    autos.push(Auto { device: 1 + k + s, param: 6, points: byte_lane(ch[0].1, &ch) });
+                    autos.push(Auto { device: 1 + k + s, param: 6, points: thin_lane(ch[0].1, &ch, thin, &[]) });
                 }
             }
         }

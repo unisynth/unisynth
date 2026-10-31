@@ -1100,6 +1100,17 @@ reference: loudness and median / 99th-percentile per-second octave-band differen
 `row` keeps the sound close (Stash −22 % xz); `note` loses the risers, fades and tremor (Stash −38 to −42 %). Jizz
 has little per-tick control to drop. The parity harness and A/B sign-off cover `tick`.
 
+**Thinning (`--thin <bytes>`).** Points are written only where a value changes, but a change costs two (the player
+interpolates linearly, so a step is a hold point and a jump point). `--thin b` lets the volume, pan, pitch-bend and
+low-pass lanes differ from the per-tick steps by up to `b` bytes of 255 at any frame (`thin_lane`): a slide or fade
+becomes ramps through as few points as fit; a step larger than `b`, and the bend's step where the transpose changes,
+stay exact; the transpose, restart and start lanes are never thinned. Stash song 1 (raw / xz of the song blob):
+`tick` 1 447 168 / 38.4 KB, `--thin 1` 1 298 888 / 37.5 KB, `--thin 2` 1 180 608 / 36.5 KB, `--thin 4` 1 016 048 /
+35.3 KB; BLUISH 616 853 / 30.5 KB → 426 623 / 27.8 KB at 4; Jizz 17.9 → 17.6 KB. The raw size falls by up to 30 %,
+the packed by 1–9 % (xz already packs regular steps); loudness and octave bands against the reference stay within
+0.15 dB and 0.1 dB of `tick`, render time is unchanged. About 47 000 of song 1's 122 000 changes are jumps of 20 bytes
+or more (tremor gates, hard pans), which no tolerance removes.
+
 **Known deviations** (all accepted with the A/B sign-off, `tools/unisynth-parity/cauldron-signoff.json`): reversed
 step attacks land at a step's start, not its end; the echo cannot wrap a phrase's end into its start (song0
 record 3); a filter past its stability edge stays smoother than the original's integer store (record 4); an
