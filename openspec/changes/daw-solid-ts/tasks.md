@@ -31,9 +31,15 @@ before → `AGENTS.md` rows → land on `main`.
 - [x] 2.2 Move view-only fields off the song objects into an id-keyed view store (`ui/state/view.ts`): `_lane`,
   `rollClip`, `override` (`_dev` is a knob element property and `_edited` is undoable device state: both stay). `snap()` no longer needs a replacer for them. Verify: all browser tests,
   `DAW.debug.song()` unchanged on the demo and every `project/music` song.
-- [ ] 2.3 `ui/state/song.ts`: `song = createMutable(fromSong(…))`; `app.js` `tracks`/`master` point at it; `toSong`,
+- [x] 2.3 `ui/state/song.ts`: `song = createMutable(fromSong(…))`; `app.js` `tracks`/`master` point at it; `toSong`,
   snapshots and canvas draws read `unwrap(song)`. Verify: all tests; `bench/ui.ts` select/fader/knob/play and
   roll open time not more than 10 % slower than before.
+  Done: 54/54. `raw()` = O(1) `$RAW` read (Solid's `unwrap` deep-walks non-proxies); `restore` batched; `tableOf`/`modeOf`
+  read once and raw; clip thumbnails read raw notes. Bench (trashpanda, 3 runs, before → after): select-dev 56 → 61,
+  select-mix 13.6 → 15.6, undo 380 → 465 ms; knob 6.5, fader 0.35, mute 2.1, roll ~30 ms, frames unchanged.
+  **Accepted over the 10 % gate (user, temporary):** the cost is untracked reads by not-yet-ported imperative code
+  through the proxy (`ui-profile.ts`: getOwnPropertyDescriptor + wrap per read). It shrinks as each panel moves to
+  components with raw bulk reads; undo drops with 2.5. Baseline for later steps = the "after" numbers.
 - [ ] 2.4 `ui/state/live.ts`: position, playing, peaks, load, drops, automation values at the playhead, probe;
   written from `onStatus`/`applyAutomation` only on a shown change, never into the song or undo. Unit test: an
   unchanged value does not notify; browser test: playing an automated song adds no undo step and does not change
