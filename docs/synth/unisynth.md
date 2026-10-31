@@ -1079,6 +1079,27 @@ unified song that plays the phrases live. Full design and measurements: `openspe
 sounding range, −48…+24) share a track; channel groups whose spans never overlap merge. The comb, echo and doubler
 times are fixed in phrase frames, so a track's chain is built for its class.
 
+**Control rate (`--controls tick|row|note`).** The XM's volume, pan and pitch reach the song every tracker tick
+(`tick`, the default), only at row starts (`row`: slides and fades become steps, tremor and vibrato go), or once per
+note (`note`: its first tick's values). The replay's control is held before anything else, so tracks, phrase paths
+and every lane follow it. Measured 2026-10-31 (xz of the song blob, release render on one thread, against the OpenMPT
+reference: loudness and median / 99th-percentile per-second octave-band difference):
+
+| Song | Mode | Tracks | xz | Render | Loudness | Bands (median / 99th) |
+|---|---|---:|---:|---:|---:|---:|
+| Jizz | tick | 71 | 17.9 KB | 33.4 s | +0.39 dB | 0.6 / 6.5 dB |
+| | row | 71 | 17.7 KB | 33.1 s | +0.40 dB | 0.7 / 6.1 dB |
+| | note | 71 | 17.4 KB | 30.6 s | +0.85 dB | 1.0 / 18.8 dB |
+| Stash song 1 | tick | 119 | 38.4 KB | 85.5 s | −0.31 dB | 0.8 / 11.4 dB |
+| | row | 117 | 30.1 KB | 83.4 s | +0.26 dB | 1.1 / 11.2 dB |
+| | note | 112 | 23.9 KB | 74.9 s | −0.43 dB | 1.5 / 26.4 dB |
+| Stash BLUISH | tick | 76 | 30.5 KB | 33.0 s | −0.16 dB | 0.7 / 10.2 dB |
+| | row | 78 | 23.5 KB | 38.2 s | +0.03 dB | 0.8 / 11.1 dB |
+| | note | 66 | 17.6 KB | 23.2 s | +0.29 dB | 1.1 / 30.1 dB |
+
+`row` keeps the sound close (Stash −22 % xz); `note` loses the risers, fades and tremor (Stash −38 to −42 %). Jizz
+has little per-tick control to drop. The parity harness and A/B sign-off cover `tick`.
+
 **Known deviations** (all accepted with the A/B sign-off, `tools/unisynth-parity/cauldron-signoff.json`): reversed
 step attacks land at a step's start, not its end; the echo cannot wrap a phrase's end into its start (song0
 record 3); a filter past its stability edge stays smoother than the original's integer store (record 4); an

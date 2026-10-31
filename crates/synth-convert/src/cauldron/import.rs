@@ -690,15 +690,61 @@ pub fn pick_call<'a>(p: &'a Patches, xm: &Xm) -> Result<&'a Call, String> {
     }
 }
 
+/// How often the XM's volume, pan and pitch reach the song (`synth-convert xm --controls`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ControlRate {
+    /// Every tracker tick: fades, envelopes, tremor, slides, vibrato (the default).
+    Tick,
+    /// At row starts: slides and fades become steps, tremor and vibrato go.
+    Row,
+    /// Once per note: its first tick's values (no slides, fades or pan moves).
+    Note,
+}
+
+impl ControlRate {
+    pub fn parse(s: &str) -> Option<ControlRate> {
+        match s {
+            "tick" => Some(ControlRate::Tick),
+            "row" => Some(ControlRate::Row),
+            "note" => Some(ControlRate::Note),
+            _ => None,
+        }
+    }
+}
+
+/// Holds each trigger's control (frequency, volume, pan) from its first tick, then (`Row`) from each row's first tick,
+/// over the ticks between: the whole conversion (tracks, phrase paths, lanes) then follows the coarser control.
+pub fn hold_controls(r: &mut crate::xm::replay::Replay, rate: ControlRate) {
+    if rate == ControlRate::Tick {
+        return;
+    }
+    for t in &mut r.triggers {
+        let mut held = None;
+        for k in &mut t.ticks {
+            if held.is_none() || (rate == ControlRate::Row && k.row) {
+                held = Some((k.freq, k.vol, k.pan));
+            }
+            let (f, v, p) = held.unwrap();
+            (k.freq, k.vol, k.pan) = (f, v, p);
+        }
+    }
+}
+
 /// Converts a mini-cauldron XM with its patch data to a unified song at `rate` (spec "Mini-cauldron XM import").
 pub fn convert(p: &Patches, xm: &Xm, rate: i32) -> Result<Converted, String> {
+    convert_at(p, xm, rate, ControlRate::Tick)
+}
+
+/// [`convert`] with the XM control reaching the song at `control_rate`.
+pub fn convert_at(p: &Patches, xm: &Xm, rate: i32, control_rate: ControlRate) -> Result<Converted, String> {
     use crate::model::{Auto, Dev, SongM, Trk};
     use crate::xm::replay::replay;
     use unisynth::law::host as inv;
     use unisynth::params::{ctl, osc, shape as sp, v};
     let call = pick_call(p, xm)?;
     let ids = identify(call, xm)?;
-    let r = replay(xm, rate as u32)?;
+    let mut r = replay(xm, rate as u32)?;
+    hold_controls(&mut r, control_rate);
     let dec = |rec: usize| call.records[rec].decimation(call.version);
     let sample = |t: &crate::xm::replay::Trigger| &xm.instruments[t.instrument].samples[t.sample];
     let loop_of = |s: &crate::xm::Sample| Loop { len: s.data.len() as u32, start: s.loop_start, length: s.loop_len, kind: s.loop_kind };

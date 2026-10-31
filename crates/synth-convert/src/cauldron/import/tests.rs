@@ -14,7 +14,7 @@ fn ticks(n: usize, freq: f64) -> Vec<TickCtl> {
 }
 
 fn ticks_by(n: usize, freq: impl Fn(usize) -> f64) -> Vec<TickCtl> {
-    (0..n).map(|i| TickCtl { at: i as f64 * 730.0 / RATE, frame: i as u64 * 730, frames: 730, freq: freq(i), vol: 1.0, pan: 0.5 }).collect()
+    (0..n).map(|i| TickCtl { row: true, at: i as f64 * 730.0 / RATE, frame: i as u64 * 730, frames: 730, freq: freq(i), vol: 1.0, pan: 0.5 }).collect()
 }
 
 /// Jizz's stored samples: 28 000 bytes at R/2.
@@ -216,7 +216,7 @@ fn trig(channel: usize, sample: usize, frame: u64, n: usize, ratio: impl Fn(usiz
     let ticks = (0..n)
         .map(|i| {
             let f = frame + i as u64 * 730;
-            TickCtl { at: f as f64 / RATE, frame: f, frames: 730, freq: ratio(i) * R / 2.0, vol: vol(i), pan: 0.5 }
+            TickCtl { row: true, at: f as f64 / RATE, frame: f, frames: 730, freq: ratio(i) * R / 2.0, vol: vol(i), pan: 0.5 }
         })
         .collect();
     Trigger { channel, tick: 0, frame, at: frame as f64 / RATE, instrument: 0, sample, note: 62, offset: 0, ticks }
@@ -484,4 +484,26 @@ fn tracks_are_named_by_sample_record_and_class() {
         (None, "Jace11.smp".into(), 0),
     ]);
     assert_eq!(names, ["Jace41 (record 4)", "Jace41 (record 4, +12) 1", "Jace41 (record 4, +12) 2", "Jace11 (sample)"]);
+}
+
+#[test]
+fn control_rates_hold_the_value_of_the_row_or_the_note() {
+    // a slide over 6 ticks, rows of 3: per row the values step at ticks 0 and 3, per note they hold tick 0's
+    let mut r = crate::xm::replay::Replay { triggers: vec![], length: 1.0 };
+    let ticks: Vec<TickCtl> = (0..6)
+        .map(|i| TickCtl { row: i % 3 == 0, at: 0.0, frame: i as u64 * 730, frames: 730, freq: 1000.0 + 100.0 * i as f64, vol: 1.0 - 0.1 * i as f64, pan: 0.1 * i as f64 })
+        .collect();
+    r.triggers.push(crate::xm::replay::Trigger { channel: 0, tick: 0, frame: 0, at: 0.0, instrument: 0, sample: 0, note: 49, offset: 0, ticks: ticks.clone() });
+    let got = |r: &crate::xm::replay::Replay, rate| {
+        let mut x = r.clone();
+        hold_controls(&mut x, rate);
+        x.triggers[0].ticks.iter().map(|k| (k.freq, k.vol, k.pan, k.frame)).collect::<Vec<_>>()
+    };
+    let want = |src: &[usize]| src.iter().enumerate().map(|(i, &j)| (ticks[j].freq, ticks[j].vol, ticks[j].pan, ticks[i].frame)).collect::<Vec<_>>();
+    assert_eq!(got(&r, ControlRate::Tick), want(&[0, 1, 2, 3, 4, 5]));
+    assert_eq!(got(&r, ControlRate::Row), want(&[0, 0, 0, 3, 3, 3]));
+    assert_eq!(got(&r, ControlRate::Note), want(&[0, 0, 0, 0, 0, 0]));
+    // a trigger starting mid-row (a retrigger) still takes its first tick
+    r.triggers[0].ticks[0].row = false;
+    assert_eq!(got(&r, ControlRate::Row), want(&[0, 0, 0, 3, 3, 3]));
 }
