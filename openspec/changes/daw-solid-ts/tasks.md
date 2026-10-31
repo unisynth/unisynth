@@ -65,9 +65,11 @@ before → `AGENTS.md` rows → land on `main`.
   references from JSON-built tracks would write without notifying). Bench within noise (trashpanda select-mix 12.7,
   fader 0.4, mute 1.1; tbl-stash-over2 undo 6.4–6.7 s, play-mix 1–2 frames > 20 ms; one outlier run of 36 under
   machine load).
-- [ ] 2.7 Ratchet test (`bun test`): counts direct model writes left in `app.js` (assignments, `splice`/`push`/`sort`
+- [x] 2.7 Ratchet test (`bun test`): counts direct model writes left in `app.js` (assignments, `splice`/`push`/`sort`
   on model arrays, `Object.assign` on model objects) and fails when the count rises above the number recorded in the
   test. Verify: an added write fails the test.
+  Done: `test/write-ratchet.test.ts`, baseline 102 lines; an appended `t.vol = 0` fails it (103). Strict both ways:
+  a lower count asks to lower `BASELINE`, so each port records its progress.
 
 ## 3. Transport and playback display (D3)
 
