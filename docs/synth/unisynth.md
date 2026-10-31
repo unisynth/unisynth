@@ -1187,21 +1187,29 @@ tempo delay without feedback at the most common tap pattern (first left tap, fir
 opposite sides) at the taps' RMS level, and on phrase tracks a small freeverb (`compact::REVERB`: room 0.3, 12 % wet,
 150 Hz–7 kHz); the track volume keeps the dry level, and the song tempo reaches the longest tap. The freeverb answers
 `quiet_after` (core sleep span + pre-delay), so these tracks still sleep. `--dry` leaves the effects out;
-`--keep-layers --split-pitches` gives the layered layout byte for byte (the parity tool uses it).
-Measured 2026-10-31 (`bun tools/unisynth-parity/cauldron-compact.ts`, `tools/unisynth-parity/cauldron-compact.md`;
+`--keep-layers --split-pitches --exact-chain` gives the layered layout byte for byte (the parity tool uses it).
+
+**Slim chain (default; change slim-cauldron-chain).** The band-limiting low-pass keeps one SVF stage
+(`compact::slim_lowpass`; two with `--exact-chain`), and none on a track that does not slide when its cut (stored
+Nyquist × ratio) is at least 16 kHz (`OPEN_HZ`). Each clip is checked with a solo render of the track's devices before
+it, on the track's own notes and automation (`compact::idle_clips`, tracks in parallel): a clip whose input never
+passes its threshold by more than 1e-4 is a no-op and is left out, so the sound does not change. Most clips work: the
+16-bit clamp after the instrument is hit by up to +37 dB, the echo's by up to +6 dB; idle are Stash song 1's 2 and
+BLUISH's 25. Devices (all tracks): Jizz 123 → 110, song 1 335 → 301, BLUISH 267 → 216.
+Measured 2026-10-31 with the slim chain (`bun tools/unisynth-parity/cauldron-compact.ts`, `tools/unisynth-parity/cauldron-compact.md`;
 render: `fast` profile; loudness against the OpenMPT reference):
 
 | Song | Layout | Tracks (phrase + stored) | Song | xz | Render | Loudness |
 |---|---|---:|---:|---:|---:|---:|
-| Jizz | layered | 58 + 13 | 327 810 | 17.8 KB | 23.5 s | +0.33 dB |
-| | `--dry` | 13 + 11 | 144 935 | 14.3 KB | 7.7 s | −0.58 dB |
-| | compact | 13 + 11 | 146 004 | 14.4 KB | 9.8 s | +0.58 dB |
-| Stash song 1 | layered | 106 + 13 | 1 379 893 | 38.8 KB | 70.6 s | +0.23 dB |
-| | `--dry` | 35 + 10 | 794 645 | 30.1 KB | 29.8 s | −0.05 dB |
-| | compact | 35 + 10 | 796 481 | 30.3 KB | 35.3 s | +0.17 dB |
-| Stash BLUISH | layered | 64 + 12 | 573 993 | 31.0 KB | 28.7 s | +0.13 dB |
-| | `--dry` | 29 + 10 | 335 155 | 25.1 KB | 12.6 s | −0.36 dB |
-| | compact | 29 + 10 | 336 530 | 25.3 KB | 14.6 s | +0.03 dB |
+| Jizz | layered | 58 + 13 | 327 810 | 17.8 KB | 23.0 s | +0.33 dB |
+| | `--dry` | 13 + 11 | 144 182 | 14.3 KB | 7.0 s | −0.61 dB |
+| | compact | 13 + 11 | 145 251 | 14.4 KB | 8.4 s | +0.55 dB |
+| Stash song 1 | layered | 106 + 13 | 1 379 893 | 38.8 KB | 70.4 s | +0.23 dB |
+| | `--dry` | 35 + 10 | 784 170 | 30.1 KB | 23.8 s | −0.10 dB |
+| | compact | 35 + 10 | 786 006 | 30.3 KB | 28.4 s | +0.10 dB |
+| Stash BLUISH | layered | 64 + 12 | 573 993 | 31.0 KB | 27.4 s | +0.13 dB |
+| | `--dry` | 29 + 10 | 326 174 | 24.9 KB | 8.9 s | −0.35 dB |
+| | compact | 29 + 10 | 327 549 | 25.2 KB | 12.0 s | +0.03 dB |
 
 Layers dropped: Jizz 591 of 2 061 triggers, song 1 656, BLUISH 414. Octave bands stay within 3.4 dB of the
 reference in every layout; the pads are centred, the echoes come from the delay instead of channels.
@@ -1373,7 +1381,7 @@ cargo run -q --release -p unisynth --features std --example render -- /tmp/uni/j
 XM=research/tbl-mini-cauldron/out/listen/stash_bluish.xm
 [ -f "$XM" ] && $SC xm "$XM" research/tbl-mini-cauldron/ref/patches_stash.json /tmp/uni/bluish.song && $SC features /tmp/uni/bluish.song
 # the layered layout (stereo/echo channels and per-ratio tracks kept, as the parity tool converts)
-[ -f "$XM" ] && $SC xm "$XM" research/tbl-mini-cauldron/ref/patches_stash.json /tmp/uni/bluish-layered.song --keep-layers --split-pitches
+[ -f "$XM" ] && $SC xm "$XM" research/tbl-mini-cauldron/ref/patches_stash.json /tmp/uni/bluish-layered.song --keep-layers --split-pitches --exact-chain
 [ -f "$XM" ] && $SC xm-triggers "$XM" | sed -n 1,3p
 
 # errors name the problem, exit non-zero and write nothing

@@ -651,6 +651,8 @@ pub struct Converted {
     pub dropped: (usize, usize),
     /// Tracks given a stereo delay, and a reverb, for their dropped layers ([`compact::ambience`]).
     pub ambience: (usize, usize),
+    /// Clips left out as idle ([`compact::idle_clips`]).
+    pub idle_clips: usize,
 }
 
 /// Track names from (record, XM sample name, class; `.smp` dropped): `<sample> (record <r>, <class>)` (no class at 0) for a phrase
@@ -755,11 +757,15 @@ pub struct Options {
     pub split_pitches: bool,
     /// No effects for the dropped layers (`--dry`); default: [`compact::ambience`] (stereo delay, reverb).
     pub dry: bool,
+    /// The original's whole chain (`--exact-chain`): two low-pass stages up to 20 kHz and every clip; default: one
+    /// stage below `compact::OPEN_HZ` ([`compact::slim_lowpass`]) and only the clips the notes reach
+    /// ([`compact::idle_clips`]).
+    pub exact_chain: bool,
 }
 
 impl Default for Options {
     fn default() -> Self {
-        Options { controls: ControlRate::Tick, thin: 0, keep_layers: false, split_pitches: false, dry: false }
+        Options { controls: ControlRate::Tick, thin: 0, keep_layers: false, split_pitches: false, dry: false, exact_chain: false }
     }
 }
 
@@ -869,8 +875,14 @@ pub fn convert_with(p: &Patches, xm: &Xm, rate: i32, opts: Options) -> Result<Co
         .iter()
         .map(|t| {
             let mut c = effects(call, t.record, t.ratio(), rate as f64, tempo);
-            if slides(t) {
+            let slide = slides(t);
+            if slide {
                 slide_lowpass(&mut c, call, t.record, t.ratio());
+            }
+            if !opts.exact_chain {
+                // one low-pass stage, none where the cut is inaudible (compact::slim_lowpass)
+                let hz = c.lowpass.map_or(0.0, |(_, nyq)| nyq * t.ratio());
+                compact::slim_lowpass(&mut c, hz, slide);
             }
             c
         })
@@ -933,6 +945,11 @@ pub fn convert_with(p: &Patches, xm: &Xm, rate: i32, opts: Options) -> Result<Co
         }
     };
     let (mut pingpong, mut muted) = (0.0, 0.0);
+    // openmpt123 renders 0.1 s past the end
+    let length = (lead as f64 + (r.length + 0.1) * rate as f64) / rate as f64;
+    let mut idle_clips = 0;
+    // phrase tracks as built: devices, automations, lane, volume, clips to check
+    let mut built: Vec<(Vec<Dev>, Vec<Auto>, Vec<crate::model::Ev>, f32, Vec<(usize, f64)>)> = vec![];
     let mut backward_samples: Vec<(usize, usize)> = vec![];
     for ((plan, chain), ambience) in plans.iter().zip(&chains).zip(&plan_amb) {
         let rec = &call.records[plan.record];
@@ -969,23 +986,50 @@ pub fn convert_with(p: &Patches, xm: &Xm, rate: i32, opts: Options) -> Result<Co
             let byte = |p: f32| (p.clamp(0.0, 1.0) * 255.0).round() as u8;
             let ch: Vec<(i64, u8)> = c.bend.iter().map(|&(f, b)| (lead + f as i64 - LANE_LEAD - POST_DELAY, byte(open(nyq * plan.ratio() * 2f64.powf(b / 12.0))))).collect();
             if ch.iter().any(|x| x.1 != ch[0].1) {
-                for s in 0..LP_STAGES {
+                for s in 0..chain.lp_stages {
                     autos.push(Auto { device: 1 + k + s, param: 6, points: thin_lane(ch[0].1, &ch, thin, &[]) });
                 }
             }
         }
-        let base = song.devices.len();
         if let Some(k) = chain.restart {
             autos.push(Auto { device: 1 + k, param: 4, points: byte_lane(0, &restarts) });
         }
-        song.devices.push(Dev { kind: unisynth::kind::INSTRUMENT, chunk: unisynth::chunk::encode(&values, &[]) });
-        song.devices.extend(chain.devices.iter().map(|(k, v)| Dev { kind: *k, chunk: unisynth::fx::encode(v) }));
-        song.devices.push(Dev { kind: unisynth::kind::EQ, chunk: unisynth::fx::encode(&post_gain()) });
+        let mut devs = vec![Dev { kind: unisynth::kind::INSTRUMENT, chunk: unisynth::chunk::encode(&values, &[]) }];
+        devs.extend(chain.devices.iter().map(|(k, v)| Dev { kind: *k, chunk: unisynth::fx::encode(v) }));
+        devs.push(Dev { kind: unisynth::kind::EQ, chunk: unisynth::fx::encode(&post_gain()) });
         let (extra, make_up) = ambience.devices(tempo);
-        song.devices.extend(extra.iter().map(|(k, v)| Dev { kind: *k, chunk: unisynth::fx::encode(v) }));
+        devs.extend(extra.iter().map(|(k, v)| Dev { kind: *k, chunk: unisynth::fx::encode(v) }));
         let halve = if call.version == Version::V1 && plan.record == 7 { 0.5 } else { 1.0 };
+        let clips = if opts.exact_chain { vec![] } else { compact::clips(chain) };
+        built.push((devs, autos, lane, (XM_GAIN * halve / chain.level * make_up) as f32, clips));
+    }
+    // the clips each track's notes never reach (compact::idle_clips: a solo render per clip, tracks in parallel),
+    // left out last first so the indices hold
+    let idle: Vec<Vec<usize>> = {
+        let threads = std::thread::available_parallelism().map_or(1, |n| n.get());
+        let next = std::sync::atomic::AtomicUsize::new(0);
+        let found = std::sync::Mutex::new(vec![vec![]; built.len()]);
+        std::thread::scope(|sc| {
+            for _ in 0..threads.min(built.len()) {
+                sc.spawn(|| loop {
+                    let i = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    let Some((devs, autos, lane, _, clips)) = built.get(i) else { break };
+                    let idle = if clips.is_empty() { vec![] } else { compact::idle_clips(devs, autos, lane, clips, tempo, rate, length) };
+                    found.lock().unwrap()[i] = idle;
+                });
+            }
+        });
+        found.into_inner().unwrap()
+    };
+    for ((mut devs, mut autos, lane, volume, _), idle) in built.into_iter().zip(idle) {
+        for &i in idle.iter().rev() {
+            compact::remove_device(&mut devs, &mut autos, i);
+        }
+        idle_clips += idle.len();
+        let base = song.devices.len();
+        song.devices.extend(devs);
         let devices = (base..song.devices.len()).collect();
-        song.tracks.push(Trk { volume: (XM_GAIN * halve / chain.level * make_up) as f32, receives: vec![], devices, lane: song.lanes.len(), autos });
+        song.tracks.push(Trk { volume, receives: vec![], devices, lane: song.lanes.len(), autos });
         song.lanes.push(lane);
     }
     for (((ins, smp), trig), ambience) in stored.iter().zip(&stored_amb) {
@@ -1029,8 +1073,7 @@ pub fn convert_with(p: &Patches, xm: &Xm, rate: i32, opts: Options) -> Result<Co
     let n = song.tracks.len();
     song.tracks.push(Trk { volume: 1.0, receives: (0..n).map(|t| (t, 0, 1.0)).collect(), devices: vec![], lane: song.lanes.len(), autos: vec![] });
     song.lanes.push(vec![]);
-    // openmpt123 renders 0.1 s past the end
-    song.length = (lead as f64 + (r.length + 0.1) * rate as f64) / rate as f64;
+    song.length = length;
     let sample_name = |i: usize| sample(&r.triggers[i]).name.clone();
     let names = track_names(
         &plans
@@ -1039,7 +1082,7 @@ pub fn convert_with(p: &Patches, xm: &Xm, rate: i32, opts: Options) -> Result<Co
             .chain(stored.iter().map(|(_, trig)| (None, sample_name(trig[0]), 0)))
             .collect::<Vec<_>>(),
     );
-    Ok(Converted { song, lead: lead as usize, warnings, pingpong, muted, tracks: (plans.len(), stored.len()), dropped,
+    Ok(Converted { song, lead: lead as usize, warnings, pingpong, muted, tracks: (plans.len(), stored.len()), dropped, idle_clips,
         ambience: (plan_amb.iter().chain(&stored_amb).filter(|a| a.echo.is_some()).count(), plan_amb.iter().chain(&stored_amb).filter(|a| a.reverb).count()),
         records: plans.iter().map(|t| Some(t.record)).chain(stored.iter().map(|_| None)).collect(), names })
 }

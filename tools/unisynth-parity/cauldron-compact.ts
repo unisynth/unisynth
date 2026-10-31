@@ -70,7 +70,7 @@ function page(rows: Row[]): string {
   return `<!doctype html><meta charset="utf-8"><title>TBL cauldron: compact vs layered</title>
 <style>body{font:15px system-ui,sans-serif;max-width:52rem;margin:2rem auto;padding:0 1rem}audio{width:100%}h2{margin-top:2rem}</style>
 <h1>TBL cauldron conversion: compact vs layered</h1>
-<p>Reference: openmpt123 playing the rebuilt XM. Layered: <code>synth-convert xm --keep-layers --split-pitches</code> (the parity layout). Dry: <code>--dry</code> (stereo/echo layers dropped, pitch tracks packed). Compact: the default (as dry, plus a stereo delay from the dropped echo taps and a small reverb on the layered tracks).</p>
+<p>Reference: openmpt123 playing the rebuilt XM. Layered: <code>synth-convert xm --keep-layers --split-pitches --exact-chain</code> (the parity layout). Dry: <code>--dry</code> (stereo/echo layers dropped, pitch tracks packed). Compact: the default (as dry, plus a stereo delay from the dropped echo taps and a small reverb on the layered tracks).</p>
 ${songs
   .map((s) => {
     const r = (m: string) => rows.find((x) => x.song === s && x.mode === m)!;
@@ -110,7 +110,7 @@ function main() {
   const L = [
     "# Mini-cauldron: compact vs layered conversion (change compact-cauldron-xm-import)",
     "",
-    `Generated ${new Date().toISOString().slice(0, 10)} by \`bun tools/unisynth-parity/cauldron-compact.ts\`. Layered: \`synth-convert xm --keep-layers --split-pitches\` (the parity layout); dry: \`--dry\`; compact: the default (dry plus the stereo delay and reverb). Both rendered by \`unisynth\` (\`--profile ${PROFILE}\`) and judged against the \`openmpt123\` reference with the parity metrics (loudness, octave bands, onset alignment). Audio and the listening page stay in \`research/tbl-mini-cauldron/out/compact/\`.`,
+    `Generated ${new Date().toISOString().slice(0, 10)} by \`bun tools/unisynth-parity/cauldron-compact.ts\`. Layered: \`synth-convert xm --keep-layers --split-pitches --exact-chain\` (the parity layout); dry: \`--dry\`; compact: the default (dry plus the stereo delay and reverb). Both rendered by \`unisynth\` (\`--profile ${PROFILE}\`) and judged against the \`openmpt123\` reference with the parity metrics (loudness, octave bands, onset alignment). Audio and the listening page stay in \`research/tbl-mini-cauldron/out/compact/\`.`,
     "",
     "| song | mode | tracks | layers dropped | song bytes | xz -9e bytes | render s | loudness Δ dB | worst band Δ dB | alignment corr |",
     "|---|---|---|---:|---:|---:|---:|---:|---:|---:|",

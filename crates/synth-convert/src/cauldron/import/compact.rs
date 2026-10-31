@@ -280,6 +280,88 @@ impl Ambience {
     }
 }
 
+/// The band-limiting low-pass cut from which the compact layout leaves it out: the band limit is inaudible there.
+pub const OPEN_HZ: f64 = 16_000.0;
+
+/// How far (full scale) a clip's input may pass its threshold and still count as idle: −80 dB, the float rounding
+/// of a chain's gains.
+pub const CLIP_SLACK: f64 = 1e-4;
+
+/// Slims a chain's band-limiting low-pass (compact): one stage of the tempo delay's SVF high cut instead of
+/// `LP_STAGES`, and none at all when its cut `hz` is at least `OPEN_HZ` and the track does not slide (a slide's cut
+/// follows it down). Each stage removed takes its frame of latency with it.
+pub fn slim_lowpass(chain: &mut crate::cauldron::Chain, hz: f64, slides: bool) {
+    let Some((k, _)) = chain.lowpass else { return };
+    let keep = if hz >= OPEN_HZ && !slides { 0 } else { chain.lp_stages.min(1) };
+    let drop = chain.lp_stages - keep;
+    chain.devices.drain(k + keep..k + chain.lp_stages);
+    chain.latency -= drop as u32;
+    chain.lp_stages = keep;
+    if keep == 0 {
+        chain.lowpass = None;
+    }
+}
+
+/// The chain's clips (shaper clippers) as (track-local device index, threshold): device `i` of the chain is track
+/// device `1 + i`.
+pub fn clips(chain: &crate::cauldron::Chain) -> Vec<(usize, f64)> {
+    use unisynth::{fx::mode_value, kind::DISTORTION};
+    chain.devices.iter().enumerate().filter(|(_, (k, v))| *k == DISTORTION && v[0] == mode_value(DISTORTION, 0)).map(|(i, (_, v))| (1 + i, v[2] as f64)).collect()
+}
+
+/// The peak (full scale, both channels) of a track's devices `..upto` playing its lane and automations alone at track
+/// volume 1, over `length` s: what the device at `upto` receives.
+pub fn input_peak(devs: &[crate::model::Dev], autos: &[crate::model::Auto], lane: &[crate::model::Ev], upto: usize, tempo: i32, rate: i32, length: f64) -> f64 {
+    use crate::model::{SongM, Trk};
+    use synth_core::mix::{Env, Player, Song, DEFAULT_SUB};
+    use synth_core::pool::Pool;
+    use unisynth::{device::UDevice, rng::Xorshift};
+    let autos = autos.iter().filter(|a| a.device < upto).cloned().collect();
+    let solo = SongM {
+        tempo,
+        rate,
+        length,
+        devices: devs[..upto].to_vec(),
+        lanes: vec![lane.to_vec()],
+        tracks: vec![Trk { volume: 1.0, receives: vec![], devices: (0..upto).collect(), lane: 0, autos }],
+    };
+    let blob = solo.write();
+    let song = Song::parse(&blob).expect("a converted track parses");
+    let env = Env::for_song(&song, None);
+    let need = Player::<UDevice, Xorshift>::required_pool(&song, &env, DEFAULT_SUB).expect("a converted track loads");
+    let mut mem = vec![0u8; need];
+    let mut pool = Pool::new(&mut mem);
+    let mut p = Player::<UDevice, Xorshift>::new(song, &env, &mut pool, Xorshift::new(1), DEFAULT_SUB).expect("a converted track loads");
+    let mut left = p.length_frames() as usize;
+    let mut buf = vec![0f32; 2 * 8192];
+    let mut peak = 0f32;
+    while left > 0 {
+        let n = left.min(8192);
+        p.render_f32(&mut buf[..2 * n]);
+        peak = buf[..2 * n].iter().fold(peak, |m, x| m.max(x.abs()));
+        left -= n;
+    }
+    peak as f64
+}
+
+/// The track devices among `clips` (index, threshold) whose input never passes their threshold (by more than
+/// `CLIP_SLACK`): each is a no-op there (the clipper is linear below its threshold), so leaving it out changes
+/// nothing. Checked in chain order, one solo render of the devices before each.
+pub fn idle_clips(devs: &[crate::model::Dev], autos: &[crate::model::Auto], lane: &[crate::model::Ev], clips: &[(usize, f64)], tempo: i32, rate: i32, length: f64) -> Vec<usize> {
+    clips.iter().filter(|&&(i, at)| input_peak(devs, autos, lane, i, tempo, rate, length) <= at + CLIP_SLACK).map(|&(i, _)| i).collect()
+}
+
+/// Removes track device `at` (index 0 the instrument) and its automations; later devices' automations shift down.
+pub fn remove_device(devs: &mut Vec<crate::model::Dev>, autos: &mut Vec<crate::model::Auto>, at: usize) {
+    devs.remove(at);
+    autos.retain(|a| a.device != at);
+    for a in autos.iter_mut() {
+        if a.device > at {
+            a.device -= 1;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -483,5 +565,95 @@ mod tests {
         // dry (1 − ⅓)·(1 − 0.12) made up by the track volume
         assert!((vol - 1.0 / ((2.0 / 3.0) * 0.88)).abs() < 1e-6);
         assert_eq!(Ambience::default().devices(125), (vec![], 1.0));
+    }
+
+    fn jizz() -> crate::cauldron::Call {
+        crate::cauldron::load(&crate::cauldron::tests::data("patches_jizz.json")).unwrap().calls.remove(0)
+    }
+
+    #[test]
+    fn the_compact_low_pass_is_one_stage_and_none_where_inaudible() {
+        // Jizz record 0 (decimated by 2): its stored Nyquist 8.86 kHz natively, 17.7 kHz an octave up
+        let j = jizz();
+        let native = crate::cauldron::effects(&j, 0, 1.0, RATE, 125);
+        let (k, n0, lat0) = (native.lowpass.unwrap().0, native.devices.len(), native.latency);
+        assert_eq!(native.lp_stages, crate::cauldron::LP_STAGES);
+        let mut c = native.clone();
+        slim_lowpass(&mut c, 8860.0, false);
+        assert_eq!((c.lowpass.map(|l| l.0), c.lp_stages, c.devices.len(), c.latency), (Some(k), 1, n0 - 1, lat0 - 1));
+        assert_eq!(c.devices[..k + 1], native.devices[..k + 1]);
+        // an octave up: none; a slide keeps one stage (its cut follows the slide down)
+        let up = crate::cauldron::effects(&j, 0, 2.0, RATE, 125);
+        let mut c = up.clone();
+        slim_lowpass(&mut c, 17_720.0, false);
+        assert_eq!((c.lowpass, c.lp_stages, c.devices.len(), c.latency), (None, 0, up.devices.len() - 2, up.latency - 2));
+        let mut c = up.clone();
+        slim_lowpass(&mut c, 17_720.0, true);
+        assert_eq!(c.lp_stages, 1);
+    }
+
+    #[test]
+    fn removing_a_device_shifts_the_later_automations() {
+        use crate::model::{Auto, Dev};
+        let d = |k: u8| Dev { kind: k, chunk: vec![] };
+        let a = |device: usize| Auto { device, param: 1, points: vec![] };
+        let (mut devs, mut autos) = (vec![d(64), d(65), d(68), d(67)], vec![a(0), a(1), a(2), a(3)]);
+        remove_device(&mut devs, &mut autos, 1);
+        assert_eq!(devs.iter().map(|d| d.kind).collect::<Vec<_>>(), [64, 68, 67]);
+        assert_eq!(autos.iter().map(|a| a.device).collect::<Vec<_>>(), [0, 1, 2]);
+    }
+
+    /// Renders a phrase song (one track) to f32 frames.
+    fn render(song: &crate::model::SongM) -> Vec<f32> {
+        use synth_core::mix::{Env, Player, Song, DEFAULT_SUB};
+        use synth_core::pool::Pool;
+        use unisynth::{device::UDevice, rng::Xorshift};
+        let blob = song.write();
+        let s = Song::parse(&blob).unwrap();
+        let env = Env::for_song(&s, None);
+        let mut mem = vec![0u8; Player::<UDevice, Xorshift>::required_pool(&s, &env, DEFAULT_SUB).unwrap()];
+        let mut pool = Pool::new(&mut mem);
+        let mut p = Player::<UDevice, Xorshift>::new(s, &env, &mut pool, Xorshift::new(1), DEFAULT_SUB).unwrap();
+        let mut out = vec![0f32; 2 * p.length_frames() as usize];
+        p.render_f32(&mut out);
+        out
+    }
+
+    #[test]
+    fn an_idle_clip_leaves_the_sound_unchanged_and_a_working_one_is_kept() {
+        // every phrase of Stash song0 (the hot patches: comb and echo reach twice full scale) and of Jizz: a clip
+        // found idle changes nothing when left out; at least one somewhere is not idle, and leaving it out changes the
+        // sound
+        let stash = crate::cauldron::load(&crate::cauldron::tests::data("patches_stash.json")).unwrap();
+        let calls = [jizz(), stash.calls.into_iter().find(|c| c.name == "song0").unwrap()];
+        let (mut idle, mut working) = (0, 0);
+        for call in &calls {
+            for record in 0..call.records.len() {
+                let (song, _) = crate::cauldron::phrase_song(call, record, 0, RATE as i32);
+                let chain = crate::cauldron::effects(call, record, 1.0, RATE, 125);
+                let t = &song.tracks[0];
+                let devs: Vec<_> = t.devices.iter().map(|&i| song.devices[i].clone()).collect();
+                let all = clips(&chain);
+                let quiet = idle_clips(&devs, &t.autos, &song.lanes[0], &all, song.tempo, song.rate, song.length);
+                let before = render(&song);
+                for &(i, _) in &all {
+                    let (mut d, mut a) = (devs.clone(), t.autos.clone());
+                    remove_device(&mut d, &mut a, i);
+                    let mut s = song.clone();
+                    s.devices = d;
+                    s.tracks[0].devices = (0..s.devices.len()).collect();
+                    s.tracks[0].autos = a;
+                    let diff = render(&s).iter().zip(&before).fold(0f32, |m, (x, y)| m.max((x - y).abs()));
+                    if quiet.contains(&i) {
+                        idle += 1;
+                        assert!(diff < 1e-3, "{} record {record}: idle clip {i} changed the sound by {diff}", call.name);
+                    } else {
+                        working += 1;
+                        assert!(diff > 1e-3, "{} record {record}: working clip {i} changed nothing", call.name);
+                    }
+                }
+            }
+        }
+        assert!(idle > 0 && working > 0, "idle {idle}, working {working}");
     }
 }

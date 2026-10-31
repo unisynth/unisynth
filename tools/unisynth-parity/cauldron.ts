@@ -130,8 +130,8 @@ const ref44bw = (name: string) => join(OUT, "listen/ref44bw", `${name}.wav`);
  * resampler rolls off near its 17.7 kHz Nyquist as ours does). */
 export const phraseRef = (p: { name: string; decim: number }) => (p.decim > 1 ? ref44bw(p.name) : ref44(p.name));
 
-/** The song conversion the parity judges: the XM's layers and pitch tracks kept (change compact-cauldron-xm-import). */
-export const PARITY_OPTIONS = ["--keep-layers", "--split-pitches"];
+/** The song conversion the parity judges: the XM's layers, pitch tracks and the whole effect chain kept (change compact-cauldron-xm-import, slim-cauldron-chain). */
+export const PARITY_OPTIONS = ["--keep-layers", "--split-pitches", "--exact-chain"];
 
 /** Convert (`args` after the subcommand, `post` after the output) → render → read; `self` reads the reference (`ref`) instead. */
 function ours(sub: string[], name: string, work: string, self: boolean, ref = ref44(name), post: string[] = []): { audio?: Audio; err?: string; stderr?: string } {

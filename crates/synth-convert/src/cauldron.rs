@@ -324,6 +324,8 @@ pub struct Chain {
     /// the stored Nyquist at ratio 1 (Hz). Their high cut (parameter 6, [`lowpass_p`]) follows a slide: the converter
     /// automates it.
     pub lowpass: Option<(usize, f64)>,
+    /// The low-pass's stages from its first device (`LP_STAGES`; the compact layout keeps one).
+    pub lp_stages: usize,
 }
 
 /// The band-limiting low-pass's stages: SVF high cuts of 12 dB/octave in series. One let a wrap's jumps through as
@@ -362,7 +364,7 @@ pub fn effects(call: &Call, record: usize, ratio: f64, rate: f64, tempo: i32) ->
     use unisynth::kind::{DELAY, DISTORTION, FLANGER};
     let r = &call.records[record];
     let kappa = R * ratio / rate; // phrase frames per output frame
-    let mut out = Chain { devices: vec![], latency: 0, level: 1.0, restart: None, echo_clamped: None, lowpass: None };
+    let mut out = Chain { devices: vec![], latency: 0, level: 1.0, restart: None, echo_clamped: None, lowpass: None, lp_stages: 0 };
     // shaper clipper at ±`at`: drive 0.2 (unity), threshold `at`, no foldover, fully wet, clipper, no oversampling.
     // The original clamps after its 16-bit store, its comb and its echo: the comb difference and the echo sum reach
     // up to twice full scale on the hot Stash patches.
@@ -419,6 +421,7 @@ pub fn effects(call: &Call, record: usize, ratio: f64, rate: f64, tempo: i32) ->
             out.devices.push(lowpass_device(hz));
         }
         out.latency += LP_STAGES as u32;
+        out.lp_stages = LP_STAGES;
     }
     out
 }
@@ -441,6 +444,7 @@ pub fn slide_lowpass(chain: &mut Chain, call: &Call, record: usize, ratio: f64) 
             chain.devices.push(lowpass_device(nyq * ratio));
         }
         chain.latency += LP_STAGES as u32;
+        chain.lp_stages = LP_STAGES;
     }
 }
 
