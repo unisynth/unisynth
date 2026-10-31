@@ -1097,7 +1097,7 @@ fn a_few_millisecond_envelope_keeps_its_energy() {
             v
         }, 0);
         let mut e = crate::env::Env::new();
-        e.trigger();
+        e.trigger(false);
         let mut want = 0.0f64;
         for _ in 0..2000 {
             e.advance(1.0 / rate as f32, &ep, 1.0);

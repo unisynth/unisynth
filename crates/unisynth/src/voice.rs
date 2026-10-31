@@ -220,7 +220,7 @@ impl Ctl {
         for (i, e) in self.env.iter_mut().enumerate() {
             // V2 re-reads its envelope every frame (the matrix may move it); the other modes keep the note-on values
             let live;
-            let ep = if cfg!(feature = "us-env-frame") && fx.envp[i].v2 {
+            let ep = if fx.envp[i].live() {
                 live = EnvP::read(sh.p, i);
                 &live
             } else {
@@ -1152,15 +1152,11 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
         }
         let mut env = [Env::new(); pm::ENV_SLOTS];
         for (i, e) in env.iter_mut().enumerate() {
-            let v2 = cfg!(feature = "us-env-frame") && self.fx.envp[i].v2;
-            if v2 && !full {
-                *e = self.end.env[i]; // V2 restarts the attack from where the envelope is
-                e.trigger_v2();
-            } else if v2 {
-                e.trigger_v2();
-            } else {
-                e.trigger();
+            let keep = self.fx.envp[i].keeps_level() && !full;
+            if keep {
+                *e = self.end.env[i]; // the frame law restarts the attack from where the envelope is
             }
+            e.trigger(keep);
         }
         let prev_lfo = self.end.lfo;
         let lfo = core::array::from_fn(|k| {

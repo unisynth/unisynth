@@ -23,8 +23,8 @@ combination scenarios are engine tests until 6.1 and patch tests there.
 
 ## 4. Envelopes
 
-- [ ] 4.1 Merge the envelope modes in `env.rs` into one stage machine (design D1): linear attack; decay and release curve (quadratic, power, exponential); sustain slope; amplify; time law (`seconds`, `rate`, `frame`); `coarse_env` as a quirk candidate. Verify: the envelope scenario tests pass; "Sustain slope on a seconds-law envelope" and "Earlier modes as settings" (within one control block and 0.5 dB above −60 dB of the old code for each mode)
-- [ ] 4.2 Update `needs`, features, converters, song tables and the envelope section of `docs/synth/unisynth.md`. Verify: D7 gates 1–7, results recorded in design.md
+- [x] 4.1 Merge the envelope modes in `env.rs` into one stage machine (design D1): linear attack; decay and release curve (quadratic, power, exponential); sustain slope; amplify; time law (`seconds`, `rate`, `frame`); `coarse_env` as a quirk candidate. Verify: the envelope scenario tests pass; "Sustain slope on a seconds-law envelope" and "Earlier modes as settings" (within one control block and 0.5 dB above −60 dB of the old code for each mode)
+- [x] 4.2 Update `needs`, features, converters, song tables and the envelope section of `docs/synth/unisynth.md`. Verify: D7 gates 1–7, results recorded in design.md
 
 ## 5. Oscillator combine and voice settings
 

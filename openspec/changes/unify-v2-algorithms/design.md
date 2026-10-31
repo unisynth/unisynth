@@ -316,6 +316,33 @@ each stage with HEAD.
   +3.3 %, tf4testsong +2.0 %. V2 songs, × real time against stage 2: median +1.2 % (single runs, −8.4 % to +6.7 %).
 - *Design correction:* the frame law's pulse stays its own shape, so the D4 shape choice has 8 values.
 
+**Stage 4 (envelopes, tasks 4.1–4.2).**
+- *Code:* one stage machine (`env.rs`).
+  - `EnvP` has `law` (seconds / rate / frame), `curve` (quadratic / power / exponential, base 2), `curve_slope`,
+    `sustain_slope`, `amp`, `coarse` (the early frame laws: quirk candidate `coarse_env`) and `instant`.
+  - The law gives each stage a time constant, computed only in the stage that runs. The attack is linear from 0, or
+    from the current level on the frame law; the curve shapes decay and release.
+  - The sustain slope and the amplify apply to every law: the seconds law can now have a sloped sustain.
+  - Each curve keeps its end rule. `advance_ws/_tf/_v2` and `trigger_v2` are removed; copies stay in the tests.
+  - `check_v2` → `check_frame`.
+- *Exactness:* the seconds law is exact, and only `env_tunefish` changes among the goldens (rounding).
+- *Size work:* first version +400 to +616 B xz and squishy steps. Fixes:
+  - each curve's branch const-gated on its law's feature (a build with one law drops the others' code; `powf` had
+    stayed in seconds-only builds);
+  - a base-2 exponential (no `expf`/`ln`);
+  - lazy per-stage times;
+  - `Env::advance` out of line.
+- *Gate 1:* workspace tests and feature builds pass.
+- *Gate 2:* parity 49/49, V2 18/18.
+- *Gate 3 (drift against stage 3):* one song moves: fr019, worst band −0.02 dB at 8 kHz. Nothing to listen to.
+- *Gate 4 (goldens):* `env_tunefish` only, peak unchanged.
+- *Gate 5:* bake check 7/7.
+- *Gate 6 (size against stage 3):* squishy is unchanged on all 13 songs. The reference songs are −68 to 0 B xz; the V2
+  songs (frame law only) +44 to +208 B xz.
+- *Gate 7 (speed, interleaved, median of 5, against stage 3):* no-remorse +0.3 %, tf4testsong +1.4 %, eladamri
+  −0.3 %, kkrieger +0.6 %, brullwurfel +1.7 %. Cumulative against HEAD: about +3.6 % on the rate-law songs (stage 3
+  +3.3 %). Single interleaved runs against HEAD scatter ±6 % on this machine.
+
 ## Risks / Trade-offs
 
 - [Drift accumulates across stages until a song leaves tolerance] → D7.3 records drift per stage. A song near the

@@ -272,16 +272,35 @@ flowchart LR
 
 ### Envelopes
 
-Each of the four envelopes snapshots its parameters at note-on and advances by elapsed seconds.
+One stage machine for every law (`env.rs`, change unify-v2-algorithms 4.1), advanced by elapsed seconds.
+- **Time law:** turns attack, decay and release into a time constant, computed only for the stage that runs.
 
-| Mode | Attack | Decay | Release |
-|---|---|---|---|
-| WaveSabre | linear, `p²·5000 + 1` ms | `(1 − t/T)²` towards the sustain level | `(1 − t/T)²` from the value at note-off |
-| Tunefish | rate `−log₁₀(0.94a³)·STEP` | `¼·log₁₀(0.94(dM)³)·STEP·((0.01 + v − S)/(1 − S))^slope` | `¼·log₁₀(0.94r³)·STEP·v^slope`, ends below 1e-5 |
+  | Law | Attack (full rise) | Decay / release |
+  |---|---|---|
+  | seconds | `p²·5000 + 1` ms (`law::env_ms`) | the same law: the stage's length |
+  | rate | rate `−log₁₀(0.94a³)·STEP` per block | rate `¼·log₁₀(0.94(dM)³)·STEP`, `¼·log₁₀(0.94r³)·STEP` |
+  | frame | `2^(7 − 0.09375·128a)` per frame of 128 | factor `1 − calcfreq2(1 − x)` per frame → seconds per halving |
 
-Tunefish rates are the legacy per-512-block steps expressed per second (`STEP = 0.256`, 86.13 blocks/s) and integrated
-with one Euler step per segment. Two deliberate deviations: a decay that would rise (`d·M` above ≈ 1.02) holds at the
-peak instead of growing past 1, and the sustain level is fixed at note-on (no chase).
+- **Attack:** linear in level for every law, from 0 (from the current level on the frame law).
+- **Curve:** quadratic (`(1 − t/T)²` towards the sustain level, from the value at note-off), power
+  (`((0.01 + v − S)/(1 − S))^slope` and `v^slope` on the rate, one Euler step per control segment, the sustain
+  level at most 0.99), or exponential (halving per time constant towards 0, stopping at the sustain level).
+- **Sustain slope:** multiplies the held level by `2^(0.0019375·(128·slope − 64))` per frame of 344.5 per second
+  (falls below ½, rises above, capped at 1).
+- **Amplify:** scales the output.
+- **End:** at the end of a quadratic release, below 1e-5 in a power release, or below `2⁻¹³/128` in any
+  exponential stage.
+
+Rate-law rates are the legacy per-512-block steps per second (`STEP = 0.256`, 86.13 blocks/s). Two deliberate
+deviations: a power decay that would rise (`d·M` above ≈ 1.02) holds at the peak instead of growing past 1, and the
+sustain level is fixed at note-on (no chase).
+
+Until the format switch (task 6.1) `envN.law` picks law and curve together: seconds + quadratic, rate + power, frame +
+exponential.
+- `envN.curve_slope` is the power exponent on the rate law and the sustain slope on the frame law.
+- The frame law re-reads its fields every control segment (the matrix may move them) and keeps the level at note-on.
+  The other laws take their fields at note-on.
+- Each curve's code is built with its law's feature.
 
 ### LFOs
 

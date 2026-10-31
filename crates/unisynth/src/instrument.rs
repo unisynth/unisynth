@@ -53,7 +53,7 @@ pub(crate) fn check_modules(values: &[f32; COUNT]) -> Result<(), LoadError> {
             .any(|s| crate::modmx::source::decode(values[pm::modslot(s, pm::m::SOURCE)]) == crate::modmx::source::ENV1 + i);
         if i == 0 || read {
             let mode = pm::env_mode::decode(values[pm::env(i, pm::e::MODE)]);
-            crate::env::check_v2(mode == pm::env_mode::V2)?;
+            crate::env::check_frame(mode == pm::env_mode::V2)?;
             if mode != pm::env_mode::V2 {
                 crate::env::check(mode == pm::env_mode::RATE)?;
             }
