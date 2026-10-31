@@ -453,6 +453,16 @@ fn effect_tables_match_the_engine_parameter_counts() {
 }
 
 #[test]
+fn every_oscillator_kind_has_an_option_name() {
+    // the expanded osc type choice names every kind the engine plays (the cauldron oscillator too)
+    let t = tables::table(64, 0).unwrap();
+    let o = &t.param("osc1.type").unwrap().options;
+    for name in ["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive", "Cauldron"] {
+        assert!(o.iter().any(|x| x == name), "{name} missing from {o:?}");
+    }
+}
+
+#[test]
 fn every_engine_effect_mode_has_a_table() {
     // a mode the engine plays (the cauldron's wrap and comb too) must load into a song
     for kind in unisynth::kind::DISTORTION..=unisynth::kind::FORMANT {

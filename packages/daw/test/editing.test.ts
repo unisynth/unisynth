@@ -391,10 +391,10 @@ test("envelope curves redraw from their knobs; sampler settings are named contro
   // Tunefish mode: the time knobs read the Tunefish times, not the WaveSabre law
   const decay = () => page.locator('.knob[data-param="env1.decay"]').getAttribute("aria-valuetext");
   const ws = await decay();
-  await page.locator('select[aria-label$="env1.law"]').selectOption("1");
+  await page.locator('select[aria-label$="env1.law"]').selectOption({ label: "Rate" });
   await page.waitForTimeout(100);
   expect(await decay()).not.toBe(ws);
-  await page.locator('select[aria-label$="env1.law"]').selectOption("0");
+  await page.locator('select[aria-label$="env1.law"]').selectOption({ label: "Seconds" });
   // a sampler slot from an imported sample: loop mode / region / interp / reverse are controls, not bare knobs
   const n = 22050, wav = Buffer.alloc(44 + n * 2);
   wav.write("RIFF", 0); wav.writeUInt32LE(36 + n * 2, 4); wav.write("WAVEfmt ", 8); wav.writeUInt32LE(16, 16);

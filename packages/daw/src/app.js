@@ -107,8 +107,8 @@ function fmtVal(d, p, v) {
   if (law === "Gain") return x <= 0 ? "−∞ dB" : (20 * Math.log10(x)).toFixed(1) + " dB";
   if (law === "Time") return x.toFixed(x < 1 ? 3 : 2) + " s";
   if (law === "EnvTime") {
-    const m = /^env(\d)\.(attack|decay|release)$/.exec(p.name), tf = m && d.kind === 64 && choice(vget(d, ip(`env${m[1]}.mode`)), 2) === 1;
-    const s = tf ? tfEnvSeconds(m[2], v, vget(d, ip(`env${m[1]}.sustain`)), vget(d, ip(`env${m[1]}.slope`))) : envMs(v) / 1000;
+    const m = /^env(\d)\.(attack|decay|release)$/.exec(p.name), tf = m && d.kind === 64 && envRate(vget(d, ip(`env${m[1]}.law`)));
+    const s = tf ? tfEnvSeconds(m[2], v, vget(d, ip(`env${m[1]}.sustain`)), vget(d, ip(`env${m[1]}.curve_slope`))) : envMs(v) / 1000;
     return !isFinite(s) ? (m[2] === "decay" ? "holds" : "∞") : s >= 1 ? s.toFixed(2) + " s" : Math.round(s * 1000) + " ms";
   }
   if (law === "Transpose" || law === "Coarse") return (x > 0 ? "+" : "") + Math.round(x) + " st";
@@ -398,6 +398,8 @@ const status = document.createElement("div"); status.className = "rack-status"; 
 function INST() { return TABLES.find(t => t.kind === 64); }
 function ip(name) { return INST().params.find(p => p.name === name); } // hoisted: fmtVal may run before this line
 function vget(d, p) { return d.values[p.name] ?? p.default; }
+/** An envelope `law` value plays the Tunefish rate law (its option, by stored position: the law gained V2's kind). */
+function envRate(v) { const o = ip("env1.law").options; return o[choice(v, o.length)] === "Rate"; }
 const trackIndex = t => t.master ? tracks.length : tracks.indexOf(t);
 const engineDev = (t, d) => t.devices.filter(x => !x.bypass).indexOf(d);
 function liveParam(t, d, p, v) {
@@ -441,16 +443,21 @@ function pgroup(t, d, title, ps, opts = {}) {
   return g;
 }
 const OSC_SHAPES = { 1: ["waveform"], 2: ["waveform", "pulse width"], 3: ["bandwidth", "harmonics", "damp", "scale", "mod", "drive", "layers", "layer detune", "layer spread"],
-  4: ["start", null, null, "loop start", "loop length"] };  // s1 loop mode, s2 boundary, s5 reverse, s6 interp, s7 source: samplerPre; index: osc<i>.sample
+  4: ["start", null, null, "loop start", "loop length"], 5: ["mode", "colour", "ring"],
+  6: ["wave", "voices", "version", "clock", "retrigger", "filter base", "filter amount", "filter decay", "filter damp"] };  // s1 loop mode, s2 boundary, s5 reverse, s6 interp, s7 source: samplerPre; index: osc<i>.sample
 // Sampler shape knobs shown for the current settings: the loop start/length only for a custom loop that plays.
 const smpShapes = (d, i) => [0, ...(choice(vget(d, ip(`osc${i}.s1`)), 3) && choice(vget(d, ip(`osc${i}.s2`)), 2) ? [3, 4] : [])];
 const OSC_COMMON = ["tracking", "coarse", "fine", "octave", "ratio", "ratio_fine", "fixed_hz", "gain", "mix", "pan", "pm_out", "feedback"];
 const SLOTS = { osc: 3, filt: 4, env: 4, lfo: 2, mod: 12 };
 const slotKeys = (g, i) => INST().params.filter(p => p.name.startsWith(`${g}${i}.`)).map(p => p.name);
-function oscType(d, i) { return choice(vget(d, ip(`osc${i}.type`)), 5); }
+/** A choice parameter's option name: expanded choices (`Law::Kinds`) store later kinds between the old ones. */
+function optName(d, name) { const p = ip(name), o = p.options || []; return o[choice(vget(d, p), o.length)]; }
+// oscillator kind ids (unisynth `osc_type`): 5 = Naive (V2), 6 = Cauldron; a literal, since oscType is hoisted (fmtVal
+// may run before this line)
+function oscType(d, i) { return Math.max(0, ["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive", "Cauldron"].indexOf(optName(d, `osc${i}.type`))); }
 function slotUsed(d, g, i) {
   if (g === "osc") return oscType(d, i) !== 0;
-  if (g === "filt") return choice(vget(d, ip(`filt${i}.type`)), 9) !== 0;
+  if (g === "filt") return optName(d, `filt${i}.type`) !== "Off";
   if (g === "mod") return modSrcName(d, i) !== "None";
   if (g === "env" && i === 1) return true;
   return slotKeys(g, i).some(n => n in d.values && d.values[n] !== ip(n).default) || (g === "env" || g === "lfo") && routesOf(d, g, i).length > 0;
@@ -636,8 +643,8 @@ function envView(d, i) {
   const W = 196, H = 54, NS = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(NS, "svg"); svg.setAttribute("class", "env"); svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("aria-hidden", "true");
   svg._draw = () => {
-    const v = n => curVal(d, `env${i}.${n}`), tf = choice(v("mode"), 2) === 1;
-    const { pts, off } = envCurve(tf, v("attack"), v("decay"), v("sustain"), v("release"), v("slope"));
+    const v = n => curVal(d, `env${i}.${n}`), tf = envRate(v("law"));
+    const { pts, off } = envCurve(tf, v("attack"), v("decay"), v("sustain"), v("release"), v("curve_slope"));
     const tot = Math.max(pts[pts.length - 1][0], 1e-3), x = t1 => 4 + (t1 / tot) * (W - 8), y = q => H - 10 - q * (H - 14);
     svg._geo = { x, y, off, tot };  // the live dots use the curve's own time axis
     const step = Math.max(1, Math.ceil(pts.length / 200)), line = pts.filter((_, k) => k % step === 0 || k === pts.length - 1).map(([t1, q]) => x(t1).toFixed(1) + "," + y(q).toFixed(1)).join(" ");
@@ -827,7 +834,7 @@ function instrumentBox(t, d) {
   body.append(col(slotBlock("filt", "Filters · serial", usedCount(d, "filt"),
     filterItems(t, d, i => slotCard(t, d, "filt", i, pgroup(t, d, `Filter ${i}`, P([`filt${i}.type`, `filt${i}.cutoff`, `filt${i}.resonance`]), { cols: 2, pre: filtView(t, d, i) }))))));
   body.append(col(slotBlock("env", "Envelopes", usedCount(d, "env"), range(4).map(i =>
-    slotCard(t, d, "env", i, pgroup(t, d, `Env ${i}`, P([`env${i}.mode`, `env${i}.attack`, `env${i}.decay`, `env${i}.sustain`, `env${i}.release`, `env${i}.slope`]), { cols: 3, pre: envView(d, i) }))))));
+    slotCard(t, d, "env", i, pgroup(t, d, `Env ${i}`, P([`env${i}.law`, `env${i}.attack`, `env${i}.decay`, `env${i}.sustain`, `env${i}.release`, `env${i}.curve_slope`]), { cols: 3, pre: envView(d, i) }))))));
   body.append(col(
     slotBlock("lfo", "LFOs", usedCount(d, "lfo"), range(2).map(i => slotCard(t, d, "lfo", i, pgroup(t, d, `LFO ${i}`, P([`lfo${i}.shape`, `lfo${i}.sync`, `lfo${i}.rate`, `lfo${i}.depth`]), { cols: 2, pre: lfoView(d, i) })))),
     slotBlock("mod", "Mod matrix", usedCount(d, "mod"), [modTable(t, d)]),
