@@ -8,6 +8,8 @@
 //   mute        click a strip's M button, mean ms
 //   undo        Ctrl+Z after a knob step, mean ms
 //   roll        show the Piano roll tab on the track with the most notes, ms
+//   open        navigation → first track header (boot: engine, song, UI), ms
+//   scroll      arrangement scrolled 40 px per frame for 2 s: frame intervals
 //   play-mix / play-dev  5 s playing: mean, p95, max frame interval (ms), frames > 20 ms
 import { chromium } from "playwright";
 import { startServer } from "../../cli/src/server.ts";
@@ -17,8 +19,10 @@ const s = await startServer({ port: 0, root: process.env.ROOT, build: false, daw
 const b = await chromium.launch({ channel: "chrome", args: ["--autoplay-policy=no-user-gesture-required"] });
 const p = await b.newPage({ viewport: { width: 1600, height: 1000 } });
 p.on("pageerror", (e) => console.log("pageerror", e.message));
+const t0 = performance.now();
 await p.goto(`${s.url}daw/?song=${process.env.SONG ?? "project/music/demo.song.json"}`);
 await p.waitForSelector(".thdr.track");
+const openMs = performance.now() - t0;
 await p.waitForTimeout(1000);
 
 const r = await p.evaluate(async () => {
@@ -31,9 +35,10 @@ const r = await p.evaluate(async () => {
   };
   const tab = (id: string) => document.getElementById(id)!.click();
   const key = (el: EventTarget, k: string, o: KeyboardEventInit = {}) => el.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, ...o }));
+  // intervals from performance.now() in the callback: the first rAF timestamp can predate a long synchronous task
   const frames = async () => {
     const iv: number[] = [];
-    await new Promise<void>((res) => { let last = performance.now(); const t0 = last; const f = (now: number) => { iv.push(now - last); last = now; if (now - t0 < 5000) requestAnimationFrame(f); else res(); }; requestAnimationFrame(f); });
+    await new Promise<void>((res) => { let last = performance.now(); const t0 = last; const f = () => { const now = performance.now(); iv.push(now - last); last = now; if (now - t0 < 5000) requestAnimationFrame(f); else res(); }; requestAnimationFrame(f); });
     iv.sort((a, b) => a - b);
     return { mean: mean(iv), p95: iv[Math.floor(iv.length * 0.95)], max: iv[iv.length - 1], over20: iv.filter((x) => x > 20).length };
   };
@@ -68,6 +73,15 @@ const r = await p.evaluate(async () => {
   tab("tab-dev");
   out.roll = await time(1, () => tab("tab-roll"));
 
+  // scroll: the arrangement scrolled 40 px per frame for 2 s (not playing)
+  const lw = document.getElementById("lanes-wrap")!;
+  out.scroll = await (async () => {
+    const iv: number[] = []; let last = performance.now(); const t0 = last;
+    await new Promise<void>((res) => { const f = () => { const now = performance.now(); iv.push(now - last); last = now; lw.scrollTop = (lw.scrollTop + 40) % Math.max(1, lw.scrollHeight - lw.clientHeight); lw.scrollLeft = (lw.scrollLeft + 40) % Math.max(1, lw.scrollWidth - lw.clientWidth); if (now - t0 < 2000) requestAnimationFrame(f); else res(); }; requestAnimationFrame(f); });
+    iv.sort((a, b) => a - b);
+    return { mean: mean(iv), p95: iv[Math.floor(iv.length * 0.95)], max: iv[iv.length - 1], over20: iv.filter((x) => x > 20).length };
+  })();
+  lw.scrollTop = lw.scrollLeft = 0;
   tab("tab-mix");
   key(document.body, " ", { code: "Space" });
   await new Promise((res) => setTimeout(res, 800));
@@ -79,6 +93,6 @@ const r = await p.evaluate(async () => {
 });
 const f2 = (x: number) => x.toFixed(2);
 const fr = (x: any) => `mean ${f2(x.mean)} p95 ${f2(x.p95)} max ${f2(x.max)} >20 ${x.over20}`;
-console.log(Object.entries(r).map(([k, v]) => `${k} ${typeof v === "number" ? f2(v) : fr(v)}`).join("  |  "));
+console.log(`open ${f2(openMs)}  |  ` + Object.entries(r).map(([k, v]) => `${k} ${typeof v === "number" ? f2(v) : fr(v)}`).join("  |  "));
 await b.close();
 await s.stop();

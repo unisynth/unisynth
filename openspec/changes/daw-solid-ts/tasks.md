@@ -73,11 +73,20 @@ before → `AGENTS.md` rows → land on `main`.
 
 ## 3. Transport and playback display (D3)
 
-- [ ] 3.1 Contract test `test/transport.test.ts` on the old code: play/stop/second stop, position and time text, loop
+- [x] 3.1 Contract test `test/transport.test.ts` on the old code: play/stop/second stop, position and time text, loop
   strip edit + toggle, follow hold/resume, tempo/signature edit, buffer select, load and drops readout, "edited since
   play".
-- [ ] 3.2 Extend the bench to `bench/ui.ts` (scenarios: select, knob, fader, mute, open-song, undo, scroll,
+  Done: 9 tests, stable over 4 runs. Found: the old bar refreshes the time readout only on the next position update
+  after a tempo change (contract reads times after a seek; the port derives the time from tempo); the demo's load
+  can round to 0 % and still reads > 0 after the first Stop (tails ring), so only the readout's form is checked.
+- [x] 3.2 Extend the bench to `bench/ui.ts` (scenarios: select, knob, fader, mute, open-song, undo, scroll,
   play-per-tab; 50-track song from `released/` or generated). Record the baseline in this file.
+  Done (`open` and `scroll` added; frame intervals now from `performance.now()` in the callback: the first rAF
+  timestamp predated the bench's synchronous work by ~10 s and faked a 10 s frame). Baseline before group 3:
+  trashpanda open 1 011, select-dev 33, knob 1.3, undo 444, select-mix 12.6, fader 0.4, mute 1.3, roll 34 ms;
+  scroll p95 17.7 (3 > 20 ms); play-mix p95 17.7 (7), play-dev p95 17.7 (7). tbl-stash-over2 open 8 217,
+  select-dev 53, knob 32, undo 6 358, select-mix 26, fader 11, mute 37, roll 6 ms; scroll p95 43.9 (20);
+  play-mix p95 21.0 (46); play-dev p95 19.6 (6).
 - [ ] 3.3 Port the transport bar and the playheads to `ui/transport/`. Playheads move by `transform` from the
   position signal. Verify: contract, all tests, bench; spec "Playback display budget" scenario on the mixer and the
   arrangement.
