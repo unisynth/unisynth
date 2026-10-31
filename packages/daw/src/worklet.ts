@@ -21,6 +21,8 @@ class Synth extends AudioWorkletProcessor {
   busy = 0;
   /** A track is watched: each status carries its instrument probe (change add-device-live-view D6). */
   watching = false;
+  /** The watched track (−1: none), stamped on each status so the main thread can drop a probe sent before a change. */
+  watchTrack = -1;
   /** Generation of the last play/stop seen (echoed in status). */
   gen = 0;
   constructor(opts: any) {
@@ -71,7 +73,7 @@ class Synth extends AudioWorkletProcessor {
       case "param": x.set_param(m.track, m.dev, m.param, m.value); break;
       // an engine built without the probe has no probe exports: watching then stays off
       case "openflt": x.run_open_filters?.(m.on ? 1 : 0); break;
-      case "watch": this.watching = m.track >= 0 && !!x.probe_watch; x.probe_watch?.(m.track); break;
+      case "watch": this.watching = m.track >= 0 && !!x.probe_watch; this.watchTrack = this.watching ? m.track : -1; x.probe_watch?.(m.track); break;
     }
   }
   /** An engine panic traps the module (its state is no longer trustworthy): report it once and go silent; the page
@@ -109,7 +111,7 @@ class Synth extends AudioWorkletProcessor {
       const peaks = new Float32Array(x.memory.buffer, x.peaks_ptr(), x.peaks_len()).slice();
       const pn = this.watching ? x.probe_len() : 0;
       const probe = pn ? new Float32Array(x.memory.buffer, x.probe_ptr(), pn).slice() : null;
-      this.port.postMessage({ t: "status", position: x.position(), playing: !!x.is_playing(), peaks, probe, load: this.busy / this.since, worst: this.worst, gen: this.gen },
+      this.port.postMessage({ t: "status", position: x.position(), playing: !!x.is_playing(), peaks, probe, watch: this.watchTrack, load: this.busy / this.since, worst: this.worst, gen: this.gen },
         probe ? [probe.buffer] : []);
       this.since = 0;
       this.worst = 0;

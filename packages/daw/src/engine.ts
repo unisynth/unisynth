@@ -7,7 +7,7 @@ import { bounceThreaded, mtModule, mtWorkers, type MtOptions } from "./bounce-mt
 type X = Record<string, any> & { memory: WebAssembly.Memory };
 export type Issue = { path: string; message: string };
 /** `probe`: the watched track's instrument (layout in crates/synth-wasm `probe_len`), null when nothing is watched. */
-export type Status = { position: number; playing: boolean; peaks: Float32Array; probe?: Float32Array | null; load: number; worst: number; gen?: number };
+export type Status = { position: number; playing: boolean; peaks: Float32Array; probe?: Float32Array | null; watch?: number; load: number; worst: number; gen?: number };
 export type Table = { kind: number; mode: number; label: string; params: Param[] };
 export type Param = { index: number; name: string; group: string; default: number; law: string; unit: string; min: number; max: number; options: string[]; structural: boolean; raw: boolean };
 
@@ -123,6 +123,8 @@ export class Engine {
       if (m.t === "error") died(m.message);
       else if (this.dead) return; // messages still in flight from an engine that has stopped
       else if (m.t === "status") {
+        // a status in flight from before the latest watch() carries another track's probe (or one after unwatching)
+        if (m.watch !== this.watched) m.probe = null;
         this.status = m;
         this.onStatus?.(m);
       } else if (m.id && this.replies.has(m.id)) {
@@ -208,6 +210,7 @@ export class Engine {
   watch(track: number) {
     if (track === this.watched) return;
     this.watched = track;
+    this.status = { ...this.status, probe: null }; // the last probe was another track's
     this.post({ t: "watch", track });
   }
   setBank(bytes: Uint8Array) {
