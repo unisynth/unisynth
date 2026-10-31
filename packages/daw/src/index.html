@@ -9,45 +9,7 @@
 
 </head>
 <body>
-<header aria-label="Transport">
-  <div class="group">
-    <button id="play" aria-label="Play (Space)" title="Play (Space)">▶</button>
-    <button id="stop" aria-label="Stop" title="Stop; press again to return to the start">■</button>
-    <button id="rec" aria-pressed="false" aria-label="Record automation" title="Record automation (Shift+R): while playing, a knob you turn or hold writes its automation lane (the lane is created if needed)">●</button>
-    <button id="loop-btn" aria-pressed="false" aria-label="Loop" title="Loop (L); Ctrl+L loops the selected clips">⟲</button>
-    <button id="follow" aria-pressed="true" aria-label="Follow playhead" title="Follow playhead (F): the view pages along when the playhead reaches the right edge">⇥ Follow</button>
-    <button id="zout" aria-label="Zoom out arrangement" title="Zoom out (−; Ctrl/⌘+wheel or pinch over the lanes; wheel over the ruler)">−</button><button id="zin" aria-label="Zoom in arrangement" title="Zoom in (+)">+</button><button id="zfit" aria-label="Zoom to fit" title="Fit the selected clips, or the whole song (Shift+Z)">⤢</button>
-  </div>
-  <div class="sep"></div>
-  <div class="group">
-    <span class="pos big num" aria-label="Position bars beats ticks" id="pos">12.3.480</span>
-    <span class="pos num" aria-label="Position time" id="time">0:23.250</span>
-  </div>
-  <div class="sep"></div>
-  <label class="field">Tempo<input class="num" type="number" value="128" min="20" max="400" step="0.5"></label>
-  <label class="field">Signature<select id="sig" title="Display only: the beat grid and bars.beats.ticks follow it; one tempo, no meter changes"><option>4/4</option><option>3/4</option><option>7/8</option></select></label>
-  <label class="field">Snap<select id="snap"><option>1/16</option><option>1/8</option><option>1/4</option><option>Bar</option><option>Off</option></select></label>
-  <label class="field">Loop<input id="loop-in" class="num" value="9 – 17" aria-label="Loop range in bars, start – end" title="Type e.g. 5 – 13, or drag the blue bar in the ruler" style="width:72px"></label>
-  <label class="field">Length<input id="len-in" class="num" type="number" min="1" value="32" aria-label="Song length in bars" title="Grows by itself when clips go past the end" style="width:52px"></label>
-  <div class="sep"></div>
-  <div class="group" title="Audio engine: render time per 128-frame call vs real time">
-    <span class="dim">Engine</span><span class="load" role="meter" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Engine load"><i></i></span><span class="num dim">0%</span>
-    <span id="drops" class="drops dim" hidden title="Audio drops: moments the sound card got no samples in time and played silence">0 drops</span>
-    <label class="dim" title="Output buffer. Larger rides out moments when the computer is busy (no clicks or dropouts); smaller makes keyboard audition respond sooner.">Buffer <select id="buffer" aria-label="Audio output buffer">
-      <option value="interactive">Low · ~5 ms</option><option value="balanced">Normal · ~10 ms</option><option value="playback" selected>Safe · ~23 ms</option><option value="0.05">Max · ~50 ms</option>
-    </select></label>
-    <label class="dim" title="Listening switch for comparing with WaveSabre renders: run filters that are fully open instead of skipping them. The original engines run them, which takes about 4 dB off at 16 kHz. Live playback only: the song, Bounce and Export are unchanged."><input type="checkbox" id="openflt"> Run open filters</label>
-  </div>
-  <span id="edited" class="badge warn" hidden title="An edit happened since play started; live sound may differ from the intro. Bounce for the exact render.">edited since play</span>
-  <span class="spacer"></span>
-  <div class="group">
-    <button title="Undo (Ctrl+Z)" aria-label="Undo">↶</button>
-    <button title="Redo (Ctrl+Shift+Z)" aria-label="Redo">↷</button>
-    <button id="bounce-btn" title="Render the song or the loop to WAV">Bounce…</button>
-    <button id="export-btn" title="Export the song blob next to the song">Export</button>
-    <button id="save" class="dirty" title="Save (Ctrl+S)">Save</button>
-  </div>
-</header>
+<header aria-label="Transport"><!-- rendered by ui/transport/TransportBar.tsx --></header>
 
 <main>
   <nav id="browser" aria-label="Music browser">

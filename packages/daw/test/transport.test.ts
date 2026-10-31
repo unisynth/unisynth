@@ -64,12 +64,15 @@ test("seek on the ruler; the time follows the tempo field", async () => {
   expect(await text("#pos")).toMatch(/^3\.1\./);
   const tempo = page.getByRole("spinbutton", { name: "Tempo in BPM" });
   await tempo.fill("120"); await tempo.press("Enter"); await body();
-  await seekTo(3);   // (the old bar refreshes the time only on the next position update)
+  await seekTo(3);
   const t120 = Number((await text("#time"))!.split(":")[1]);
   await tempo.fill("240"); await tempo.press("Enter"); await body();
   await seekTo(3);
   const t240 = Number((await text("#time"))!.split(":")[1]);
   expect(t120 / t240).toBeCloseTo(2, 2);
+  // the time follows a tempo change at once (no seek needed)
+  await tempo.fill("120"); await tempo.press("Enter"); await body();
+  expect(Number((await text("#time"))!.split(":")[1])).toBeCloseTo(t120, 2);
   await tempo.fill("128"); await tempo.press("Enter"); await body();
 });
 

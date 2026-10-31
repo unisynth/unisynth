@@ -1,7 +1,9 @@
 // @ts-nocheck
 import { batch, createSong, raw, restoreSong } from "./ui/state/song.ts";
 import { createHistory } from "./ui/state/history.ts";
-import * as liveState from "./ui/state/live.ts";  // not `live`: that is the aria-live status element below
+import * as liveState from "./ui/state/live.ts";
+import * as tr from "./ui/state/transport.ts";
+import { mountTransport } from "./ui/transport/TransportBar.tsx";  // not `live`: that is the aria-live status element below
 import { laneEl, overrides, overrideSet, rollClips, setSelectedId } from "./ui/state/view.ts";
 import { mountMixer, setMixerShown } from "./ui/mixer.tsx";
 // DAW UI (change add-synth-daw): the reviewed mockup's views and interactions on the real song/1 model,
@@ -43,8 +45,15 @@ function patOf(t, name) {
 const carry = (from, to, name, pat) => { if (from !== to && !to.pats?.[name]) (to.pats ??= {})[name] = structuredClone(raw(pat || patOf(from, name))); };
 let selected = tracks.find(t => !t.bus) || tracks[0] || master, armed = tracks.find(t => instOf(t)) || null;
 let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-document.querySelector('header input[type="number"]').value = st0.tempo;
-{ const sg = document.getElementById("sig"), v = st0.sig.join("/"); if (![...sg.options].some(o => o.value === v)) sg.append(new Option(v)); sg.value = v; }
+tr.setTempo(st0.tempo); tr.ensureSig(st0.sig.join("/"));
+// Transport bar (Solid, ui/transport/TransportBar.tsx): mounted first, the rest of start() finds its ids. Actions are
+// closures: they reach functions defined further down only when clicked.
+mountTransport(document.querySelector("header"), {
+  play: () => setPlay(!playing), stop: () => stopPressed(), toggleRec: () => setRec(!recOn), toggleLoop: () => toggleLoop(),
+  toggleFollow: () => toggleFollow(), zoomOut: () => zoomArr(1 / 1.5), zoomIn: () => zoomArr(1.5), zoomFit: () => fitArr(),
+  tempo: v => onTempo(v), sig: v => onSig(v), snap: v => tr.setSnap(v), loopText: str => onLoopText(str),
+  length: v => onLength(v), buffer: v => onBuffer(v), openFilters: on => onOpenFilters(on), undo: () => undo(), redo: () => redo(),
+});
 // Colour tokens of style.css (static: no theme switching), cached — getComputedStyle per knob/lane draw cost seconds
 // per undo on large songs (bench/ui-profile.ts).
 const cssCache = new Map();
@@ -164,12 +173,10 @@ function updateReauto(t = selected) {
 // one undo step. A seek or loop wrap starts a new pass (a write behind the last one never deletes backwards). ----
 let recOn = false, recHold = null, recPushAt = 0;
 const recLast = new Map();  // gesture key → bar of its last write
-const recBtn = document.getElementById("rec");
 function setRec(on) {
-  recOn = on; recBtn.setAttribute("aria-pressed", on); recLast.clear(); document.body.classList.toggle("recording", on);
+  recOn = on; tr.setRec(on); recLast.clear(); document.body.classList.toggle("recording", on);
   say(on ? "automation record on: knobs turned while playing write their lanes" : "automation record off");
 }
-recBtn.onclick = () => setRec(!recOn);
 function recordPoint(t, d, p, v) {
   const di = t.devices.indexOf(d);
   if (di < 0 || p.structural || !autoParams(d).some(x => x.name === p.name)) return false;
@@ -1256,9 +1263,8 @@ document.getElementById("hdrs").addEventListener("keydown", e => {
 
 // ===== Editing: selection, cut/copy/paste/duplicate/delete, move/transpose, quantize/align, undo =====
 // One snap setting drives both editors. Piano roll unit = 1/16 note (STEP px); arrangement unit = bar (BW px).
-const snapSel = document.getElementById("snap");
-const rollSnap = () => ({ "1/16": 1, "1/8": 2, "1/4": 4, "Bar": 16, "Off": 0 })[snapSel.value];
-const arrSnap = () => ({ "1/16": 1 / 16, "1/8": 1 / 8, "1/4": 1 / 4, "Bar": 1, "Off": 0 })[snapSel.value];
+const rollSnap = () => ({ "1/16": 1, "1/8": 2, "1/4": 4, "Bar": 16, "Off": 0 })[tr.snap()];
+const arrSnap = () => ({ "1/16": 1 / 16, "1/8": 1 / 8, "1/4": 1 / 4, "Bar": 1, "Off": 0 })[tr.snap()];
 const snapTo = (x, q) => q ? Math.round(x / q) * q : Math.round(x * 100) / 100;
 const editStatus = document.getElementById("edit-status");
 const say = m => { editStatus.textContent = m; live.textContent = m; };
@@ -1284,7 +1290,7 @@ function restore1(js) {
 function commit(before, msg) { if (!H.commit(before, snap())) return; say(msg); if (typeof dirtyUpd === "function") dirtyUpd(); livePush(); }
 function undo() { const js = H.undo(snap()); if (js == null) return say("nothing to undo"); restore(js); say("undo"); }
 function redo() { const js = H.redo(snap()); if (js == null) return say("nothing to redo"); restore(js); say("redo"); }
-document.querySelector('[aria-label="Undo"]').onclick = undo; document.querySelector('[aria-label="Redo"]').onclick = redo;
+
 
 // ---- piano roll ----
 const selNotes = () => rollNotes.filter(n => n.sel);
@@ -1306,7 +1312,7 @@ const roll = {
   resize(d) { selNotes().forEach(n => n.l = Math.max(rollSnap() || .25, Math.min(rollLen - n.s, n.l + d))); say("length changed"); },
   quant(lengths) { const q = rollSnap() || 1, str = +document.getElementById("qstr").value, ns = selNotes().length ? selNotes() : rollNotes;
     for (const n of ns) { n.s += (Math.round(n.s / q) * q - n.s) * str; if (lengths) n.l = Math.max(q, n.l + (Math.round(n.l / q) * q - n.l) * str); n.s = Math.max(0, n.s); }
-    say(`quantized ${ns.length} notes to ${snapSel.value} at ${Math.round(str * 100)}%`); },
+    say(`quantized ${ns.length} notes to ${tr.snap()} at ${Math.round(str * 100)}%`); },
   legato() { const ns = (selNotes().length ? selNotes() : rollNotes).slice().sort((a, b) => a.s - b.s);
     ns.forEach((n, i) => { const nx = ns.slice(i + 1).find(m => m.s > n.s); n.l = (nx ? nx.s : rollLen) - n.s; }); say("legato"); },
 };
@@ -1415,7 +1421,7 @@ const arr = {
   track(d) { const cs = selClips(), it = instrTracks(); if (!cs.length) return; if (cs.some(x => !it[it.indexOf(x.t) + d])) return say("no track there");
     for (const x of cs) { const nt = it[it.indexOf(x.t) + d]; carry(x.t, nt, x.c.name); x.t.clips = x.t.clips.filter(c => c !== x.c); place(nt, x.c); } say(`moved to ${d > 0 ? "next" : "previous"} track`); },
   align() { const q = arrSnap() || 1, cs = selClips().length ? selClips() : tracks.flatMap(t => t.clips.map(c => ({ t, c })));
-    for (const x of cs) x.c.start = Math.max(1, 1 + Math.round((x.c.start - 1) / q) * q); cs.forEach(x => place(x.t, x.c)); say(`aligned ${cs.length} clips to ${q === 1 ? "bars" : snapSel.value}`); },
+    for (const x of cs) x.c.start = Math.max(1, 1 + Math.round((x.c.start - 1) / q) * q); cs.forEach(x => place(x.t, x.c)); say(`aligned ${cs.length} clips to ${q === 1 ? "bars" : tr.snap()}`); },
 };
 function arrCmd(name, arg) { const before = snap(); arr[name](arg); fitSong(); commit(before, editStatus.textContent); tracks.forEach(renderLane); drawCursor(); renderDevice(); }
 document.querySelectorAll("#arr-corner [data-arr]").forEach(b => b.onclick = () => { focusArea = "arr"; arrCmd(b.dataset.arr); lw.focus(); });
@@ -1617,14 +1623,11 @@ splitter(document.getElementById("split-v"), "--browser-w", "x", 140, 360);
 splitter(document.getElementById("split-h"), "--arr-h", "y", 120, 700);
 
 // ===== Transport: song length, loop, seek, playback (clock + meters + a small WebAudio preview voice per track) =====
-const lenIn = document.getElementById("len-in"), loopIn = document.getElementById("loop-in"), loopBtn = document.getElementById("loop-btn");
-const tempoIn = document.querySelector('header input[type="number"]'), follow = document.getElementById("follow");
-tempoIn.setAttribute("aria-label", "Tempo in BPM"); tempoIn.addEventListener("change", () => { say(`tempo ${tempoIn.value} BPM`); dirtyUpd(); livePush(); });
+function onTempo(v) { tr.setTempo(v); showPos(); say(`tempo ${v} BPM`); dirtyUpd(); livePush(); }
 // Time signature: beats per bar in the signature's unit (7/8 → 7 eighths); one quarter = 960 ticks.
-const sigEl = document.getElementById("sig");
-const sig = () => sigEl.value.split("/").map(Number), beatsPerBar = () => sig()[0], quartersPerBar = () => sig()[0] * 4 / sig()[1];
+const sig = () => tr.sig().split("/").map(Number), beatsPerBar = () => sig()[0], quartersPerBar = () => sig()[0] * 4 / sig()[1];
 const fmtPos = b => { const n = beatsPerBar(), t = Math.max(0, b - 1) * n, beat = Math.floor(t); return `${1 + Math.floor(beat / n)}.${1 + beat % n}.${Math.floor((t - beat) * 960 * 4 / sig()[1])}`; };
-sigEl.addEventListener("change", () => { document.documentElement.style.setProperty("--beats", beatsPerBar()); showPos(); dirtyUpd(); say(`time signature ${sigEl.value}: beat grid and positions follow; the piano roll keeps 16 steps per bar`); });
+function onSig(v) { tr.setSig(v); document.documentElement.style.setProperty("--beats", beatsPerBar()); showPos(); dirtyUpd(); say(`time signature ${v}: beat grid and positions follow; the piano roll keeps 16 steps per bar`); }
 const fmtBars = b => +b.toFixed(2);
 const afterEl = Object.assign(document.createElement("div"), { className: "after-end" }); lanes.append(afterEl);
 // Grow the song to cover the last clip (never shrinks by itself).
@@ -1640,13 +1643,13 @@ function relayout() {
   for (let b1 = 0; b1 < BARS + PAD_BARS; b1++) { if (b1 % every) continue; const d = document.createElement("div"); d.className = "bar num"; d.style.left = b1 * BW + "px"; d.textContent = b1 + 1; if (b1 >= BARS) d.style.opacity = .4; ruler.prepend(d); }
   const end = Object.assign(document.createElement("div"), { className: "end", textContent: "end" }); end.style.left = BARS * BW + "px"; ruler.append(end);
   afterEl.style.left = BARS * BW + "px"; afterEl.style.width = PAD_BARS * BW + "px";
-  lenIn.value = BARS; laneVals.forEach(l => l.draw());
+  tr.setBars(BARS); laneVals.forEach(l => l.draw());
 }
-lenIn.addEventListener("change", () => {
-  const last = Math.ceil(Math.max(1, ...tracks.flatMap(t => t.clips.map(c => c.start + c.len))) - 1 - 1e-9), v = Math.max(1, Math.round(+lenIn.value || 0));
+function onLength(v) {
+  const last = Math.ceil(Math.max(1, ...tracks.flatMap(t => t.clips.map(c => c.start + c.len))) - 1 - 1e-9);
   if (v < last) { BARS = last; say(`length kept at ${last} bars: clips reach bar ${last + 1}`); } else { BARS = v; say(`song length ${v} bars`); }
   relayout();
-});
+}
 // Loop: top strip of the ruler. Drag the bar to move, its edges to resize, empty strip to draw a new loop.
 const loopStrip = Object.assign(document.createElement("div"), { className: "loopstrip" }); ruler.prepend(loopStrip);
 lp.tabIndex = 0; lp.setAttribute("role", "group");
@@ -1656,7 +1659,7 @@ function updateLoop(msg) {
   lp.style.left = shade.style.left = (LOOP[0] - 1) * BW + "px"; lp.style.width = shade.style.width = (LOOP[1] - LOOP[0]) * BW + "px";
   lp.classList.toggle("off", !loopOn); shade.classList.toggle("off", !loopOn);
   lp.setAttribute("aria-label", `Loop ${fmtBars(LOOP[0])} to ${fmtBars(LOOP[1])}${loopOn ? "" : ", off"}. Arrows move it, Shift+arrows change its end.`);
-  if (document.activeElement !== loopIn) loopIn.value = `${fmtBars(LOOP[0])} – ${fmtBars(LOOP[1])}`;
+  tr.setLoop([LOOP[0], LOOP[1]]); tr.setLoopOn(loopOn);  // the bar shows them
   if (!document.getElementById("p-roll").hidden && rollClip) drawRoll();
   if (msg) say(msg);
   if (typeof liveLoop === "function") liveLoop();
@@ -1670,7 +1673,7 @@ ruler.addEventListener("pointerdown", e => {
   const mode = Math.abs(x - x0) < 6 ? "a" : Math.abs(x - x1) < 6 ? "b" : x > x0 && x < x1 ? "move" : "new";
   lDrag = { mode, b0: b1, a: LOOP[0], b: LOOP[1], anchor: snapBar(b1) };
   if (mode === "new") { LOOP[0] = LOOP[1] = lDrag.anchor; }
-  loopOn = true; loopBtn.setAttribute("aria-pressed", "true"); updateLoop();
+  loopOn = true; updateLoop();
 });
 ruler.addEventListener("pointermove", e => {
   const b1 = rbar(e);
@@ -1690,26 +1693,25 @@ lp.addEventListener("keydown", e => {
   if (e.shiftKey) LOOP[1] = Math.max(LOOP[0] + (loopSnap() || .25), LOOP[1] + d); else if (LOOP[0] + d >= 1) { LOOP[0] += d; LOOP[1] += d; }
   updateLoop(`loop ${fmtBars(LOOP[0])} – ${fmtBars(LOOP[1])}`);
 });
-loopIn.addEventListener("change", () => {
-  const m = loopIn.value.match(/(\d+(?:\.\d+)?)\s*[–\-—,: ]+\s*(\d+(?:\.\d+)?)/);
-  if (!m || +m[1] < 1 || +m[2] <= +m[1]) { say("loop: type start – end in bars, e.g. 5 – 13"); loopIn.value = `${fmtBars(LOOP[0])} – ${fmtBars(LOOP[1])}`; return; }
-  LOOP[0] = +m[1]; LOOP[1] = +m[2]; loopOn = true; loopBtn.setAttribute("aria-pressed", "true"); loopIn.blur(); updateLoop(`loop ${fmtBars(LOOP[0])} – ${fmtBars(LOOP[1])}`);
-});
-const toggleLoop = () => { loopOn = !loopOn; loopBtn.setAttribute("aria-pressed", loopOn); updateLoop(loopOn ? "loop on" : "loop off"); };
-loopBtn.onclick = toggleLoop;
+function onLoopText(str) {
+  const m = str.match(/(\d+(?:\.\d+)?)\s*[–\-—,: ]+\s*(\d+(?:\.\d+)?)/);
+  if (!m || +m[1] < 1 || +m[2] <= +m[1]) { say("loop: type start – end in bars, e.g. 5 – 13"); return false; }
+  LOOP[0] = +m[1]; LOOP[1] = +m[2]; loopOn = true; updateLoop(`loop ${fmtBars(LOOP[0])} – ${fmtBars(LOOP[1])}`); return true;
+}
+const toggleLoop = () => { loopOn = !loopOn; updateLoop(loopOn ? "loop on" : "loop off"); };
 const loopSelection = () => { const cs = selClips(); if (!cs.length) return say("select clips to loop them");
-  LOOP[0] = Math.min(...cs.map(x => x.c.start)); LOOP[1] = Math.max(...cs.map(x => x.c.start + x.c.len)); loopOn = true; loopBtn.setAttribute("aria-pressed", "true"); updateLoop(`loop set to the selection ${fmtBars(LOOP[0])} – ${fmtBars(LOOP[1])}`); };
+  LOOP[0] = Math.min(...cs.map(x => x.c.start)); LOOP[1] = Math.max(...cs.map(x => x.c.start + x.c.len)); loopOn = true; updateLoop(`loop set to the selection ${fmtBars(LOOP[0])} – ${fmtBars(LOOP[1])}`); };
 // Follow pauses when the user scrolls or zooms a view by hand (Ableton's rule); ⇥/F, play or a ruler click resume it.
 let followHold = false;
 function holdFollow() {
-  if (followHold || !playing || follow.getAttribute("aria-pressed") !== "true") return;
-  followHold = true; follow.classList.add("held"); follow.title = "Follow paused because you scrolled · resumes when the playhead reaches the right edge, or click / F"; say("follow paused while you look around · F resumes");
+  if (followHold || !playing || !tr.follow()) return;
+  followHold = true; tr.setFollowHeld(true); say("follow paused while you look around · F resumes");
 }
-function resumeFollow() { followHold = false; follow.classList.remove("held"); follow.title = "Follow playhead (F)"; }
-follow.onclick = () => {
-  if (followHold) { resumeFollow(); follow.setAttribute("aria-pressed", "true"); say("follow resumed"); showPos(); return; }
-  follow.setAttribute("aria-pressed", follow.getAttribute("aria-pressed") !== "true"); resumeFollow();
-};
+function resumeFollow() { followHold = false; tr.setFollowHeld(false); }
+function toggleFollow() {
+  if (followHold) { resumeFollow(); tr.setFollow(true); say("follow resumed"); showPos(); return; }
+  tr.setFollow(!tr.follow()); resumeFollow();
+}
 for (const el of [lw, grid, vel, keys, hdrs, ruler]) {
   el.addEventListener("wheel", holdFollow, { passive: true });
   el.addEventListener("touchmove", holdFollow, { passive: true });
@@ -1731,19 +1733,17 @@ const audible = t => M.audible(tracks, t);
 
 // Clock. Position in bars; 4/4 at the tempo field. The loop wraps when the playhead reaches its end.
 let playing = false, lastT = 0, raf = 0;
-const posEl = document.getElementById("pos"), timeEl = document.getElementById("time"), stopBtn = document.getElementById("stop");
-const barsPerSec = () => (+tempoIn.value || 128) / 60 / quartersPerBar();
+const barsPerSec = () => (tr.tempo() || 128) / 60 / quartersPerBar();
 function moveRollPh() {
   const el = document.getElementById("roll-ph"); if (!rollClip) { el.hidden = true; return; }
   let x = songStep(SONG_POS); if (rollClip.loop && x >= 0 && x < rollClip.len * 16) x %= rollLen; const hide = x < 0 || x > rollLen; if (el.hidden !== hide) el.hidden = hide; el.style.transform = `translateX(${x * STEP}px)`;
 }
 // Runs every animation frame while playing: reads layout first (still valid from the last frame), then writes
 // only what changed; the playheads move by transform so no frame re-lays-out the arrangement.
-let shownPos = "", shownTime = "";
 function showPos() {
   liveState.setPos(SONG_POS);
   const x = (SONG_POS - 1) * BW;
-  if (playing && follow.getAttribute("aria-pressed") === "true") {
+  if (playing && tr.follow()) {
     const sl = lw.scrollLeft, cw = lw.clientWidth;
     // paused by a hand scroll: resumes by itself when the playhead, still in view, reaches the right edge
     if (followHold && x > sl + cw - 40 && x <= sl + cw) resumeFollow();
@@ -1751,9 +1751,6 @@ function showPos() {
     if (!followHold && !document.getElementById("p-roll").hidden && rollClip) { const rx = songStep(SONG_POS) * STEP, gl = grid.scrollLeft, gw = grid.clientWidth; if (rx >= 0 && rx <= rollLen * STEP && (rx < gl || rx > gl + gw - 30)) grid.scrollLeft = Math.max(0, rx - 30); }
   }
   ph.style.transform = ph2.style.transform = `translateX(${x}px)`;
-  const p = fmtPos(SONG_POS), sec = (SONG_POS - 1) / barsPerSec(), tm = `${Math.floor(sec / 60)}:${(sec % 60).toFixed(3).padStart(6, "0")}`;
-  if (p !== shownPos) posEl.textContent = shownPos = p;
-  if (tm !== shownTime) timeEl.textContent = shownTime = tm;
   moveRollPh();
 }
 // ---- Engine transport (design D6, D8e): the AudioWorklet live host plays the song; the UI clock follows the
@@ -1761,7 +1758,7 @@ function showPos() {
 const frameOf = b => Math.max(0, Math.round((b - 1) / barsPerSec() * E.rate));
 const barOf = f => 1 + f / E.rate * barsPerSec();
 let songMeta = st0.meta, songLen0 = st0.length0;  // song/1 meta (title, author, licence notes) and [bars, ticks] as loaded
-const uiState = () => ({ tracks: raw(tracks), master: raw(master), tempo: +tempoIn.value || 120, sig: sig(), bars: BARS, length0: songLen0, ...(songMeta ? { meta: songMeta } : {}) });
+const uiState = () => ({ tracks: raw(tracks), master: raw(master), tempo: tr.tempo() || 120, sig: sig(), bars: BARS, length0: songLen0, ...(songMeta ? { meta: songMeta } : {}) });
 const cleanDev = d => { const { _edited, _dev, ...x } = d; return x; };
 const songOf = live => { const s1 = M.toSong(uiState(), live ? audible : undefined); for (const t of [...s1.tracks, s1.master]) t.devices = t.devices.map(cleanDev); return s1; };
 let liveLoaded = false, pushT = 0, pushing = false, statusAt = 0, lastIssue = "";
@@ -1782,21 +1779,19 @@ async function pushOnce() {
     const res = await (liveLoaded ? E.update(r.blob) : E.load(r.blob));
     if (!res.ok) { say(`engine: ${res.reply?.errors?.[0]?.message || "update failed"}`); liveLoaded = false; return; }
     if (!liveLoaded) { liveLoaded = true; liveLoop(); }
-    if (playing && liveLoaded) document.getElementById("edited").hidden = false;
+    if (playing && liveLoaded) tr.setEdited(true);
   } finally { pushing = false; }
 }
 function livePush() { if (!E.node) return; clearTimeout(pushT); pushT = setTimeout(pushSong, 30); }
 function liveLoop() { if (E.node && liveLoaded) E.setLoop(frameOf(LOOP[0]), frameOf(LOOP[1]), loopOn); }
 // Run open filters (listening switch, remembered): live playback only, see Engine.runOpenFilters.
-const openFlt = document.getElementById("openflt");
-openFlt.checked = store.get("daw.openflt") === "1"; E.runOpen = openFlt.checked;
-openFlt.addEventListener("change", () => { store.set("daw.openflt", openFlt.checked ? "1" : "0"); E.runOpenFilters(openFlt.checked); say(`open filters ${openFlt.checked ? "run (as WaveSabre)" : "skipped"} in live playback`); });
+tr.setOpenFilters(store.get("daw.openflt") === "1"); E.runOpen = tr.openFilters();
+function onOpenFilters(on) { tr.setOpenFilters(on); store.set("daw.openflt", on ? "1" : "0"); E.runOpenFilters(on); say(`open filters ${on ? "run (as WaveSabre)" : "skipped"} in live playback`); }
 // Output buffer (Buffer select, remembered): applied by rebuilding the audio graph, keeping position and play state.
-const bufSel = document.getElementById("buffer");
 const bufHint = v => (isNaN(+v) ? v : +v);
-{ const v = store.get("daw.buffer"); if (v && [...bufSel.options].some(o => o.value === v)) bufSel.value = v; E.latency = bufHint(bufSel.value); }
-bufSel.addEventListener("change", async () => {
-  store.set("daw.buffer", bufSel.value); E.latency = bufHint(bufSel.value);
+{ const v = store.get("daw.buffer"); if (v && tr.BUFFERS.some(([x]) => x === v)) tr.setBuffer(v); E.latency = bufHint(tr.buffer()); }
+async function onBuffer(v) {
+  tr.setBuffer(v); store.set("daw.buffer", v); E.latency = bufHint(v);
   if (!E.node) return;
   const was = playing; if (was) await setPlay(false);
   await E.restart(44100); liveLoaded = false;
@@ -1804,7 +1799,7 @@ bufSel.addEventListener("change", async () => {
   E.seek(frameOf(SONG_POS));
   say(`output buffer ${Math.round(E.bufferSeconds * 1000)} ms`);
   if (was) await setPlay(true);
-});
+}
 // A dead engine (trap in the worklet) must not leave a frozen readout: stop, zero the meters, say so; Play restarts it.
 E.onError = msg => {
   liveLoaded = false; if (playing) setPlay(false); setLoad(0); meters({ peaks: [] });
@@ -1825,16 +1820,13 @@ async function setPlay(on) {
   if (on) {
     if (!(await ensureAudio())) return say(`cannot play: ${lastIssue || "audio did not start"}`);
     liveLoop(); E.play(frameOf(SONG_POS)); statusAt = performance.now(); dropsReset();
-    playing = true; liveState.setPlaying(true); resumeFollow(); document.getElementById("edited").hidden = true; raf = requestAnimationFrame(tick); say(`playing from ${fmtPos(SONG_POS)}`);
+    playing = true; liveState.setPlaying(true); resumeFollow(); tr.setEdited(false); raf = requestAnimationFrame(tick); say(`playing from ${fmtPos(SONG_POS)}`);
   } else {
     if (E.node) E.stop(); playing = false; liveState.setPlaying(false); cancelAnimationFrame(raf); say(`stopped at ${fmtPos(SONG_POS)}`); setLoad(0);
   }
-  play.textContent = playing ? "❚❚" : "▶"; play.setAttribute("aria-label", playing ? "Pause (Space)" : "Play (Space)");
 }
-const play = document.getElementById("play");
-play.addEventListener("click", () => setPlay(!playing));
 // Stop: first press stops (tails ring), a second one silences and goes back to the loop or song start.
-stopBtn.addEventListener("click", () => { if (playing) setPlay(false); else { if (E.node) { E.stop(); E.seek(frameOf(loopOn ? LOOP[0] : 1)); } SONG_POS = loopOn ? LOOP[0] : 1; showPos(); say(`back to ${fmtPos(SONG_POS)}`); } });
+function stopPressed() { if (playing) setPlay(false); else { if (E.node) { E.stop(); E.seek(frameOf(loopOn ? LOOP[0] : 1)); } SONG_POS = loopOn ? LOOP[0] : 1; showPos(); say(`back to ${fmtPos(SONG_POS)}`); } }
 document.addEventListener("keydown", e => {
   // undo/redo anywhere outside text fields (the arrangement and piano roll handle theirs and prevent the default)
   if ((e.ctrlKey || e.metaKey) && !e.defaultPrevented && !(e.target instanceof HTMLInputElement && e.target.type !== "checkbox") && !(e.target instanceof HTMLTextAreaElement)) {
@@ -1846,7 +1838,7 @@ document.addEventListener("keydown", e => {
   if (e.code === "Space") { e.preventDefault(); setPlay(!playing); }
   else if (e.key.toLowerCase() === "l" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); loopSelection(); }
   else if (e.key.toLowerCase() === "l" && !e.altKey) toggleLoop();
-  else if (e.key.toLowerCase() === "f" && !e.ctrlKey && !e.metaKey) follow.click();
+  else if (e.key.toLowerCase() === "f" && !e.ctrlKey && !e.metaKey) toggleFollow();
   else if (e.key === "R" && e.shiftKey && !e.ctrlKey && !e.metaKey) setRec(!recOn);
   else if (e.key === "Home") { seek(loopOn ? LOOP[0] : 1); }
 });
@@ -1882,12 +1874,11 @@ function dropsCheck() {
   dropsShow(n, d.seconds - dropBase.seconds);
 }
 function dropsShow(n, sec) {
-  const el = document.getElementById("drops"); if (!E.drops()) { el.hidden = true; return; }
-  el.hidden = false; el.textContent = `${n} drop${n === 1 ? "" : "s"}`; el.classList.toggle("bad", n > 0); el.classList.toggle("dim", n === 0);
-  el.title = n ? `Audio drops since Play: ${n}, ${Math.round(sec * 1000)} ms of silence, at ${dropWhere.join(", ")}${dropWhere.length >= 8 ? " (last 8)" : ""}. Raise Buffer, or close other heavy programs.`
-    : "Audio drops since Play: none (the sound card always got its samples in time)";
+  if (!E.drops()) return tr.setDrops(null);
+  tr.setDrops({ n, title: n ? `Audio drops since Play: ${n}, ${Math.round(sec * 1000)} ms of silence, at ${dropWhere.join(", ")}${dropWhere.length >= 8 ? " (last 8)" : ""}. Raise Buffer, or close other heavy programs.`
+    : "Audio drops since Play: none (the sound card always got its samples in time)" });
 }
-function setLoad(v) { if (v === loadShown) return; loadShown = v; liveState.setLoad(v); const el = document.querySelector(".load > i"), lab = document.querySelector(".load + .num"); el.style.width = v + "%"; lab.textContent = v + "%"; document.querySelector(".load").setAttribute("aria-valuenow", v); }
+function setLoad(v) { if (v === loadShown) return; loadShown = v; liveState.setLoad(v); }
 let meterAt = performance.now();
 function meters(st) {
   const now = performance.now(), dt = Math.min(.2, (now - meterAt) / 1000); meterAt = now;
@@ -1977,7 +1968,7 @@ const songs = new Map((DAW.files || []).filter(f => f.kind === "song").map(f => 
 let songFile = DAW.file || "project/music/demo.song.json", savedId = -1, savedExtra = "", savedDepth = 0, savedAt = null;
 const base = p => p.replace(/^.*\//, "");
 // Unsaved = another committed state than at save (history state ids) or song settings that are not undoable changed.
-const extraKey = () => tempoIn.value + "|" + sigEl.value + "|" + BARS;
+const extraKey = () => tr.tempo() + "|" + tr.sig() + "|" + BARS;
 const markSaved = () => { savedId = H.stateId; savedExtra = extraKey(); };
 const isDirty = () => H.stateId !== savedId || extraKey() !== savedExtra;
 function dirtyUpd() {
@@ -1999,7 +1990,7 @@ function useSong(s, file, saved) {
   const st = M.fromSong(s), d = JSON.parse(snap()); songMeta = st.meta; songLen0 = st.length0;
   d.tracks = st.tracks; d.sel = (st.tracks.find(t => !t.bus) || st.tracks[0])?.id ?? "master"; d.armed = st.tracks.find(t => t.devices.some(x => x.kind === 64))?.id;
   Object.keys(master).forEach(k => delete master[k]); Object.assign(master, st.master);
-  tempoIn.value = st.tempo; const v = st.sig.join("/"); if (![...sigEl.options].some(o => o.value === v)) sigEl.append(new Option(v)); sigEl.value = v; document.documentElement.style.setProperty("--beats", beatsPerBar());
+  tr.setTempo(st.tempo); const v = st.sig.join("/"); tr.ensureSig(v); document.documentElement.style.setProperty("--beats", beatsPerBar());
   BARS = st.bars; LOOP[0] = 1; LOOP[1] = Math.min(BARS, 4) + 1;
   restore(JSON.stringify(d));
   H.clear(); songFile = file; savedDepth = 0; savedAt = saved ? new Date() : null;
@@ -2074,7 +2065,7 @@ document.getElementById("export-btn").onclick = async () => {
     <tr><th>Tracks / devices</th><td>${s1.tracks.length} + master · ${devs} devices (kinds 64–73)</td></tr>
     <tr><th>Notes</th><td>≥ ${notes} (linked and looped clips flattened into one lane per track; muted tracks exported silent)</td></tr>
     <tr><th>Automation</th><td>${lanesN} lanes, quantized to 256 steps, applied per 100-frame block</td></tr>
-    <tr><th>Length</th><td>${BARS} bars · ${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, "0")} at ${tempoIn.value} BPM · 44.1 kHz</td></tr>
+    <tr><th>Length</th><td>${BARS} bars · ${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, "0")} at ${tr.tempo()} BPM · 44.1 kHz</td></tr>
     <tr><th>Validation</th><td class="ok">passed</td></tr></table>`,
     [["Write blob", async () => { const w = await api.write(bin, r.blob); say(w.ok ? `exported ${bin} (${(r.blob.length / 1024).toFixed(1)} kB)` : `export failed: ${w.error}`); }, true],
      ["Download song.json", () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([M.prettyJson(s1)], { type: "application/json" })); a.download = base(songFile); a.click(); return false; }], ["Close"]]);
@@ -2292,7 +2283,7 @@ for (const [el, fn] of [[lw, (sc, e) => zoomArr(g0 * sc / BW, e.clientX, true)],
   el.addEventListener("gesturestart", e => { e.preventDefault(); g0 = el === lw ? BW : STEP; });
   el.addEventListener("gesturechange", e => { e.preventDefault(); fn(e.scale, e); });
 }
-document.getElementById("zin").onclick = () => zoomArr(1.5); document.getElementById("zout").onclick = () => zoomArr(1 / 1.5); document.getElementById("zfit").onclick = fitArr;
+
 document.querySelectorAll("#roll-tools [data-zoom]").forEach(b => b.onclick = () => ({ "t+": () => zoomRoll(1.5, 1), "t-": () => zoomRoll(1 / 1.5, 1), "p+": () => zoomRoll(1, 1.25), "p-": () => zoomRoll(1, .8), fit: fitRoll })[b.dataset.zoom]());
 // Keys: + / − zoom (time) and Shift+Z fits, in the area that has focus.
 document.addEventListener("keydown", e => {

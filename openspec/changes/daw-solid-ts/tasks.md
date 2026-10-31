@@ -87,9 +87,13 @@ before → `AGENTS.md` rows → land on `main`.
   scroll p95 17.7 (3 > 20 ms); play-mix p95 17.7 (7), play-dev p95 17.7 (7). tbl-stash-over2 open 8 217,
   select-dev 53, knob 32, undo 6 358, select-mix 26, fader 11, mute 37, roll 6 ms; scroll p95 43.9 (20);
   play-mix p95 21.0 (46); play-dev p95 19.6 (6).
-- [ ] 3.3 Port the transport bar and the playheads to `ui/transport/`. Playheads move by `transform` from the
+- [x] 3.3 Port the transport bar and the playheads to `ui/transport/`. Playheads move by `transform` from the
   position signal. Verify: contract, all tests, bench; spec "Playback display budget" scenario on the mixer and the
   arrangement.
+  Done: `ui/state/transport.ts` + `ui/transport/TransportBar.tsx`; 76/76 (transport contract + time-follows-tempo test,
+  which fails on the old bar). Bench within noise of the 3.2 baseline (tbl-stash-over2 play-dev measured 3× on both
+  sides: 16–37 frames > 20 ms before, 25–35 after). Playheads keep their `transform` writes in `showPos`; they move to
+  `pos` effects with the arrangement (5.2) and roll (7.2) ports, which own those elements.
 
 ## 4. Files, dialogs, menus, library
 
