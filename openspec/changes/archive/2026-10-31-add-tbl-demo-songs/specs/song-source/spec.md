@@ -1,11 +1,10 @@
 ## MODIFIED Requirements
 
 ### Requirement: Import from the song blob
-Import SHALL read any blob `Song::parse` accepts and whose device kinds have parameter tables, and produce a song that
+Import SHALL read any blob `Song::parse` accepts whose device kinds have parameter tables, and produce a song that
 exports back to identical device chunks, track volumes, receives, device chains and automation bytes. Each lane SHALL
-become one clip placed once at tick 0, with note times converted from samples to ticks (rounded); a note ended at the
-sample where another note started just before it SHALL last one tick longer, so the export keeps the new note first.
-Unsupported kinds (for example legacy kinds 0–39) SHALL fail with an error naming the kind and pointing to `synth-convert`.
+become one clip at tick 0, note times rounded to ticks; a note ended where another started just before it SHALL last one
+tick longer (the export keeps the new note first). Unsupported kinds SHALL fail naming the kind and `synth-convert`.
 
 #### Scenario: Blob round trip
 - **WHEN** a blob of kind-64 devices is imported and exported again
