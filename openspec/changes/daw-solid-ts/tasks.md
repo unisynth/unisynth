@@ -1,0 +1,113 @@
+# Tasks
+
+Per port step (design D8): contract test passing on the old code → UI bench on the old code → port → all
+`bun test packages/daw` green, `npx tsc -p packages/daw/tsconfig.json` clean, bench not more than 10 % slower than
+before → `AGENTS.md` rows → land on `main`.
+
+## 1. Toolchain and Mixer (spike, branch `daw-solid-spike`)
+
+- [x] 1.1 Vite + `vite-plugin-solid` builds `src/main.ts` → `dist/main.js` (fixed name), with workers and wasm still
+  on `Bun.build` in `build.ts`. Verified: `dist/` holds the same 8 files; `build-static.ts` output has the same
+  layout.
+- [x] 1.2 `vite.config.ts` dev server: `127.0.0.1:6465/daw/`, COOP/COEP, proxy `/api` + engine/worker files to
+  `DAW_API`, `daw-dev-entry` (`order: pre`). Verified in a browser: `crossOriginIsolated`, mixer component hot
+  reload keeps page state.
+- [x] 1.3 `packages/daw/tsconfig.json` (Solid JSX, strict). Verified: `tsc` clean and fails on a planted error.
+- [x] 1.4 `test/mixer.test.ts` contract written and green on the imperative mixer (8 tests incl. hidden tab = no DOM
+  and meter-only mutations while playing).
+- [x] 1.5 Mixer in Solid (`ui/mixer.tsx`, `ui/mixer-store.ts`, path updates `patchStrip`/`patchSend`). Verified: 54/54
+  tests; `bench/ui-mixer.ts` on trashpanda: select 23 → 16 ms, fader 0.37 and mute 2.1 ms (equal), frames equal.
+- [ ] 1.6 Rebase `daw-solid-spike` on `main`, re-run the gate (tests, tsc, bench, `build-static.ts`, `/daw` from
+  `serve`), add a "Dev loop" section to `docs/synth/daw.md` (two commands, ports, proxy), and merge. Verify: the
+  documented commands start a working hot-reload session.
+
+## 2. Song store, actions and history (D2, D3)
+
+- [ ] 2.1 Doubt-driven review of the `SongState` shape (tracks, master, song settings, loop, selection, armed) and the
+  `app.js` ↔ store boundary before code. Record the outcome in design.md D2.
+- [ ] 2.2 `ui/state/song.ts`, `ui/state/history.ts` (`snap` = `unwrap` JSON, `restore` = `reconcile` by id, `commit`,
+  `undo`, `redo`), plus unit tests (`bun test`): undo/redo round trip equals the saved song; restore keeps object
+  identity of unchanged tracks.
+- [ ] 2.3 `ui/state/live.ts` (position, playing, peaks, load, drops, lane values, probe), written from `onStatus` with
+  the change thresholds of `showPos` and `meters`. Unit test: an unchanged value does not notify.
+- [ ] 2.4 Point `app.js` at the store: `tracks`/`master`/`selected`/`armed` and `snap`/`restore`/`commit` come from the
+  modules; edits go through `ui/state/actions.ts`. Verify: all browser tests green, `DAW.debug.song()` unchanged
+  on the demo and every `project/music` song (model round trip test).
+- [ ] 2.5 Mixer reads the song store and `live.ts` directly; delete `syncMixer`, `patchStrip`, `patchSend` and
+  `setPeak`. Verify: mixer test and bench unchanged.
+
+## 3. Transport and playback display (D3)
+
+- [ ] 3.1 Contract test `test/transport.test.ts` on the old code: play/stop/second stop, position and time text, loop
+  strip edit + toggle, follow hold/resume, tempo/signature edit, buffer select, load and drops readout, "edited since
+  play".
+- [ ] 3.2 Extend the bench to `bench/ui.ts` (scenarios: select, knob, fader, mute, open-song, undo, scroll,
+  play-per-tab; 50-track song from `released/` or generated). Record the baseline in this file.
+- [ ] 3.3 Port the transport bar and the playheads to `ui/transport/`. Playheads move by `transform` from the
+  position signal. Verify: contract, all tests, bench; spec "Playback display budget" scenario on the mixer and the
+  arrangement.
+
+## 4. Files, dialogs, menus, library
+
+- [ ] 4.1 Contract test on the old code: song list, open (dirty prompt), save success and 422 path list, export,
+  import, new song, bounce dialog (render + cancel), context menus by keyboard (Shift+F10), library tree, search,
+  inspect, audition, load into the track.
+- [ ] 4.2 `ui/common/Dialog.tsx`, `Menu.tsx` (mounted only while open, focus return to the opener), then port files and
+  bounce (`ui/files/`) and library (`ui/library/`). Verify: contract, existing library/threads tests, axe.
+
+## 5. Arrangement (D6, D7)
+
+- [ ] 5.1 Contract test on the old code for anything existing tests do not cover: header controls (arm, automation
+  toggle, rename, menu), lane double-click create, clip drag/resize/loop edge, marquee, clipboard, align, automation
+  point edit/remove by keyboard, follow paging; plus a generated 50-track song.
+- [ ] 5.2 Port track headers and lanes with windowing (rows in view plus one screen; focused and selected rows always
+  mounted; spacer height = whole song; `aria-setsize` / `aria-posinset`). Verify: spec "Off-screen arrangement
+  content" scenarios as tests, existing editing tests, axe.
+- [ ] 5.3 Port clips, clip thumbnails (canvas, D4) and automation lanes with point editing. Verify: contract + editing
+  tests, bench scroll and select.
+- [ ] 5.4 Move the volume, mute/solo and arm delegates into the header and strip components (D7). Track and clip
+  commands go through actions. Verify: mixer and header stay in sync (mixer test), undo steps unchanged.
+
+## 6. Device panel and live view (D4, D5)
+
+- [ ] 6.1 Contract test on the old code for anything existing tests do not cover: knob keyboard/drag/wheel and value
+  text, effect add/reorder/bypass/remove/mode, preset save/load, block collapse persistence, sampler settings, mod
+  matrix rows.
+- [ ] 6.2 `ui/common/Knob.tsx` bound to `devices[i].values[name]` (automation writes update only that knob), then slot
+  racks, mod matrix, screens (osc/filter/LFO/envelope) and effect boxes. Verify: contract, editing tests (5.6a/c
+  slot tests), bench knob ≤ 1 frame.
+- [ ] 6.3 Port GSM/sampler editing (import WAV, choose/play/remove unused, waveform drag). Verify: editing tests for
+  samples.
+- [ ] 6.4 Live per-voice view as a component owning its SVG (`drawLive` kept, D4), active only while the Device tab
+  shows and Live is on. Verify: browser live-display tests, `DAW.debug.live()` cost not higher than baseline.
+- [ ] 6.5 Measure the Device tab remount on a 50-track song with a full instrument. If over one frame, keep a cached
+  panel with display effects suspended (D5 fallback). Record the result in design.md.
+
+## 7. Piano roll and controller lanes (D4)
+
+- [ ] 7.1 Contract test on the old code for anything existing tests do not cover: note draw/select/move/resize,
+  velocity paint, quantize/legato, zoom anchor, scroll-to-notes, 118-bar 950-note clip opens fast.
+- [ ] 7.2 Port the roll, keys and CC lanes as components owning their canvases (visible window, `unwrap` reads).
+  Verify: contract, editing and controllers tests, open time of the large clip ≤ the baseline (about 0.3 s).
+
+## 8. Audition, keyboard, MIDI, zoom, splitters
+
+- [ ] 8.1 `ui/keys.ts`: a single global `keydown` with the current precedence (text fields, focused area, transport,
+  tracker keyboard by `e.code`, undo/redo). Verify: existing keyboard tests plus a test of each shortcut in
+  `docs/synth/daw.md`.
+- [ ] 8.2 Port audition (armed track, MW/PB sliders, Web MIDI), zoom (anchored) and splitters (persisted sizes).
+  Verify: controllers test, editing zoom test.
+
+## 9. Finish
+
+- [ ] 9.1 Delete `app.js`, `app.d.ts`; `main.ts` mounts `ui/App.tsx`. Remove `// @ts-nocheck` users. Verify: tsc
+  clean, `rg "app.js" packages/daw/src` empty, all tests green.
+- [ ] 9.2 Integration check of the spec budgets on the 50-track song: bench every scenario against the step-3
+  baseline, "Edit response budget" and "Playback display budget" as browser tests. Verify: `/daw/` from `serve`,
+  `/dsp` static build loads and bounces, hot-reload dev loop works.
+- [ ] 9.3 `docs/synth/daw.md` UI structure (components, stores, display state), `packages/daw/AGENTS.md` (remove the
+  `app.js` sidecar, add `src/ui/**` directory `AGENTS.md`), and memory of the conventions.
+
+## Workflow follow-up
+
+- Archive the change once step 9 is merged and the user has reviewed the DAW on a large song.
