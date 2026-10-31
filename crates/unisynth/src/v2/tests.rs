@@ -32,20 +32,50 @@ fn fixed_point_helpers() {
     assert!(v.iter().sum::<f32>().abs() < 60.0);
 }
 
+/// A 7-bit-law filter through the shared formulas (`flt::run`), as the drive's filter modes run it (`mode` 5..=11).
+#[cfg(any(feature = "us-flt-feedback", feature = "us-drive", feature = "us-strip"))]
+struct Flt {
+    k: crate::flt::Kind,
+    c: [f32; crate::flt::NC],
+    s: [f32; crate::flt::NS],
+}
+
+#[cfg(any(feature = "us-flt-feedback", feature = "us-drive", feature = "us-strip"))]
+impl Flt {
+    fn new(mode: u8, cut: f32, res: f32) -> Flt {
+        let k = crate::flt::STEPS_KINDS[(mode - dmode::FLT_BASE - 1) as usize];
+        let (k, c) = crate::flt::coefs_steps(k, cut / 128.0, res / 128.0, 44_100.0, false);
+        Flt { k, c, s: [0.0; crate::flt::NS] }
+    }
+    fn run(&mut self, x: f32) -> f32 {
+        crate::flt::run(self.k, &self.c, &mut self.s, x)
+    }
+}
+
+/// The drive's filter modes (`dmode::FLT_BASE` + 1..=7).
+#[cfg(any(feature = "us-flt-feedback", feature = "us-drive", feature = "us-strip"))]
+const LOW: u8 = 5;
+#[cfg(any(feature = "us-flt-feedback", feature = "us-drive", feature = "us-strip"))]
+const ALL: u8 = 9;
+#[cfg(any(feature = "us-flt-feedback", feature = "us-drive", feature = "us-strip"))]
+const MOOG_L: u8 = 10;
+#[cfg(any(feature = "us-flt-feedback", feature = "us-drive", feature = "us-strip"))]
+const MOOG_H: u8 = 11;
+
 #[test]
+#[cfg(any(feature = "us-flt-feedback", feature = "us-drive", feature = "us-strip"))]
 fn lrc_low_pass_passes_dc_and_cuts_highs() {
-    let c = flt_coefs(fmode::LOW, 64.0, 0.0, 44_100.0);
-    let mut f = Flt::default();
+    let mut f = Flt::new(LOW, 64.0, 0.0);
     let mut y = 0.0;
     for _ in 0..20_000 {
-        y = f.run(fmode::LOW, &c, 0.5);
+        y = f.run(0.5);
     }
     assert!((y - 0.5).abs() < 1e-3, "{y}");
     // Nyquist-rate alternation is cut hard
-    let mut f = Flt::default();
+    let mut f = Flt::new(LOW, 64.0, 0.0);
     let mut m: f32 = 0.0;
     for i in 0..4000 {
-        let y = f.run(fmode::LOW, &c, if i % 2 == 0 { 1.0 } else { -1.0 });
+        let y = f.run(if i % 2 == 0 { 1.0 } else { -1.0 });
         if i > 3000 {
             m = m.max(y.abs());
         }
@@ -54,11 +84,10 @@ fn lrc_low_pass_passes_dc_and_cuts_highs() {
     // the all-pass keeps the level of noise
     let mut s = 7;
     let (mut e_in, mut e_out) = (0.0f64, 0.0f64);
-    let ca = flt_coefs(fmode::ALL, 40.0, 30.0, 44_100.0);
-    let mut f = Flt::default();
+    let mut f = Flt::new(ALL, 40.0, 30.0);
     for i in 0..200_000 {
         let x = frandom(&mut s) * 0.5;
-        let y = f.run(fmode::ALL, &ca, x);
+        let y = f.run(x);
         if i > 1000 {
             e_in += (x * x) as f64;
             e_out += (y * y) as f64;
@@ -68,13 +97,12 @@ fn lrc_low_pass_passes_dc_and_cuts_highs() {
 }
 
 #[test]
+#[cfg(any(feature = "us-flt-feedback", feature = "us-drive", feature = "us-strip"))]
 fn moog_low_and_high_split_the_signal() {
-    let c = flt_coefs(fmode::MOOG_L, 60.0, 0.0, 44_100.0);
-    let (mut lo, mut hi) = (Flt::default(), Flt::default());
+    let (mut lo, mut hi) = (Flt::new(MOOG_L, 60.0, 0.0), Flt::new(MOOG_H, 60.0, 0.0));
     for i in 0..5000 {
         let x = if (i / 50) % 2 == 0 { 0.3 } else { -0.3 };
-        let a = lo.run(fmode::MOOG_L, &c, x);
-        let b = hi.run(fmode::MOOG_H, &c, x);
+        let (a, b) = (lo.run(x), hi.run(x));
         assert!((a + b - x).abs() < 1e-5, "high-pass = input − low-pass");
     }
 }
@@ -82,11 +110,11 @@ fn moog_low_and_high_split_the_signal() {
 /// The Moog low-pass passes a tone well under its cutoff and cuts one well over it (V2's 4-pole, 2× oversampled);
 /// the sum check above holds for any filter, so this one pins the response.
 #[test]
+#[cfg(any(feature = "us-flt-feedback", feature = "us-drive", feature = "us-strip"))]
 fn moog_low_pass_passes_lows_and_cuts_highs() {
-    let c = flt_coefs(fmode::MOOG_L, 64.0, 0.0, 44_100.0);
     let rms = |hz: f32| {
-        let mut f = Flt::default();
-        let y: Vec<f32> = (0..8820).map(|i| f.run(fmode::MOOG_L, &c, 0.25 * (core::f32::consts::TAU * hz * i as f32 / 44_100.0).sin())).collect();
+        let mut f = Flt::new(MOOG_L, 64.0, 0.0);
+        let y: Vec<f32> = (0..8820).map(|i| f.run(0.25 * (core::f32::consts::TAU * hz * i as f32 / 44_100.0).sin())).collect();
         (y[4410..].iter().map(|v| v * v).sum::<f32>() / 4410.0).sqrt() / (0.25 * core::f32::consts::FRAC_1_SQRT_2)
     };
     let (low, high) = (rms(60.0), rms(12_000.0));

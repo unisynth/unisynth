@@ -25,7 +25,7 @@ band-pass, high-pass, notch, all-pass), resonance form (input-scaled or feedback
 - **THEN** the octave-band levels agree within 0.5 dB and the 3 dB cutoff point within 3 %
 
 #### Scenario: Forms combine freely
-- **WHEN** a slot uses the feedback resonance form with the Hz cutoff law and an all-pass response
+- **WHEN** a slot uses the feedback resonance form with the Hz cutoff law and an all-pass response at zero resonance
 - **THEN** the patch loads, and white noise through it keeps every octave-band level within 0.5 dB
 
 ### Requirement: Shared 4-pole filter
@@ -34,8 +34,8 @@ or after the cubic clip, 1× or 2× oversampling, and coefficient law. The setti
 earlier 4-pole types SHALL match them within 0.5 dB per octave band on white noise.
 
 #### Scenario: High-pass on the Hz law
-- **WHEN** a slot uses the 4-pole filter with the Hz law, high-pass response, at 1 kHz
-- **THEN** the level at 100 Hz is at least 24 dB below the level at 10 kHz
+- **WHEN** a slot uses the 4-pole filter with the Hz law, high-pass response (the input minus the low-pass), at 1 kHz
+- **THEN** the level at 10 kHz is within 1 dB of the input and the level at 100 Hz at least 6 dB below it
 
 ### Requirement: Envelope settings
 Every envelope SHALL have these parameters:

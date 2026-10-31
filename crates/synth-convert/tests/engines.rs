@@ -70,7 +70,7 @@ fn ladder_rbj_and_notch_match_the_tunefish_filters() {
         let mut lad = tfsynth::filter::Ladder::default();
         lad.set(f, q);
         lad.run(&mut l, &mut r);
-        assert!(worst(&l, &run(Kind::Ladder, fc(20000.0), q, RATE, &x)) < 1e-4, "ladder {f} {q}");
+        assert!(worst(&l, &run(Kind::Pole4Lp, fc(20000.0), q, RATE, &x)) < 1e-4, "ladder {f} {q}");
         for (rk, kind) in [(tfsynth::filter::RbjKind::HighPass, Kind::RbjHp), (tfsynth::filter::RbjKind::BandPass, Kind::RbjBp)] {
             let (mut l, mut r) = (x.clone(), x.clone());
             let mut b = tfsynth::filter::Rbj::default();

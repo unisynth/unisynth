@@ -52,7 +52,7 @@ impl Default for Noise {
 }
 
 /// The band filters' kinds.
-pub const LP: Kind = Kind::Ladder;
+pub const LP: Kind = Kind::Pole4Lp;
 pub const HP: Kind = Kind::RbjHp;
 
 #[cfg(test)]

@@ -554,10 +554,8 @@ impl<'a> Voice<'a> {
                     if n > 0 { (self.slots[i].smp.pos() / n as f64) as f32 } else { 0.0 }
                 })
             }),
-            cutoff: core::array::from_fn(|i| match flt::Kind::of(pm::filter_type::decode(p[pm::filt(i, pm::f::TYPE)])) {
-                flt::Kind::Off => None,
-                #[cfg(feature = "us-flt-feedback")]
-                flt::Kind::V2(_) => None,
+            cutoff: core::array::from_fn(|i| match pm::filter_type::decode(p[pm::filt(i, pm::f::TYPE)]) {
+                ty if flt::Kind::of(ty) == flt::Kind::Off || flt::steps(ty) => None,
                 _ => {
                     // normalized cutoff after the Scale routes and the Offset routes in Hz: `law::cutoff` is applied by
                     // the reader (`probe::cutoff_hz`), so the render path's call of it stays the only one
@@ -637,17 +635,18 @@ impl<'a> Voice<'a> {
         let noise_hp = band(noise::HP, pm::n::HP, target::NOISE_HP);
         // filter slots: cutoff (Scale on the normalized value, Offset in Hz) and resonance
         let flt = core::array::from_fn(|i| {
-            let kind = flt::Kind::of(pm::filter_type::decode(p[pm::filt(i, pm::f::TYPE)]));
+            let ty = pm::filter_type::decode(p[pm::filt(i, pm::f::TYPE)]);
+            let kind = flt::Kind::of(ty);
             if kind == flt::Kind::Off {
                 return (kind, [0.0; flt::NC], false);
             }
             #[cfg(feature = "us-flt-feedback")]
-            if let flt::Kind::V2(_) = kind {
-                // V2 laws on the raw values (after the Add routes); a Scale route still multiplies the normalized value
+            if flt::steps(ty) {
+                // 7-bit step laws on the stored values (after the Add routes); a Scale route still multiplies them
                 let (tc, tr) = (target::filter_cutoff(i), target::filter_resonance(i));
                 let cut = (p[pm::filt(i, pm::f::CUTOFF)] * mm.scale(tc)).max(0.0).min(1.0);
                 let res = (p[pm::filt(i, pm::f::RESONANCE)] * mm.scale(tr)).max(0.0).min(1.0);
-                let (k, c) = flt::coefs_v2(kind, cut, res, sh.rate, era(p) < 6);
+                let (k, c) = flt::coefs_steps(kind, cut, res, sh.rate, era(p) < 6);
                 return (k, c, false);
             }
             let hz = cut(p[pm::filt(i, pm::f::CUTOFF)], target::filter_cutoff(i));

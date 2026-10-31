@@ -1,5 +1,6 @@
 //! Farbrausch V2's numerics and building blocks (change add-v2-import): the fast sine/arctangent, the frequency laws,
-//! fixed-point helpers, the LRC (state-variable) and Moog filters, the DC filter and the distortion stage. Port of V2
+//! fixed-point helpers, the 1× LRC (state-variable) filter of the noise colour, the DC filter and the distortion stage
+//! (its filter modes run the shared filter, `flt::run`; change unify-v2-algorithms 2.2). Port of V2
 //! by Tammo "kb" Hinrichs (public domain, fr_public/v2), following v2redux's `v2core.cpp` (CC0), which corrects ryg's
 //! C++ port to the assembly where they differ (fastatan coefficients and table choice, the all-pass sum order, …).
 //! Format-version 6 behaviour; the per-version deltas of v2redux are added only where parity needs them (design D9).
@@ -152,118 +153,6 @@ impl Lrc {
         self.b += f * h;
         h
     }
-
-    /// 2× oversampled step with V2's input bias.
-    #[inline]
-    pub fn step_2x(&mut self, x: f32, f: f32, res: f32) -> f32 {
-        let x = x + DC_OFFSET;
-        self.l += f * self.b - DC_OFFSET;
-        self.b += f * (x - self.b * res - self.l);
-        self.l += f * self.b;
-        let h = x - self.b * res - self.l;
-        self.b += f * h;
-        h
-    }
-}
-
-/// The Moog (4-pole) filter state `b[0..5]`.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct Moog {
-    pub b: [f32; 5],
-}
-
-impl Moog {
-    #[inline]
-    pub fn step(&mut self, real: f32, f: f32, p: f32, q: f32) -> f32 {
-        let b = &mut self.b;
-        // V2Moog::step: the biased input minus the feedback, four poles `(in + prev)·p + state·f`, the cubic clip,
-        // un-biased once (the feedback state keeps that value)
-        let x = real + DC_OFFSET - q * b[4];
-        let t1 = b[1];
-        b[1] = (x + b[0]) * p + b[1] * f;
-        let t2 = b[2];
-        b[2] = (t1 + b[1]) * p + b[2] * f;
-        let t3 = b[3];
-        b[3] = (t2 + b[2]) * p + b[3] * f;
-        let mut b4 = (t3 + b[3]) * p + b[4] * f;
-        b4 -= b4 * b4 * b4 * (1.0 / 6.0);
-        b4 -= DC_OFFSET;
-        b[4] = b4;
-        b[0] = real;
-        b4
-    }
-}
-
-/// V2 filter modes (`V2Flt::Mode`).
-pub mod fmode {
-    pub const OFF: u8 = 0;
-    pub const LOW: u8 = 1;
-    pub const BAND: u8 = 2;
-    pub const HIGH: u8 = 3;
-    pub const NOTCH: u8 = 4;
-    pub const ALL: u8 = 5;
-    pub const MOOG_L: u8 = 6;
-    pub const MOOG_H: u8 = 7;
-}
-
-/// Coefficients of a V2 filter from raw cutoff and resonance (`V2Flt::set`): LRC `[f, 1 − r]`, Moog `[f, p, q]`.
-pub fn flt_coefs(mode: u8, cutoff: f32, reso: f32, rate: f32) -> [f32; 3] {
-    let f = calcfreq(cutoff / 128.0) * linfreq(rate);
-    let r = reso / 128.0;
-    if mode < fmode::MOOG_L {
-        [f, 1.0 - r, 0.0]
-    } else {
-        let f = f * 0.25;
-        let t = 1.0 - f;
-        // `syFltSet`'s operand order: p = f + 0.8·(f·t), q = 4·r·(1 + 0.5·(t·(5.6·t² + (1 − t))))
-        let p = f + 0.8 * (f * t);
-        let qx = 5.6 * (t * t) + (1.0 - t);
-        let qb = r * (1.0 + 0.5 * (t * qx));
-        let q2 = qb + qb;
-        [1.0 - (p + p), p, q2 + q2]
-    }
-}
-
-/// One V2 filter channel: LRC and Moog state.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct Flt {
-    pub lrc: Lrc,
-    pub moog: Moog,
-}
-
-impl Flt {
-    /// One sample of mode `mode` with coefficients `c` (`flt_coefs`).
-    #[inline]
-    pub fn run(&mut self, mode: u8, c: &[f32; 3], x: f32) -> f32 {
-        match mode {
-            fmode::LOW => {
-                self.lrc.step_2x(x, c[0], c[1]);
-                self.lrc.l
-            }
-            fmode::BAND => {
-                self.lrc.step_2x(x, c[0], c[1]);
-                self.lrc.b
-            }
-            fmode::HIGH => self.lrc.step_2x(x, c[0], c[1]),
-            fmode::NOTCH => {
-                let h = self.lrc.step_2x(x, c[0], c[1]);
-                self.lrc.l + h
-            }
-            fmode::ALL => {
-                let h = self.lrc.step_2x(x, c[0], c[1]);
-                h + self.lrc.b + self.lrc.l // the assembly's order
-            }
-            fmode::MOOG_L => {
-                self.moog.step(x, c[0], c[1], c[2]);
-                self.moog.step(x, c[0], c[1], c[2])
-            }
-            fmode::MOOG_H => {
-                self.moog.step(x, c[0], c[1], c[2]);
-                x - self.moog.step(x, c[0], c[1], c[2])
-            }
-            _ => x,
-        }
-    }
 }
 
 /// The DC filter `y = x − x₋₁ + R·y₋₁` (`V2DCF`), `R = 1 − 126/rate`.
@@ -289,7 +178,7 @@ pub fn dcf_r(rate: f32) -> f32 {
     1.0 - 126.0 / rate
 }
 
-/// V2 distortion modes (`V2Dist::Mode`); 5.. are the filter modes `fmode` + 4.
+/// V2 distortion modes (`V2Dist::Mode`); 5..=11 are the filter modes, `flt::STEPS_KINDS` in order.
 pub mod dmode {
     pub const OFF: u8 = 0;
     pub const OVERDRIVE: u8 = 1;
@@ -310,7 +199,9 @@ pub struct DistP {
     crush2: i32,
     crxor: i32,
     dfreq: u32,
-    flt: [f32; 3],
+    /// The filter modes: the shared filter (`flt::run`) on the 7-bit step law.
+    fk: crate::flt::Kind,
+    flt: [f32; crate::flt::NC],
     /// Format versions below 6: the overdrive uses the exact arctangent (v2redux `DELTA_NATIVE_FPATAN`).
     native: bool,
 }
@@ -337,7 +228,10 @@ impl DistP {
                 d.crxor = (p2 as i32) << 9;
             }
             dmode::DECIMATE => d.dfreq = ftou32(calcfreq(p1 / 128.0)),
-            _ => d.flt = flt_coefs(mode - dmode::FLT_BASE, p1, p2, rate),
+            _ => {
+                let kind = crate::flt::STEPS_KINDS[(mode - dmode::FLT_BASE - 1) as usize];
+                (d.fk, d.flt) = crate::flt::coefs_steps(kind, p1 / 128.0, p2 / 128.0, rate, false);
+            }
         }
         d
     }
@@ -354,7 +248,7 @@ impl DistP {
 pub struct Dist {
     dcount: u32,
     dval: [f32; 2],
-    flt: [Flt; 2],
+    flt: [[f32; crate::flt::NS]; 2],
 }
 
 impl Dist {
@@ -376,10 +270,7 @@ impl Dist {
                 }
                 (self.dval[0], self.dval[1])
             }
-            m => {
-                let fm = m - dmode::FLT_BASE;
-                (self.flt[0].run(fm, &p.flt, l), self.flt[1].run(fm, &p.flt, r))
-            }
+            _ => (crate::flt::run(p.fk, &p.flt, &mut self.flt[0], l), crate::flt::run(p.fk, &p.flt, &mut self.flt[1], r)),
         }
     }
 }

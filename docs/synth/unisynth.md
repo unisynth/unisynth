@@ -609,17 +609,47 @@ sum, which showed in every octave band of Global Groove's hi-hats while the per-
 
 ### Filter slots
 
-Each slot is off or one of nine types; the type is an ordinary parameter (it can be automated, and a change between
-types with the same state layout, e.g. SVF low-pass to high-pass, keeps the state). `us-flt-svf`, `us-flt-ladder`,
-`us-flt-rbj`, `us-flt-notch` gate the types: a patch that loads with a missing one fails at load; a type automated
-to a missing one bypasses.
+Each slot is off or one of four topologies, each one formula (change unify-v2-algorithms, design D1): the
+state-variable filter, the 4-pole filter, the RBJ biquad and the resonator notch. The type is an ordinary parameter (it
+can be automated; a change between types of one topology, e.g. state-variable low-pass to high-pass, or the input form
+to the feedback form, keeps the state). `us-flt-svf`, `us-flt-ladder`, `us-flt-feedback`, `us-flt-rbj`,
+`us-flt-notch` gate the types: a patch that loads with a missing one fails at load; a type automated to a missing one
+bypasses.
 
-| Type | Structure | Cutoff | Resonance `p` |
+Until the format switch (task 6.1) the type value also picks the form and the law of its topology:
+
+| Type | Topology, response | Form | Law |
 |---|---|---|---|
-| SVF low/high/band/notch | WaveSabre's Chamberlin filter, 2× oversampled (linear midpoint) | `f = 1.5·sin(π·fc/2/rate)`; the corner is therefore 3/4 of the cutoff parameter (WaveSabre's coefficient, kept for parity) | `q = 1 − p`; the input is scaled by `q`, so the passband level falls with resonance |
-| Ladder low-pass | Tunefish's 4 two-tap one-pole stages, global feedback, cubic output saturation | `f = 2·fc/rate` | `q = clamp(p, 0, 0.85)`, feedback `q·e^((1 − k')·1.386249)` |
-| RBJ high/band-pass | biquad with the reference's `log₁₀2` bandwidth law | `w0 = 2π·fc/rate` | `clamp(p, 0, 0.85)` |
-| Resonator notch | zeros on the unit circle, poles at radius `q`, one sample of input latency | `z = cos(2π·fc/rate)` | `clamp(p, 0, 0.85)`; pole radius does not scale with the rate, so its width grows with it |
+| SVF low/high/band/notch | state-variable | input | Hz |
+| Ladder low-pass | 4-pole low | feedback before the clip, 1× | Hz |
+| Feedback SVF low/band/high/notch/all-pass | state-variable | feedback, held, bias | 7-bit steps |
+| 4-pole 2× low/high | 4-pole low/high | feedback after the clip, 2×, bias | 7-bit steps |
+| RBJ high/band-pass | biquad with the reference's `log₁₀2` bandwidth law, `w0 = 2π·fc/rate` | | Hz, `clamp(p, 0, 0.85)` |
+| Resonator notch | zeros on the unit circle, poles at radius `q`, one sample of input latency, `z = cos(2π·fc/rate)` | | Hz, `clamp(p, 0, 0.85)`; the pole radius does not scale with the rate |
+
+**State-variable** (`flt::sv_coefs`, 2× oversampled): per half-step `low += f·band − sub; high = a·(x − c·band) − low;
+band += f·high`. The responses are low, band, high, notch (`low + high`) and all-pass (`low + band + high`: flat at
+zero resonance, a band-pass peak above it).
+- The **input form** scales the input by `q = 1 − p` (`a = q, c = 1`), so the passband falls with resonance. The
+  **feedback form** damps only the band feedback (`a = 1, c = 1 − p`).
+- **Interpolated** oversampling feeds the first half-step the mean of the previous and the current input and outputs the
+  mean of both half-steps. **Held** feeds both the input and outputs the second.
+- The **bias** adds 2⁻¹⁸ to the input and takes it off `low` at the first half-step (`sub`), against denormals.
+- Laws: Hz `f = 1.5·sin(π·fc/2/rate)`, so the corner is 3/4 of the cutoff (the original coefficient, kept); 7-bit
+  steps `f = calcfreq(step/128)·44 100/rate`.
+
+**4-pole** (`flt::p4_coefs`): per step `xin = x + bias − fb·s₄`, four poles `(in + prev)·p + g·s` with
+`p = f + 0.8·f·(1 − f)` and `g = 1 − 2p`, then the cubic clip `y − y³/6` (minus the bias). The high-pass is the input
+minus the low-pass: about 10 dB down a decade below the corner, not a 24 dB/octave slope.
+- **Feedback before the clip** (a linear loop) feeds back the unclipped last pole, and the first pole's previous input
+  is the fed-back input. The feedback is `min(p, 0.85)·e^(1.386249·(1 − p_pole))`, which stays stable.
+- **Feedback after the clip** feeds back the clipped output (also the last pole's state), and the first pole's previous
+  input is the dry one. The feedback is `4·p·(1 + ½·t·(5.6t² + 1 − t))`, `t = 1 − f`, which the clip keeps bounded.
+- **1× or 2×**: one or two steps per sample on the same input; `f` is set for the step rate.
+- Laws: Hz `f = 2·fc / step rate`; 7-bit steps `f = calcfreq(step/128)·44 100/rate·½` (¼ at 2×).
+
+Both formulas are exact for the earlier filters they replace, except the ladder, which rounds `(in + prev)·p` where it
+had `prev·p + in·p` (within 1e-4 of Tunefish's filter).
 
 The cutoff is `cutoff(p) = 20 + 19 980·p²` Hz for every type (Tunefish's own `30 + 20 000p²` / `30 + 10 000p²` laws
 are re-mapped by the converter). The matrix reaches it as Scale (on the normalized value) or Offset (in Hz), clamped

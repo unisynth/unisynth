@@ -127,7 +127,17 @@ provenance table in `docs/synth/unisynth.md`.
 Names: `crates/unisynth/src/params/rename.rs` maps every old index to its new name (`""` = removed). Names change where
 the name was source-flavoured (`v2.*`, `vdist.*`, `ch.*`, `eg`) or where the meaning changes (`envN.mode` → `law`, the
 mode is split into law + curve). Every other parameter keeps its song-file name. The target index map applies at the
-format switch (task 6.1). Until then each stage adds its new parameters after the current ones.
+format switch (task 6.1).
+
+**Order of work (user decision 2026-10-31).** Stages 2–5 merge the engine code only. Each module's settings are an
+internal struct, derived from today's type and mode values, so the stored parameters, the converters and the song
+tables do not change, and each stage is gated on parity and drift. All new parameters, the converter writes and the
+migration land once, at the format switch (tasks 6.1/6.2). Settings combinations that today's values cannot express
+are tested on the engine API until then and as patches at 6.1. *Alternatives:* format switch first, or interim
+parameters at 260+ with an "as the type says" default; both rejected because they write converters and migration twice.
+
+**Cauldron.** The cauldron oscillator (change add-cauldron-xm-import, after 1.2) keeps its name. The naming rule
+concerns the V2, Tunefish and WaveSabre modules. It adds no parameter indices: it reuses `s0`–`s8` and `feedback`.
 
 **Index map.** Old index → new index goes by name: the new index of `OLD[i].1`. A removed or split parameter has no
 index of its own and is handled by the value rules below.
@@ -136,7 +146,7 @@ index of its own and is handled by the value rules below.
 |---|---|---|
 | voice | 0–15 | master, pan, capacity, steal, unison, uni_detune, uni_spread, mode, slide, glide, transpose, velocity, start_spread, one_shot, noise_level, env1_at_output |
 | voice settings | 16–22 | **voice.amp_source** (full / envelope 1 only), **voice.pan_stage** (per slot / after drive), **voice.dc_filter** (off / on), **voice.law** (transpose: semitones / 7-bit steps), voice.keysync (free / restart / full reset; was v2.keysync), voice.routing, voice.balance (were v2.*) |
-| osc 1–3 | 23–97, 25 each | 22 old fields (type, tracking, coarse, fine, octave, ratio, ratio_fine, fixed_hz, gain, mix, pan, pm_out, feedback, s0–s8), sample (moved in from 177–179), **combine**, **law** (unisynth / 7-bit steps). type = off, phase mod, saw/pulse, wavetable, sampler, **naive saw/tri, naive pulse, sine, coloured noise, fm, aux in A, aux in B** (Choice 12) |
+| osc 1–3 | 23–97, 25 each | 22 old fields (type, tracking, coarse, fine, octave, ratio, ratio_fine, fixed_hz, gain, mix, pan, pm_out, feedback, s0–s8), sample (moved in from 177–179), **combine**, **law** (unisynth / 7-bit steps). type = off, phase mod, saw/pulse, wavetable, sampler, **naive saw/tri, naive pulse, sine, coloured noise, fm, aux in A, aux in B**, cauldron (Choice 13; cauldron came with change add-cauldron-xm-import and keeps its `s0`–`s8` and `feedback` meanings) |
 | noise | 98–101 | band_on, hp, lp, width |
 | filter 1–4 | 102–133, 8 each | type (off, **state-variable, 4-pole**, RBJ, resonator notch: Choice 5), **response** (low, band, high, notch, all-pass: Choice 5), cutoff, resonance, **form** (input / feedback resonance), **oversample** (interpolated / held), **clip** (4-pole feedback before / after the clip), **law** (Hz / 7-bit steps) |
 | env 1–4 | 134–169, 9 each | law (seconds / rate / frame: Choice 3; was mode), attack, decay, sustain, release, **curve** (quadratic / power / exponential), curve_slope (power exponent; was slope), **sustain_slope**, amplify |
@@ -168,6 +178,7 @@ unisynth kinds, laws Hz/seconds/unisynth.
 - `oscN.type` V2 + its old `s0` (mode 0–7: off, saw/tri, pulse, sine, noise, fm, aux A, aux B) → type off or the
   naive generator. `s2` (ring) → `combine` multiply. The colour stays in `s1`, so it keeps its mod targets. `s0` and
   `s2` become free for the naive types.
+- `oscN.type` cauldron (old id 6) → cauldron; its shape fields and `feedback` move over unchanged.
 - `lfoN.shape` is re-encoded from Choice(5) to Choice(7) for the unisynth law. A V2-law LFO's V2 shape (saw, tri, pulse,
   sine, S&H) maps to ramp up, triangle, square, sine, sample-and-hold.
 - `envN.mode` → law + curve: timed → seconds + quadratic; rate → rate + power; V2 → frame + exponential. The old
@@ -225,6 +236,51 @@ implementation detail owned by tasks 6.1–6.3. Cycle 1:
 - Trade-offs: new choice settings are not modulation targets. Renames change song keys, and the migration maps them.
 - Noise: "sample has no index" and "osc block miscount". The sample is in the oscillator row (22 + sample + combine +
   law = 25).
+
+## Stage results
+
+References: the baseline at `28913c6` (`tools/unisynth-parity/unify-baseline.md`), HEAD `1ffe9f5` (cauldron and
+`us-quiet` landed after the baseline). Renders and reports live under `~/Downloads/64k-tools/synth-lab/unify/`
+(`base`, `drift-1ffe9f5`, `stage2`).
+
+**Stage 1 (tasks 1.1–1.3).** `--drift` against the baseline renders on HEAD (functional names, old-name loading, and
+the cauldron commits): 0.00 dB loudness and worst band on all 49 parity items and all 18 V2 songs.
+
+**Speed reference.** HEAD renders elysian in 33.4 s against 24.7 s at the baseline (same output, interleaved runs of
+both binaries). That slowdown came with the commits between the two, not with this change, so the speed gate compares
+each stage with HEAD.
+
+**Stage 2 (filters, tasks 2.1–2.3).**
+- *Code:* one state-variable formula (`flt::sv_coefs`, forms input/feedback, interpolated/held, bias) and one 4-pole
+  formula (`flt::p4_coefs`, feedback before/after the clip, 1×/2×, bias). The law gives only `f`; the clip form gives
+  the resonance-to-feedback map, which keeps every combination stable. `Kind::V2` and the ladder kind are gone. The
+  drive's filter modes run the same formulas (`v2::Flt`, `Moog`, `flt_coefs`, `Lrc::step_2x` removed). Without a
+  feature that needs the forms (`us-flt-feedback`, `us-drive`, `us-strip`), the form code compiles to the plain
+  input-form and one-step arithmetic.
+- *Exactness:* the state-variable formula is exact for both earlier filters, and the 4-pole formula for the 2× filter.
+  The ladder rounds `(in + prev)·p` where it had `prev·p + in·p`: within 1e-4 per sample of Tunefish's filter.
+- *Gate 1:* workspace tests pass. bun: 170 pass, 1 fail (`shader-viewer` needs the `st` binary, absent in a fresh
+  worktree; not this change). `check-unisynth-features.sh` passes.
+- *Gate 2:* parity 49/49, V2 18/18.
+- *Gate 3 (drift against the baseline):* every item below 0.005 dB loudness and worst band. Nothing to listen to.
+- *Gate 4 (goldens):* four lines change, all through the ladder: `noise_band`, `filter_ladder_lp`,
+  `filter_ladder_full_resonance`, `filter_series_lp_hp`. Peaks are unchanged. `golden_fx.txt` is unchanged.
+- *Gate 5:* bake check 7/7.
+- *Gate 6 (size against HEAD, `songs-size.sh`):* squishy is unchanged on all seven reference songs and all six V2
+  songs. xz moves −32 to +120 B on the reference songs and −164 to +172 B on the V2 songs.
+  - A first version cost +16 to +148 B xz and two squishy steps on the reference songs, and +212 to +576 B on the V2
+    songs: the form code was built everywhere, and the drive kept its own filter copy. Gating the form code (`FORMS`)
+    and sharing the filter with the drive fixed both.
+- *Gate 7 (speed against HEAD, interleaved, median of 3):* elysian +0.5 %, engage +0.7 %, eladamri −0.2 %,
+  no-remorse +3.4 %, tf4testsong +1.1 %. V2 songs are not slower (the parity reports' × real time is equal or higher).
+  elysian's output is byte-identical to HEAD.
+- *Spec corrections:*
+  - The 4-pole high-pass is the input minus the low-pass, as in V2. Its rejection a decade below the corner is about
+    10 dB, so "Shared 4-pole filter → High-pass on the Hz law" now asks for 6 dB, not 24.
+  - "Forms combine freely" is checked at zero resonance, because the all-pass response (low + band + high) peaks with
+    resonance.
+- *Found for stage 3:* the frame-law pulse is low in the first half-turn, the inverse of the Hz-law square, so the
+  value rule "pulse → square" needs +½ turn on the start phase.
 
 ## Risks / Trade-offs
 
