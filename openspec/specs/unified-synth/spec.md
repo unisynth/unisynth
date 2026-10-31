@@ -667,3 +667,10 @@ EQ 3band's `wake` SHALL restart its gain ramp from the parameters as set while i
 #### Scenario: Woken comb
 - **WHEN** a comb with a sweep sleeps 5000 frames and wakes
 - **THEN** its output equals a comb that ran those 5000 frames of silence
+
+### Requirement: Cauldron filter latched at note-on
+A cauldron slot SHALL take its filter settings (base and amount after the retrigger byte, decay, damping) at a non-legato note-on and keep them until the next one.
+
+#### Scenario: Retrigger byte changed mid-note
+- **WHEN** the retrigger byte changes while a cauldron note sounds
+- **THEN** the note's filter is unchanged, and the next non-legato note-on takes the new value
