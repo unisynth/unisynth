@@ -1,5 +1,6 @@
 // @ts-nocheck
-import { batch, createSong, raw } from "./ui/state/song.ts";
+import { batch, createSong, raw, restoreSong } from "./ui/state/song.ts";
+import { createHistory } from "./ui/state/history.ts";
 import * as liveState from "./ui/state/live.ts";  // not `live`: that is the aria-live status element below
 import { laneEl, overrides, overrideSet, rollClips } from "./ui/state/view.ts";
 import { mountMixer, syncMixer, patchStrip, patchSend, setMixerShown } from "./ui/mixer.tsx";
@@ -44,7 +45,10 @@ let selected = tracks.find(t => !t.bus) || tracks[0] || master, armed = tracks.f
 let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 document.querySelector('header input[type="number"]').value = st0.tempo;
 { const sg = document.getElementById("sig"), v = st0.sig.join("/"); if (![...sg.options].some(o => o.value === v)) sg.append(new Option(v)); sg.value = v; }
-const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+// Colour tokens of style.css (static: no theme switching), cached — getComputedStyle per knob/lane draw cost seconds
+// per undo on large songs (bench/ui-profile.ts).
+const cssCache = new Map();
+const css = v => { let x = cssCache.get(v); if (x === undefined) cssCache.set(v, x = getComputedStyle(document.documentElement).getPropertyValue(v).trim()); return x; };
 
 // Ruler
 const ruler = document.getElementById("ruler");
@@ -127,6 +131,7 @@ function fmtVal(d, p, v) {
 }
 const laneText = (t, ln, v) => { const d = t.devices[ln.dev], p = d && paramOf(d, ln.param); return p ? fmtVal(d, p, v) : (v * 100).toFixed(0) + "%"; };
 function laneValue(pts, bar) {
+  pts = raw(pts);  // read-only, runs per lane per frame
   if (bar <= pts[0][0]) return pts[0][1];
   for (let i = 1; i < pts.length; i++) if (bar <= pts[i][0]) { const [b0, v0] = pts[i - 1], [b1, v1] = pts[i]; return v0 + (v1 - v0) * (bar - b0) / (b1 - b0); }
   return pts[pts.length - 1][1];
@@ -208,12 +213,13 @@ function addLane(t, ln, box, beforeH, beforeL) {
   let selI = -1, drag = null, lastDown = null;
   const fmtBar = b => { const t = Math.round((b - 1) * 16); return `${1 + Math.floor(t / 16)}.${1 + Math.floor((t % 16) / 4)}.${(t % 4) * 240}`; };
   const draw = (focus = false) => {
+    const lp = raw(ln.pts), dname = devicesOf(t)[ln.dev];  // read-only: raw points, name once (not per point)
     const W = (BARS + PAD_BARS) * BW;
-    const pts = [[1, ln.pts[0][1]], ...ln.pts, [BARS + 1, ln.pts[ln.pts.length - 1][1]]];
+    const pts = [[1, lp[0][1]], ...lp, [BARS + 1, lp[lp.length - 1][1]]];
     const c = css(t.col);
     al.innerHTML = `<svg width="${W}" height="${H}"><polygon fill="${c}1f" points="${X(1)},${H} ${pts.map(([b, v]) => `${X(b)},${Y(v)}`).join(" ")} ${X(BARS + 1)},${H}"/><polyline fill="none" stroke="${c}" stroke-width="1.5" points="${pts.map(([b, v]) => `${X(b)},${Y(v)}`).join(" ")}"/>${
-      ln.pts.map(([b, v], i) => `<g class="pt${i === selI ? " sel" : ""}" data-i="${i}" tabindex="0" role="slider" aria-label="${devicesOf(t)[ln.dev]} ${ln.param} point ${i + 1} at ${fmtBar(b)}" aria-valuemin="0" aria-valuemax="1" aria-valuenow="${v.toFixed(3)}" aria-valuetext="${laneText(t, ln, v)} at bar ${fmtBar(b)}"><circle class="hit" cx="${X(b)}" cy="${Y(v)}" r="8"/><circle class="dot" cx="${X(b)}" cy="${Y(v)}" r="${i === selI ? 4 : 3}" fill="${i === selI ? c : css("--bg")}" stroke="${c}"/></g>`).join("")
-    }${drag && drag.moved ? (() => { const [b, v] = ln.pts[drag.i]; const tx = Math.min(W - 120, X(b) + 8); return `<rect x="${tx - 3}" y="2" width="118" height="14" rx="3" fill="${css("--panel")}" stroke="${css("--line")}"/><text x="${tx}" y="12" font-size="10" fill="${css("--fg")}" font-family="ui-monospace,monospace">${fmtBar(b)} · ${laneText(t, ln, v)}</text>`; })() : ""}</svg>`;
+      lp.map(([b, v], i) => `<g class="pt${i === selI ? " sel" : ""}" data-i="${i}" tabindex="0" role="slider" aria-label="${dname} ${ln.param} point ${i + 1} at ${fmtBar(b)}" aria-valuemin="0" aria-valuemax="1" aria-valuenow="${v.toFixed(3)}" aria-valuetext="${laneText(t, ln, v)} at bar ${fmtBar(b)}"><circle class="hit" cx="${X(b)}" cy="${Y(v)}" r="8"/><circle class="dot" cx="${X(b)}" cy="${Y(v)}" r="${i === selI ? 4 : 3}" fill="${i === selI ? c : css("--bg")}" stroke="${c}"/></g>`).join("")
+    }${drag && drag.moved ? (() => { const [b, v] = lp[drag.i]; const tx = Math.min(W - 120, X(b) + 8); return `<rect x="${tx - 3}" y="2" width="118" height="14" rx="3" fill="${css("--panel")}" stroke="${css("--line")}"/><text x="${tx}" y="12" font-size="10" fill="${css("--fg")}" font-family="ui-monospace,monospace">${fmtBar(b)} · ${laneText(t, ln, v)}</text>`; })() : ""}</svg>`;
     ah.querySelector(".val").textContent = cur(); applyAutomation();
     if (focus && selI >= 0) al.querySelector(`.pt[data-i="${selI}"]`)?.focus();
   };
@@ -1263,21 +1269,25 @@ const say = m => { editStatus.textContent = m; live.textContent = m; };
 let focusArea = "arr", rCursor = 0, rDrag = null, rLast = null, aCursor = 13, aDrag = null, aLast = null, lastVel = .78;
 const clipboard = { notes: null, clips: null };
 // Undo: one snapshot per gesture/command (clips of every track + notes per track).
-const undoStack = [], redoStack = [];
+const H = createHistory();  // undo/redo + state ids (ui/state/history.ts)
 // Undo: one whole-song snapshot per gesture or command (tracks, clips, notes, devices, automation, mixer).
-const SKIP = new Set(["_dev"]);
-const snap = () => JSON.stringify({ tracks: raw(tracks), master: raw(master), sel: selected.id, armed: armed?.id }, (k, v) => SKIP.has(k) ? undefined : v);
+// No replacer: view fields live in ui/state/view.ts, and a replacer function runs per key (212 ms per knob step on a
+// 4 MB song vs ~11 ms native, bench/ui-profile.ts).
+const snap = () => JSON.stringify({ tracks: raw(tracks), master: raw(master), sel: selected.id, armed: armed?.id });
 function restore(js) { batch(() => restore1(js)); }  // one notification pass for the whole restore
 function restore1(js) {
   const d = JSON.parse(js);
   overrides.clear();  // as before the view store: restored tracks follow their automation lanes again
-  tracks.splice(0, tracks.length, ...d.tracks); Object.assign(master, d.master);
+  // the roll's clip by name/start (as before: restored clips merge by position, an object reference could now hold
+  // another clip's values)
+  for (const [id, c] of rollClips) if (c) rollClips.set(id, { name: c.name, start: c.start });
+  restoreSong(song, d);  // tracks by id, then master; unchanged objects keep identity
   selected = tracks.find(t => t.id === d.sel) || (d.sel === "master" ? master : tracks[0]); armed = tracks.find(t => t.id === d.armed) || null;
   rebuildTracks(); selectTrack(selected); updateArmed(); if (typeof dirtyUpd === "function") dirtyUpd(); livePush();
 }
-function commit(before, msg) { if (before === snap()) return; undoStack.push(before); redoStack.length = 0; say(msg); if (typeof dirtyUpd === "function") dirtyUpd(); livePush(); }
-function undo() { if (!undoStack.length) return say("nothing to undo"); redoStack.push(snap()); restore(undoStack.pop()); say("undo"); }
-function redo() { if (!redoStack.length) return say("nothing to redo"); undoStack.push(snap()); restore(redoStack.pop()); say("redo"); }
+function commit(before, msg) { if (!H.commit(before, snap())) return; say(msg); if (typeof dirtyUpd === "function") dirtyUpd(); livePush(); }
+function undo() { const js = H.undo(snap()); if (js == null) return say("nothing to undo"); restore(js); say("undo"); }
+function redo() { const js = H.redo(snap()); if (js == null) return say("nothing to redo"); restore(js); say("redo"); }
 document.querySelector('[aria-label="Undo"]').onclick = undo; document.querySelector('[aria-label="Redo"]').onclick = redo;
 
 // ---- piano roll ----
@@ -1968,12 +1978,14 @@ document.getElementById("kb-btn").onclick = toggleKb;
 document.getElementById("midi-info").onclick = connectMidi;
 // ===== Files: songs in project/music (/api/music), save with validation, export, import, bounce =====
 const songs = new Map((DAW.files || []).filter(f => f.kind === "song").map(f => [f.path, f]));
-let songFile = DAW.file || "project/music/demo.song.json", savedKey = "", savedDepth = 0, savedAt = null;
+let songFile = DAW.file || "project/music/demo.song.json", savedId = -1, savedExtra = "", savedDepth = 0, savedAt = null;
 const base = p => p.replace(/^.*\//, "");
-const dirtyKey = () => snap() + "|" + tempoIn.value + "|" + sigEl.value + "|" + BARS;
-const isDirty = () => dirtyKey() !== savedKey;
+// Unsaved = another committed state than at save (history state ids) or song settings that are not undoable changed.
+const extraKey = () => tempoIn.value + "|" + sigEl.value + "|" + BARS;
+const markSaved = () => { savedId = H.stateId; savedExtra = extraKey(); };
+const isDirty = () => H.stateId !== savedId || extraKey() !== savedExtra;
 function dirtyUpd() {
-  const d = isDirty(), n = Math.max(d ? 1 : 0, Math.abs(undoStack.length - savedDepth));
+  const d = isDirty(), n = Math.max(d ? 1 : 0, Math.abs(H.depth - savedDepth));
   document.title = `${d ? "• " : ""}${base(songFile)} — 64k DAW`;
   const sv = document.getElementById("save"); sv.classList.toggle("dirty", d); sv.setAttribute("aria-label", d ? `Save ${base(songFile)}, ${n} unsaved change${n > 1 ? "s" : ""}` : `Save ${base(songFile)}, no changes`);
   document.getElementById("saved-info").textContent = d ? `${n} unsaved change${n > 1 ? "s" : ""}` : savedAt ? `Saved ${savedAt.toTimeString().slice(0, 5)}` : "No changes";
@@ -1994,8 +2006,8 @@ function useSong(s, file, saved) {
   tempoIn.value = st.tempo; const v = st.sig.join("/"); if (![...sigEl.options].some(o => o.value === v)) sigEl.append(new Option(v)); sigEl.value = v; document.documentElement.style.setProperty("--beats", beatsPerBar());
   BARS = st.bars; LOOP[0] = 1; LOOP[1] = Math.min(BARS, 4) + 1;
   restore(JSON.stringify(d));
-  undoStack.length = redoStack.length = 0; songFile = file; savedDepth = 0; savedAt = saved ? new Date() : null;
-  relayout(); updateLoop(); SONG_POS = 1; showPos(); fitSong(true); savedKey = saved ? dirtyKey() : ""; liveLoaded = false; livePush(); dirtyUpd();
+  H.clear(); songFile = file; savedDepth = 0; savedAt = saved ? new Date() : null;
+  relayout(); updateLoop(); SONG_POS = 1; showPos(); fitSong(true); if (saved) markSaved(); else savedId = -1; liveLoaded = false; livePush(); dirtyUpd();
 }
 async function loadSong(f) {
   try { useSong(JSON.parse(await api.read(f)), f, true); say(`opened ${f}`); } catch (e) { say(`cannot open ${f}: ${e.message}`); }
@@ -2031,7 +2043,7 @@ async function save() {
   if (errs.length) { showErrors(errs, "Save"); return false; }
   const r = await api.write(songFile, json);
   if (!r.ok) { if (r.errors) showErrors(r.errors, "Save"); else say(`save failed: ${r.error}`); return false; }
-  savedKey = dirtyKey(); savedDepth = undoStack.length; savedAt = new Date(); songs.set(songFile, { path: songFile, kind: "song" });
+  markSaved(); savedDepth = H.depth; savedAt = new Date(); songs.set(songFile, { path: songFile, kind: "song" });
   dirtyUpd(); say(`${api.static ? "downloaded (read-only preview)" : "saved"} ${songFile} (song/1, ${(json.length / 1024).toFixed(1)} kB)`); return true;
 }
 document.getElementById("save").onclick = save;
@@ -2094,8 +2106,8 @@ document.getElementById("bounce-btn").onclick = () => {
     }).catch(e => { if (e.message !== "cancelled") res.textContent = `bounce failed: ${e.message}`; job = null; });
   }
 };
-savedKey = dirtyKey(); savedAt = null; renderSongList(); dirtyUpd();
-DAW.debug = { song: () => songOf(false), selected: () => selected.id, bars: () => BARS, undoDepth: () => undoStack.length,
+markSaved(); savedAt = null; renderSongList(); dirtyUpd();
+DAW.debug = { song: () => songOf(false), selected: () => selected.id, bars: () => BARS, undoDepth: () => H.depth,
   live: () => ({ probeMs: liveCost.probe / Math.max(1, liveCost.nProbe), drawMs: liveCost.draw / Math.max(1, liveCost.nDraw), maxVoices: liveCost.voices }) };
 // ===== Menus (right-click or Shift+F10 / ContextMenu key) =====
 function popMenu(x, y, items, label, opener = document.activeElement) {
@@ -2144,7 +2156,7 @@ function moveTrack(t, d) {
   document.querySelector(`.thdr.track[data-track="${t.id}"]`)?.focus();
 }
 function duplicateTrack(t) {
-  const c = JSON.parse(JSON.stringify(raw(t), (k, v) => SKIP.has(k) ? undefined : v)); c.id = newId("t"); c.name = t.name + " 2"; c.clips.forEach(x => x.sel = false);
+  const c = JSON.parse(JSON.stringify(raw(t))); c.id = newId("t"); c.name = t.name + " 2"; c.clips.forEach(x => x.sel = false);
   trackCmd(`${t.name} duplicated`, () => { tracks.splice(tracks.indexOf(t) + 1, 0, c); selected = c; });
 }
 function renameTrack(t) {

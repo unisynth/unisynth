@@ -3,7 +3,7 @@
 // structuredClone, canvas loops) take `raw()` — the plain objects, no proxy cost, never tracked. When the write
 // ratchet (task 2.7) reaches 0 this becomes `createStore` with actions.
 import { batch } from "solid-js";
-import { $RAW, createMutable } from "solid-js/store";
+import { $RAW, createMutable, modifyMutable, reconcile } from "solid-js/store";
 import type { UITrack } from "../../model.ts";
 
 export interface SongRoot { tracks: UITrack[]; master: UITrack }
@@ -19,3 +19,13 @@ export const raw = <T>(x: T): T => ((x as any)?.[$RAW] ?? x) as T;
 
 /** Runs a multi-write edit as one update (one notification pass instead of one per proxy write). */
 export { batch };
+
+/** Restores a snapshot into the song: `tracks` reconciled by track id, then `master` — never the root (a root
+ * reconcile deletes every key the snapshot lacks). Unchanged tracks, devices and values keep their identity; arrays
+ * without ids (clips, notes, sends, lane points) merge by position (values exact, identity by index). */
+export function restoreSong(song: SongRoot, d: SongRoot): void {
+  batch(() => {
+    modifyMutable(song.tracks, reconcile(d.tracks, { key: "id" }));
+    modifyMutable(song.master, reconcile(d.master, { key: "id" }));
+  });
+}

@@ -48,10 +48,17 @@ before → `AGENTS.md` rows → land on `main`.
   2.3 numbers. Unit test: an
   unchanged value does not notify; browser test: playing an automated song adds no undo step and does not change
   `DAW.debug.song()`.
-- [ ] 2.5 `ui/state/history.ts`: `commit`/`undo`/`redo` moved from `app.js`; restore reconciles `tracks` (key `id`) and
+- [x] 2.5 `ui/state/history.ts`: `commit`/`undo`/`redo` moved from `app.js`; restore reconciles `tracks` (key `id`) and
   `master` separately, never the root. Measure the snapshot cost on a 50-track song with GSM samples; if over 4 ms,
   add the asset table and dirty-flag commit (design D2). Unit tests: undo/redo round trip equals the saved song;
   unchanged tracks keep identity; `tempo`/`bars`/`meta` survive an undo.
+  Done: 61/61 (4 history unit tests). Snapshot cost is notes, not GSM samples (max 31 KB): no asset table. Commit keeps
+  its compare (drops no-op gestures); "unsaved" uses state ids (a hand-made revert to the saved values now shows
+  unsaved). Found by `bench/ui-profile.ts` and fixed here: the `JSON.stringify` replacer (212 ms per knob step on
+  tbl-stash-over2), uncached `getComputedStyle` in `css()` (seconds per undo), and proxy reads in lane draw /
+  `laneValue`. Bench vs pre-port (trashpanda; tbl-stash-over2): select-dev 56 → 33 (83 → 53), knob 6.5 → 1.2
+  (245 → 31), undo 380 → 430 (6 187 → 6 166), select-mix 13.6 → 12.5, mute 2.1 → 0.9 (71 → 46). Undo still
+  rebuilds every view until the arrangement and device panels are ported (5, 6).
 - [ ] 2.6 Mixer reads `song` and `live` directly; delete `syncMixer`, `patchStrip`, `patchSend` and `setPeak`. Verify:
   mixer test and bench unchanged.
 - [ ] 2.7 Ratchet test (`bun test`): counts direct model writes left in `app.js` (assignments, `splice`/`push`/`sort`

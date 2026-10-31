@@ -1,6 +1,6 @@
 // CPU profile of 10 knob-step + undo cycles in Chrome (change daw-solid-ts): self time per function, and the time
 // spent in Solid store proxy traps attributed to their callers. Finds hot proxy reads and layout costs.
-// ROOT=<repo holding SONG> SONG=project/music/x.song.json  bun packages/daw/bench/ui-profile.ts   (needs dist)
+// ROOT=<repo holding SONG> SONG=project/music/x.song.json [N=10 cycles] [KNOB_ONLY=1: knob steps, no undo]  bun packages/daw/bench/ui-profile.ts   (needs dist)
 import { chromium } from "playwright";
 import { startServer } from "../../cli/src/server.ts";
 const s = await startServer({ port: 0, root: process.env.ROOT, build: false, dawDist: new URL("../dist", import.meta.url).pathname, headless: false });
@@ -11,7 +11,7 @@ const cdp = await p.context().newCDPSession(p);
 await cdp.send("Profiler.enable"); await cdp.send("Profiler.setSamplingInterval", { interval: 100 });
 await p.evaluate(() => { const h = [...document.querySelectorAll<HTMLElement>(".thdr.track")].find((x) => !x.classList.contains("bus"))!; h.click(); });
 await cdp.send("Profiler.start");
-await p.evaluate(async () => { const k = () => document.querySelector<HTMLElement>("#p-dev .knob")!; for (let i = 0; i < 10; i++) { k().dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true })); await Promise.resolve(); await Promise.resolve(); document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true })); } });
+await p.evaluate(async ([N, KNOB]) => { const k = () => document.querySelector<HTMLElement>("#p-dev .knob")!; for (let i = 0; i < N; i++) { k().dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true })); await Promise.resolve(); await Promise.resolve(); if (!KNOB) document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true })); } }, [+(process.env.N ?? 10), !!process.env.KNOB_ONLY] as const);
 const { profile } = await cdp.send("Profiler.stop");
 const self = new Map<string, number>(); const dt = profile.timeDeltas!; const byId = new Map(profile.nodes.map((n: any) => [n.id, n]));
 profile.samples!.forEach((id: number, i: number) => { const n: any = byId.get(id); const k = `${n.callFrame.functionName || "(anon)"} ${n.callFrame.url.split("/").pop()}:${n.callFrame.lineNumber + 1}`; self.set(k, (self.get(k) || 0) + (dt[i] || 0) / 1000); });
