@@ -207,7 +207,7 @@ frames. It SHALL skip with a message when the songs are absent, and commit its r
 - **THEN** the tool prints a skip message and exits 0
 
 ### Requirement: Mini-cauldron XM import
-`synth-convert xm <in.xm> <patches.json> <out.song> [--names <tracks.json>]` SHALL convert an XM made by mini-cauldron (TBL Jizz, Stash song 1, Stash BLUISH), given that intro's decoded patch data, into a unified song that holds no generated sample data and whose every effect parameter lies in 0..1. With `--names` it SHALL write one name per track (master excluded) as a JSON array.
+`synth-convert xm <in.xm> <patches.json> <out.song> [--names <tracks.json>] [--controls tick|row|note]` SHALL convert an XM made by mini-cauldron (TBL Jizz, Stash song 1, Stash BLUISH), given that intro's decoded patch data, into a unified song that holds no generated sample data and whose every effect parameter lies in 0..1. `--names` SHALL write the track names (master excluded) as a JSON array; `--controls` SHALL set how often XM volume, pan and pitch reach the song (default `tick`).
 
 #### Scenario: Jizz converts
 - **WHEN** the Jizz XM and `patches_jizz.json` are converted
@@ -220,6 +220,10 @@ frames. It SHALL skip with a message when the songs are absent, and commit its r
 #### Scenario: Track names
 - **WHEN** an XM is converted with `--names`
 - **THEN** a phrase track is named `<sample> (record r)` or `<sample> (record r, ±class)`, a stored one `<sample> (sample)`, `.smp` dropped and repeats numbered
+
+#### Scenario: Control rate
+- **WHEN** an XM is converted with `--controls row` or `--controls note`
+- **THEN** each trigger's volume, pan and pitch change only at row starts, or hold their first tick's values, and the song is smaller than with `tick`
 
 ### Requirement: Generated sample identification
 The converter SHALL identify every generated sample as a (record, variant) of the patch data by the order rule the

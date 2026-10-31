@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Mini-cauldron XM import
-`synth-convert xm <in.xm> <patches.json> <out.song> [--names <tracks.json>] [--controls tick|row|note]` SHALL convert an XM made by mini-cauldron (TBL Jizz, Stash song 1, Stash BLUISH), given that intro's decoded patch data, into a unified song that holds no generated sample data and whose every effect parameter lies in 0..1. With `--names` it SHALL write one name per track (master excluded) as a JSON array; `--controls` sets how often the XM volume, pan and pitch reach the song (default `tick`).
+`synth-convert xm <in.xm> <patches.json> <out.song> [--names <tracks.json>] [--controls tick|row|note]` SHALL convert an XM made by mini-cauldron (TBL Jizz, Stash song 1, Stash BLUISH), given that intro's decoded patch data, into a unified song that holds no generated sample data and whose every effect parameter lies in 0..1. `--names` SHALL write the track names (master excluded) as a JSON array; `--controls` SHALL set how often XM volume, pan and pitch reach the song (default `tick`).
 
 #### Scenario: Jizz converts
 - **WHEN** the Jizz XM and `patches_jizz.json` are converted
