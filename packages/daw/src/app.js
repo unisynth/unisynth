@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { mountMixer, syncMixer, patchStrip, patchSend, setPeak, setMixerShown } from "./ui/mixer.tsx";
 // DAW UI (change add-synth-daw): the reviewed mockup's views and interactions on the real song/1 model,
 // engine (AudioWorklet + synth-wasm live host), device panels generated from the engine's parameter tables and
 // /api/music. Started by main.ts with { engine, model, api, tables, initial, files, library }.
@@ -1186,57 +1187,36 @@ vel.addEventListener("wheel", e => { if (!e.ctrlKey && !e.metaKey && !e.altKey &
 // Mixer: each strip = inserts (the track's effect chain), sends (stored as receives on the target track,
 // post-fader), fader, meters. Bus tracks have no instrument; the master is the last track and can hold effects.
 const mixer = document.getElementById("mixer");
-const peaks = {};  // track id → [L, R] from the engine's meters
 const FX = () => effectChoices().map(tb => tb.label);
-function strip(t) {
-  const s = document.createElement("div"); s.className = "strip" + (t.master ? " master" : "") + (t.bus ? " bus" : "") + (t === selected ? " sel" : "");
-  s.setAttribute("role", "group"); s.setAttribute("aria-label", `${t.name} channel strip`);
-  const pk = peaks[t.id] || [0, 0];
-  const fxi = t.devices.map((d, i) => [d, i]).filter(([d]) => d.kind !== 64);
-  const ins = fxi.map(([d, i]) => `<li${d.bypass ? ' class="off"' : ""}><button class="ins" title="Open ${devName(d)} in the device panel">${devName(d)}</button><button class="byp" data-i="${i}" aria-pressed="${!!d.bypass}" aria-label="Bypass ${devName(d)} on ${t.name}" title="Bypass">⏻</button></li>`).join("");
-  const sends = t.sends.map(([to, ch, db], i) => `<li><span>→ ${to}${ch === "side" ? " <em>side</em>" : ""}</span><input class="sendlvl" data-i="${i}" type="range" min="-60" max="6" step="0.1" value="${db}" aria-label="Send ${t.name} to ${to} ${ch} level" aria-valuetext="${db.toFixed(1)} dB"><span class="num">${db.toFixed(1)}</span><button class="srm" data-i="${i}" aria-label="Remove send ${t.name} to ${to}" title="Remove send">✕</button></li>`).join("");
-  s.innerHTML = `<button class="sn" aria-label="Select ${t.name}"><i style="background:var(${t.col})"></i>${t.name}</button>
-    <div class="sec"><div class="sh">Inserts</div><ul class="inslist">${ins || '<li class="dim none">none</li>'}</ul>
-      <button class="addins" aria-label="Add insert effect to ${t.name}">+ insert</button></div>
-    ${t.master ? "" : `<div class="sec"><div class="sh">Sends <span class="dim">post</span></div><ul class="sendlist">${sends || '<li class="dim none">none</li>'}</ul>
-      <button class="addsend" aria-label="Add send from ${t.name}">+ send</button></div>`}
-    <div class="fm"><input class="fader" type="range" min="-60" max="6" step="0.1" value="${t.vol}" aria-label="${t.name} volume" aria-valuetext="${t.vol.toFixed(1)} dB">
-      <div class="meter" role="meter" aria-label="${t.name} level left" aria-valuenow="${pk[0].toFixed(2)}" aria-valuemin="0" aria-valuemax="1"><i style="height:${(1 - pk[0]) * 100}%"></i></div>
-      <div class="meter" role="meter" aria-label="${t.name} level right" aria-valuenow="${pk[1].toFixed(2)}" aria-valuemin="0" aria-valuemax="1"><i style="height:${(1 - pk[1]) * 100}%"></i></div></div>
-    <div class="db num">${t.vol.toFixed(1)} dB</div>
-    ${t.master ? `<div class="dim" style="font-size:10px">→ song output</div>` : `<div class="ms"><button aria-pressed="${!!t.mute}" aria-label="Mute ${t.name}">M</button><button aria-pressed="${!!t.solo}" aria-label="Solo ${t.name}">S</button></div>`}`;
-  s.querySelector(".sn").onclick = () => selectTrack(t);
-  s.querySelectorAll(".byp").forEach(b => b.onclick = () => devBypass(t, +b.dataset.i));
-  s.querySelectorAll(".srm").forEach(b => b.onclick = () => { const before = snap(), [to] = t.sends[+b.dataset.i]; t.sends.splice(+b.dataset.i, 1); renderAll(); commit(before, `send ${t.name} → ${to} removed`); });
-  s.querySelectorAll(".sendlvl").forEach(r => {
-    r.oninput = () => { r._before ??= snap(); const sd = t.sends[+r.dataset.i]; sd[2] = +r.value; sd[3] = undefined; r.nextElementSibling.textContent = (+r.value).toFixed(1); r.setAttribute("aria-valuetext", (+r.value).toFixed(1) + " dB"); livePush(); };
-    r.onchange = () => { if (r._before) { commit(r._before, `send ${t.name} level ${(+r.value).toFixed(1)} dB`); r._before = null; } };
-  });
-  s.querySelector(".addsend")?.addEventListener("click", e => {
-    // targets: any track except itself, the master, and tracks that already feed this one (would loop)
-    const feeds = new Set([t.name]); let grew = true; while (grew) { grew = false; for (const x of tracks) if (!feeds.has(x.name) && x.sends.some(s1 => feeds.has(s1[0]))) { feeds.add(x.name); grew = true; } }
-    const opts = tracks.filter(x => !feeds.has(x.name)).flatMap(x => [[x.name, "main"], [x.name, "side"]]);
-    const b = e.currentTarget, pick = document.createElement("select"); pick.setAttribute("aria-label", `Send target for ${t.name}`);
-    pick.innerHTML = `<option value="">${opts.length ? "send to…" : "no target: every track already feeds this one"}</option>` + opts.map(([n1, ch]) => `<option value="${n1}|${ch}">${n1} · ${ch === "side" ? "sidechain" : "main"}</option>`).join("");
-    b.replaceWith(pick); pick.focus();
-    pick.addEventListener("change", () => { if (!pick.value) return; const [to, ch] = pick.value.split("|"), before = snap(); t.sends.push([to, ch, -12]); renderAll(); commit(before, `send ${t.name} → ${to} (${ch === "side" ? "sidechain" : "main"}, post-fader)`); });
-    pick.addEventListener("blur", () => { if (!pick.value) pick.replaceWith(b); });
-  });
-  s.querySelectorAll(".ins").forEach(b => b.onclick = () => { selectTrack(t); show(tabs[1]); });
-  s.querySelector(".addins").addEventListener("click", e => {
-    const b = e.currentTarget; const pick = document.createElement("select"); pick.setAttribute("aria-label", `Effect to insert on ${t.name}`);
-    pick.innerHTML = `<option value="">choose effect…</option>` + FX().map(f => `<option>${f}</option>`).join("");
-    b.replaceWith(pick); pick.focus();
-    pick.addEventListener("change", () => { if (pick.value) addEffect(t, pick.value); });
-    pick.addEventListener("blur", () => { if (!pick.value) pick.replaceWith(b); });
-  });
-  return s;
-}
-function renderMixer() {
-  mixer.replaceChildren(...tracks.map(strip));
-  const addBus = document.createElement("button"); addBus.className = "addbus"; addBus.textContent = "+ Bus"; addBus.title = "Add a bus track: no instrument, fed by sends"; addBus.onclick = () => addTrack(true);
-  mixer.append(addBus, strip(master));
-}
+const trackById = id => id === master.id ? master : tracks.find(x => x.id === id);
+const stripView = t => ({
+  id: t.id, name: t.name, col: t.col, master: !!t.master, bus: !!t.bus, sel: t === selected, vol: t.vol, mute: !!t.mute, solo: !!t.solo,
+  inserts: t.devices.map((d, i) => [d, i]).filter(([d]) => d.kind !== 64).map(([d, i]) => ({ id: String(i), i, name: devName(d), bypass: !!d.bypass })),
+  sends: t.sends.map(([to, ch, db], i) => ({ id: `${to}|${ch}`, i, to, side: ch === "side", db })),
+});
+let sendBefore = null;  // undo snapshot of a send-level gesture
+mountMixer(mixer, {
+  select: id => selectTrack(trackById(id)),
+  openInsert: id => { selectTrack(trackById(id)); show(tabs[1]); },
+  bypass: (id, i) => devBypass(trackById(id), i),
+  effects: FX,
+  addInsert: (id, label) => addEffect(trackById(id), label),
+  // targets: any track except itself, the master, and tracks that already feed this one (would loop)
+  sendTargets: id => {
+    const t = trackById(id), feeds = new Set([t.name]); let grew = true;
+    while (grew) { grew = false; for (const x of tracks) if (!feeds.has(x.name) && x.sends.some(s1 => feeds.has(s1[0]))) { feeds.add(x.name); grew = true; } }
+    return tracks.filter(x => !feeds.has(x.name)).flatMap(x => [[x.name, "main"], [x.name, "side"]]);
+  },
+  addSend: (id, to, ch) => { const t = trackById(id), before = snap(); t.sends.push([to, ch, -12]); renderAll(); commit(before, `send ${t.name} → ${to} (${ch === "side" ? "sidechain" : "main"}, post-fader)`); },
+  removeSend: (id, i) => { const t = trackById(id), before = snap(), [to] = t.sends[i]; t.sends.splice(i, 1); renderAll(); commit(before, `send ${t.name} → ${to} removed`); },
+  sendLevel: (id, i, db, done) => {
+    const t = trackById(id), sd = t.sends[i];
+    if (done) { if (sendBefore) commit(sendBefore, `send ${t.name} level ${db.toFixed(1)} dB`); sendBefore = null; return; }
+    sendBefore ??= snap(); sd[2] = db; sd[3] = undefined; patchSend(id, i, db); livePush();
+  },
+  addBus: () => addTrack(true),
+});
+function renderMixer() { syncMixer({ tracks: tracks.map(stripView), master: stripView(master) }); }
 function renderAll() {
   for (const t of tracks) { const d = document.querySelector(`.thdr.track[data-track="${t.id}"] .dev`); if (d) d.textContent = devLabel(t); }
   renderMixer(); renderDevice();
@@ -1595,6 +1575,7 @@ const tabs = [...document.querySelectorAll('[role="tab"]')];
 function show(t) {
   for (const x of tabs) { const on = x === t; x.setAttribute("aria-selected", on); x.tabIndex = on ? 0 : -1; document.getElementById(x.getAttribute("aria-controls")).hidden = !on; }
   if (t.id === "tab-roll") { drawRoll(); centreRoll(); }
+  setMixerShown(t.id === "tab-mix");  // the mixer is mounted only while its tab shows
   updateWatch();
 }
 tabs.forEach((t, i) => { t.addEventListener("click", () => show(t)); t.addEventListener("keydown", e => {
@@ -1731,7 +1712,7 @@ document.addEventListener("click", e => {
   const solo = b.getAttribute("aria-label").startsWith("Solo"), name = b.getAttribute("aria-label").slice(5), t = tracks.find(x => x.name === name); if (!t) return;
   const before = snap(); t[solo ? "solo" : "mute"] = !t[solo ? "solo" : "mute"]; if (!solo) setTimeout(() => commit(before, `${name} ${t.mute ? "muted" : "unmuted"}`));
   document.querySelectorAll(`button[aria-label="${solo ? "Solo" : "Mute"} ${name}"]`).forEach(x => x.setAttribute("aria-pressed", !!t[solo ? "solo" : "mute"]));
-  if (t._lane) t._lane.style.opacity = t.mute ? .45 : "";
+  if (t._lane) t._lane.style.opacity = t.mute ? .45 : ""; patchStrip(t.id, { mute: !!t.mute, solo: !!t.solo });
   say(`${name} ${solo ? (t.solo ? "soloed" : "unsoloed") : (t.mute ? "muted" : "unmuted")}`); livePush();
 });
 // Audible = not muted, and soloed, a send source of a soloed track, or a bus it sends to when any solo is on (model.ts).
@@ -1900,18 +1881,14 @@ function meters(st) {
   const now = performance.now(), dt = Math.min(.2, (now - meterAt) / 1000); meterAt = now;
   [...tracks, master].forEach((t, i) => {
     const id = t.id, pk = [st.peaks[2 * i] || 0, st.peaks[2 * i + 1] || 0], cur = lvl[id] || [0, 0];
-    const v = pk.map((p, c) => { const x = Math.max(Math.min(1, p), cur[c] * Math.pow(10, -dt)); return x < 1e-3 ? 0 : x; }); lvl[id] = v; peaks[id] = v;
-    // touch the DOM only for a visible change (silent or steady meters cost nothing)
+    const v = pk.map((p, c) => { const x = Math.max(Math.min(1, p), cur[c] * Math.pow(10, -dt)); return x < 1e-3 ? 0 : x; }); lvl[id] = v;
+    // publish only a visible change (silent or steady meters cost nothing; a hidden mixer has no DOM to touch)
     const sh = meterShown[id] || [-1, -1];
     if (Math.abs(sh[0] - v[0]) < 2e-3 && Math.abs(sh[1] - v[1]) < 2e-3) return;
-    meterShown[id] = v;
-    meterEls ??= new Map([...document.querySelectorAll(".strip")].map(s => [s.getAttribute("aria-label"), [...s.querySelectorAll(".meter")]]));
-    (meterEls.get(`${t.name} channel strip`) || []).forEach((m, c) => { m.firstElementChild.style.height = (1 - v[c]) * 100 + "%"; m.setAttribute("aria-valuenow", v[c].toFixed(2)); });
+    meterShown[id] = v; setPeak(id, [v[0], v[1]]);
   });
 }
-// meter elements by strip label, rebuilt after the mixer re-renders; the values last written to them
-let meterEls = null, meterShown = {};
-new MutationObserver(() => { meterEls = null; meterShown = {}; }).observe(document.getElementById("mixer"), { childList: true });
+const meterShown = {};  // the meter values last published, by track id
 relayout(); updateLoop(); showPos();
 queueMicrotask(() => { updateArmed(); validateMarks(); });
 
@@ -2259,7 +2236,7 @@ document.addEventListener("input", e => {
   el._before ??= snap(); t.vol = +el.value;
   document.querySelectorAll(`input[aria-label="${CSS.escape(name)} volume"]`).forEach(x => { if (x !== el) x.value = t.vol; x.setAttribute("aria-valuetext", `${t.vol.toFixed(1)} dB`); });
   document.querySelectorAll(`.thdr.track[data-track="${t.id}"] .vol .num`).forEach(x => x.textContent = `${t.vol.toFixed(1)} dB`);
-  document.querySelector(`.strip[aria-label="${CSS.escape(name)} channel strip"] .db`)?.replaceChildren(`${t.vol.toFixed(1)} dB`);
+  patchStrip(t.id, { vol: t.vol });
 });
 document.addEventListener("change", e => { const el = e.target; if (el._before) { commit(el._before, `${el.getAttribute("aria-label")} ${(+el.value).toFixed(1)} dB`); el._before = null; } });
 document.addEventListener("input", e => { const el = e.target; if (el instanceof HTMLInputElement && el.type === "range" && /( volume| level)$/.test(el.getAttribute("aria-label") || "")) livePush(); });

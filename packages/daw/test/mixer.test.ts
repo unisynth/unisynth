@@ -130,10 +130,30 @@ test("clicking a strip name selects the track", async () => {
   expect(await strip("Bass").getAttribute("class")).toContain("sel");
 });
 
-test("meters follow the engine while playing and fall back after stop", async () => {
+test("a hidden mixer has no DOM; showing it again rebuilds the strips", async () => {
+  await page.locator("#tab-dev").click();
+  expect(await page.locator("#mixer").evaluate((m) => m.childElementCount)).toBe(0);
   await page.locator("#tab-mix").click();
+  expect(await page.locator("#mixer .strip").count()).toBe(6);
+});
+
+test("meters follow the engine while playing (meter attributes only, no strip rebuilt) and fall back after stop", async () => {
+  await page.locator("#tab-mix").click();
+  await page.evaluate(() => {
+    const w = window as any; w.__mut = { nodes: 0, attrs: 0, other: 0 };
+    w.__mo = new MutationObserver((rs) => { for (const r of rs) {
+      if (r.type === "childList") w.__mut.nodes++;
+      else if ((r.target as Element).closest(".meter")) w.__mut.attrs++;
+      else w.__mut.other++;
+    } });
+    w.__mo.observe(document.getElementById("mixer"), { subtree: true, childList: true, attributes: true, characterData: true });
+  });
   await page.keyboard.press("Space");
   await page.waitForTimeout(1500);
+  const mut = await page.evaluate(() => { const w = window as any; w.__mo.disconnect(); return w.__mut; });
+  expect(mut.attrs).toBeGreaterThan(0);
+  expect(mut.nodes).toBe(0);
+  expect(mut.other).toBe(0);
   const vals = await page.locator("#mixer .meter").evaluateAll((ms) => ms.map((m) => Number(m.getAttribute("aria-valuenow"))));
   expect(Math.max(...vals)).toBeGreaterThan(0.01);
   await page.keyboard.press("Space");
