@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Track render steps
-For each sub-block, a track SHALL fire its MIDI lane's events in the sub-block to every device on the track with their offsets, clear its 4 channel buffers and its extra pairs, add each receive (the selected pair of the sending track × volume into channel pair 0 = main, 2 = sidechain, or an extra input pair), decide whether it sleeps (quiet tracks), apply its automations, then, unless it sleeps, run its devices in chain order in place and scale all 4 buffers and its extra output pairs by the track volume.
+For each sub-block, a track SHALL fire its lane's events to its devices with their offsets, clear its 4 channel buffers and extra pairs, add each receive (the sending track's selected pair × volume into pair 0 = main, 2 = sidechain, or an extra input pair), decide whether it sleeps, apply its automations, then, unless it sleeps, run its devices in chain order in place and scale its buffers and extra output pairs by the track volume.
 
 #### Scenario: Send into sidechain
 - **WHEN** track A sends at volume 0.5 into channel 2 of track B
