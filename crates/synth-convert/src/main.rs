@@ -7,7 +7,7 @@
 //! synth-convert patch <patch.txt> <phrase.txt> <out.song>
 //!                                                       one Tunefish patch (112 numbers) played by a phrase (`block note velocity` lines)
 //! synth-convert xm-phrase <patches.json> <call> <record> <variant> <out.song>
-//! synth-convert xm <in.xm> <patches.json> <out.song> [--names <tracks.json>] [--controls tick|row|note] [--thin <bytes>]
+//! synth-convert xm <in.xm> <patches.json> <out.song> [--names <tracks.json>] [--controls tick|row|note] [--thin <bytes>] [--keep-layers] [--split-pitches]
 //! synth-convert xm-triggers <in.xm>
 //!                                                       one mini-cauldron phrase trigger (call jizz | bluish | song0; parity entry)
 //! synth-convert features <song>                          the unisynth cargo features the unified song needs (comma separated)
@@ -18,7 +18,7 @@
 use std::process::ExitCode;
 use synth_convert::Converted;
 
-const USAGE: &str = "usage: synth-convert ws <in.song> <out.song>\n       synth-convert tfm <in.tfm> <out.song> [tail-seconds]\n       synth-convert v2m <in.v2m> <out.song> [tail-seconds] [--channels hex] [--era auto|kkrieger2004]   (Farbrausch V2, format versions 0-6)\n       synth-convert tf4m <in.tf4m> <out.song> [tail-seconds]   (2013 Tunefish 4 of Enigma Studio 4)\n       synth-convert tf4m-tfm <in.tf4m> <out.tfm>   (the same song in the final .tfm layout)\n       synth-convert patch <patch.txt> <phrase.txt> <out.song>\n       synth-convert xm <in.xm> <patches.json> <out.song> [--names <tracks.json>] [--controls tick|row|note] [--thin <bytes>]   (a mini-cauldron XM: TBL Jizz, Stash; XM volume/pan/pitch per tick (default), row or note; --thin: lanes within that many bytes of 255, slides as ramps)\n       synth-convert xm-phrase <patches.json> <jizz|bluish|song0> <record> <variant> <out.song>   (one mini-cauldron phrase)\n       synth-convert xm-triggers <in.xm>   (the XM replay's triggers: start s, volume, offset)\n       synth-convert features <unified.song> [--explain | --json] [--cost <marginal.csv>]\n       synth-convert rust <unified.song> <out.rs> [bank.dls]   (compo build: validated song as Rust + module assert)";
+const USAGE: &str = "usage: synth-convert ws <in.song> <out.song>\n       synth-convert tfm <in.tfm> <out.song> [tail-seconds]\n       synth-convert v2m <in.v2m> <out.song> [tail-seconds] [--channels hex] [--era auto|kkrieger2004]   (Farbrausch V2, format versions 0-6)\n       synth-convert tf4m <in.tf4m> <out.song> [tail-seconds]   (2013 Tunefish 4 of Enigma Studio 4)\n       synth-convert tf4m-tfm <in.tf4m> <out.tfm>   (the same song in the final .tfm layout)\n       synth-convert patch <patch.txt> <phrase.txt> <out.song>\n       synth-convert xm <in.xm> <patches.json> <out.song> [--names <tracks.json>] [--controls tick|row|note] [--thin <bytes>] [--keep-layers] [--split-pitches]   (a mini-cauldron XM: TBL Jizz, Stash; XM volume/pan/pitch per tick (default), row or note; --thin: lanes within that many bytes of 255, slides as ramps; stereo/echo layers dropped and pitch tracks packed unless --keep-layers / --split-pitches)\n       synth-convert xm-phrase <patches.json> <jizz|bluish|song0> <record> <variant> <out.song>   (one mini-cauldron phrase)\n       synth-convert xm-triggers <in.xm>   (the XM replay's triggers: start s, volume, offset)\n       synth-convert features <unified.song> [--explain | --json] [--cost <marginal.csv>]\n       synth-convert rust <unified.song> <out.rs> [bank.dls]   (compo build: validated song as Rust + module assert)";
 
 fn read(path: &str) -> Result<Vec<u8>, String> {
     std::fs::read(path).map_err(|e| format!("{path}: {e}"))
@@ -121,11 +121,22 @@ fn run(args: &[String]) -> Result<(), String> {
             std::fs::write(output, song.write()).map_err(|e| format!("{output}: {e}"))
         }
         ["xm", input, patches, output, ref rest @ ..] => {
-            // options: --names <tracks.json>, --controls tick|row|note, --thin <bytes>
+            // options: --names <tracks.json>, --controls tick|row|note, --thin <bytes>, --keep-layers, --split-pitches
             use synth_convert::cauldron::import::{ControlRate, Options};
             let (mut names, mut opts) = (None, Options::default());
-            let mut it = rest.iter();
+            let mut it = rest.iter().peekable();
             while let Some(&o) = it.next() {
+                match o {
+                    "--keep-layers" => {
+                        opts.keep_layers = true;
+                        continue;
+                    }
+                    "--split-pitches" => {
+                        opts.split_pitches = true;
+                        continue;
+                    }
+                    _ => {}
+                }
                 match (o, it.next()) {
                     ("--names", Some(&f)) => names = Some(f),
                     ("--controls", Some(&c)) => opts.controls = ControlRate::parse(c).ok_or_else(|| format!("--controls {c}: expected tick, row or note"))?,
@@ -141,6 +152,7 @@ fn run(args: &[String]) -> Result<(), String> {
                 eprintln!("warning: {w}");
             }
             eprintln!("tracks {} phrase, {} stored", c.tracks.0, c.tracks.1);
+            eprintln!("layers {} dropped ({} same-tick, {} echoes)", c.dropped.0 + c.dropped.1, c.dropped.0, c.dropped.1);
             eprintln!("pingpong-seconds {:.1}", c.pingpong);
             eprintln!("muted-seconds {:.1}", c.muted);
             eprintln!("lead-frames {}", c.lead);

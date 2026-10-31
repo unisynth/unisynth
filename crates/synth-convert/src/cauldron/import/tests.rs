@@ -507,3 +507,15 @@ fn control_rates_hold_the_value_of_the_row_or_the_note() {
     r.triggers[0].ticks[0].row = false;
     assert_eq!(got(&r, ControlRate::Row), want(&[0, 0, 0, 3, 3, 3]));
 }
+
+#[test]
+fn the_post_gain_reads_back_through_the_eq_law() {
+    // a layer's absorbed level lifts a phrase's gain past 1 (change compact-cauldron-xm-import): the EQ 3band gain
+    // law turns quadratic above 0.5, so the parameter must invert it
+    for g in [0.0, 0.25, 0.5, 1.0, 1.25, std::f64::consts::SQRT_2, 1.58, 2.0] {
+        // unisynth's `fx::law::eq_gain` (private there)
+        let p = post_value(g) as f64;
+        let back = if p <= 0.5 { 2.0 * p } else { 1.0 + 10.0 * (2.0 * p - 1.0).powi(2) };
+        assert!((back - g).abs() < 1e-5, "{g} -> {back}");
+    }
+}

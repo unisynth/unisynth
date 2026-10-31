@@ -1168,7 +1168,34 @@ unified song that plays the phrases live. Full design and measurements: `openspe
 
 **Tracks (D2).** Triggers of one record on one XM channel at one ratio class (a semitone class of the trigger's
 sounding range, −48…+24) share a track; channel groups whose spans never overlap merge. The comb, echo and doubler
-times are fixed in phrase frames, so a track's chain is built for its class.
+times are fixed in phrase frames, so a track's chain is built for its class. That is the `--split-pitches` layout;
+the default packs them (below).
+
+**Compact layout (default; change compact-cauldron-xm-import).** The XMs fake stereo and reverb with channels: a pad
+plays one note hard left and hard right (one side detuned by `E11`), then 1–2 quieter echo taps on other channels
+panned in turn (Jizz +3/+6 rows, Stash song 1 +1/+2, BLUISH +2/+4), and Jizz doubles its hi-hat left and right.
+`compact::layers` drops a trigger repeating a kept one (same instrument, sample, note, offset; another channel) at the
+same frame, or later while the kept one sounds (≤ 2.5 s) at a lower first-tick volume; the kept one takes the
+same-frame copies' equal-power left/right level (a hard pair: centred, ×√2; its post gain can pass 1, encoded through
+the EQ 3band law: `post_value`). Echo taps leave nothing: the songs are dry. `compact::pack` then puts a record's
+triggers on the first track they overlap nowhere whose pitch range stays within one track's reach (94 semitones),
+whatever the channel and ratio; the class is the most frequent one moved into reach (the transpose and bend carry
+the rest; the chain's echo, comb and doubler times stay the class's). Stored samples pack per (instrument, sample)
+the same way. `--keep-layers --split-pitches` gives the layered layout byte for byte (the parity tool uses it).
+Measured 2026-10-31 (`bun tools/unisynth-parity/cauldron-compact.ts`, `tools/unisynth-parity/cauldron-compact.md`;
+render: `fast` profile; loudness against the OpenMPT reference):
+
+| Song | Layout | Tracks (phrase + stored) | Song | xz | Render | Loudness |
+|---|---|---:|---:|---:|---:|---:|
+| Jizz | layered | 58 + 13 | 327 810 | 17.8 KB | 23.8 s | +0.33 dB |
+| | compact | 13 + 11 | 144 935 | 14.3 KB | 7.8 s | +0.23 dB |
+| Stash song 1 | layered | 106 + 13 | 1 379 893 | 38.8 KB | 68.7 s | +0.23 dB |
+| | compact | 35 + 10 | 794 825 | 30.2 KB | 29.1 s | +0.18 dB |
+| Stash BLUISH | layered | 64 + 12 | 573 993 | 31.0 KB | 26.8 s | +0.13 dB |
+| | compact | 29 + 10 | 335 155 | 25.0 KB | 10.9 s | +0.03 dB |
+
+Layers dropped: Jizz 591 of 2 061 triggers, song 1 656, BLUISH 414. Octave bands stay within 3.3 dB of the
+reference; the stereo image narrows (pads centred) and the echo tails are gone.
 
 **Control rate (`--controls tick|row|note`).** The XM's volume, pan and pitch reach the song every tracker tick
 (`tick`, the default), only at row starts (`row`: slides and fades become steps, tremor and vibrato go), or once per
@@ -1336,6 +1363,8 @@ cargo run -q --release -p unisynth --features std --example render -- /tmp/uni/j
 # counts, ping-pong seconds and the lead on stderr; `xm-triggers` lists the replay's triggers
 XM=research/tbl-mini-cauldron/out/listen/stash_bluish.xm
 [ -f "$XM" ] && $SC xm "$XM" research/tbl-mini-cauldron/ref/patches_stash.json /tmp/uni/bluish.song && $SC features /tmp/uni/bluish.song
+# the layered layout (stereo/echo channels and per-ratio tracks kept, as the parity tool converts)
+[ -f "$XM" ] && $SC xm "$XM" research/tbl-mini-cauldron/ref/patches_stash.json /tmp/uni/bluish-layered.song --keep-layers --split-pitches
 [ -f "$XM" ] && $SC xm-triggers "$XM" | sed -n 1,3p
 
 # errors name the problem, exit non-zero and write nothing

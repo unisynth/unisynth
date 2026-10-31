@@ -289,7 +289,8 @@ fn with_tremolo(xm: &[u8]) -> Vec<u8> {
 }
 
 /// `synth-convert xm` (opt-in, task 6.1): converts Jizz to a song that loads and holds no `Probe` sample data; an
-/// unsupported effect is an error naming it, exits non-zero and writes nothing.
+/// unsupported effect is an error naming it, exits non-zero and writes nothing. Compact by default (change
+/// compact-cauldron-xm-import): layers dropped, fewer tracks than `--keep-layers --split-pitches`.
 #[test]
 fn the_xm_cli_converts_and_writes_nothing_on_error() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../research/tbl-mini-cauldron");
@@ -300,19 +301,26 @@ fn the_xm_cli_converts_and_writes_nothing_on_error() {
     }
     let dir = std::env::temp_dir().join(format!("xm-cli-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let run = |input: &std::path::Path, out: &std::path::Path| std::process::Command::new(env!("CARGO_BIN_EXE_synth-convert")).arg("xm").arg(input).arg(root.join("ref/patches_jizz.json")).arg(out).output().unwrap();
+    let run_with = |input: &std::path::Path, out: &std::path::Path, opts: &[&str]| std::process::Command::new(env!("CARGO_BIN_EXE_synth-convert")).arg("xm").arg(input).arg(root.join("ref/patches_jizz.json")).arg(out).args(opts).output().unwrap();
+    let run = |input: &std::path::Path, out: &std::path::Path| run_with(input, out, &[]);
+    // the layered layout (the parity's)
+    let layered = dir.join("layered.song");
+    let o = run_with(&xm, &layered, &["--keep-layers", "--split-pitches"]);
+    let err = String::from_utf8_lossy(&o.stderr);
+    assert!(o.status.success() && err.contains("tracks 58 phrase, 13 stored") && err.contains("layers 0 dropped"), "{err}");
     let out = dir.join("jizz.song");
     let o = run(&xm, &out);
     let err = String::from_utf8_lossy(&o.stderr);
     assert!(o.status.success(), "{err}");
-    assert!(err.contains("lead-frames") && err.contains("tracks 58 phrase"), "{err}");
+    assert!(err.contains("lead-frames") && err.contains("tracks 13 phrase") && err.contains("layers 591 dropped"), "{err}");
+    assert!(std::fs::metadata(&out).unwrap().len() < std::fs::metadata(&layered).unwrap().len());
     let blob = std::fs::read(&out).unwrap();
     loads_and_renders(&blob);
-    // no generated sample data: the only samples are the stored ones, one per stored-sample track (13)
+    // no generated sample data: the only samples are the stored ones, one per stored-sample track (11)
     let song = synth_convert::model::SongM::read(&blob).unwrap();
     let samples: usize = song.devices.iter().filter(|d| d.kind == unisynth::kind::INSTRUMENT).map(|d| unisynth::chunk::Chunk::parse(&d.chunk).unwrap().sample_count()).sum();
-    assert!(err.contains("13 stored"), "{err}");
-    assert_eq!(samples, 13);
+    assert!(err.contains("11 stored"), "{err}");
+    assert_eq!(samples, 11);
     // an unsupported effect
     let bad = dir.join("bad.xm");
     std::fs::write(&bad, with_tremolo(&std::fs::read(&xm).unwrap())).unwrap();

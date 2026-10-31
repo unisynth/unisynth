@@ -130,11 +130,14 @@ const ref44bw = (name: string) => join(OUT, "listen/ref44bw", `${name}.wav`);
  * resampler rolls off near its 17.7 kHz Nyquist as ours does). */
 export const phraseRef = (p: { name: string; decim: number }) => (p.decim > 1 ? ref44bw(p.name) : ref44(p.name));
 
-/** Convert (`args` after the subcommand) → render → read; `self` reads the reference (`ref`) instead. */
-function ours(sub: string[], name: string, work: string, self: boolean, ref = ref44(name)): { audio?: Audio; err?: string; stderr?: string } {
+/** The song conversion the parity judges: the XM's layers and pitch tracks kept (change compact-cauldron-xm-import). */
+export const PARITY_OPTIONS = ["--keep-layers", "--split-pitches"];
+
+/** Convert (`args` after the subcommand, `post` after the output) → render → read; `self` reads the reference (`ref`) instead. */
+function ours(sub: string[], name: string, work: string, self: boolean, ref = ref44(name), post: string[] = []): { audio?: Audio; err?: string; stderr?: string } {
   if (self) return { audio: readWav(ref) };
   const conv = join(work, `${name}.song`), wav = join(work, `${name}.wav`);
-  const c = sh([bin("synth-convert"), ...sub, conv]);
+  const c = sh([bin("synth-convert"), ...sub, conv, ...post]);
   if (!c.ok) return { err: `convert: ${c.err.split("\n").pop()}` };
   const u = sh([ex("render"), conv, wav]);
   if (!u.ok) return { err: `render: ${u.err.slice(-300)}` };
@@ -145,7 +148,7 @@ export function runSong(name: string, work: string, self = false): Row {
   const row: Row = { name, kind: "song" };
   try {
     const s = SONGS[name];
-    const o = ours(["xm", join(OUT, "listen", s.xm), join(RESEARCH, "ref", s.patches)], name, work, self);
+    const o = ours(["xm", join(OUT, "listen", s.xm), join(RESEARCH, "ref", s.patches)], name, work, self, ref44(name), PARITY_OPTIONS);
     if (o.err) return { ...row, error: o.err };
     row.warnings = (o.stderr ?? "").split("\n").filter((l) => /warning/i.test(l));
     row.pingpong = pingpongSeconds(o.stderr ?? "");

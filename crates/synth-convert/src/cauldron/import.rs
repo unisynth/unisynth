@@ -12,6 +12,7 @@ use crate::xm::replay::TickCtl;
 use crate::xm::Xm;
 use std::collections::BTreeMap;
 
+pub mod compact;
 #[cfg(test)]
 mod tests;
 
@@ -381,6 +382,12 @@ fn merge<K: Ord + Copy>(r: &crate::xm::replay::Replay, by: BTreeMap<(K, usize), 
 /// Frames the post-chain gain (EQ 3band) delays a phrase track by.
 pub const POST_DELAY: i64 = 3;
 
+/// The EQ 3band band parameter playing gain `g` (unisynth's `eq_gain`: `2p` up to 0.5, `1 + 10·(2p − 1)²` above): a
+/// trigger that absorbed its layers plays above 1 (change compact-cauldron-xm-import).
+pub(crate) fn post_value(g: f64) -> f32 {
+    (if g <= 1.0 { g / 2.0 } else { 0.5 + ((g - 1.0) / 10.0).sqrt() / 2.0 }) as f32
+}
+
 /// The post-chain gain device's values: EQ 3band, all bands at 0 (the song's automation sets them).
 fn post_gain() -> Vec<f32> {
     vec![unisynth::fx::mode_value(unisynth::kind::EQ, 1), 0.0, 0.0, 0.0]
@@ -640,6 +647,8 @@ pub struct Converted {
     pub records: Vec<Option<usize>>,
     /// Per song track (the master excluded): a name from its XM sample, record and class ([`track_names`]).
     pub names: Vec<String>,
+    /// Layered triggers dropped ([`compact::layers`]): same-tick copies, echo taps.
+    pub dropped: (usize, usize),
 }
 
 /// Track names from (record, XM sample name, class; `.smp` dropped): `<sample> (record <r>, <class>)` (no class at 0) for a phrase
@@ -738,11 +747,15 @@ pub struct Options {
     /// Bytes (of 255) the volume, pan, pitch and low-pass lanes may differ from the XM's per-tick steps, so slides
     /// and fades become ramps through few points ([`crate::cauldron::thin_lane`]); 0 keeps every step.
     pub thin: u8,
+    /// Keeps the XM's stereo and echo layers (`--keep-layers`); default: dropped ([`compact::layers`]).
+    pub keep_layers: bool,
+    /// One track group per record, channel and ratio class (`--split-pitches`); default: packed ([`compact::pack`]).
+    pub split_pitches: bool,
 }
 
 impl Default for Options {
     fn default() -> Self {
-        Options { controls: ControlRate::Tick, thin: 0 }
+        Options { controls: ControlRate::Tick, thin: 0, keep_layers: false, split_pitches: false }
     }
 }
 
@@ -774,6 +787,17 @@ pub fn convert_with(p: &Patches, xm: &Xm, rate: i32, opts: Options) -> Result<Co
             path(&t.ticks, t.offset, &loop_of(sample(t)), d, rate as f64)
         })
         .collect();
+    // the stereo and echo layers dropped (compact::layers): kept triggers and their paths
+    let mut dropped = (0, 0);
+    let (r, paths) = if opts.keep_layers {
+        (r, paths)
+    } else {
+        let l = compact::layers(&mut r, |i| paths[i].end, rate as f64);
+        dropped = (l.same_tick, l.echoes);
+        let triggers = l.keep.iter().map(|&i| r.triggers[i].clone()).collect();
+        let paths = l.keep.iter().map(|&i| paths[i].clone()).collect();
+        (crate::xm::replay::Replay { triggers, length: r.length }, paths)
+    };
     // a slide past one track's reach hands over: its segments become triggers of their own (handovers, clip)
     let (r, paths) = {
         let (mut trig, mut ps) = (vec![], vec![]);
@@ -797,14 +821,19 @@ pub fn convert_with(p: &Patches, xm: &Xm, rate: i32, opts: Options) -> Result<Co
         (crate::xm::replay::Replay { triggers: trig, length: r.length }, ps)
     };
     let span = |i: usize| (r.triggers[i].frame as f64, paths[i].end);
-    let plans = group(&r, &ids, dec, span);
-    let mut stored: BTreeMap<((usize, usize), usize), Vec<usize>> = BTreeMap::new();
-    for (i, t) in r.triggers.iter().enumerate() {
-        if ids[t.instrument][t.sample].is_none() && !sample(t).data.is_empty() {
-            stored.entry(((t.instrument, t.sample), t.channel)).or_default().push(i);
+    let plans = if opts.split_pitches { group(&r, &ids, dec, span) } else { compact::pack(&r, &ids, dec, span) };
+    let is_stored = |t: &crate::xm::replay::Trigger| ids[t.instrument][t.sample].is_none() && !sample(t).data.is_empty();
+    let stored = if opts.split_pitches {
+        let mut stored: BTreeMap<((usize, usize), usize), Vec<usize>> = BTreeMap::new();
+        for (i, t) in r.triggers.iter().enumerate() {
+            if is_stored(t) {
+                stored.entry(((t.instrument, t.sample), t.channel)).or_default().push(i);
+            }
         }
-    }
-    let stored = merge(&r, stored, span);
+        merge(&r, stored, span)
+    } else {
+        compact::pack_by(&r, |i| Some(&r.triggers[i]).filter(|t| is_stored(t)).map(|t| (t.instrument, t.sample)), span)
+    };
     let longest = plans.iter().filter(|t| call.records[t.record].echo > 0.0).map(|t| echo_ms(t.ratio())).filter(|&ms| ms <= ECHO_MAX_MS).fold(0.0, f64::max);
     let tempo = tempo_for(longest);
     // a track whose triggers slide more than a semitone gets the band-limiting low-pass (slide_lowpass)
@@ -871,7 +900,7 @@ pub fn convert_with(p: &Patches, xm: &Xm, rate: i32, opts: Options) -> Result<Co
         if let Some(d) = post {
             // EQ 3band, all three bands at the gain (linear below 0.5): flat, 3 frames late; it sees output frame
             // `lead + f` at `lead + f − 3`
-            let ch: Vec<(i64, u8)> = c.post.iter().map(|&(f, g)| (lead + f - POST_DELAY, byte((g / 2.0) as f32))).collect();
+            let ch: Vec<(i64, u8)> = c.post.iter().map(|&(f, g)| (lead + f - POST_DELAY, byte(post_value(g)))).collect();
             let b0 = ch.first().map_or(0, |x| x.1);
             let pts = thin_lane(b0, &ch, thin, &[]);
             for param in 1..=3 {
@@ -985,6 +1014,6 @@ pub fn convert_with(p: &Patches, xm: &Xm, rate: i32, opts: Options) -> Result<Co
             .chain(stored.iter().map(|(_, trig)| (None, sample_name(trig[0]), 0)))
             .collect::<Vec<_>>(),
     );
-    Ok(Converted { song, lead: lead as usize, warnings, pingpong, muted, tracks: (plans.len(), stored.len()),
+    Ok(Converted { song, lead: lead as usize, warnings, pingpong, muted, tracks: (plans.len(), stored.len()), dropped,
         records: plans.iter().map(|t| Some(t.record)).chain(stored.iter().map(|_| None)).collect(), names })
 }
