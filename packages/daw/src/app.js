@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { batch, createSong, raw } from "./ui/state/song.ts";
 import { laneEl, overrides, overrideSet, rollClips } from "./ui/state/view.ts";
 import { mountMixer, syncMixer, patchStrip, patchSend, setPeak, setMixerShown } from "./ui/mixer.tsx";
 // DAW UI (change add-synth-daw): the reviewed mockup's views and interactions on the real song/1 model,
@@ -14,13 +15,13 @@ const store = (() => { const mem = new Map(); let ls = null; try { ls = window.l
 let CAT = null;  // library catalog (/api/library)
 const E = DAW.engine, M = DAW.model, api = DAW.api, TABLES = DAW.tables;
 const st0 = DAW.initial;
-const tracks = st0.tracks, master = st0.master;
+const song = createSong(st0), tracks = song.tracks, master = song.master;  // store proxies (ui/state/song.ts)
 BARS = st0.bars; LOOP[1] = Math.min(BARS, 4) + 1;
 // ---- device tables (design D8): every device's parameters come from the engine module ----
 const choice = (p, n) => Math.min(n - 1, Math.max(0, Math.floor(p * (n - 1) + .5)));
 const nModes = k => TABLES.filter(t => t.kind === k).length;
-const modeOf = d => d.kind === 64 ? 0 : choice(d.values.mode ?? 0, nModes(d.kind));
-const tableOf = d => TABLES.find(t => t.kind === d.kind && t.mode === modeOf(d));
+const modeOf = d => { const r = raw(d); return r.kind === 64 ? 0 : choice(r.values.mode ?? 0, nModes(r.kind)); };  // read-only, hot: raw
+const tableOf = d => { const k = raw(d).kind, m = modeOf(d); return TABLES.find(t => t.kind === k && t.mode === m); };  // read d once (store proxy)
 const paramOf = (d, name) => tableOf(d)?.params.find(p => p.name === name);
 const devName = d => d.kind === 64 ? (d.preset || "Unisynth") : tableOf(d)?.label ?? `kind ${d.kind}`;
 const instOf = t => t.devices.find(d => d.kind === 64);
@@ -37,7 +38,7 @@ function patOf(t, name) {
   const pt = t.pats[name]; pt.cc ??= { wheel: [], bend: [] }; return pt;
 }
 // A clip moved or pasted onto another track brings its notes (never overwrites a pattern already there).
-const carry = (from, to, name, pat) => { if (from !== to && !to.pats?.[name]) (to.pats ??= {})[name] = structuredClone(pat || patOf(from, name)); };
+const carry = (from, to, name, pat) => { if (from !== to && !to.pats?.[name]) (to.pats ??= {})[name] = structuredClone(raw(pat || patOf(from, name))); };
 let selected = tracks.find(t => !t.bus) || tracks[0] || master, armed = tracks.find(t => instOf(t)) || null;
 let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 document.querySelector('header input[type="number"]').value = st0.tempo;
@@ -61,7 +62,8 @@ function makeClip(t, c) {
   el.style.left = (c.start - 1) * BW + "px"; el.style.width = c.len * BW - 1 + "px"; el.style.background = `var(${t.col})`;
   el.tabIndex = -1; el.setAttribute("role", "button"); el.setAttribute("aria-label", `Clip ${c.name}, bar ${+c.start.toFixed(2)}, ${+c.len.toFixed(2)} bars${c.loop ? ", looping" : ""}${n > 1 ? ", linked" : ""}${c.sel ? ", selected" : ""}`);
   el.innerHTML = `<div class="lbl">${c.name}</div><div class="notes"></div><div class="rz" title="Drag: crop or extend · Alt+drag: loop the clip"></div>`;
-  const nb = el.querySelector(".notes"), pt = t.bus ? null : patOf(t, c.name), ns = pt ? pt.notes : [], steps = c.len * 16, per = c.loop ? pt.len * 16 : Infinity;
+  const nb = el.querySelector(".notes"), pt = t.bus ? null : patOf(t, c.name), ns = pt ? raw(pt.notes) : [],  // read-only: raw (no proxy per note)
+    steps = c.len * 16, per = c.loop ? pt.len * 16 : Infinity;
   if (c.loop) { el.querySelector(".lbl").append(" ⟳"); for (let x = per; x < steps; x += per) { const m = document.createElement("b"); m.className = "lpm"; m.style.left = (x / steps) * 100 + "%"; nb.append(m); } }
   if (ns.length) { const lo = Math.min(...ns.map(n => n.n)), hi = Math.max(...ns.map(n => n.n)), span = Math.max(1, hi - lo);
     for (let k = 0; k === 0 || (c.loop && k * per < steps); k++) for (const n of ns) { const s0 = n.s + k * (c.loop ? per : 0); if (s0 >= steps || (c.loop && n.s >= per)) continue;
@@ -73,7 +75,7 @@ function makeClip(t, c) {
 // pattern (pattern length = pt.len bars); a cropped clip plays the pattern's start.
 function* clipNotes(t, c) {
   const pt = patOf(t, c.name), steps = c.len * 16, per = c.loop ? pt.len * 16 : Infinity;
-  for (let k = 0; k === 0 || (c.loop && k * per < steps); k++) for (const n of pt.notes) {
+  for (let k = 0; k === 0 || (c.loop && k * per < steps); k++) for (const n of raw(pt.notes)) {
     if (c.loop && n.s >= per) continue; const s0 = n.s + k * (c.loop ? per : 0); if (s0 < steps) yield [n, s0, Math.min(n.l, steps - s0)];
   }
 }
@@ -1263,8 +1265,9 @@ const clipboard = { notes: null, clips: null };
 const undoStack = [], redoStack = [];
 // Undo: one whole-song snapshot per gesture or command (tracks, clips, notes, devices, automation, mixer).
 const SKIP = new Set(["_dev"]);
-const snap = () => JSON.stringify({ tracks, master, sel: selected.id, armed: armed?.id }, (k, v) => SKIP.has(k) ? undefined : v);
-function restore(js) {
+const snap = () => JSON.stringify({ tracks: raw(tracks), master: raw(master), sel: selected.id, armed: armed?.id }, (k, v) => SKIP.has(k) ? undefined : v);
+function restore(js) { batch(() => restore1(js)); }  // one notification pass for the whole restore
+function restore1(js) {
   const d = JSON.parse(js);
   overrides.clear();  // as before the view store: restored tracks follow their automation lanes again
   tracks.splice(0, tracks.length, ...d.tracks); Object.assign(master, d.master);
@@ -1389,7 +1392,7 @@ let uniq = 2;
 const arr = {
   all() { tracks.forEach(t => t.clips.forEach(c => c.sel = true)); },
   copy() { const cs = selClips(); if (!cs.length) return say("no clips selected"); const i0 = Math.min(...cs.map(x => instrTracks().indexOf(x.t))), s0 = Math.min(...cs.map(x => x.c.start));
-    clipboard.clips = cs.map(({ t, c }) => ({ dt: instrTracks().indexOf(t) - i0, ds: c.start - s0, len: c.len, name: c.name, pat: structuredClone(patOf(t, c.name)) })); say(`${cs.length} clips copied`); },
+    clipboard.clips = cs.map(({ t, c }) => ({ dt: instrTracks().indexOf(t) - i0, ds: c.start - s0, len: c.len, name: c.name, pat: structuredClone(raw(patOf(t, c.name))) })); say(`${cs.length} clips copied`); },
   del() { const n = selClips().length; tracks.forEach(t => t.clips = t.clips.filter(c => !c.sel)); say(`${n} clips deleted`); },
   cut() { arr.copy(); arr.del(); say(`${clipboard.clips?.length || 0} clips cut`); },
   paste(linked, at = aCursor) { if (!clipboard.clips) return say("clipboard empty"); clearClipSel(); const it = instrTracks(), i0 = Math.max(0, it.indexOf(selected));
@@ -1750,7 +1753,7 @@ function showPos() {
 const frameOf = b => Math.max(0, Math.round((b - 1) / barsPerSec() * E.rate));
 const barOf = f => 1 + f / E.rate * barsPerSec();
 let songMeta = st0.meta, songLen0 = st0.length0;  // song/1 meta (title, author, licence notes) and [bars, ticks] as loaded
-const uiState = () => ({ tracks, master, tempo: +tempoIn.value || 120, sig: sig(), bars: BARS, length0: songLen0, ...(songMeta ? { meta: songMeta } : {}) });
+const uiState = () => ({ tracks: raw(tracks), master: raw(master), tempo: +tempoIn.value || 120, sig: sig(), bars: BARS, length0: songLen0, ...(songMeta ? { meta: songMeta } : {}) });
 const cleanDev = d => { const { _edited, _dev, ...x } = d; return x; };
 const songOf = live => { const s1 = M.toSong(uiState(), live ? audible : undefined); for (const t of [...s1.tracks, s1.master]) t.devices = t.devices.map(cleanDev); return s1; };
 let liveLoaded = false, pushT = 0, pushing = false, statusAt = 0, lastIssue = "";
@@ -2143,7 +2146,7 @@ function moveTrack(t, d) {
   document.querySelector(`.thdr.track[data-track="${t.id}"]`)?.focus();
 }
 function duplicateTrack(t) {
-  const c = JSON.parse(JSON.stringify(t, (k, v) => SKIP.has(k) ? undefined : v)); c.id = newId("t"); c.name = t.name + " 2"; c.clips.forEach(x => x.sel = false);
+  const c = JSON.parse(JSON.stringify(raw(t), (k, v) => SKIP.has(k) ? undefined : v)); c.id = newId("t"); c.name = t.name + " 2"; c.clips.forEach(x => x.sel = false);
   trackCmd(`${t.name} duplicated`, () => { tracks.splice(tracks.indexOf(t) + 1, 0, c); selected = c; });
 }
 function renameTrack(t) {
@@ -2191,7 +2194,7 @@ function createClip(t, bar) {
 }
 function makeUnique(t, c) {
   if (links(t, c.name) < 2) return say(`${c.name} is not linked`);
-  const before = snap(), name = `${c.name} ${uniq++}`; t.pats[name] = structuredClone(patOf(t, c.name)); c.name = name;
+  const before = snap(), name = `${c.name} ${uniq++}`; t.pats[name] = structuredClone(raw(patOf(t, c.name))); c.name = name;
   tracks.forEach(renderLane); genRoll(selected); commit(before, `clip is now unique: ${name}`); renderDevice();
 }
 function toggleClipLoop(t, c) { const before = snap(); c.loop = !c.loop; tracks.forEach(renderLane); genRoll(selected); if (!document.getElementById("p-roll").hidden) drawRoll(); commit(before, `${c.name}: ${c.loop ? `loops its ${patOf(t, c.name).len}-bar pattern` : "plays once (crop)"}`); }
