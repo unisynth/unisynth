@@ -16,7 +16,7 @@ synth-mix blob (*.song.bin) ──► synth_core::mix::Player (the intro's playe
                     (same Mixer step as Player: bit-identical from frame 0 without edits)
 
 packages/daw (served at /daw by packages/cli)
-  main thread: engine module instance → tables, validate, export, import, presets; UI (app.js) on the editor model
+  main thread: engine module instance → tables, validate, export, import, presets; UI (SolidJS components in src/ui + app.js, being ported) on the editor model
   AudioWorklet: engine module instance → Host.render(128) per quantum; commands in, status (position, peaks, load) out
   Worker:       engine module instance → bounce (the exported blob through Player) → WAV
   /api/music:   list / read / validated write under project/music;  /api/library, /api/bank (GM.DLS)
@@ -193,6 +193,20 @@ bun packages/cli/src/cli.ts serve --no-headless   # then open http://127.0.0.1:6
 ```
 
 `?song=project/music/x.song.json` opens a song; `?tab=roll|dev|mix` a panel; `?nobank` shows the missing-bank state.
+
+**Dev loop (hot reload).** The page is SolidJS built by Vite (change daw-solid-ts; panels still in `app.js` move over
+one at a time). For UI work, run the CLI server for `/api` and the engine files, and Vite in front of it:
+
+```bash
+bun packages/daw/build.ts                                         # once: engine modules + worklet/workers in dist
+bun packages/cli/src/cli.ts serve --port 6474 --no-headless       # /api, synth*.wasm, worklet.js, bounce-*.js
+DAW_API=http://127.0.0.1:6474 pnpm --filter @64k/daw dev          # then open http://127.0.0.1:6465/daw/
+```
+
+Vite serves `src/` with hot reload (a component edit swaps in place; the song keeps playing), sends the same COOP/COEP
+headers (threaded bounce works) and proxies the rest to `DAW_API`. Keep Solid stores in their own `*-store.ts` / `state/`
+modules: a hot-reloaded module re-runs, and a store defined next to components would start empty. Type-check with
+`npx tsc -p packages/daw/tsconfig.json`; UI cost with `ROOT=<repo> SONG=<song> bun packages/daw/bench/ui-mixer.ts`.
 
 The song list also shows `project/music/released/`: 25 WaveSabre songs from released intros and executable music,
 built locally by `python3 tools/ws-extract/make-demos.py` (git-ignored, no licence; see `project/music/NOTICE.md`).
