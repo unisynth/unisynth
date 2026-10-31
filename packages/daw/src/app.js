@@ -1,7 +1,8 @@
 // @ts-nocheck
 import { batch, createSong, raw } from "./ui/state/song.ts";
+import * as liveState from "./ui/state/live.ts";  // not `live`: that is the aria-live status element below
 import { laneEl, overrides, overrideSet, rollClips } from "./ui/state/view.ts";
-import { mountMixer, syncMixer, patchStrip, patchSend, setPeak, setMixerShown } from "./ui/mixer.tsx";
+import { mountMixer, syncMixer, patchStrip, patchSend, setMixerShown } from "./ui/mixer.tsx";
 // DAW UI (change add-synth-daw): the reviewed mockup's views and interactions on the real song/1 model,
 // engine (AudioWorklet + synth-wasm live host), device panels generated from the engine's parameter tables and
 // /api/music. Started by main.ts with { engine, model, api, tables, initial, files, library }.
@@ -1734,6 +1735,7 @@ function moveRollPh() {
 // only what changed; the playheads move by transform so no frame re-lays-out the arrangement.
 let shownPos = "", shownTime = "";
 function showPos() {
+  liveState.setPos(SONG_POS);
   const x = (SONG_POS - 1) * BW;
   if (playing && follow.getAttribute("aria-pressed") === "true") {
     const sl = lw.scrollLeft, cw = lw.clientWidth;
@@ -1817,9 +1819,9 @@ async function setPlay(on) {
   if (on) {
     if (!(await ensureAudio())) return say(`cannot play: ${lastIssue || "audio did not start"}`);
     liveLoop(); E.play(frameOf(SONG_POS)); statusAt = performance.now(); dropsReset();
-    playing = true; resumeFollow(); document.getElementById("edited").hidden = true; raf = requestAnimationFrame(tick); say(`playing from ${fmtPos(SONG_POS)}`);
+    playing = true; liveState.setPlaying(true); resumeFollow(); document.getElementById("edited").hidden = true; raf = requestAnimationFrame(tick); say(`playing from ${fmtPos(SONG_POS)}`);
   } else {
-    if (E.node) E.stop(); playing = false; cancelAnimationFrame(raf); say(`stopped at ${fmtPos(SONG_POS)}`); setLoad(0);
+    if (E.node) E.stop(); playing = false; liveState.setPlaying(false); cancelAnimationFrame(raf); say(`stopped at ${fmtPos(SONG_POS)}`); setLoad(0);
   }
   play.textContent = playing ? "❚❚" : "▶"; play.setAttribute("aria-label", playing ? "Pause (Space)" : "Play (Space)");
 }
@@ -1879,20 +1881,16 @@ function dropsShow(n, sec) {
   el.title = n ? `Audio drops since Play: ${n}, ${Math.round(sec * 1000)} ms of silence, at ${dropWhere.join(", ")}${dropWhere.length >= 8 ? " (last 8)" : ""}. Raise Buffer, or close other heavy programs.`
     : "Audio drops since Play: none (the sound card always got its samples in time)";
 }
-function setLoad(v) { if (v === loadShown) return; loadShown = v; const el = document.querySelector(".load > i"), lab = document.querySelector(".load + .num"); el.style.width = v + "%"; lab.textContent = v + "%"; document.querySelector(".load").setAttribute("aria-valuenow", v); }
+function setLoad(v) { if (v === loadShown) return; loadShown = v; liveState.setLoad(v); const el = document.querySelector(".load > i"), lab = document.querySelector(".load + .num"); el.style.width = v + "%"; lab.textContent = v + "%"; document.querySelector(".load").setAttribute("aria-valuenow", v); }
 let meterAt = performance.now();
 function meters(st) {
   const now = performance.now(), dt = Math.min(.2, (now - meterAt) / 1000); meterAt = now;
   [...tracks, master].forEach((t, i) => {
     const id = t.id, pk = [st.peaks[2 * i] || 0, st.peaks[2 * i + 1] || 0], cur = lvl[id] || [0, 0];
     const v = pk.map((p, c) => { const x = Math.max(Math.min(1, p), cur[c] * Math.pow(10, -dt)); return x < 1e-3 ? 0 : x; }); lvl[id] = v;
-    // publish only a visible change (silent or steady meters cost nothing; a hidden mixer has no DOM to touch)
-    const sh = meterShown[id] || [-1, -1];
-    if (Math.abs(sh[0] - v[0]) < 2e-3 && Math.abs(sh[1] - v[1]) < 2e-3) return;
-    meterShown[id] = v; setPeak(id, [v[0], v[1]]);
+    liveState.setPeak(id, v[0], v[1]);  // publishes only a visible change (liveState.PEAK_STEP)
   });
 }
-const meterShown = {};  // the meter values last published, by track id
 relayout(); updateLoop(); showPos();
 queueMicrotask(() => { updateArmed(); validateMarks(); });
 
@@ -2097,7 +2095,7 @@ document.getElementById("bounce-btn").onclick = () => {
   }
 };
 savedKey = dirtyKey(); savedAt = null; renderSongList(); dirtyUpd();
-DAW.debug = { song: () => songOf(false), selected: () => selected.id, bars: () => BARS,
+DAW.debug = { song: () => songOf(false), selected: () => selected.id, bars: () => BARS, undoDepth: () => undoStack.length,
   live: () => ({ probeMs: liveCost.probe / Math.max(1, liveCost.nProbe), drawMs: liveCost.draw / Math.max(1, liveCost.nDraw), maxVoices: liveCost.voices }) };
 // ===== Menus (right-click or Shift+F10 / ContextMenu key) =====
 function popMenu(x, y, items, label, opener = document.activeElement) {

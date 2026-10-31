@@ -27,7 +27,6 @@ export interface MixerActions {
 }
 
 export const [view, setView] = createStore<MixerView>({ tracks: [], master: null });
-export const [peaks, setPeaks] = createStore<Record<string, [number, number]>>({});
 export const [shown, setShown] = createSignal(false);
 
 /** Replaces the mixer's view; only the strips/fields that differ re-render. */
@@ -41,7 +40,5 @@ export function patchSend(id: string, i: number, db: number): void {
   if (view.master?.id === id) return;
   setView("tracks", (t) => t.id === id, "sends", (sd) => sd.i === i, "db", db);
 }
-/** Meter level of one track (0..1, L/R); callers skip invisible changes. */
-export function setPeak(id: string, lr: [number, number]): void { setPeaks(id, lr); }
 export function setMixerShown(on: boolean): void { setShown(on); }
 

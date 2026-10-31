@@ -40,8 +40,12 @@ before → `AGENTS.md` rows → land on `main`.
   **Accepted over the 10 % gate (user, temporary):** the cost is untracked reads by not-yet-ported imperative code
   through the proxy (`ui-profile.ts`: getOwnPropertyDescriptor + wrap per read). It shrinks as each panel moves to
   components with raw bulk reads; undo drops with 2.5. Baseline for later steps = the "after" numbers.
-- [ ] 2.4 `ui/state/live.ts`: position, playing, peaks, load, drops, automation values at the playhead, probe;
-  written from `onStatus`/`applyAutomation` only on a shown change, never into the song or undo. Unit test: an
+- [x] 2.4 `ui/state/live.ts`: position, playing, peaks, load, drops, automation values at the playhead, probe;
+  written from `onStatus`/`applyAutomation` only on a shown change, never into the song or undo.
+  Done: `pos`, `playing`, `load`, `peaks` (+ `setPeak` threshold, mixer reads it). Drops, the probe and `autoVal` stay
+  where they are until a component reads them (transport 3.3, live view 6.4, knobs 6.2); `applyAutomation` already
+  never wrote the song. Unit tests run on Solid's browser build via `test/solid-browser.preload.ts`. 57/57; bench =
+  2.3 numbers. Unit test: an
   unchanged value does not notify; browser test: playing an automated song adds no undo step and does not change
   `DAW.debug.song()`.
 - [ ] 2.5 `ui/state/history.ts`: `commit`/`undo`/`redo` moved from `app.js`; restore reconciles `tracks` (key `id`) and

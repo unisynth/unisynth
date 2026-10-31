@@ -1,13 +1,14 @@
 // Mixer panel in SolidJS (change daw-solid-ts, spike). The song model stays in app.js; app.js pushes a plain view
-// of every strip (`syncMixer`) and the meter levels (`setPeak`), Solid diffs them (`reconcile`, keyed by track id)
+// of every strip (`syncMixer`); meter levels come from `state/live.ts`; Solid diffs them (`reconcile`, keyed by track id)
 // and touches only the DOM that changed. Edits go back through `MixerActions` (app.js: model, undo, livePush).
 // The panel is mounted only while the Mixer tab shows (`setMixerShown`): a hidden mixer has no DOM to update.
 // State lives in mixer-store.ts (survives a hot reload of this file).
 import { createSignal, For, Show, type JSX } from "solid-js";
 import { render } from "solid-js/web";
-import { peaks, shown, view, type MixerActions, type StripView } from "./mixer-store.ts";
+import { peaks } from "./state/live.ts";
+import { shown, view, type MixerActions, type StripView } from "./mixer-store.ts";
 
-export { patchSend, patchStrip, setMixerShown, setPeak, syncMixer } from "./mixer-store.ts";
+export { patchSend, patchStrip, setMixerShown, syncMixer } from "./mixer-store.ts";
 
 export function mountMixer(el: HTMLElement, actions: MixerActions): () => void {
   el.replaceChildren();
