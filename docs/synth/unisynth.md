@@ -61,7 +61,7 @@ flowchart LR
 
 - **Oscillator types:** phase-mod operator (Falcon), band-limited saw/pulse (Slaughter), spectral wavetable (Tunefish,
   1–10 unison layers), sampler (GSM sample from the chunk, a GM.DLS wave or a GM.DLS instrument with its key/velocity regions),
-  V2's naive oscillator, and the cauldron oscillator (TBL's mini-cauldron waveforms).
+  V2's naive oscillator, and the clocked oscillator (TBL's mini-cauldron waveforms).
 - **Filter types:** state-variable LP/HP/BP/notch, ladder LP, RBJ HP/BP, resonator notch.
 - **Envelopes:** each picks the WaveSabre curve (ms, linear attack, quadratic decay/release) or the Tunefish curve
   (rate steps with a slope); envelope 1 ends the voice.
@@ -117,7 +117,7 @@ unused positions).
 | saw/pulse | waveform (saw → pulse), pulse width |
 | wavetable | bandwidth, harmonics, damp, scale, mod, drive, layers, layer detune, layer spread |
 | sampler | start, loop mode, loop boundary, loop start, loop length, reverse, interpolation, source (GSM / DLS instrument / DLS wave), (unused: the sample index is the raw value 177–179) |
-| cauldron | wave `choice(p, 6)`, voices `round(10p)`, version `choice(p, 3)` (0 v1, ½ v2 in a glide, 1 v2), clock `p·2²⁰` Hz, retrigger byte `round(255p)` = `2k + accent`, filter base `8p`, filter amount `8p`, filter decay `1 + (0.5 − p)/100`, filter damping `p` (see [Cauldron](#cauldron-us-osc-cauldron)) |
+| clocked | wave `choice(p, 6)`, voices `round(10p)`, version `choice(p, 3)` (0 v1, ½ v2 in a glide, 1 v2), clock `p·2²⁰` Hz, retrigger byte `round(255p)` = `2k + accent`, filter base `8p`, filter amount `8p`, filter decay `1 + (0.5 − p)/100`, filter damping `p` (see [Clocked](#clocked-us-osc-clocked)) |
 
 Structural parameters (voice capacity, each oscillator type, each sampler source, the three sample indices) are read from the chunk
 only; `set_param` ignores them, so automation cannot change what was sized at load.
@@ -455,10 +455,14 @@ flowchart LR
   off; the converter never emits one.
 - The sampler has no phase input; its output can still be sent into the next slot (`pm-out`).
 
-### Cauldron (`us-osc-cauldron`)
+### Clocked (`us-osc-clocked`)
 
-The waveforms of Probe's mini-cauldron, the precalc sample synth of TBL's Jizz and Stash (1997), for songs converted
-from those intros (`synth-convert xm`, change add-cauldron-xm-import). Algorithm and sources:
+A slot that runs at its own sample clock: naive, aliasing waveforms (saw, square, spike, pulse, noise, fold, with a
+detuned second voice) and a resonant low-pass with a compounding envelope, computed at the slot's clock and resampled
+to the song rate. The aliasing therefore falls where it falls at that clock, the low-fi sound of a low-rate sample
+synth. Named by function since change unify-v2-algorithms. Source: the waveforms of Probe's mini-cauldron, the precalc
+sample synth of TBL's Jizz and Stash (1997), for songs converted from those intros (`synth-convert xm`, change
+add-cauldron-xm-import). Algorithm and sources:
 `research/tbl-mini-cauldron/mini-cauldron-spec.md`. The type is stored at odd position 3 of the expanded type choice
 (0.375).
 
@@ -472,29 +476,29 @@ from those intros (`synth-convert xm`, change add-cauldron-xm-import). Algorithm
   `t` to `(velocity − 1)` eighths of a 3530-frame step: the converter writes each note's phrase position as its
   velocity (an automation value is one byte, too coarse for a frame count). A legato note keeps both. Converted
   instruments set the velocity sensitivity to 0.
-- **Phase byte** (`o::PM_OUT`; the cauldron slot sends nothing into the next slot). 0 keeps the second saw running
+- **Phase byte** (`o::PM_OUT`; the clocked slot sends nothing into the next slot). 0 keeps the second saw running
   across note-ons; b ≥ 1 sets it to `(b − 1)/255` turn at a non-legato note-on. The converter replays the original's
   second saw to write it before each retrigger: the starting phase decides how a low note's detuned pair beats.
-- **Filter settings latch at a note-on** (`CauldronSlot::flt`): base, amount (after the retrigger byte's compounding
+- **Filter settings latch at a note-on** (`ClockedSlot::flt`): base, amount (after the retrigger byte's compounding
   and accent), decay and damping are taken at a non-legato note-on and kept for the note, as the original computes a
   step's filter at its retrigger. So the retrigger, phase and age bytes matter only around note-ons, and the converter
   writes them as `latched_lane`s: each note's byte holds from its step (`LANE_LEAD` before the note) through
   `LATCH_WINDOW` (lead + 128 frames), free between, so a count rising by one per note is one ramp (Jizz: retrigger
   points 10 874 → 3 637). Before, the next note's byte reached the sounding note `LANE_LEAD` early; parity is the same
   (85 of 88, the songs' figures unchanged).
-- **Age byte.** A cauldron slot always tracks the note, so its `o::TRACKING` is the filter envelope's age at a
-  note-on (`osc::cauldron_age`): 0 restarts the envelope at the amount (a retrigger), b ≥ 1 enters `(b − 1)` eighth
+- **Age byte.** A clocked slot always tracks the note, so its `o::TRACKING` is the filter envelope's age at a
+  note-on (`osc::clocked_age`): 0 restarts the envelope at the amount (a retrigger), b ≥ 1 enters `(b − 1)` eighth
   steps after the last retrigger, the envelope at `a·d^n` (a converted XM jumping into a phrase).
 - **Reconstruction low-pass.** Below one phrase frame per output frame the cubic leaves images of the phrase-rate
-  signal: the slot low-passes its output at `0.45·clock` of the output rate (4th-order Butterworth, `CauldronLp`,
+  signal: the slot low-passes its output at `0.45·clock` of the output rate (4th-order Butterworth, `ClockedLp`,
   coefficients recomputed when the clock changes), as the original's player band-limits a slowed sample; bypassed at
   a clock of 1 or more.
-- **Restart declick.** A note-on restarts a cauldron voice with the filter's output at 0. A note cut while it sounds
+- **Restart declick.** A note-on restarts a clocked voice with the filter's output at 0. A note cut while it sounds
   (a converted ping-pong joint, an XM jump) would drop in one frame, so the voice carries the step from the cut
   note's last output frame to the new note's first into the new note and fades it out linearly over 1 ms
   (`DECLICK_MS`, `Declick`): the join is continuous. A note from silence (a fresh voice, a forward retrigger after the
   old note's fade, below −80 dB) carries nothing: its instant start is unchanged.
-- **Playback rate.** The voice-wide transpose and bend are a playback rate for a voice with a cauldron slot (an XM
+- **Playback rate.** The voice-wide transpose and bend are a playback rate for a voice with a clocked slot (an XM
   pitch slide resamples the precalc sample): the phrase clock is multiplied by `2^((transpose + bend)/12)`, so the
   pitch word stays and the filter and phrase position move with it, and the voice's envelopes advance at that rate
   too. Note, coarse, fine and octave stay pitch only. (Change add-cauldron-xm-import: a riser bent up within a
@@ -507,7 +511,7 @@ from those intros (`synth-convert xm`, change add-cauldron-xm-import). Algorithm
   `fistp(w·1.02)` of the signed word and the spike reads its dword. Version ½ holds a word above 32767 as `w − 65536`;
   the converter sets it over such glide windows. Words above 32767 are otherwise played unsigned (the note asks for
   `w·R·r/65536`, beyond the phrase clock's Nyquist), as Stash stores them.
-- **Voice.** A voice with a cauldron slot slides linearly in frequency (the original glides its pitch word), and a
+- **Voice.** A voice with a clocked slot slides linearly in frequency (the original glides its pitch word), and a
   timed attack of 0 is instant (the original has no attack; WaveSabre's minimum is 1 ms).
 - **Voices** (`shape[1]`, 0–10). Above 0, a second saw steps by `round(pitch·1.02)` per phrase frame and is added to
   the first; it runs on across note-ons, as the original's does across retriggers.
@@ -529,13 +533,13 @@ from those intros (`synth-convert xm`, change add-cauldron-xm-import). Algorithm
   phrase frame (`1 + (0.5 − shape[7])/100`; above 1 the cutoff *rises* the longer a note is held, as in 7 of the
   intros' patches), damping `q` (`shape[8]`). Base and amount both 0 (the defaults): no filter. Its DC gain is −1
   and its resonance is not clipped: the converter clips the voice output at full scale, as the original's 16-bit
-  store did. `y` and `prev` saturate at ±65 536 (`CD_SATURATE`, the original's 32-bit integers of 16-bit samples)
+  store did. `y` and `prev` saturate at ±65 536 (`CLK_SATURATE`, the original's 32-bit integers of 16-bit samples)
   and `v1` stops growing there: a rising cutoff held for long turns the filter unstable (Stash song 1's record 4
   held 30 s ran to infinity and silenced the song), where the original's integers saturate.
   - *Note-on.* A non-legato note-on is the original's retrigger: `prev` = 0, `v1` = the amount; `y` runs on. A legato
     note keeps all three, so `v1` goes on decaying (or rising) across a tie chain.
   - *Compounding.* The note's retrigger byte (`shape[4]`, one automation step before the note) is `2k + accent`. Base
-    and amount are multiplied by `mul` (the slot's `FEEDBACK` field, `4p`; the cauldron slot reads no feedback) k
+    and amount are multiplied by `mul` (the slot's `FEEDBACK` field, `4p`; the clocked slot reads no feedback) k
     times, each product rounded to f32 as the original stores it, then by the accent (×4 version 1, ×2 version 2).
   - *Rate.* It runs at the phrase clock with the original coefficients (per phrase frame), before the resampler.
   - *Fidelity.* The filter vectors (`osc/cauldron_filter_vectors.rs`, from
@@ -751,7 +755,7 @@ the parity tools.
 | drive | V2 | `V2Dist` (voice) |
 | channel strip | V2 | `V2Chan` (DCF, compressor, boost, distortion, chorus) |
 | speech | V2 | Ronan (`ronan.cpp`) |
-| cauldron oscillator, flanger `comb`, distortion `wrap` | TBL Jizz / Stash (1997) | Probe's mini-cauldron (`research/tbl-mini-cauldron`): waveforms, comb/doubler, wrap-around specials |
+| clocked oscillator, flanger `comb`, distortion `wrap` | TBL Jizz / Stash (1997) | Probe's mini-cauldron (`research/tbl-mini-cauldron`): waveforms, comb/doubler, wrap-around specials |
 | reverb `Comb`, delay `Modulated`, compressor `Look-ahead`, EQ `Cut` | V2 | `V2Reverb`, `V2ModDel`, `V2Comp`, post filters |
 | matrix Add, CC2–7, centred note | V2 | `storeV2Values` modulation |
 | `voice.era` behaviours (future quirk flags) | V2 format versions 0–6, the 2004 build | v2redux `v2eras.h` ledger |
@@ -767,7 +771,7 @@ build lacks fails at load with `UnsupportedModule(id)` (`module.rs` names the id
 | Feature | Module | Load check |
 |---|---|---|
 | `us-osc-pm`, `us-osc-blit`, `us-osc-wt`, `us-osc-sample` | the four oscillator types | the slot's type |
-| `us-osc-cauldron` | the cauldron oscillator (change add-cauldron-xm-import) | the slot's type |
+| `us-osc-clocked` | the clocked oscillator (change add-cauldron-xm-import) | the slot's type |
 | `us-sample-gsm`, `us-sample-dls` | sampler sources (imply `us-osc-sample`) | the sampler's source, at chunk parse |
 | `us-noise` | noise source | level set above 0, or any matrix slot targeting the noise level |
 | `us-flt-svf`, `-ladder`, `-rbj`, `-notch` | filter families | each filter slot's type |
@@ -1104,7 +1108,7 @@ unified song that plays the phrases live. Full design and measurements: `openspe
 
 | Original | Unified song |
 |---|---|
-| a generated phrase sample (record, variant) | notes of a cauldron instrument (`us-osc-cauldron`, see [Cauldron](#cauldron-us-osc-cauldron)): untied steps note-ons with the retrigger byte and phrase position as velocity, ties legato, v2 gates note-offs |
+| a generated phrase sample (record, variant) | notes of a clocked instrument (`us-osc-clocked`, see [Clocked](#clocked-us-osc-clocked)): untied steps note-ons with the retrigger byte and phrase position as velocity, ties legato, v2 gates note-offs |
 | a stored sample (Stash's drum kit, Jizz's vocals) | a sampler instrument on the sample GSM-encoded (upsampled ×1–4 to ≥ 0.95 correlation) |
 | the XM's replay (FT2 semantics: `src/xm/replay.rs`) | the converter's per-tick control: triggers, volume, pan, pitch |
 | 16-bit clamp → comb → echo → doubler → song0 specials → decimation | the track's chain: clipper → comb (`us-fx-flanger-comb`) → tempo delay → comb sweep (restart lane) → wrap (`us-fx-distortion-wrap`, slot 9's ×1.25 only) → two-stage low-pass at the stored Nyquist |
@@ -1351,9 +1355,9 @@ closed (noise width and the fine window: it now reads 0.00 dB). The current figu
 
 Released songs (local only, `project/music/released/`, git-ignored: no licence) are written by
 `tools/ws-extract/make-demos.py` (25 WaveSabre intros) and `research/tbl-mini-cauldron/tools/make_demos.py` (TBL's
-three cauldron soundtracks: Jizz "Smokeout", Stash "over2" and "bluish" by Probe, as `tbl-jizz-smokeout`,
+three clocked soundtracks: Jizz "Smokeout", Stash "over2" and "bluish" by Probe, as `tbl-jizz-smokeout`,
 `tbl-stash-over2`, `tbl-stash-bluish`; `synth-convert xm … --names` gives the track names, `<sample> (record r,
-class)`). The cauldron songs are large (2.8, 13.2 and 5.3 MB of JSON: per-tick automation). Through `song/1` they
+class)`). The clocked songs are large (2.8, 13.2 and 5.3 MB of JSON: per-tick automation). Through `song/1` they
 render within ~0.1 dB median and 4.3 dB worst per octave band and second of the converter's own blob: notes land on the
 960-ticks-per-beat grid (±3 frames at Jizz's 470 BPM).
 

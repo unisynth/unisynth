@@ -81,7 +81,7 @@ mod instrument {
     use super::super::*;
     use super::data;
     use unisynth::law;
-    use unisynth::osc::CauldronT;
+    use unisynth::osc::ClockedT;
     use unisynth::params::{self as pm, o, shape as sp, v};
 
     fn all() -> Vec<(Version, Record)> {
@@ -108,8 +108,8 @@ mod instrument {
                 for step in 0..16 {
                     let Some(rt) = r.retrig(variant, step) else { continue };
                     let mut sh = shapes(&p);
-                    sh[sp::CD_RETRIG] = note_byte(&rt) as f32 / 255.0;
-                    let f = CauldronT::from_shape(&sh, R as f32, p[pm::osc(0, o::FEEDBACK)], 0.0, 0.0).flt.unwrap();
+                    sh[sp::CLK_RETRIG] = note_byte(&rt) as f32 / 255.0;
+                    let f = ClockedT::from_shape(&sh, R as f32, p[pm::osc(0, o::FEEDBACK)], 0.0, 0.0).flt.unwrap();
                     let (a, b) = rt.working(version);
                     // mul and A/B pass through f32 chunk values (v1 keeps doubles): ~1e-7 per compounding step
                     let rel = |x: f64, y: f64| (x - y).abs() <= 1e-5 * y.abs();
@@ -126,7 +126,7 @@ mod instrument {
                 let p = instrument(version, &r, ratio);
                 let clock = R * ratio;
                 let sh = shapes(&p);
-                let t = CauldronT::from_shape(&sh, clock as f32, p[pm::osc(0, o::FEEDBACK)], 0.0, 0.0);
+                let t = ClockedT::from_shape(&sh, clock as f32, p[pm::osc(0, o::FEEDBACK)], 0.0, 0.0);
                 let f = t.flt.unwrap();
                 let close = |x: f64, y: f64, tol: f64| (x - y).abs() <= tol * y.abs().max(1e-12);
                 assert_eq!((t.wave, t.voices, t.v2), (r.wave, r.voices, version == Version::V2));
@@ -337,7 +337,7 @@ mod phrase {
         all.extend(stash.calls.iter().flat_map(|c| c.records.iter().map(|r| r.pitch.to_vec())));
         all.push(vec![0, 3, 1007, 51199, 60736]);
         for ratio in [1.0, 2.0] {
-            let clock = (R * ratio / 1_048_576.0) as f32 as f64 * 1_048_576.0; // CD_CLOCK as stored
+            let clock = (R * ratio / 1_048_576.0) as f32 as f64 * 1_048_576.0; // CLK_CLOCK as stored
             for words in &all {
                 let t = Tuning::of(words, ratio);
                 for &w in words {

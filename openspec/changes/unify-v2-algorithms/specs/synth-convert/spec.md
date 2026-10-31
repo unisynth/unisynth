@@ -45,6 +45,22 @@ each quirk: source, format versions, songs, and whether a song leaves tolerance 
 
 ## MODIFIED Requirements
 
+### Requirement: Mini-cauldron instruments
+Each record SHALL map to a unified instrument whose voice is:
+- a clocked oscillator with the record's wave, voices and version
+- the clocked filter with the record's damping and decay, and per-note base and envelope amount
+- the record's gain
+- a full-scale output clip
+
+#### Scenario: Rising cutoff
+- **WHEN** a record whose decay is above 1 plays a tie chain
+- **THEN** its filter opens over the chain, as the original's does
+
+#### Scenario: Clipping patch
+- **WHEN** a Stash record with gain above 10 is converted
+- **THEN** the instrument's output stage clips at full scale
+
+
 ### Requirement: Feature list
 The converter SHALL print the cargo features (oscillator types, filter types and forms, envelope and LFO laws, quirk
 flags, effect kinds and modes) that a unified song needs, so a compo build links only those modules. A build with

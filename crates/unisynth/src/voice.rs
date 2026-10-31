@@ -202,7 +202,7 @@ struct Fixed {
     key: f32,
     /// Note number (V2's note source).
     note: f32,
-    /// A voice with a cauldron slot: transpose and bend are a playback rate (the slot's phrase clock follows them),
+    /// A voice with a clocked slot: transpose and bend are a playback rate (the slot's phrase clock follows them),
     /// so its envelopes run at that rate too (an XM slide resamples the precalc sample, fades and all).
     resample: bool,
 }
@@ -326,15 +326,15 @@ fn cut_hz(mm: &impl Query, base: f32, t: u8) -> f32 {
     (law::cutoff((base * mm.scale(t)).max(0.0).min(1.0)) + mm.offset(t)).max(0.0).min(19_980.0)
 }
 
-/// A cauldron restart's declick fade (see [`Declick`]).
-#[cfg(feature = "us-osc-cauldron")]
+/// A clocked restart's declick fade (see [`Declick`]).
+#[cfg(feature = "us-osc-clocked")]
 const DECLICK_MS: f32 = 1.0;
 
-/// A note-on restarts a cauldron voice with its filter output at 0: when it cuts a sounding note, the step from that
+/// A note-on restarts a clocked voice with its filter output at 0: when it cuts a sounding note, the step from that
 /// note's last output frame to the new note's first is carried into the new note and faded out over `len` frames
 /// (`DECLICK_MS`); `pending` until the first frame measures it. A note from silence (a fresh voice, or a retrigger
 /// after the old note's fade: below `SILENT`) carries nothing, keeping its instant start.
-#[cfg(feature = "us-osc-cauldron")]
+#[cfg(feature = "us-osc-clocked")]
 #[derive(Clone, Copy, Default)]
 struct Declick {
     last: (f32, f32),
@@ -345,10 +345,10 @@ struct Declick {
 }
 
 /// −80 dBFS: below it a cut note counts as silent.
-#[cfg(feature = "us-osc-cauldron")]
+#[cfg(feature = "us-osc-clocked")]
 const SILENT: f32 = 1e-4;
 
-#[cfg(all(test, feature = "us-osc-cauldron"))]
+#[cfg(all(test, feature = "us-osc-clocked"))]
 #[test]
 fn a_declick_carries_only_a_sounding_note() {
     // from silence (last 0) the new note passes unchanged: its instant start stays
@@ -368,7 +368,7 @@ fn a_declick_carries_only_a_sounding_note() {
     assert!(got.iter().zip(want).all(|(g, w)| (g.0 - w.0).abs() < 1e-6 && (g.1 - w.1).abs() < 1e-6), "{got:?}");
 }
 
-#[cfg(feature = "us-osc-cauldron")]
+#[cfg(feature = "us-osc-clocked")]
 impl Declick {
     fn start(&mut self, len: u32) {
         self.len = len;
@@ -441,8 +441,8 @@ pub struct Voice<'a> {
     dcf_r: Opt<f32>,
     /// Note-on order (`NoteCx::seq`).
     pub seq: u32,
-    /// A cauldron restart's declick (only with `us-osc-cauldron`).
-    #[cfg(feature = "us-osc-cauldron")]
+    /// A clocked restart's declick (only with `us-osc-clocked`).
+    #[cfg(feature = "us-osc-clocked")]
     dk: Declick,
     #[cfg(test)]
     pub(crate) starts: u32,
@@ -460,7 +460,7 @@ impl<'a> Voice<'a> {
             pan: 0.5,
             rng: Xorshift::new(1),
             has_pitch: false,
-            #[cfg(feature = "us-osc-cauldron")]
+            #[cfg(feature = "us-osc-clocked")]
             dk: Declick::default(),
             fx: Fixed { envp: [EnvP::DEFAULT; pm::ENV_SLOTS], vel: 0.0, key: 0.0, note: 0.0, resample: false },
             start: c,
@@ -673,9 +673,9 @@ impl<'a> Voice<'a> {
             + mm.offset(t(target::OSC_PITCH));
         let ratio = law::ratio(p[f(pm::o::RATIO)]) + law::ratio_fine(p[f(pm::o::RATIO_FINE)]);
         let hz_scale = mm.scale(target::PITCH) * mm.scale(t(target::OSC_PITCH));
-        // a cauldron slot always tracks the note: its `TRACKING` is the age byte, its `FIXED_HZ` the word byte
-        let cauldron = self.slots[i].kind == Kind::Cauldron;
-        let hz = if !cauldron && law::choice(p[f(pm::o::TRACKING)], 2) == 1 {
+        // a clocked slot always tracks the note: its `TRACKING` is the age byte, its `FIXED_HZ` the word byte
+        let clocked = self.slots[i].kind == Kind::Clocked;
+        let hz = if !clocked && law::choice(p[f(pm::o::TRACKING)], 2) == 1 {
             law::fixed_hz(p[f(pm::o::FIXED_HZ)]) * hz_scale
         } else {
             440.0 * crate::fm::exp2f((semis - 69.0) / 12.0) * ratio * hz_scale
@@ -710,20 +710,20 @@ impl<'a> Voice<'a> {
         };
         let shapes: [f32; pm::o::SHAPES] = core::array::from_fn(|k| self.shape_value(mm, sh, i, k));
         let smp = smp::Cfg::from_shape(&shapes, &self.smp[i]);
-        let cd = if cfg!(feature = "us-osc-cauldron") && self.slots[i].kind == Kind::Cauldron {
-            let mut cd = osc::CauldronT::from_shape(&shapes, sh.rate, p[f(pm::o::FEEDBACK)], p[f(pm::o::PM_OUT)], p[f(pm::o::FIXED_HZ)]);
-            cd.age = osc::cauldron_age(p[f(pm::o::TRACKING)]);
+        let clk = if cfg!(feature = "us-osc-clocked") && self.slots[i].kind == Kind::Clocked {
+            let mut clk = osc::ClockedT::from_shape(&shapes, sh.rate, p[f(pm::o::FEEDBACK)], p[f(pm::o::PM_OUT)], p[f(pm::o::FIXED_HZ)]);
+            clk.age = osc::clocked_age(p[f(pm::o::TRACKING)]);
             // transpose and bend are a playback-rate change (an XM pitch slide resamples the whole precalc sample):
             // the phrase clock follows them, so the pitch word stays and the filter and phrase position speed up too
             let tu = tuning(p);
             if tu != 0.0 {
-                cd.clock *= crate::fm::exp2f(tu / 12.0);
+                clk.clock *= crate::fm::exp2f(tu / 12.0);
             }
-            cd
+            clk
         } else {
-            osc::CauldronT::default()
+            osc::ClockedT::default()
         };
-        SlotT { inc, gain, mix, pan_l, pan_r, pm_out, feedback, wf, pw, leak, det, spread, drive, layers: layers as usize, smp, v2: Opt::default(), cd }
+        SlotT { inc, gain, mix, pan_l, pan_r, pm_out, feedback, wf, pw, leak, det, spread, drive, layers: layers as usize, smp, v2: Opt::default(), clk }
     }
 
     /// Control values of a V2 oscillator slot (`V2Osc::set` / `chgPitch`): transpose `raw − 64`, detune `(raw − 64)/128`
@@ -1086,7 +1086,7 @@ impl<'a> Voice<'a> {
                 }
                 None => (bl * amp, br * amp),
             };
-            #[cfg(feature = "us-osc-cauldron")]
+            #[cfg(feature = "us-osc-clocked")]
             let (ol, or) = self.dk.next(ol, or);
             *lo += ol;
             *ro += or;
@@ -1112,7 +1112,7 @@ impl VoiceState for Voice<'_> {
 impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
     fn note_on(&mut self, note: u8, velocity: u8, detune: f32, pan: f32, cx: &mut NoteCx<'c>) {
         let sh = cx.sh;
-        #[cfg(feature = "us-osc-cauldron")]
+        #[cfg(feature = "us-osc-clocked")]
         if !self.on {
             self.dk.last = (0.0, 0.0);
         }
@@ -1137,11 +1137,11 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
             Pitch::snap(n)
         };
         self.has_pitch = true;
-        // a cauldron instrument's timed attack of 0 is instant: the mini-cauldron has no attack
-        let instant = cfg!(feature = "us-osc-cauldron") && self.slots.iter().any(|s| s.kind == Kind::Cauldron);
+        // a clocked instrument's timed attack of 0 is instant: the mini-cauldron has no attack
+        let instant = cfg!(feature = "us-osc-clocked") && self.slots.iter().any(|s| s.kind == Kind::Clocked);
         // its restart zeroes the filter's output: a note cut while sounding (a ping-pong joint) would drop in one
         // frame, so the step is carried and faded out; a forward retrigger's old note has faded to 0 (no step)
-        #[cfg(feature = "us-osc-cauldron")]
+        #[cfg(feature = "us-osc-clocked")]
         if instant {
             self.dk.start((sh.rate * DECLICK_MS / 1000.0).max(1.0) as u32);
         }
@@ -1218,10 +1218,10 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
             s.start(phase, spread, st.inc);
         }
         for i in 0..pm::OSC_SLOTS {
-            if cfg!(feature = "us-osc-cauldron") && self.slots[i].kind == Kind::Cauldron {
+            if cfg!(feature = "us-osc-clocked") && self.slots[i].kind == Kind::Clocked {
                 // the phrase frame of this note: the converter writes it as the velocity
-                let t0 = osc::cauldron_t0(libm::roundf(self.vel * 128.0) as u8);
-                self.slots[i].cauldron_start(t0, &t.slot[i].cd);
+                let t0 = osc::clocked_t0(libm::roundf(self.vel * 128.0) as u8);
+                self.slots[i].clocked_start(t0, &t.slot[i].clk);
             }
         }
         #[cfg(feature = "us-osc-wt")]
@@ -1274,8 +1274,8 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
         let sh = cx.sh;
         let frames = law::time(sh.p[v::SLIDE]) * sh.rate;
         self.note = note;
-        // a cauldron instrument glides linearly in frequency, as the original moves its pitch word
-        let hz = cfg!(feature = "us-osc-cauldron") && self.slots.iter().any(|s| s.kind == Kind::Cauldron);
+        // a clocked instrument glides linearly in frequency, as the original moves its pitch word
+        let hz = cfg!(feature = "us-osc-clocked") && self.slots.iter().any(|s| s.kind == Kind::Clocked);
         if cfg!(feature = "us-voice-glide") && hz {
             self.edit(&sh, |c| c.pitch.slide_hz_to(note as f32, frames));
         } else if cfg!(feature = "us-voice-glide") {

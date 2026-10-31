@@ -452,9 +452,9 @@ const SLOTS = { osc: 3, filt: 4, env: 4, lfo: 2, mod: 12 };
 const slotKeys = (g, i) => INST().params.filter(p => p.name.startsWith(`${g}${i}.`)).map(p => p.name);
 /** A choice parameter's option name: expanded choices (`Law::Kinds`) store later kinds between the old ones. */
 function optName(d, name) { const p = ip(name), o = p.options || []; return o[choice(vget(d, p), o.length)]; }
-// oscillator kind ids (unisynth `osc_type`): 5 = Naive (V2), 6 = Cauldron; a literal, since oscType is hoisted (fmtVal
+// oscillator kind ids (unisynth `osc_type`): 5 = Naive (V2), 6 = Clocked; a literal, since oscType is hoisted (fmtVal
 // may run before this line)
-function oscType(d, i) { return Math.max(0, ["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive", "Cauldron"].indexOf(optName(d, `osc${i}.type`))); }
+function oscType(d, i) { return Math.max(0, ["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive", "Clocked"].indexOf(optName(d, `osc${i}.type`))); }
 function slotUsed(d, g, i) {
   if (g === "osc") return oscType(d, i) !== 0;
   if (g === "filt") return optName(d, `filt${i}.type`) !== "Off";

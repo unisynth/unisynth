@@ -54,7 +54,7 @@ pub struct EnvP {
     pub s: f32,
     pub r: f32,
     pub slope: f32,
-    /// A timed attack of 0 is instant instead of 1 ms: a voice with a cauldron slot sets it (the mini-cauldron has no
+    /// A timed attack of 0 is instant instead of 1 ms: a voice with a clocked slot sets it (the mini-cauldron has no
     /// attack; change add-cauldron-xm-import).
     pub instant: bool,
 }
@@ -372,7 +372,7 @@ mod tests {
 
     #[test]
     fn an_instant_attack_starts_at_full_level() {
-        // a cauldron voice's timed attack of 0 (the original has no attack): full at once, then the decay as usual
+        // a clocked voice's timed attack of 0 (the original has no attack): full at once, then the decay as usual
         let ep = EnvP { instant: true, s: 1.0, ..WS };
         let mut e = Env::new();
         e.trigger();

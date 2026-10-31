@@ -136,8 +136,14 @@ migration land once, at the format switch (tasks 6.1/6.2). Settings combinations
 are tested on the engine API until then and as patches at 6.1. *Alternatives:* format switch first, or interim
 parameters at 260+ with an "as the type says" default; both rejected because they write converters and migration twice.
 
-**Cauldron.** The cauldron oscillator (change add-cauldron-xm-import, after 1.2) keeps its name. The naming rule
-concerns the V2, Tunefish and WaveSabre modules. It adds no parameter indices: it reuses `s0`–`s8` and `feedback`.
+**Clocked oscillator.** The oscillator of change add-cauldron-xm-import (landed after 1.2) is renamed by function to
+**clocked** (user decision 2026-10-31): it runs naive waveforms and a resonant filter at its own sample clock and
+resamples to the song rate. Old → new: osc type `Cauldron` → `Clocked`, `us-osc-cauldron` → `us-osc-clocked`,
+`OSC_CAULDRON` → `OSC_CLOCKED` (id 54 unchanged), `CD_*` → `CLK_*`, `Cauldron{Slot,T,F,Lp}` → `Clocked*`,
+`osc::cauldron_*` → `osc::clocked_*`. The stored type value is unchanged, so no migration is needed. The source name
+stays in the converter (`synth-convert xm`, `src/cauldron*`), the parity tool (`cauldron.ts`), research and the
+provenance table, and "cauldron" joins the source-name ban. The oscillator adds no parameter indices: it reuses
+`s0`–`s8` and `feedback`.
 
 **Index map.** Old index → new index goes by name: the new index of `OLD[i].1`. A removed or split parameter has no
 index of its own and is handled by the value rules below.
@@ -146,7 +152,7 @@ index of its own and is handled by the value rules below.
 |---|---|---|
 | voice | 0–15 | master, pan, capacity, steal, unison, uni_detune, uni_spread, mode, slide, glide, transpose, velocity, start_spread, one_shot, noise_level, env1_at_output |
 | voice settings | 16–22 | **voice.amp_source** (full / envelope 1 only), **voice.pan_stage** (per slot / after drive), **voice.dc_filter** (off / on), **voice.law** (transpose: semitones / 7-bit steps), voice.keysync (free / restart / full reset; was v2.keysync), voice.routing, voice.balance (were v2.*) |
-| osc 1–3 | 23–97, 25 each | 22 old fields (type, tracking, coarse, fine, octave, ratio, ratio_fine, fixed_hz, gain, mix, pan, pm_out, feedback, s0–s8), sample (moved in from 177–179), **combine**, **law** (unisynth / 7-bit steps). type = off, phase mod, saw/pulse, wavetable, sampler, **naive saw/tri, naive pulse, sine, coloured noise, fm, aux in A, aux in B**, cauldron (Choice 13; cauldron came with change add-cauldron-xm-import and keeps its `s0`–`s8` and `feedback` meanings) |
+| osc 1–3 | 23–97, 25 each | 22 old fields (type, tracking, coarse, fine, octave, ratio, ratio_fine, fixed_hz, gain, mix, pan, pm_out, feedback, s0–s8), sample (moved in from 177–179), **combine**, **law** (unisynth / 7-bit steps). type = off, phase mod, saw/pulse, wavetable, sampler, **naive saw/tri, naive pulse, sine, coloured noise, fm, aux in A, aux in B**, clocked (Choice 13; came with change add-cauldron-xm-import, keeps its `s0`–`s8` and `feedback` meanings) |
 | noise | 98–101 | band_on, hp, lp, width |
 | filter 1–4 | 102–133, 8 each | type (off, **state-variable, 4-pole**, RBJ, resonator notch: Choice 5), **response** (low, band, high, notch, all-pass: Choice 5), cutoff, resonance, **form** (input / feedback resonance), **oversample** (interpolated / held), **clip** (4-pole feedback before / after the clip), **law** (Hz / 7-bit steps) |
 | env 1–4 | 134–169, 9 each | law (seconds / rate / frame: Choice 3; was mode), attack, decay, sustain, release, **curve** (quadratic / power / exponential), curve_slope (power exponent; was slope), **sustain_slope**, amplify |
@@ -178,7 +184,7 @@ unisynth kinds, laws Hz/seconds/unisynth.
 - `oscN.type` V2 + its old `s0` (mode 0–7: off, saw/tri, pulse, sine, noise, fm, aux A, aux B) → type off or the
   naive generator. `s2` (ring) → `combine` multiply. The colour stays in `s1`, so it keeps its mod targets. `s0` and
   `s2` become free for the naive types.
-- `oscN.type` cauldron (old id 6) → cauldron; its shape fields and `feedback` move over unchanged.
+- `oscN.type` clocked (old id 6) → clocked; its shape fields and `feedback` move over unchanged.
 - `lfoN.shape` is re-encoded from Choice(5) to Choice(7) for the unisynth law. A V2-law LFO's V2 shape (saw, tri, pulse,
   sine, S&H) maps to ramp up, triangle, square, sine, sample-and-hold.
 - `envN.mode` → law + curve: timed → seconds + quadratic; rate → rate + power; V2 → frame + exponential. The old

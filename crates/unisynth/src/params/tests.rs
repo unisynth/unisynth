@@ -166,8 +166,8 @@ fn expanded_choices_keep_every_old_stored_value() {
         assert!(bytes().all(|p| dec(p) < all));
     }
     assert_eq!(osc_type::encode(osc_type::V2), 1.0 / 8.0);
-    assert_eq!(osc_type::encode(osc_type::CAULDRON), 3.0 / 8.0);
-    assert_eq!(osc_type::decode(3.0 / 8.0), osc_type::CAULDRON);
+    assert_eq!(osc_type::encode(osc_type::CLOCKED), 3.0 / 8.0);
+    assert_eq!(osc_type::decode(3.0 / 8.0), osc_type::CLOCKED);
     assert_eq!(crate::modmx::op::encode(crate::modmx::op::ADD), 0.5);
 }
 
@@ -478,6 +478,6 @@ fn the_rename_map_covers_every_old_parameter() {
 pub(crate) fn has_source_name(s: &str) -> bool {
     // words, not substrings: `env2` is envelope 2, not V2
     let l = s.to_ascii_lowercase();
-    ["tunefish", "wavesabre", "ronan", "moog", "slaughter", "falcon"].iter().any(|x| l.contains(x))
+    ["tunefish", "wavesabre", "ronan", "moog", "slaughter", "falcon", "cauldron"].iter().any(|x| l.contains(x))
         || l.split(|c: char| !c.is_ascii_alphanumeric()).any(|t| t == "tf" || t == "ws" || t.starts_with("v2"))
 }

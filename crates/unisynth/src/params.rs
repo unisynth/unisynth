@@ -136,12 +136,12 @@ pub mod osc_type {
     /// V2 oscillator (change add-v2-import): `shape[V2_MODE]` picks its waveform.
     pub const V2: usize = 5;
     /// Mini-cauldron oscillator (change add-cauldron-xm-import): `shape[CD_*]` pick wave, voices, version, clock.
-    pub const CAULDRON: usize = 6;
+    pub const CLOCKED: usize = 6;
     pub const ALL: usize = 7;
     #[inline]
     pub fn decode(p: f32) -> usize {
         // a trusted build reads the expanded choice when it has any later kind (its song was checked on the host)
-        super::kinds::decode_in(p, COUNT, ALL - COUNT, OFF, cfg!(feature = "us-osc-naive") || cfg!(feature = "us-osc-cauldron"))
+        super::kinds::decode_in(p, COUNT, ALL - COUNT, OFF, cfg!(feature = "us-osc-naive") || cfg!(feature = "us-osc-clocked"))
     }
     pub fn encode(id: usize) -> f32 {
         super::kinds::encode(id, COUNT)
@@ -181,25 +181,25 @@ pub mod shape {
     pub const V2_MODE: usize = 0;
     pub const V2_COLOR: usize = 1;
     pub const V2_RING: usize = 2;
-    /// Cauldron oscillator (change add-cauldron-xm-import): wave `choice(p, 6)` (saw, square, spike, pulse, noise,
+    /// Clocked oscillator (change add-cauldron-xm-import): wave `choice(p, 6)` (saw, square, spike, pulse, noise,
     /// fold), voices `round(10p)` (0–10), version `choice(p, 2) + 1`, clock `p·2²⁰` Hz (phrase frames per second: the
     /// original's internal rate times the playback ratio; 0 = one per output frame). The phrase frame at a note-on
-    /// comes from the note's velocity (`osc::cauldron_t0`).
-    pub const CD_WAVE: usize = 0;
-    pub const CD_VOICES: usize = 1;
-    pub const CD_VERSION: usize = 2;
-    pub const CD_CLOCK: usize = 3;
+    /// comes from the note's velocity (`osc::clocked_t0`).
+    pub const CLK_WAVE: usize = 0;
+    pub const CLK_VOICES: usize = 1;
+    pub const CLK_VERSION: usize = 2;
+    pub const CLK_CLOCK: usize = 3;
     /// The note's retrigger byte `round(255p)` = `2k + accent`: the filter's base and amount are compounded by the
     /// slot's `mul` (`o::FEEDBACK`, `4p`) k times and multiplied by the accent (×4 version 1, ×2 version 2). An
     /// automation byte holds it exactly; the converter writes it before each note.
-    pub const CD_RETRIG: usize = 4;
-    /// Cauldron filter (the original resonant low-pass after the slot, in phrase-frame units): base `c` `p·8`,
+    pub const CLK_RETRIG: usize = 4;
+    /// Clocked filter (the original resonant low-pass after the slot, in phrase-frame units): base `c` `p·8`,
     /// envelope amount `p·8` (latched at a note-on), decay per phrase frame `1 + (0.5 − p)/100` (above 1 the
     /// cutoff rises), damping `p`. Base and amount both 0: no filter.
-    pub const CD_F_BASE: usize = 5;
-    pub const CD_F_AMOUNT: usize = 6;
-    pub const CD_F_DECAY: usize = 7;
-    pub const CD_F_DAMP: usize = 8;
+    pub const CLK_F_BASE: usize = 5;
+    pub const CLK_F_AMOUNT: usize = 6;
+    pub const CLK_F_DECAY: usize = 7;
+    pub const CLK_F_DAMP: usize = 8;
 }
 
 /// Noise group (`82..85`).

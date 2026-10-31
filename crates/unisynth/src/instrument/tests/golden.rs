@@ -97,23 +97,23 @@ fn patches() -> Vec<(&'static str, Vec<u8>, Option<Vec<u8>>)> {
     add("blit_pulse_width", pmp(vec![osc_on(0, osc_type::BLIT), (sh(sp::BLIT_WAVEFORM), 1.0), (sh(sp::BLIT_PULSE_WIDTH), 0.3)]));
     add("wavetable_default", pmp(vec![osc_on(0, osc_type::WAVETABLE)]));
     // mini-cauldron (change add-cauldron-xm-import): a later kind, stored with `encode`
-    let cd = (osc(0, o::TYPE), osc_type::encode(osc_type::CAULDRON));
-    add("cauldron_v1_saw_pair", pmp(vec![cd, (sh(sp::CD_VOICES), 0.2)]));
+    let clk = (osc(0, o::TYPE), osc_type::encode(osc_type::CLOCKED));
+    add("clocked_v1_saw_pair", pmp(vec![clk, (sh(sp::CLK_VOICES), 0.2)]));
     add(
-        "cauldron_v2_spike_clocked",
-        pmp(vec![cd, (sh(sp::CD_WAVE), 0.4), (sh(sp::CD_VOICES), 0.3), (sh(sp::CD_VERSION), 1.0), (sh(sp::CD_CLOCK), 35441.16 / 1_048_576.0)]),
+        "clocked_v2_spike_clocked",
+        pmp(vec![clk, (sh(sp::CLK_WAVE), 0.4), (sh(sp::CLK_VOICES), 0.3), (sh(sp::CLK_VERSION), 1.0), (sh(sp::CLK_CLOCK), 35441.16 / 1_048_576.0)]),
     );
-    // the cauldron filter: Jizz record 1's resonant low-pass (base 0.001, amount 0.002, decay 0.9998, damping 0.001)
+    // the clocked filter: Jizz record 1's resonant low-pass (base 0.001, amount 0.002, decay 0.9998, damping 0.001)
     add(
-        "cauldron_v1_filtered_resonant",
+        "clocked_v1_filtered_resonant",
         pmp(vec![
-            cd,
-            (sh(sp::CD_VOICES), 0.2),
-            (sh(sp::CD_CLOCK), 35441.16 / 1_048_576.0),
-            (sh(sp::CD_F_BASE), 0.001 / 8.0),
-            (sh(sp::CD_F_AMOUNT), 0.002 / 8.0),
-            (sh(sp::CD_F_DECAY), 0.52),
-            (sh(sp::CD_F_DAMP), 0.001),
+            clk,
+            (sh(sp::CLK_VOICES), 0.2),
+            (sh(sp::CLK_CLOCK), 35441.16 / 1_048_576.0),
+            (sh(sp::CLK_F_BASE), 0.001 / 8.0),
+            (sh(sp::CLK_F_AMOUNT), 0.002 / 8.0),
+            (sh(sp::CLK_F_DECAY), 0.52),
+            (sh(sp::CLK_F_DAMP), 0.001),
         ]),
     );
     add(

@@ -826,7 +826,7 @@ fn the_v2_reverb_has_no_low_cut_before_version_4() {
 // ---- change add-cauldron-xm-import: comb (flanger mode 2) and wrap (distortion mode 3) ----
 
 #[test]
-fn the_cauldron_modes_take_free_positions_and_old_values_keep_their_modes() {
+fn the_clocked_modes_take_free_positions_and_old_values_keep_their_modes() {
     // distortion: 3 old modes on 5 positions; flanger: 2 old modes on 3 positions
     for (k, v, want) in [
         (kind::DISTORTION, 0.0, 0),

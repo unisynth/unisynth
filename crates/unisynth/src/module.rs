@@ -91,7 +91,7 @@ modules! {
     FX_REVERB_COMB = 51, "us-fx-reverb-comb", "reverb, comb mode";
     FX_COMPRESSOR_LOOKAHEAD = 52, "us-fx-compressor-lookahead", "compressor, look-ahead mode";
     CHUNK_WIDE = 53, "us-chunk-wide", "chunk escapes (index 240 or more, 255 or more pairs)";
-    OSC_CAULDRON = 54, "us-osc-cauldron", "mini-cauldron oscillator";
+    OSC_CLOCKED = 54, "us-osc-clocked", "clocked oscillator";
     FX_DISTORTION_WRAP = 55, "us-fx-distortion-wrap", "distortion, wrap mode";
     FX_FLANGER_COMB = 56, "us-fx-flanger-comb", "flanger, comb mode";
 }

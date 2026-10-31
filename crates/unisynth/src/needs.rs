@@ -60,7 +60,7 @@ pub fn instrument_why(chunk: &[u8], reach: Reach) -> Result<Why, LoadError> {
             osc_type::PM => add(&mut out, m::OSC_PM, kind("phase-mod")),
             osc_type::BLIT => add(&mut out, m::OSC_BLIT, kind("saw/pulse")),
             osc_type::V2 => add(&mut out, m::OSC_NAIVE, kind("a naive oscillator")),
-            osc_type::CAULDRON => add(&mut out, m::OSC_CAULDRON, kind("a cauldron oscillator")),
+            osc_type::CLOCKED => add(&mut out, m::OSC_CLOCKED, kind("a clocked oscillator")),
             osc_type::WAVETABLE => add(&mut out, m::OSC_WAVETABLE, kind("wavetable")),
             osc_type::SAMPLER => {
                 add(&mut out, m::OSC_SAMPLER, kind("sampler"));

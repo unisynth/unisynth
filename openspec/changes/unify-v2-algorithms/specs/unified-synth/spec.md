@@ -115,6 +115,45 @@ that use it. Each flag SHALL be a cargo feature.
 - FROM: `### Requirement: Ronan speech stage`
 - TO: `### Requirement: Speech stage`
 
+- FROM: `### Requirement: Cauldron oscillator slot type`
+- TO: `### Requirement: Clocked oscillator slot type`
+
+- FROM: `### Requirement: Cauldron voices and version`
+- TO: `### Requirement: Clocked voices and version`
+
+- FROM: `### Requirement: Cauldron note-on phase`
+- TO: `### Requirement: Clocked note-on phase`
+
+- FROM: `### Requirement: Cauldron filter`
+- TO: `### Requirement: Clocked filter`
+
+- FROM: `### Requirement: Cauldron per-note compounding`
+- TO: `### Requirement: Clocked per-note compounding`
+
+- FROM: `### Requirement: Cauldron phrase position`
+- TO: `### Requirement: Clocked phrase position`
+
+- FROM: `### Requirement: Cauldron filter note-on`
+- TO: `### Requirement: Clocked filter note-on`
+
+- FROM: `### Requirement: Cauldron playback rate`
+- TO: `### Requirement: Clocked playback rate`
+
+- FROM: `### Requirement: Cauldron word byte`
+- TO: `### Requirement: Clocked word byte`
+
+- FROM: `### Requirement: Cauldron phrase clock`
+- TO: `### Requirement: Clocked phrase clock`
+
+- FROM: `### Requirement: Cauldron voice movement`
+- TO: `### Requirement: Clocked voice movement`
+
+- FROM: `### Requirement: Cauldron type storage`
+- TO: `### Requirement: Clocked type storage`
+
+- FROM: `### Requirement: Cauldron filter latched at note-on`
+- TO: `### Requirement: Clocked filter latched at note-on`
+
 ## MODIFIED Requirements
 
 ### Requirement: Device kind and chunk
@@ -293,6 +332,140 @@ the strip transparent, with every send at zero.
 #### Scenario: Reverb send
 - **WHEN** the reverb send is at full level
 - **THEN** the reverb output pair carries the channel signal after the strip
+
+### Requirement: Clocked oscillator slot type
+An oscillator slot SHALL offer the type **clocked** behind the feature `us-osc-clocked`. It produces the
+mini-cauldron waves (saw, square, spike, pulse, noise, fold) on a 16-bit phase, with naive (not band-limited) output.
+Its waveform values SHALL equal the original renderer's for the same phase, pitch increment and frame count, scaled
+by 1/32768.
+
+#### Scenario: Saw matches the original
+- **WHEN** a clocked slot with wave saw, voices 0 plays a note whose increment equals the original pitch word 799 at the original rate
+- **THEN** its output over one second equals the original oscillator's 16-bit saw scaled by 1/32768, sample for sample
+
+### Requirement: Clocked voices and version
+The clocked slot's **voices** field (0–10) SHALL add the original second saw at a ×1.02 increment, or the spike's
+detuned copy. The **version** field SHALL select v1 or v2 behaviour. Version 2 uses the spike without sign handling,
+the 16-bit truncated detune offset, and a clamp of the oscillator output to full scale. Version 2 in a glide SHALL
+hold a word above 32767 as its signed value for the second saw and the spike, as the original's glide register.
+
+#### Scenario: Glide register
+- **WHEN** a version-2-in-a-glide slot with voices 1 plays word 51199 for one frame
+- **THEN** its phase steps by 51199 and its second saw by −14624 (not 52223) of 65536
+
+#### Scenario: Spike wave
+- **WHEN** a version-1 clocked slot plays wave spike with voices 3
+- **THEN** each half cycle is a narrow peak of 32767·u⁷ shape, plus a second copy detuned by +3/128 that drifts with the frames since the phrase's first note
+
+### Requirement: Clocked note-on phase
+A non-legato note-on SHALL set the clocked phase to −32766/32768 of a cycle. It SHALL keep the second voice's phase,
+unless the slot's phase byte (b ≥ 1) sets it to `(b − 1)/255` of a cycle. A legato note SHALL keep both.
+
+#### Scenario: Phase byte
+- **WHEN** a non-legato note-on finds the phase byte 129
+- **THEN** the second voice starts at 128/255 of a cycle
+
+#### Scenario: Legato keeps the phase
+- **WHEN** a legato note follows a sounding note on a mono clocked instrument
+- **THEN** the phase continues without a jump
+
+### Requirement: Clocked filter
+The clocked slot SHALL run the original resonant low-pass on its output when its filter base or amount is above 0,
+with base, envelope amount, decay per phrase frame and damping in the original's phrase-frame units. At one phrase
+frame per output frame its output SHALL equal the original's within 1e-4 of the peak.
+
+#### Scenario: Matches the original filter
+- **WHEN** a clocked slot with the filter on plays the reference test cases at one phrase frame per output frame
+- **THEN** its output is within 1e-4 of the peak of the original filter's output, including a retrigger
+
+#### Scenario: Off by default
+- **WHEN** the filter base and amount are 0
+- **THEN** the slot's output is unfiltered and existing goldens are unchanged
+
+### Requirement: Clocked per-note compounding
+The clocked slot SHALL compound its filter base and amount per note: times its compounding factor once per count
+in the note's retrigger byte (`2k + accent`), each product rounded to f32, then times the accent (×4 version 1, ×2
+version 2).
+
+#### Scenario: Fifth retrigger with accent
+- **WHEN** a version-1 note has the retrigger byte 11
+- **THEN** its base and amount are the stored ones times the factor five times over, times 4
+
+### Requirement: Clocked phrase position
+A non-legato clocked note-on SHALL set the phrase frame counter to `(velocity − 1)` eighths of a 3530-frame step.
+
+#### Scenario: Step start
+- **WHEN** a note-on has velocity 41
+- **THEN** the phrase frame counter is 5 × 3530
+
+### Requirement: Clocked filter note-on
+A non-legato note-on SHALL restart the clocked filter as the original's retrigger does: output memory 0, envelope
+part = the amount, the rest of the state running on. A legato note SHALL keep it running. Since the restart zeroes
+the output, a restart that cuts a sounding note SHALL carry the step from its last output frame to the new note's
+first into the new note and fade it out linearly over 1 ms; a note from silence (below −80 dB) carries nothing.
+
+#### Scenario: A sounding note cut by a restart
+- **WHEN** a one-voice clocked instrument restarts while its filtered note sounds
+- **THEN** the output does not drop to 0 in one frame: the step at the restart is no larger than twice the wave's own largest step
+
+#### Scenario: Rising cutoff
+- **WHEN** the decay is above 1 and a legato note follows
+- **THEN** the envelope part of the cutoff keeps growing across the note
+
+### Requirement: Clocked playback rate
+
+A voice with a clocked slot SHALL treat its voice-wide transpose and bend as a playback rate: the slot's phrase
+clock and the voice's envelopes SHALL advance `2^((transpose + bend)/12)` times as fast, leaving the pitch word
+unchanged, as an XM pitch slide resamples the precalc sample.
+
+#### Scenario: An octave up plays the phrase twice as fast
+- **WHEN** a clocked voice with a rising filter is transposed (or bent) +12 semitones
+- **THEN** after 1100 output frames its filter envelope has grown 2200 phrase frames, and a 200 ms release after a
+  note-off ends in about half the time
+
+### Requirement: Clocked word byte
+A clocked slot SHALL read its fixed-frequency field as a word byte: b ≥ 1 makes its pitch word the frequency's word
+rounded to an integer plus `b − 128`; 0 SHALL leave the frequency's word unchanged.
+
+#### Scenario: Correction
+- **WHEN** the frequency asks for word 51199.3 and the word byte is 125
+- **THEN** the slot steps by 51196 of 65536 per phrase frame
+
+### Requirement: Clocked phrase clock
+The clocked slot (oscillator and filter) SHALL run at its phrase clock and be resampled to the output rate, so its
+naive waveforms alias as the original's do at its own rate.
+
+#### Scenario: Half rate
+- **WHEN** the slot runs at half a phrase frame per output frame
+- **THEN** every second output sample is a phrase-rate sample and the others lie between their neighbours
+
+### Requirement: Clocked voice movement
+In a voice with a clocked slot, a mono slide SHALL be linear in frequency, and a timed envelope attack of 0 SHALL
+be instant.
+
+#### Scenario: Octave glide
+- **WHEN** a clocked voice slides up an octave
+- **THEN** halfway through the slide its frequency is 1.5 times the start, not √2 times
+
+### Requirement: Clocked type storage
+The clocked type SHALL be stored at a free position of the expanded oscillator-type choice, so stored values of
+existing types keep their meaning. A patch using it in a build without the feature SHALL fail at load naming the
+module.
+
+#### Scenario: Existing songs unchanged
+- **WHEN** the existing golden songs are rendered in a build with `us-osc-clocked`
+- **THEN** they are byte-identical to their goldens
+
+#### Scenario: Missing module
+- **WHEN** a patch with a clocked slot loads in a build without `us-osc-clocked`
+- **THEN** the load fails with `UnsupportedModule` naming the clocked oscillator
+
+### Requirement: Clocked filter latched at note-on
+A clocked slot SHALL take its filter settings (base and amount after the retrigger byte, decay, damping) at a non-legato note-on and keep them until the next one.
+
+#### Scenario: Retrigger byte changed mid-note
+- **WHEN** the retrigger byte changes while a clocked note sounds
+- **THEN** the note's filter is unchanged, and the next non-legato note-on takes the new value
 
 ## REMOVED Requirements
 

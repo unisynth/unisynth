@@ -55,7 +55,7 @@ us-matrix = []
 # unify-v2-algorithms)
 us-osc-naive = ["us-mono-sum"]
 # mini-cauldron oscillator (change add-cauldron-xm-import)
-us-osc-cauldron = []
+us-osc-clocked = []
 us-flt-feedback = ["us-mono-sum"]
 us-flt-parallel = ["us-mono-sum"]
 us-drive = ["us-mono-sum"]
@@ -109,7 +109,7 @@ us-fx-compressor = []
 us-fx-compressor-lookahead = []
 us-fx-formant = []
 
-us-osc = ["us-osc-pm", "us-osc-blit", "us-osc-wt", "us-osc-sample", "us-sample-gsm", "us-sample-dls", "us-osc-naive", "us-osc-cauldron"]
+us-osc = ["us-osc-pm", "us-osc-blit", "us-osc-wt", "us-osc-sample", "us-sample-gsm", "us-sample-dls", "us-osc-naive", "us-osc-clocked"]
 us-flt = ["us-flt-svf", "us-flt-ladder", "us-flt-rbj", "us-flt-notch", "us-flt-feedback", "us-flt-parallel"]
 us-env = ["us-env-seconds", "us-env-rate", "us-env-frame"]
 us-fx = ["us-fx-distortion", "us-fx-crusher", "us-fx-eq", "us-fx-delay", "us-fx-chorus", "us-fx-flanger",

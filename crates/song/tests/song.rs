@@ -351,7 +351,7 @@ fn automation_after_the_song_end_is_cut_at_the_end_not_stretching_the_song() {
 #[test]
 fn a_note_on_before_a_note_off_at_one_sample_keeps_its_order() {
     // a blob may start the next note before it ends the last at the same sample (a mono instrument's legato, the
-    // cauldron converter's tied phrases); song/1 puts note-offs first at one sample, so the import holds the ended
+    // clocked converter's tied phrases); song/1 puts note-offs first at one sample, so the import holds the ended
     // note one tick longer: the export plays the new note first again. A note ended at its own start (on, off at one
     // sample) keeps its shortest length.
     let mut m = song::export::export_model(&song_of(&base())).unwrap();
@@ -454,17 +454,17 @@ fn effect_tables_match_the_engine_parameter_counts() {
 
 #[test]
 fn every_oscillator_kind_has_an_option_name() {
-    // the expanded osc type choice names every kind the engine plays (the cauldron oscillator too)
+    // the expanded osc type choice names every kind the engine plays (the clocked oscillator too)
     let t = tables::table(64, 0).unwrap();
     let o = &t.param("osc1.type").unwrap().options;
-    for name in ["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive", "Cauldron"] {
+    for name in ["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive", "Clocked"] {
         assert!(o.iter().any(|x| x == name), "{name} missing from {o:?}");
     }
 }
 
 #[test]
 fn every_engine_effect_mode_has_a_table() {
-    // a mode the engine plays (the cauldron's wrap and comb too) must load into a song
+    // a mode the engine plays (the clocked's wrap and comb too) must load into a song
     for kind in unisynth::kind::DISTORTION..=unisynth::kind::FORMANT {
         for mode in 0..unisynth::fx::mode_total(kind) {
             assert!(tables::EFFECT_MODES.contains(&(kind, mode)), "{kind}/{mode} missing from EFFECT_MODES");
@@ -673,7 +673,7 @@ fn an_import_config_names_the_tracks_and_attaches_descriptions() {
 fn no_source_names_in_the_parameter_table() {
     fn source(s: &str) -> bool {
         let l = s.to_ascii_lowercase();
-        ["tunefish", "wavesabre", "ronan", "moog", "slaughter", "falcon"].iter().any(|x| l.contains(x))
+        ["tunefish", "wavesabre", "ronan", "moog", "slaughter", "falcon", "cauldron"].iter().any(|x| l.contains(x))
             || l.split(|c: char| !c.is_ascii_alphanumeric()).any(|t| t == "tf" || t == "ws" || t.starts_with("v2"))
     }
     let mut bad = vec![];

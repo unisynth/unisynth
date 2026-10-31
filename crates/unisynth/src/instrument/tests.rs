@@ -165,11 +165,11 @@ fn mono_legato_slides_without_retriggering() {
     });
 }
 
-#[cfg(all(feature = "us-voice-glide", feature = "us-voice-mono", feature = "us-osc-cauldron"))]
+#[cfg(all(feature = "us-voice-glide", feature = "us-voice-mono", feature = "us-osc-clocked"))]
 #[test]
-fn a_legato_note_keeps_the_cauldron_phase() {
-    // a cauldron saw in mono-legato mode: a legato note slides on without resetting the phase to -32766
-    let edits = [(osc(0, o::TYPE), osc_type::encode(osc_type::CAULDRON)), (v::MODE, 1.0), (v::SLIDE, inv::inv_time(0.5))];
+fn a_legato_note_keeps_the_clocked_phase() {
+    // a clocked saw in mono-legato mode: a legato note slides on without resetting the phase to -32766
+    let edits = [(osc(0, o::TYPE), osc_type::encode(osc_type::CLOCKED)), (v::MODE, 1.0), (v::SLIDE, inv::inv_time(0.5))];
     let run = |evs: &[Ev]| with_ins(&patch(&edits), 44100.0, |ins| render(ins, 44100.0, evs, 1100, 1100).0);
     let held = run(&[on(0, 60)]);
     let legato = run(&[on(0, 60), on(1000, 72)]);
@@ -188,22 +188,22 @@ fn a_legato_note_keeps_the_cauldron_phase() {
 
 #[cfg(feature = "us-voice-mono")]
 #[test]
-fn a_legato_note_keeps_the_cauldron_filter_rising() {
-    // a rising cauldron filter (decay 1.0001 per phrase frame, one phrase frame per output frame): across a legato
+fn a_legato_note_keeps_the_clocked_filter_rising() {
+    // a rising clocked filter (decay 1.0001 per phrase frame, one phrase frame per output frame): across a legato
     // note its envelope part keeps growing from the first note-on; a note after a release restarts it at the amount
     use crate::params::shape as sp;
     let sh = |i| osc(0, o::SHAPE + i);
     let edits = [
-        (osc(0, o::TYPE), osc_type::encode(osc_type::CAULDRON)),
+        (osc(0, o::TYPE), osc_type::encode(osc_type::CLOCKED)),
         (v::MODE, 1.0),
-        (sh(sp::CD_F_BASE), 0.001 / 8.0),
-        (sh(sp::CD_F_AMOUNT), 0.01 / 8.0),
-        (sh(sp::CD_F_DECAY), 0.49),
-        (sh(sp::CD_F_DAMP), 0.1),
+        (sh(sp::CLK_F_BASE), 0.001 / 8.0),
+        (sh(sp::CLK_F_AMOUNT), 0.01 / 8.0),
+        (sh(sp::CLK_F_DECAY), 0.49),
+        (sh(sp::CLK_F_DAMP), 0.1),
     ];
     let v1 = |evs: &[Ev]| with_ins(&patch(&edits), 44100.0, |ins| {
         render(ins, 44100.0, evs, 1100, 1100);
-        ins.voices().iter().filter(|v| v.starts > 0).map(|v| v.slots[0].cd.v1).collect::<Vec<f64>>()
+        ins.voices().iter().filter(|v| v.starts > 0).map(|v| v.slots[0].clk.v1).collect::<Vec<f64>>()
     });
     let amount = (0.01f32 / 8.0) as f64 * 8.0;
     let d = 1.0 + (0.5 - 0.49f32 as f64) / 100.0;
@@ -218,18 +218,18 @@ fn a_legato_note_keeps_the_cauldron_filter_rising() {
 
 #[cfg(feature = "us-voice-mono")]
 #[test]
-fn a_cauldron_restart_fades_the_cut_note_out() {
+fn a_clocked_restart_fades_the_cut_note_out() {
     // one mono voice, a note cut by the next one in the same frame (the converter's ping-pong joints): the restart
     // zeroes the filter's output, so the old note dropped to 0 in one frame (a click, multiplied by the chain's comb
     // and doubler). Now the step at the restart is carried and faded out over 1 ms
     use crate::params::shape as sp;
     let sh = |i| osc(0, o::SHAPE + i);
     let edits = [
-        (osc(0, o::TYPE), osc_type::encode(osc_type::CAULDRON)),
+        (osc(0, o::TYPE), osc_type::encode(osc_type::CLOCKED)),
         (v::MODE, 1.0),
         (v::CAPACITY, cap(1)),
-        (sh(sp::CD_F_BASE), 0.02 / 8.0),
-        (sh(sp::CD_F_DAMP), 0.5),
+        (sh(sp::CLK_F_BASE), 0.02 / 8.0),
+        (sh(sp::CLK_F_DAMP), 0.5),
         (pm::env(0, pm::e::RELEASE), inv::inv_env_ms(200.0)),
     ];
     let (l, _) = with_ins(&patch(&edits), 44100.0, |ins| render(ins, 44100.0, &[on(0, 48), off(1000, 48), on(1000, 48)], 1200, 1200));
@@ -243,25 +243,25 @@ fn a_cauldron_restart_fades_the_cut_note_out() {
     assert_eq!(&fresh[..200], &l[..200], "a first note fades nothing in");
 }
 
-#[cfg(feature = "us-osc-cauldron")]
+#[cfg(feature = "us-osc-clocked")]
 #[test]
-fn transpose_and_bend_resample_the_cauldron_phrase() {
+fn transpose_and_bend_resample_the_clocked_phrase() {
     // an octave of transpose (or bend) is a playback twice as fast: the phrase clock doubles with the pitch, so the
     // rising filter envelope (per phrase frame) has grown twice as many frames after 1100 output frames
     use crate::params::{ctl, shape as sp};
     let sh = |i| osc(0, o::SHAPE + i);
     let base = [
-        (osc(0, o::TYPE), osc_type::encode(osc_type::CAULDRON)),
-        (sh(sp::CD_F_BASE), 0.001 / 8.0),
-        (sh(sp::CD_F_AMOUNT), 0.01 / 8.0),
-        (sh(sp::CD_F_DECAY), 0.49),
-        (sh(sp::CD_F_DAMP), 0.1),
+        (osc(0, o::TYPE), osc_type::encode(osc_type::CLOCKED)),
+        (sh(sp::CLK_F_BASE), 0.001 / 8.0),
+        (sh(sp::CLK_F_AMOUNT), 0.01 / 8.0),
+        (sh(sp::CLK_F_DECAY), 0.49),
+        (sh(sp::CLK_F_DAMP), 0.1),
     ];
     let v1 = |extra: &[(usize, f32)]| {
         let edits: std::vec::Vec<(usize, f32)> = base.iter().chain(extra).copied().collect();
         with_ins(&patch(&edits), 44100.0, |ins| {
             render(ins, 44100.0, &[on(0, 60)], 1100, 1100);
-            ins.voices()[0].slots[0].cd.v1
+            ins.voices()[0].slots[0].clk.v1
         })
     };
     let amount = (0.01f32 / 8.0) as f64 * 8.0;

@@ -198,7 +198,7 @@ fn choice_options(i: usize, law: Law) -> Vec<String> {
     // odd ones (unused positions are "—"), so `choice(v, options.len())` picks the position as before
     if let Law::Kinds { old, all } = law {
         let names: &[&str] = if old == params::osc_type::COUNT {
-            &["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive", "Cauldron"]
+            &["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive", "Clocked"]
         } else if old == params::filter_type::COUNT {
             &[
                 "Off", "SVF low-pass", "SVF high-pass", "SVF band-pass", "SVF notch", "Ladder low-pass", "RBJ high-pass", "RBJ band-pass",

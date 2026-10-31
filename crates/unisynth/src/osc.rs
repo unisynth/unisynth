@@ -36,7 +36,7 @@ pub enum Kind {
     /// V2's oscillator (change add-v2-import): mono, works on the voice's running sum ([`v2_sample`]).
     V2,
     /// Mini-cauldron's waveforms (change add-cauldron-xm-import): a 16-bit phase, naive output ([`cauldron`]).
-    Cauldron,
+    Clocked,
 }
 
 impl Kind {
@@ -52,8 +52,8 @@ impl Kind {
             osc_type::BLIT => missing(module::OSC_BLIT),
             osc_type::V2 if cfg!(feature = "us-osc-naive") => Ok(Kind::V2),
             osc_type::V2 => missing(module::OSC_NAIVE),
-            osc_type::CAULDRON if cfg!(feature = "us-osc-cauldron") => Ok(Kind::Cauldron),
-            osc_type::CAULDRON => missing(module::OSC_CAULDRON),
+            osc_type::CLOCKED if cfg!(feature = "us-osc-clocked") => Ok(Kind::Clocked),
+            osc_type::CLOCKED => missing(module::OSC_CLOCKED),
             #[cfg(feature = "us-osc-wt")]
             osc_type::WAVETABLE => Ok(Kind::Wt),
             #[cfg(not(feature = "us-osc-wt"))]
@@ -88,32 +88,32 @@ pub struct Slot {
     pub fresh: bool,
     /// V2: wave counter, noise filter and seed (`v2::Opt`: absent without the V2 voice features).
     pub v2s: crate::v2::Opt<V2Slot>,
-    /// Cauldron: the detuned second saw, the phrase frame counter and the noise state.
-    pub cd: CauldronSlot,
+    /// Clocked: the detuned second saw, the phrase frame counter and the noise state.
+    pub clk: ClockedSlot,
 }
 
-/// A cauldron slot's running state. `phase2` (turns) is the original's second saw: kept across note-ons, as the
+/// A clocked slot's running state. `phase2` (turns) is the original's second saw: kept across note-ons, as the
 /// original keeps it across retriggers. `t` counts phrase frames (the original's frame counter `t`), set at note-on
-/// from the note's velocity ([`cauldron_t0`]). `rng` is the noise state, seeded at note-on.
+/// from the note's velocity ([`clocked_t0`]). `rng` is the noise state, seeded at note-on.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct CauldronSlot {
+pub struct ClockedSlot {
     pub phase2: f64,
     pub t: f64,
     pub rng: u32,
     /// The filter: `y` (runs on across note-ons), `prev` (its output, 0 at a note-on), `v1` (the envelope part of
-    /// `c`, latched at a note-on) ([`cauldron_filter`]).
+    /// `c`, latched at a note-on) ([`clocked_filter`]).
     pub y: f64,
     pub prev: f64,
     pub v1: f64,
     /// The filter settings of the last note-on: the original computes a step's filter at its retrigger, so a later
     /// change (the converter's retrigger byte, free between notes) reaches it only at the next note-on.
-    pub flt: Option<CauldronF>,
+    pub flt: Option<ClockedF>,
     /// The resampler: the last four phrase-rate samples (newest last) and the phrase-frame fraction past `h[1]` the
-    /// next output sits at ([`cauldron`]).
+    /// next output sits at ([`clocked`]).
     pub h: [f32; 4],
     pub frac: f64,
-    /// The reconstruction low-pass after the resampler ([`CauldronLp`]).
-    pub lp: CauldronLp,
+    /// The reconstruction low-pass after the resampler ([`ClockedLp`]).
+    pub lp: ClockedLp,
 }
 
 /// The resampler's reconstruction filter: below one phrase frame per output frame the cubic leaves images of the
@@ -122,13 +122,13 @@ pub struct CauldronSlot {
 /// `0.45·clock` of the output rate (two biquads, transposed direct form II), bypassed at a clock of 1 or more;
 /// coefficients follow the clock (`k`, the cutoff they were made for).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct CauldronLp {
+pub struct ClockedLp {
     pub k: f32,
     pub c: [[f32; 5]; 2],
     pub s: [[f32; 2]; 2],
 }
 
-impl CauldronLp {
+impl ClockedLp {
     /// The cutoff over the output rate for `clock` phrase frames per output frame; 0 = bypass.
     fn cutoff(clock: f64) -> f32 {
         if clock < 1.0 { (0.45 * clock) as f32 } else { 0.0 }
@@ -160,74 +160,74 @@ impl CauldronLp {
     }
 }
 
-/// A cauldron slot's filter for a control segment, per phrase frame (the slot runs at the phrase rate): envelope
+/// A clocked slot's filter for a control segment, per phrase frame (the slot runs at the phrase rate): envelope
 /// amount `a` and base `b` (the original's `v1`, `v2`), the envelope's decay `d`, `q1` = 1 − damping.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct CauldronF {
+pub struct ClockedF {
     pub a: f64,
     pub b: f64,
     pub d: f64,
     pub q1: f64,
 }
 
-/// A cauldron slot's settings for a control segment (not ramped): wave 0–5 (saw, square, spike, pulse, noise, fold),
+/// A clocked slot's settings for a control segment (not ramped): wave 0–5 (saw, square, spike, pulse, noise, fold),
 /// voices 0–10, version 2 (`v2`), and `clock`, the phrase frames per output frame (the original's internal rate times
 /// the playback ratio, over the song rate).
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct CauldronT {
+pub struct ClockedT {
     pub wave: u8,
     pub voices: u8,
     pub v2: bool,
     pub clock: f32,
-    pub flt: Option<CauldronF>,
+    pub flt: Option<ClockedF>,
     /// The second saw's phase (turns) a non-legato note-on sets, from the slot's `o::PM_OUT` byte; `None` keeps it
     /// running.
     pub phase2: Option<f64>,
-    /// Version 2 in a glide (`CD_VERSION` ½): the original's glide stores its pitch register as the signed
+    /// Version 2 in a glide (`CLK_VERSION` ½): the original's glide stores its pitch register as the signed
     /// interpolation of the words, so a word above 32767 steps the second saw and the spike as `w − 65536`.
     pub glide: bool,
-    /// The word byte (`o::FIXED_HZ`, read as such: a cauldron slot always tracks the note): b ≥ 1 makes the pitch
+    /// The word byte (`o::FIXED_HZ`, read as such: a clocked slot always tracks the note): b ≥ 1 makes the pitch
     /// word `rint(word) + b − 128`, the original's integer word, which a note's frequency (fine byte ±0.39 cents:
     /// ±11.6 words at 51199) cannot reach; 0 (`None`) leaves it as the frequency gives it (bends stay smooth).
     pub word: Option<i32>,
-    /// The filter envelope's age at a note-on, phrase frames since the last retrigger ([`cauldron_age`], from the
+    /// The filter envelope's age at a note-on, phrase frames since the last retrigger ([`clocked_age`], from the
     /// slot's `o::TRACKING` byte); `None` restarts it at the amount.
     pub age: Option<f64>,
 }
 
-impl Default for CauldronT {
+impl Default for ClockedT {
     fn default() -> Self {
-        CauldronT { wave: 0, voices: 0, v2: false, clock: 1.0, flt: None, phase2: None, glide: false, word: None, age: None }
+        ClockedT { wave: 0, voices: 0, v2: false, clock: 1.0, flt: None, phase2: None, glide: false, word: None, age: None }
     }
 }
 
-/// The age byte (a cauldron slot's `o::TRACKING` value, read as such: the slot always tracks the note): 0 (`None`)
+/// The age byte (a clocked slot's `o::TRACKING` value, read as such: the slot always tracks the note): 0 (`None`)
 /// restarts the filter envelope at a note-on, as a retrigger; b ≥ 1 is `(b − 1)` eighth steps (of 3530 phrase frames)
 /// since the last retrigger, a note entering a phrase mid-way (an XM jump, a ping-pong pass's reversed step), so the
 /// envelope starts decayed. Without it a late step came out as bright as the first: a low-damped filter (Stash's
 /// `Jacef1`, damp 0.05) rang at its cutoff.
-pub fn cauldron_age(p: f32) -> Option<f64> {
+pub fn clocked_age(p: f32) -> Option<f64> {
     match libm::roundf(p * 255.0).clamp(0.0, 255.0) as u32 {
         0 => None,
         b => Some((b - 1) as f64 * (3530.0 / 8.0)),
     }
 }
 
-impl CauldronT {
+impl ClockedT {
     /// From the slot's shape values (after the matrix) at song rate `rate`, `mul_p` (the slot's `o::FEEDBACK` value:
     /// the filter's per-retrigger factor `4p`) and `phase_p` (its `o::PM_OUT` value: byte b = `round(255p)`, 0 keeps
     /// the second saw running, b ≥ 1 sets it to `(b − 1)/255` turn at a note-on); any stored value clamps into range.
-    /// The cauldron slot sends nothing into the next slot's phase.
+    /// The clocked slot sends nothing into the next slot's phase.
     pub fn from_shape(sh: &[f32; pm::o::SHAPES], rate: f32, mul_p: f32, phase_p: f32, word_p: f32) -> Self {
         use pm::shape::*;
-        let hz = if sh[CD_CLOCK] > 0.0 { sh[CD_CLOCK] * 1_048_576.0 } else { 0.0 };
+        let hz = if sh[CLK_CLOCK] > 0.0 { sh[CLK_CLOCK] * 1_048_576.0 } else { 0.0 };
         let clock = if hz > 0.0 && rate > 0.0 { hz / rate } else { 1.0 };
-        let (mut b, mut a) = (sh[CD_F_BASE].max(0.0) as f64 * 8.0, sh[CD_F_AMOUNT].max(0.0) as f64 * 8.0);
+        let (mut b, mut a) = (sh[CLK_F_BASE].max(0.0) as f64 * 8.0, sh[CLK_F_AMOUNT].max(0.0) as f64 * 8.0);
         // choice of 3: 0 v1, ½ v2 in a glide, 1 v2 (the stored 0 and 1 keep their meaning)
-        let version = crate::law::choice(sh[CD_VERSION], 3);
+        let version = crate::law::choice(sh[CLK_VERSION], 3);
         let v2 = version > 0;
         // the retrigger byte: k compounding steps (each stored as f32, as the original), then the accent
-        let byte = libm::roundf(sh[CD_RETRIG] * 255.0).clamp(0.0, 255.0) as u32;
+        let byte = libm::roundf(sh[CLK_RETRIG] * 255.0).clamp(0.0, 255.0) as u32;
         let mul = mul_p.max(0.0) as f64 * 4.0;
         for _ in 0..byte >> 1 {
             a = (a * mul) as f32 as f64;
@@ -237,15 +237,15 @@ impl CauldronT {
             let accent = if v2 { 2.0 } else { 4.0 };
             (a, b) = (a * accent, b * accent);
         }
-        let flt = (b > 0.0 || a > 0.0).then(|| CauldronF {
+        let flt = (b > 0.0 || a > 0.0).then(|| ClockedF {
             a,
             b,
-            d: 1.0 + (0.5 - sh[CD_F_DECAY] as f64) / 100.0,
-            q1: 1.0 - (sh[CD_F_DAMP] as f64).clamp(0.0, 1.0),
+            d: 1.0 + (0.5 - sh[CLK_F_DECAY] as f64) / 100.0,
+            q1: 1.0 - (sh[CLK_F_DAMP] as f64).clamp(0.0, 1.0),
         });
-        CauldronT {
-            wave: crate::law::choice(sh[CD_WAVE], 6) as u8,
-            voices: libm::roundf(sh[CD_VOICES] * 10.0).clamp(0.0, 10.0) as u8,
+        ClockedT {
+            wave: crate::law::choice(sh[CLK_WAVE], 6) as u8,
+            voices: libm::roundf(sh[CLK_VOICES] * 10.0).clamp(0.0, 10.0) as u8,
             v2,
             clock,
             flt,
@@ -284,23 +284,23 @@ impl Slot {
             smp: smp::State::new(),
             fresh: true,
             v2s: crate::v2::Opt::new(V2Slot { cnt: 0, nf: crate::v2::Lrc { l: 0.0, b: 0.0 }, nseed: 0, init: false }),
-            cd: CauldronSlot { phase2: 0.0, t: 0.0, rng: 0, y: 0.0, prev: 0.0, v1: 0.0, flt: None, h: [0.0; 4], frac: 0.0, lp: CauldronLp { k: 0.0, c: [[0.0; 5]; 2], s: [[0.0; 2]; 2] } },
+            clk: ClockedSlot { phase2: 0.0, t: 0.0, rng: 0, y: 0.0, prev: 0.0, v1: 0.0, flt: None, h: [0.0; 4], frac: 0.0, lp: ClockedLp { k: 0.0, c: [[0.0; 5]; 2], s: [[0.0; 2]; 2] } },
         }
     }
 
-    /// Cauldron: the phrase frame at this note-on ([`cauldron_t0`]); [`Slot::start`] has reset the phase. The filter
+    /// Clocked: the phrase frame at this note-on ([`clocked_t0`]); [`Slot::start`] has reset the phase. The filter
     /// restarts like the original's retrigger: its output memory is 0, the envelope part of `c` is the amount; `y`
     /// runs on.
-    pub fn cauldron_start(&mut self, t0: f64, c: &CauldronT) {
-        self.cd.t = t0;
+    pub fn clocked_start(&mut self, t0: f64, c: &ClockedT) {
+        self.clk.t = t0;
         if let Some(p) = c.phase2 {
-            self.cd.phase2 = p;
+            self.clk.phase2 = p;
         }
-        self.cd.flt = c.flt;
+        self.clk.flt = c.flt;
         if let Some(f) = c.flt {
-            self.cd.prev = 0.0;
-            self.cd.v1 = match c.age {
-                Some(n) => (f.a * libm::pow(f.d, n)).min(CD_SATURATE),
+            self.clk.prev = 0.0;
+            self.clk.v1 = match c.age {
+                Some(n) => (f.a * libm::pow(f.d, n)).min(CLK_SATURATE),
                 None => f.a,
             };
         }
@@ -322,10 +322,10 @@ impl Slot {
                 self.fresh = false;
             }
             // the original's retrigger: phase -32766 (16-bit), the second saw runs on; noise seeded from the draw
-            Kind::Cauldron if cfg!(feature = "us-osc-cauldron") => {
+            Kind::Clocked if cfg!(feature = "us-osc-clocked") => {
                 self.phase = 32770.0 / 65536.0;
-                self.cd.t = 0.0;
-                self.cd.rng = ((phase * 4_294_967_296.0) as u64 as u32) | 1;
+                self.clk.t = 0.0;
+                self.clk.rng = ((phase * 4_294_967_296.0) as u64 as u32) | 1;
             }
             _ => {}
         }
@@ -360,8 +360,8 @@ pub struct SlotT {
     pub smp: smp::Cfg,
     /// V2: waveform, ring, break point, noise filter and the format-version switches.
     pub v2: crate::v2::Opt<V2T>,
-    /// Cauldron: wave, voices, version and phrase clock.
-    pub cd: CauldronT,
+    /// Clocked: wave, voices, version and phrase clock.
+    pub clk: ClockedT,
 }
 
 /// A V2 slot's settings for a control segment (V2 keeps them for a frame; they are not ramped).
@@ -433,7 +433,7 @@ pub struct SlotRamps {
     layers: usize,
     smp: smp::Cfg,
     v2: crate::v2::Opt<V2T>,
-    cd: CauldronT,
+    clk: ClockedT,
 }
 
 impl SlotRamps {
@@ -456,7 +456,7 @@ impl SlotRamps {
         if cfg!(feature = "us-osc-naive") {
             self.v2 = t.v2;
         }
-        self.cd = t.cd;
+        self.clk = t.clk;
     }
 
     pub fn to(&mut self, t: &SlotT, frames: u32) {
@@ -478,7 +478,7 @@ impl SlotRamps {
         if cfg!(feature = "us-osc-naive") {
             self.v2 = t.v2;
         }
-        self.cd = t.cd;
+        self.clk = t.clk;
     }
 
     pub fn retarget(&mut self, t: &SlotT, frames: u32) {
@@ -500,7 +500,7 @@ impl SlotRamps {
         if cfg!(feature = "us-osc-naive") {
             self.v2 = t.v2;
         }
-        self.cd = t.cd;
+        self.clk = t.clk;
     }
 }
 
@@ -538,10 +538,10 @@ pub fn sample(slot: &mut Slot, wt: Option<&mut Wt>, src: &smp::Source, r: &mut S
             let y = blit(slot, inc as f64, wf as f64, pw as f64, r.leak as f64) * gain;
             (y * mix * pl, y * mix * pr, y * send)
         }
-        Kind::Cauldron if cfg!(feature = "us-osc-cauldron") => {
+        Kind::Clocked if cfg!(feature = "us-osc-clocked") => {
             // its `o::PM_OUT` is the second saw's phase byte: no send
             let _ = send;
-            let y = cauldron(slot, inc as f64, &r.cd) * gain;
+            let y = clocked(slot, inc as f64, &r.clk) * gain;
             (y * mix * pl, y * mix * pr, 0.0)
         }
         #[cfg(feature = "us-osc-wt")]
@@ -728,7 +728,7 @@ fn wavetable(wt: &mut Wt, inc: f32, det: f32, spread: f32, drive: f32, layers: u
 
 /// `sinc(x) = sin(πx)/(πx)` for `x` in samples.
 /// Full scale of the original's 16-bit samples.
-const CD_FULL: f64 = 32767.0;
+const CLK_FULL: f64 = 32767.0;
 
 /// Wraps to a signed 16-bit value, as the original's word arithmetic does.
 #[inline]
@@ -748,21 +748,21 @@ fn spike7(u: f64) -> f64 {
     let u2 = u * u;
     let u4 = u2 * u2;
     let u6 = u4 * u2;
-    u6 * CD_FULL * u
+    u6 * CLK_FULL * u
 }
 
 /// The spike of phase word `p` with the sign branch: falling `(32767 − p)/32767` for `p > 0`, rising `p/32767` below.
 #[inline]
 fn spike_signed(p: i64) -> f64 {
-    let x = if p > 0 { CD_FULL - p as f64 } else { p as f64 };
-    spike7(x / CD_FULL)
+    let x = if p > 0 { CLK_FULL - p as f64 } else { p as f64 };
+    spike7(x / CLK_FULL)
 }
 
 /// The spike wave (`0x411264` / `0x402B26`). Only the last of the original's voice loop survives (a quirk the patches
 /// were tuned to): the base spike plus one copy offset by `t·V·pitch/128` (negated for even `V` in version 1; in
 /// version 2 `t·V` is truncated to 16 bits and the base spike has no sign branch, so its negative half clips).
 fn spike(t: f64, ph: i64, pitch: f64, voices: u8, v2: bool) -> i64 {
-    let base = libm::rint(if v2 { spike7((CD_FULL - ph as f64) / CD_FULL) } else { spike_signed(ph) }) as i64;
+    let base = libm::rint(if v2 { spike7((CLK_FULL - ph as f64) / CLK_FULL) } else { spike_signed(ph) }) as i64;
     if voices == 0 {
         return base;
     }
@@ -776,43 +776,43 @@ fn spike(t: f64, ph: i64, pitch: f64, voices: u8, v2: bool) -> i64 {
     libm::rint(spike_signed(i16w(ph + off)) + base as f64) as i64
 }
 
-/// One output sample of a cauldron slot. The slot runs at its phrase clock (the original's rate times the playback
+/// One output sample of a clocked slot. The slot runs at its phrase clock (the original's rate times the playback
 /// ratio: `clock` phrase frames per output frame) and is resampled to the output rate with a 4-point cubic
 /// (Catmull-Rom), so its naive waveforms alias as the original's do at its own rate, then band-limited at the clock's
-/// Nyquist ([`CauldronLp`]) when the clock is below the output rate. Latency: 2 phrase frames (and the low-pass's). `inc`
+/// Nyquist ([`ClockedLp`]) when the clock is below the output rate. Latency: 2 phrase frames (and the low-pass's). `inc`
 /// is the phase step in turns per output frame; the original pitch word is `inc·65536/clock`.
-fn cauldron(slot: &mut Slot, inc: f64, c: &CauldronT) -> f32 {
+fn clocked(slot: &mut Slot, inc: f64, c: &ClockedT) -> f32 {
     let clock = c.clock as f64;
     let pitch = inc * 65536.0 / clock;
     let pitch = match c.word {
         Some(d) => libm::rint(pitch) + d as f64,
         None => pitch,
     };
-    slot.cd.frac += clock;
-    while slot.cd.frac >= 1.0 {
-        slot.cd.frac -= 1.0;
-        let x = cauldron_frame(slot, pitch, c) as f32;
-        let h = &mut slot.cd.h;
+    slot.clk.frac += clock;
+    while slot.clk.frac >= 1.0 {
+        slot.clk.frac -= 1.0;
+        let x = clocked_frame(slot, pitch, c) as f32;
+        let h = &mut slot.clk.h;
         *h = [h[1], h[2], h[3], x];
     }
-    let ([a, b, cc, d], f) = (slot.cd.h, slot.cd.frac as f32);
+    let ([a, b, cc, d], f) = (slot.clk.h, slot.clk.frac as f32);
     let y = b + 0.5 * f * (cc - a + f * (2.0 * a - 5.0 * b + 4.0 * cc - d + f * (3.0 * (b - cc) + d - a)));
-    slot.cd.lp.run(y, clock)
+    slot.clk.lp.run(y, clock)
 }
 
-/// One phrase frame of a cauldron slot (the original's frame: oscillator, then the filter), in output scale (16-bit
+/// One phrase frame of a clocked slot (the original's frame: oscillator, then the filter), in output scale (16-bit
 /// value / 32768), from the phase before this frame's step. `pitch` is the original pitch word.
-pub(crate) fn cauldron_frame(slot: &mut Slot, pitch: f64, c: &CauldronT) -> f64 {
+pub(crate) fn clocked_frame(slot: &mut Slot, pitch: f64, c: &ClockedT) -> f64 {
     // the pitch register: a glide holds the signed word (the phase steps the same; the second saw and spike do not)
     let pitch = if c.glide && pitch > 32767.5 { pitch - 65536.0 } else { pitch };
     let ph = phase16(slot.phase);
     let mut out = ph;
     if c.voices != 0 {
         // the second saw steps by the rounded detuned pitch word, as `fistp(pitch·1.02)`
-        let cd = &mut slot.cd;
-        cd.phase2 += libm::rint(pitch * 1.02) / 65536.0;
-        cd.phase2 -= libm::floor(cd.phase2);
-        out += phase16(cd.phase2);
+        let clk = &mut slot.clk;
+        clk.phase2 += libm::rint(pitch * 1.02) / 65536.0;
+        clk.phase2 -= libm::floor(clk.phase2);
+        out += phase16(clk.phase2);
     }
     // version 1 has saw, spike and noise; its other wave values play the saw
     let wave = if c.v2 || c.wave == 2 || c.wave == 4 { c.wave } else { 0 };
@@ -824,7 +824,7 @@ pub(crate) fn cauldron_frame(slot: &mut Slot, pitch: f64, c: &CauldronT) -> f64 
                 -30000
             }
         }
-        2 => spike(slot.cd.t, ph, pitch, c.voices, c.v2),
+        2 => spike(slot.clk.t, ph, pitch, c.voices, c.v2),
         3 => {
             if out > 31000 {
                 30000
@@ -833,14 +833,14 @@ pub(crate) fn cauldron_frame(slot: &mut Slot, pitch: f64, c: &CauldronT) -> f64 
             }
         }
         4 => {
-            let mut x = slot.cd.rng;
+            let mut x = slot.clk.rng;
             x ^= x << 13;
             x ^= x >> 17;
             x ^= x << 5;
-            slot.cd.rng = x;
+            slot.clk.rng = x;
             ((x & 0xFF_FFFF) % 64001) as i64 - 32000
         }
-        5 if out > 0 => CD_FULL as i64 - out,
+        5 if out > 0 => CLK_FULL as i64 - out,
         _ => out,
     };
     if c.v2 {
@@ -848,35 +848,35 @@ pub(crate) fn cauldron_frame(slot: &mut Slot, pitch: f64, c: &CauldronT) -> f64 
     }
     slot.phase += pitch / 65536.0;
     slot.phase -= libm::floor(slot.phase);
-    slot.cd.t += 1.0;
+    slot.clk.t += 1.0;
     let x = out as f64 / 32768.0;
-    match slot.cd.flt {
-        Some(f) => cauldron_filter(&mut slot.cd, x, &f),
+    match slot.clk.flt {
+        Some(f) => clocked_filter(&mut slot.clk, x, &f),
         None => x,
     }
 }
 
-/// The phrase frame of a cauldron note-on from its velocity: `(velocity − 1)` eighth steps of 3530 phrase frames (the
+/// The phrase frame of a clocked note-on from its velocity: `(velocity − 1)` eighth steps of 3530 phrase frames (the
 /// converter writes step starts exactly; velocity 0 or 1 is the phrase start).
-pub fn cauldron_t0(velocity: u8) -> f64 {
+pub fn clocked_t0(velocity: u8) -> f64 {
     velocity.saturating_sub(1) as f64 * (3530.0 / 8.0)
 }
 
 /// The original's resonant low-pass, one phrase frame: `v1 ·= d`, `c = v1 + b`, `y = (1 − q)·(y − c·(x + prev))`,
 /// output `prev = y + prev` (DC gain −1, as the original). The original stores `y` and `prev` as 32-bit integers of
 /// 16-bit samples (`fistp`), so a rising cutoff that turns the filter unstable saturates them instead of running
-/// off to infinity: `CD_SATURATE` (2³¹/2¹⁵) in these units, and an envelope grown past any use stops growing.
-pub(crate) fn cauldron_filter(cd: &mut CauldronSlot, x: f64, f: &CauldronF) -> f64 {
-    cd.v1 = (cd.v1 * f.d).min(CD_SATURATE);
-    let c = cd.v1 + f.b;
-    let sat = |v: f64| if v.is_nan() { -CD_SATURATE } else { v.clamp(-CD_SATURATE, CD_SATURATE) };
-    cd.y = sat(f.q1 * (cd.y - c * (x + cd.prev)));
-    cd.prev = sat(cd.prev + cd.y);
-    cd.prev
+/// off to infinity: `CLK_SATURATE` (2³¹/2¹⁵) in these units, and an envelope grown past any use stops growing.
+pub(crate) fn clocked_filter(clk: &mut ClockedSlot, x: f64, f: &ClockedF) -> f64 {
+    clk.v1 = (clk.v1 * f.d).min(CLK_SATURATE);
+    let c = clk.v1 + f.b;
+    let sat = |v: f64| if v.is_nan() { -CLK_SATURATE } else { v.clamp(-CLK_SATURATE, CLK_SATURATE) };
+    clk.y = sat(f.q1 * (clk.y - c * (x + clk.prev)));
+    clk.prev = sat(clk.prev + clk.y);
+    clk.prev
 }
 
 /// The original filter's integer range in sample units: 2³¹ over a full scale of 2¹⁵.
-pub const CD_SATURATE: f64 = 65536.0;
+pub const CLK_SATURATE: f64 = 65536.0;
 
 #[inline]
 fn sinc(x: f64) -> f64 {
@@ -909,16 +909,16 @@ mod tests {
     fn an_unstable_rising_filter_saturates_instead_of_running_off() {
         // Stash song0 record 4 held for minutes: the cutoff rises without end (decay 1.00003 per frame)
         use super::*;
-        let f = CauldronF { a: 0.3, b: 0.009375, d: 1.0000300407409668, q1: 0.95 };
-        let mut cd = CauldronSlot { phase2: 0.0, t: 0.0, rng: 0, y: 0.0, prev: 0.0, v1: f.a, h: [0.0; 4], frac: 0.0, ..Default::default() };
+        let f = ClockedF { a: 0.3, b: 0.009375, d: 1.0000300407409668, q1: 0.95 };
+        let mut clk = ClockedSlot { phase2: 0.0, t: 0.0, rng: 0, y: 0.0, prev: 0.0, v1: f.a, h: [0.0; 4], frac: 0.0, ..Default::default() };
         let mut peak: f64 = 0.0;
         for n in 0..10_000_000u32 {
             let x = if n % 100 < 50 { 0.5 } else { -0.5 };
-            let y = cauldron_filter(&mut cd, x, &f);
+            let y = clocked_filter(&mut clk, x, &f);
             assert!(y.is_finite(), "frame {n}");
             peak = peak.max(y.abs());
         }
-        assert!(peak <= CD_SATURATE && peak > 1.0, "{peak}");
+        assert!(peak <= CLK_SATURATE && peak > 1.0, "{peak}");
     }
 
     use super::*;
@@ -1014,7 +1014,7 @@ mod tests {
         };
         for (ty, want, on, id) in [
             (osc_type::V2, Kind::V2, cfg!(feature = "us-osc-naive"), module::OSC_NAIVE),
-            (osc_type::CAULDRON, Kind::Cauldron, cfg!(feature = "us-osc-cauldron"), module::OSC_CAULDRON),
+            (osc_type::CLOCKED, Kind::Clocked, cfg!(feature = "us-osc-clocked"), module::OSC_CLOCKED),
         ] {
             match later(ty) {
                 Ok(k) => assert!(on && k == [Kind::Off, want, Kind::Off]),
@@ -1027,8 +1027,8 @@ mod tests {
         assert_eq!(kind(osc_type::WAVETABLE).err(), Some(LoadError::UnsupportedModule(module::OSC_WAVETABLE)));
     }
 
-    #[cfg(feature = "us-osc-cauldron")]
-    mod cauldron {
+    #[cfg(feature = "us-osc-clocked")]
+    mod clocked {
         use super::super::*;
         mod vectors {
             include!("osc/cauldron_vectors.rs");
@@ -1037,24 +1037,24 @@ mod tests {
             include!("osc/cauldron_filter_vectors.rs");
         }
 
-        /// The settings and pitch word of a slot's phrase-rate generator ([`cauldron_frame`]).
+        /// The settings and pitch word of a slot's phrase-rate generator ([`clocked_frame`]).
         struct Gen {
-            cd: CauldronT,
+            clk: ClockedT,
             pitch: f64,
         }
 
-        /// A cauldron slot after a note-on at phrase frame `t0`.
+        /// A clocked slot after a note-on at phrase frame `t0`.
         fn slot(ver: u8, wave: u8, voices: u8, pitch: u32, t0: u32) -> (Slot, Gen) {
-            let mut s = Slot::new(Kind::Cauldron, 0.25);
+            let mut s = Slot::new(Kind::Clocked, 0.25);
             s.start(0.25, 0.0, 0.0);
-            let cd = CauldronT { wave, voices, v2: ver == 2, clock: 1.0, flt: None, phase2: None, glide: false, word: None, age: None };
-            s.cauldron_start(t0 as f64, &cd);
-            (s, Gen { cd, pitch: pitch as f64 })
+            let clk = ClockedT { wave, voices, v2: ver == 2, clock: 1.0, flt: None, phase2: None, glide: false, word: None, age: None };
+            s.clocked_start(t0 as f64, &clk);
+            (s, Gen { clk, pitch: pitch as f64 })
         }
 
         /// The slot's next phrase frame in the original's 16-bit units (the slot scales by 1/32768).
         fn next(s: &mut Slot, g: &mut Gen) -> i32 {
-            (cauldron_frame(s, g.pitch, &g.cd) * 32768.0).round() as i32
+            (clocked_frame(s, g.pitch, &g.clk) * 32768.0).round() as i32
         }
 
         #[test]
@@ -1087,10 +1087,10 @@ mod tests {
             for _ in 0..1000 {
                 next(&mut s, &mut r);
             }
-            let pair = s.cd.phase2;
+            let pair = s.clk.phase2;
             s.start(0.7, 0.0, 0.0);
-            s.cauldron_start(0.0, &CauldronT::default());
-            assert_eq!(s.cd.phase2, pair, "the second saw keeps running");
+            s.clocked_start(0.0, &ClockedT::default());
+            assert_eq!(s.clk.phase2, pair, "the second saw keeps running");
             // the first saw restarts at -32766: the first output is -32766 + the pair's next value
             let p2 = pair + (199.0f64 * 1.02).round() / 65536.0;
             let p2 = ((p2 - libm::floor(p2)) * 65536.0) as i32;
@@ -1113,24 +1113,24 @@ mod tests {
         #[test]
         fn shape_fields_decode_with_clamping() {
             let mut sh = [0.0f32; pm::o::SHAPES];
-            sh[pm::shape::CD_WAVE] = 0.4; // choice(0.4, 6) = 2: spike
-            sh[pm::shape::CD_VOICES] = 0.31; // 3
-            sh[pm::shape::CD_VERSION] = 1.0; // v2
-            sh[pm::shape::CD_CLOCK] = 35441.16 / 1_048_576.0;
-            let t = CauldronT::from_shape(&sh, 44100.0, 0.0, 0.0, 0.0);
+            sh[pm::shape::CLK_WAVE] = 0.4; // choice(0.4, 6) = 2: spike
+            sh[pm::shape::CLK_VOICES] = 0.31; // 3
+            sh[pm::shape::CLK_VERSION] = 1.0; // v2
+            sh[pm::shape::CLK_CLOCK] = 35441.16 / 1_048_576.0;
+            let t = ClockedT::from_shape(&sh, 44100.0, 0.0, 0.0, 0.0);
             assert_eq!((t.wave, t.voices, t.v2), (2, 3, true));
             assert!((t.clock - 35441.16 / 44100.0).abs() < 1e-5);
-            sh[pm::shape::CD_VOICES] = 7.0;
-            sh[pm::shape::CD_WAVE] = -1.0;
-            sh[pm::shape::CD_CLOCK] = 0.0;
-            let t = CauldronT::from_shape(&sh, 44100.0, 0.0, 0.0, 0.0);
+            sh[pm::shape::CLK_VOICES] = 7.0;
+            sh[pm::shape::CLK_WAVE] = -1.0;
+            sh[pm::shape::CLK_CLOCK] = 0.0;
+            let t = ClockedT::from_shape(&sh, 44100.0, 0.0, 0.0, 0.0);
             assert_eq!((t.wave, t.voices), (0, 10));
             assert_eq!(t.clock, 1.0, "no clock: one phrase frame per output frame");
             assert_eq!(t.flt, None, "base and amount 0: no filter");
             // version 0.5: v2 in a glide (the pitch register holds the signed word); 1 and 0 are not
             for (p, v2, glide) in [(0.0, false, false), (0.5, true, true), (1.0, true, false)] {
-                sh[pm::shape::CD_VERSION] = p;
-                let t = CauldronT::from_shape(&sh, 44100.0, 0.0, 0.0, 0.0);
+                sh[pm::shape::CLK_VERSION] = p;
+                let t = ClockedT::from_shape(&sh, 44100.0, 0.0, 0.0, 0.0);
                 assert_eq!((t.v2, t.glide), (v2, glide), "version {p}");
             }
         }
@@ -1139,15 +1139,15 @@ mod tests {
         fn the_word_byte_rounds_and_corrects_the_pitch_word() {
             // byte 0: the word follows the frequency (bends stay smooth); b ≥ 1: rint(word) + b − 128
             let sh = [0.0f32; pm::o::SHAPES];
-            assert_eq!(CauldronT::from_shape(&sh, 44100.0, 0.0, 0.0, 0.0).word, None);
-            assert_eq!(CauldronT::from_shape(&sh, 44100.0, 0.0, 0.0, 130.0 / 255.0).word, Some(2));
+            assert_eq!(ClockedT::from_shape(&sh, 44100.0, 0.0, 0.0, 0.0).word, None);
+            assert_eq!(ClockedT::from_shape(&sh, 44100.0, 0.0, 0.0, 130.0 / 255.0).word, Some(2));
             for (word, step) in [(None, 51199.3), (Some(0), 51199.0), (Some(-3), 51196.0)] {
-                let mut s = Slot::new(Kind::Cauldron, 0.25);
+                let mut s = Slot::new(Kind::Clocked, 0.25);
                 s.start(0.25, 0.0, 0.0);
-                let cd = CauldronT { word, ..CauldronT::default() };
-                s.cauldron_start(0.0, &cd);
+                let clk = ClockedT { word, ..ClockedT::default() };
+                s.clocked_start(0.0, &clk);
                 let p0 = s.phase;
-                cauldron(&mut s, 51199.3 / 65536.0, &cd);
+                clocked(&mut s, 51199.3 / 65536.0, &clk);
                 let got = (s.phase - p0).rem_euclid(1.0) * 65536.0;
                 assert!((got - step).abs() < 1e-6, "{word:?}: {got} vs {step}");
             }
@@ -1159,22 +1159,22 @@ mod tests {
             // register, 52223 unsigned or −14624 signed (the original's glide stores the signed interpolation)
             for (glide, step2) in [(false, 52223i64), (true, -14624)] {
                 let (mut s, mut g) = slot(2, 0, 1, 51199, 0);
-                g.cd.glide = glide;
-                let (p0, q0) = (s.phase, s.cd.phase2);
+                g.clk.glide = glide;
+                let (p0, q0) = (s.phase, s.clk.phase2);
                 next(&mut s, &mut g);
                 let turns = |a: f64, b: f64| ((a - b) * 65536.0).round().rem_euclid(65536.0) as i64;
                 assert_eq!(turns(s.phase, p0), 51199, "glide {glide}");
-                assert_eq!(turns(s.cd.phase2, q0), step2.rem_euclid(65536), "glide {glide}");
+                assert_eq!(turns(s.clk.phase2, q0), step2.rem_euclid(65536), "glide {glide}");
             }
         }
 
         /// Filter vectors: a slot with its filter on, retriggered once.
         fn filtered(ver: u8, wave: u8, voices: u8, pitch: u32, a: f64, b: f64, d: f64, q: f64) -> (Slot, Gen) {
-            let cd = CauldronT { wave, voices, v2: ver == 2, clock: 1.0, flt: Some(CauldronF { a, b, d, q1: 1.0 - q }), phase2: None, glide: false, word: None, age: None };
-            let mut s = Slot::new(Kind::Cauldron, 0.25);
+            let clk = ClockedT { wave, voices, v2: ver == 2, clock: 1.0, flt: Some(ClockedF { a, b, d, q1: 1.0 - q }), phase2: None, glide: false, word: None, age: None };
+            let mut s = Slot::new(Kind::Clocked, 0.25);
             s.start(0.25, 0.0, 0.0);
-            s.cauldron_start(0.0, &cd);
-            (s, Gen { cd, pitch: pitch as f64 })
+            s.clocked_start(0.0, &clk);
+            (s, Gen { clk, pitch: pitch as f64 })
         }
 
         #[test]
@@ -1186,11 +1186,11 @@ mod tests {
                 for (n, &w) in want.iter().enumerate() {
                     if n == restart {
                         // the retrigger: new base and amount, phase reset, prev 0, y runs on
-                        g.cd.flt = Some(CauldronF { a: a2, b: b2, ..g.cd.flt.unwrap() });
+                        g.clk.flt = Some(ClockedF { a: a2, b: b2, ..g.clk.flt.unwrap() });
                         s.start(0.7, 0.0, 0.0);
-                        s.cauldron_start(n as f64, &g.cd); // the phrase frame runs on (the converter stores it)
+                        s.clocked_start(n as f64, &g.clk); // the phrase frame runs on (the converter stores it)
                     }
-                    worst = worst.max((cauldron_frame(&mut s, g.pitch, &g.cd) * 32768.0 - w as f64).abs());
+                    worst = worst.max((clocked_frame(&mut s, g.pitch, &g.clk) * 32768.0 - w as f64).abs());
                 }
                 // the original rounds its output to an integer every frame and works in 24-bit precision
                 assert!(worst <= 1e-4 * peak, "{name}: worst error {worst:.1} of peak {peak}");
@@ -1203,28 +1203,28 @@ mod tests {
             // byte, ramping towards the next note) reaches the filter only at the next note-on
             let (mut s, g) = filtered(1, 0, 2, 211, 0.4, 0.05, 0.9998, 0.05);
             let (mut r, _) = filtered(1, 0, 2, 211, 0.4, 0.05, 0.9998, 0.05);
-            let moved = CauldronT { flt: Some(CauldronF { a: 1.6, b: 0.4, ..g.cd.flt.unwrap() }), ..g.cd };
+            let moved = ClockedT { flt: Some(ClockedF { a: 1.6, b: 0.4, ..g.clk.flt.unwrap() }), ..g.clk };
             for _ in 0..2000 {
-                assert_eq!(cauldron_frame(&mut s, g.pitch, &moved), cauldron_frame(&mut r, g.pitch, &g.cd));
+                assert_eq!(clocked_frame(&mut s, g.pitch, &moved), clocked_frame(&mut r, g.pitch, &g.clk));
             }
             // a note-on takes the new settings
             s.start(0.7, 0.0, 0.0);
-            s.cauldron_start(2000.0, &moved);
+            s.clocked_start(2000.0, &moved);
             r.start(0.7, 0.0, 0.0);
-            r.cauldron_start(2000.0, &moved);
+            r.clocked_start(2000.0, &moved);
             for _ in 0..200 {
-                assert_eq!(cauldron_frame(&mut s, g.pitch, &g.cd), cauldron_frame(&mut r, g.pitch, &moved));
+                assert_eq!(clocked_frame(&mut s, g.pitch, &g.clk), clocked_frame(&mut r, g.pitch, &moved));
             }
         }
 
         /// The slot's output samples (`sample`) at `clock` phrase frames per output frame, pitch word 211.
         fn resampled(clock: f32, n: usize) -> std::vec::Vec<f32> {
-            let mut s = Slot::new(Kind::Cauldron, 0.25);
-            let cd = CauldronT { wave: 0, voices: 2, v2: false, clock, flt: Some(CauldronF { a: 0.08, b: 0.04, d: 0.999, q1: 0.9 }), phase2: None, glide: false, word: None, age: None };
+            let mut s = Slot::new(Kind::Clocked, 0.25);
+            let clk = ClockedT { wave: 0, voices: 2, v2: false, clock, flt: Some(ClockedF { a: 0.08, b: 0.04, d: 0.999, q1: 0.9 }), phase2: None, glide: false, word: None, age: None };
             s.start(0.25, 0.0, 0.0);
-            s.cauldron_start(0.0, &cd);
+            s.clocked_start(0.0, &clk);
             let mut r = SlotRamps::default();
-            r.set(&SlotT { inc: 211.0 * clock / 65536.0, gain: 1.0, mix: 1.0, pan_l: 1.0, pan_r: 1.0, cd, ..SlotT::default() });
+            r.set(&SlotT { inc: 211.0 * clock / 65536.0, gain: 1.0, mix: 1.0, pan_l: 1.0, pan_r: 1.0, clk, ..SlotT::default() });
             (0..n).map(|_| sample(&mut s, None, &smp::Source::None, &mut r, 0.0).0).collect()
         }
 
@@ -1232,14 +1232,14 @@ mod tests {
         fn the_slot_runs_at_its_phrase_clock_and_is_resampled() {
             // at one phrase frame per output frame: the phrase-rate frames, 2 frames late (the cubic's latency)
             let (mut s, mut g) = filtered(1, 0, 2, 211, 0.08, 0.04, 0.999, 0.1);
-            let frames: std::vec::Vec<f32> = (0..400).map(|_| cauldron_frame(&mut s, g.pitch, &g.cd) as f32).collect();
+            let frames: std::vec::Vec<f32> = (0..400).map(|_| clocked_frame(&mut s, g.pitch, &g.clk) as f32).collect();
             let _ = &mut g;
             let one = resampled(1.0, 402);
             assert_eq!(one[..2], [0.0, 0.0]);
             for n in 0..400 {
                 assert!((one[n + 2] - frames[n]).abs() < 1e-6, "frame {n}: {} vs {}", one[n + 2], frames[n]);
             }
-            // at half a phrase frame per output frame: the same signal at half speed, band-limited (CauldronLp): its
+            // at half a phrase frame per output frame: the same signal at half speed, band-limited (ClockedLp): its
             // level matches the phrase frames'
             let half = resampled(0.5, 806);
             let rms = |x: &[f32]| (x.iter().map(|v| v * v).sum::<f32>() / x.len() as f32).sqrt();
@@ -1252,7 +1252,7 @@ mod tests {
             // clock 0.25: cutoff 0.1125 of the output rate. A sine well inside passes, one past the clock's Nyquist
             // (0.125) is cut, and at clock 1 the filter is bypassed
             let gain = |clock: f64, f: f32| {
-                let mut lp = CauldronLp::default();
+                let mut lp = ClockedLp::default();
                 let x: std::vec::Vec<f32> = (0..8000).map(|n| crate::fm::sinf(2.0 * core::f32::consts::PI * f * n as f32)).collect();
                 let y: std::vec::Vec<f32> = x.iter().map(|&v| lp.run(v, clock)).collect();
                 let rms = |x: &[f32]| (x.iter().map(|v| v * v).sum::<f32>() / x.len() as f32).sqrt();
@@ -1266,23 +1266,23 @@ mod tests {
         #[test]
         fn filter_shape_fields_decode() {
             let mut sh = [0.0f32; pm::o::SHAPES];
-            sh[pm::shape::CD_CLOCK] = 22050.0 / 1_048_576.0; // half a phrase frame per output frame at 44.1 kHz
-            sh[pm::shape::CD_F_BASE] = 0.04 / 8.0;
-            sh[pm::shape::CD_F_AMOUNT] = 0.08 / 8.0;
-            sh[pm::shape::CD_F_DECAY] = 0.5 + 0.1; // d = 0.999
-            sh[pm::shape::CD_F_DAMP] = 0.1;
-            let f = CauldronT::from_shape(&sh, 44100.0, 0.0, 0.0, 0.0).flt.unwrap();
+            sh[pm::shape::CLK_CLOCK] = 22050.0 / 1_048_576.0; // half a phrase frame per output frame at 44.1 kHz
+            sh[pm::shape::CLK_F_BASE] = 0.04 / 8.0;
+            sh[pm::shape::CLK_F_AMOUNT] = 0.08 / 8.0;
+            sh[pm::shape::CLK_F_DECAY] = 0.5 + 0.1; // d = 0.999
+            sh[pm::shape::CLK_F_DAMP] = 0.1;
+            let f = ClockedT::from_shape(&sh, 44100.0, 0.0, 0.0, 0.0).flt.unwrap();
             let close = |x: f64, y: f64| (x - y).abs() < 1e-6;
             assert!(close(f.b, 0.04) && close(f.a, 0.08) && close(f.q1, 0.9) && close(f.d, 0.999), "per phrase frame: {f:?}");
-            sh[pm::shape::CD_F_DECAY] = 0.49; // d = 1.0001: a rising cutoff
-            assert!(CauldronT::from_shape(&sh, 44100.0, 0.0, 0.0, 0.0).flt.unwrap().d > 1.0);
+            sh[pm::shape::CLK_F_DECAY] = 0.49; // d = 1.0001: a rising cutoff
+            assert!(ClockedT::from_shape(&sh, 44100.0, 0.0, 0.0, 0.0).flt.unwrap().d > 1.0);
         }
 
         #[test]
         fn the_phase_byte_sets_the_second_saw_at_a_note_on() {
             // `o::PM_OUT` byte b: 0 keeps the second saw running, b ≥ 1 sets it to (b − 1)/255 turn at a note-on
             let sh = [0.0f32; pm::o::SHAPES];
-            let at = |b: u32| CauldronT::from_shape(&sh, 44100.0, 0.0, b as f32 / 255.0, 0.0).phase2;
+            let at = |b: u32| ClockedT::from_shape(&sh, 44100.0, 0.0, b as f32 / 255.0, 0.0).phase2;
             assert_eq!(at(0), None);
             assert_eq!(at(1), Some(0.0));
             assert_eq!(at(129), Some(128.0 / 255.0));
@@ -1290,31 +1290,31 @@ mod tests {
             for _ in 0..1000 {
                 next(&mut s, &mut g);
             }
-            let cd = CauldronT { phase2: Some(0.25), ..g.cd };
+            let clk = ClockedT { phase2: Some(0.25), ..g.clk };
             s.start(0.7, 0.0, 0.0);
-            s.cauldron_start(0.0, &cd);
-            assert_eq!(s.cd.phase2, 0.25);
+            s.clocked_start(0.0, &clk);
+            assert_eq!(s.clk.phase2, 0.25);
         }
 
         #[test]
         fn the_age_byte_starts_the_filter_envelope_decayed() {
-            // `o::TRACKING` byte b (a cauldron slot always tracks the note): 0 restarts the envelope at the amount (a
+            // `o::TRACKING` byte b (a clocked slot always tracks the note): 0 restarts the envelope at the amount (a
             // retrigger), b ≥ 1 enters a phrase (b − 1) eighth steps after its last retrigger: the envelope already
             // decayed `a·d^n` (a jump into a step, a ping-pong pass's reversed step)
-            assert_eq!(cauldron_age(0.0), None);
-            assert_eq!(cauldron_age(1.0 / 255.0), Some(0.0));
-            assert_eq!(cauldron_age(17.0 / 255.0), Some(16.0 * 3530.0 / 8.0));
+            assert_eq!(clocked_age(0.0), None);
+            assert_eq!(clocked_age(1.0 / 255.0), Some(0.0));
+            assert_eq!(clocked_age(17.0 / 255.0), Some(16.0 * 3530.0 / 8.0));
             let mut sh = [0.0f32; pm::o::SHAPES];
-            sh[pm::shape::CD_F_AMOUNT] = 0.4 / 8.0;
-            sh[pm::shape::CD_F_DECAY] = 0.5 + 0.02; // d = 0.9998
-            let f = CauldronT::from_shape(&sh, 44100.0, 0.0, 0.0, 0.0).flt.unwrap();
+            sh[pm::shape::CLK_F_AMOUNT] = 0.4 / 8.0;
+            sh[pm::shape::CLK_F_DECAY] = 0.5 + 0.02; // d = 0.9998
+            let f = ClockedT::from_shape(&sh, 44100.0, 0.0, 0.0, 0.0).flt.unwrap();
             let (mut s, _) = slot(2, 0, 2, 199, 0);
-            s.cauldron_start(0.0, &CauldronT { flt: Some(f), ..CauldronT::default() });
-            assert!((s.cd.v1 - f.a).abs() < 1e-12, "a retrigger: {}", s.cd.v1);
+            s.clocked_start(0.0, &ClockedT { flt: Some(f), ..ClockedT::default() });
+            assert!((s.clk.v1 - f.a).abs() < 1e-12, "a retrigger: {}", s.clk.v1);
             let n = 5.0 * 3530.0;
-            s.cauldron_start(n, &CauldronT { flt: Some(f), age: Some(n), ..CauldronT::default() });
+            s.clocked_start(n, &ClockedT { flt: Some(f), age: Some(n), ..ClockedT::default() });
             let want = f.a * f.d.powf(n);
-            assert!((s.cd.v1 - want).abs() < 1e-9 * f.a, "{} vs {want}", s.cd.v1);
+            assert!((s.clk.v1 - want).abs() < 1e-9 * f.a, "{} vs {want}", s.clk.v1);
         }
 
         #[test]
@@ -1322,15 +1322,15 @@ mod tests {
             // byte 2k + accent: base and amount times mul^k, each product rounded to f32 as the original stores it,
             // then the accent (×4 in version 1, ×2 in version 2)
             let mut sh = [0.0f32; pm::o::SHAPES];
-            sh[pm::shape::CD_F_BASE] = 0.005 / 8.0;
-            sh[pm::shape::CD_F_AMOUNT] = 0.01 / 8.0;
+            sh[pm::shape::CLK_F_BASE] = 0.005 / 8.0;
+            sh[pm::shape::CLK_F_AMOUNT] = 0.01 / 8.0;
             let mul_p = 1.1 / 4.0;
             let (b0, a0, mul) = ((0.005f32 / 8.0) as f64 * 8.0, (0.01f32 / 8.0) as f64 * 8.0, (1.1f32 / 4.0) as f64 * 4.0);
             let at = |byte: u32, v2: bool| {
                 let mut sh = sh;
-                sh[pm::shape::CD_RETRIG] = byte as f32 / 255.0;
-                sh[pm::shape::CD_VERSION] = if v2 { 1.0 } else { 0.0 };
-                CauldronT::from_shape(&sh, 44100.0, mul_p, 0.0, 0.0).flt.unwrap()
+                sh[pm::shape::CLK_RETRIG] = byte as f32 / 255.0;
+                sh[pm::shape::CLK_VERSION] = if v2 { 1.0 } else { 0.0 };
+                ClockedT::from_shape(&sh, 44100.0, mul_p, 0.0, 0.0).flt.unwrap()
             };
             let f = at(0, false);
             assert_eq!((f.a, f.b), (a0, b0), "k 0: the stored values");
@@ -1350,10 +1350,10 @@ mod tests {
 
         #[test]
         fn the_phrase_frame_comes_from_the_velocity_in_eighth_steps() {
-            assert_eq!(cauldron_t0(1), 0.0);
-            assert_eq!(cauldron_t0(1 + 8 * 5), 5.0 * 3530.0, "a step start is exact");
-            assert_eq!(cauldron_t0(1 + 8 * 5 + 3), 5.0 * 3530.0 + 3.0 * 3530.0 / 8.0);
-            assert_eq!(cauldron_t0(0), 0.0);
+            assert_eq!(clocked_t0(1), 0.0);
+            assert_eq!(clocked_t0(1 + 8 * 5), 5.0 * 3530.0, "a step start is exact");
+            assert_eq!(clocked_t0(1 + 8 * 5 + 3), 5.0 * 3530.0 + 3.0 * 3530.0 / 8.0);
+            assert_eq!(clocked_t0(0), 0.0);
         }
     }
 }

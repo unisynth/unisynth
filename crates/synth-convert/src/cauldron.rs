@@ -242,16 +242,16 @@ pub const STEP: u32 = 3530;
 /// The glide of a tied step: linear in the pitch word over its first `C/2` phrase frames (`C` = 3529).
 pub const GLIDE: f64 = 1764.5;
 
-/// The note's retrigger byte for the cauldron slot (`shape::CD_RETRIG`): `2k + accent`. k is at most 96 in both
+/// The note's retrigger byte for the cauldron slot (`shape::CLK_RETRIG`): `2k + accent`. k is at most 96 in both
 /// intros; a larger one would not fit and is a converter bug.
 pub fn note_byte(r: &Retrig) -> u8 {
     assert!(r.k <= 127, "retrigger {} does not fit the note byte", r.k);
     (2 * r.k + r.accent as u32) as u8
 }
 
-/// The velocity that carries a note's phrase frame (`unisynth::osc::cauldron_t0`): 1 + eighth steps, at most 127.
+/// The velocity that carries a note's phrase frame (`unisynth::osc::clocked_t0`): 1 + eighth steps, at most 127.
 /// The age byte of a note entering a phrase at `phrase_frame`, `since` phrase frames after the retrigger that started
-/// its step's tie (unisynth `osc::cauldron_age`): `1 + eighth steps`, or 0 (a plain restart) at the retrigger itself.
+/// its step's tie (unisynth `osc::clocked_age`): `1 + eighth steps`, or 0 (a plain restart) at the retrigger itself.
 pub fn age_byte(since: f64) -> u8 {
     match (since.max(0.0) * 8.0 / STEP as f64).round() {
         e if e < 1.0 => 0,
@@ -275,15 +275,15 @@ pub fn instrument(version: Version, r: &Record, ratio: f64) -> [f32; unisynth::p
     use unisynth::params::{o, osc_type, shape as sp, v};
     let clock = R * ratio;
     let mut p = Patch::new();
-    p.osc(0, o::TYPE, osc_type::encode(osc_type::CAULDRON));
-    p.shape(0, sp::CD_WAVE, inv::inv_choice(r.wave as usize, 6));
-    p.shape(0, sp::CD_VOICES, r.voices as f32 / 10.0);
-    p.shape(0, sp::CD_VERSION, inv::inv_choice((version == Version::V2) as usize, 2));
-    p.shape(0, sp::CD_CLOCK, (clock / 1_048_576.0) as f32);
-    p.shape(0, sp::CD_F_BASE, (r.b / 8.0) as f32);
-    p.shape(0, sp::CD_F_AMOUNT, (r.a / 8.0) as f32);
-    p.shape(0, sp::CD_F_DECAY, (0.5 + (1.0 - r.decay) * 100.0) as f32);
-    p.shape(0, sp::CD_F_DAMP, r.damp as f32);
+    p.osc(0, o::TYPE, osc_type::encode(osc_type::CLOCKED));
+    p.shape(0, sp::CLK_WAVE, inv::inv_choice(r.wave as usize, 6));
+    p.shape(0, sp::CLK_VOICES, r.voices as f32 / 10.0);
+    p.shape(0, sp::CLK_VERSION, inv::inv_choice((version == Version::V2) as usize, 2));
+    p.shape(0, sp::CLK_CLOCK, (clock / 1_048_576.0) as f32);
+    p.shape(0, sp::CLK_F_BASE, (r.b / 8.0) as f32);
+    p.shape(0, sp::CLK_F_AMOUNT, (r.a / 8.0) as f32);
+    p.shape(0, sp::CLK_F_DECAY, (0.5 + (1.0 - r.decay) * 100.0) as f32);
+    p.shape(0, sp::CLK_F_DAMP, r.damp as f32);
     p.osc(0, o::FEEDBACK, (r.mul / 4.0) as f32);
     p.osc(0, o::GAIN, inv::inv_gain(r.gain as f32));
     // the shift that centres the record's words (`Tuning`)
@@ -486,7 +486,7 @@ impl Tuning {
     }
 
     /// (note, coarse byte, fine byte, word byte) for `word`. The slot's word is `rint(f·65536/clock) + b − 128`
-    /// (`CauldronT::word`) and the word byte makes up the rest. The fine byte is the nearest one unless its word lies
+    /// (`ClockedT::word`) and the word byte makes up the rest. The fine byte is the nearest one unless its word lies
     /// within 0.2 of a rounding edge, where the slot's f32 path could flip it: then the one of ±2 farthest from it.
     pub fn note(&self, word: u16) -> (u8, u8, u8, u8) {
         use unisynth::law;
@@ -561,7 +561,7 @@ pub struct PhraseEv {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PEv {
-    /// A retrigger: a new note with its coarse and fine bytes (`Tuning`), retrigger byte (`shape::CD_RETRIG`),
+    /// A retrigger: a new note with its coarse and fine bytes (`Tuning`), retrigger byte (`shape::CLK_RETRIG`),
     /// second-saw phase byte (`o::PM_OUT`, 0 when the record has no second saw), the phrase position as the velocity,
     /// and the filter envelope's age byte (`o::TRACKING`: 0 restarts it, as a retrigger; `1 + eighth steps` since the
     /// last retrigger for a note entering the phrase mid-way, [`age_byte`]).
@@ -574,7 +574,7 @@ pub enum PEv {
     /// The held note ends (its release stands for the original's fade or gate).
     Off,
     /// A v2 tie's glide window (its first `GLIDE` frames) starts or ends where either word is above 32767: the
-    /// original's pitch register then holds the signed word (`shape::CD_VERSION` ½).
+    /// original's pitch register then holds the signed word (`shape::CLK_VERSION` ½).
     Glide { on: bool },
 }
 
@@ -674,7 +674,7 @@ pub fn note_lanes(evs: impl Iterator<Item = (i64, PEv)>, values: &mut [f32; unis
             PEv::Glide { on } => glide.push((f - LANE_LEAD / 2, if on { 128 } else { 255 })),
         }
     }
-    let (rid, fid, pid) = (pm::osc(0, o::SHAPE + sp::CD_RETRIG), pm::osc(0, o::FINE), pm::osc(0, o::PM_OUT));
+    let (rid, fid, pid) = (pm::osc(0, o::SHAPE + sp::CLK_RETRIG), pm::osc(0, o::FINE), pm::osc(0, o::PM_OUT));
     let (r0, f0, p0) = (retrig.first().map_or(0, |x| x.1), fine.first().map_or(128, |x| x.1), phase.first().map_or(0, |x| x.1));
     values[rid] = r0 as f32 / 255.0;
     values[fid] = f0 as f32 / 255.0;
@@ -686,7 +686,7 @@ pub fn note_lanes(evs: impl Iterator<Item = (i64, PEv)>, values: &mut [f32; unis
         Auto { device: 0, param: pid, points: latched_lane(p0, &phase, LATCH_WINDOW) },
     ];
     if !glide.is_empty() {
-        let vid = pm::osc(0, o::SHAPE + sp::CD_VERSION);
+        let vid = pm::osc(0, o::SHAPE + sp::CLK_VERSION);
         autos.push(Auto { device: 0, param: vid, points: byte_lane(255, &glide) });
     }
     // the age byte (`o::TRACKING`): only a track with jumps into a phrase needs the lane
