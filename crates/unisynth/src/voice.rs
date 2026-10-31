@@ -6,7 +6,7 @@
 //! absolute frames, never on how the caller split its render calls.
 
 use crate::env::{Env, EnvP, Stage};
-use crate::lfo::{shape as lfo_shape, Lfo};
+use crate::lfo::{sync as lfo_sync, Lfo, LfoP};
 use crate::modmx::{target, Matrix, Query, Sources};
 use crate::flt;
 use crate::noise::{self, Noise};
@@ -65,23 +65,6 @@ fn era(p: &[f32; pm::COUNT]) -> u32 {
 #[inline]
 fn new_math(p: &[f32; pm::COUNT]) -> bool {
     pm::era(p).1
-}
-
-/// LFO `k` runs V2's laws (`lfo_ext(k, MODE)`, `us-lfo-frame`).
-#[inline]
-fn lfo_v2(p: &[f32; pm::COUNT], k: usize) -> bool {
-    cfg!(feature = "us-lfo-frame") && law::choice(p[pm::lfo_ext(k, pm::lx::MODE)], 2) == 1
-}
-
-/// A V2-mode LFO's settings.
-fn lfo_v2p(p: &[f32; pm::COUNT], k: usize) -> crate::lfo::V2P {
-    crate::lfo::V2P::new(
-        p[pm::lfo(k, pm::l::SHAPE)],
-        p[pm::lfo(k, pm::l::RATE)],
-        p[pm::lfo(k, pm::l::DEPTH)],
-        p[pm::lfo_ext(k, pm::lx::POLARITY)],
-        p[pm::lfo_ext(k, pm::lx::EG)],
-    )
 }
 
 /// V2's noise seeds of the three oscillators (format version 6; earlier versions seed 0).
@@ -247,11 +230,7 @@ impl Ctl {
         }
         if cfg!(feature = "us-voice-lfo") {
             for (k, l) in self.lfo.iter_mut().enumerate() {
-                if lfo_v2(sh.p, k) {
-                    l.advance_v2(secs, &lfo_v2p(sh.p, k));
-                } else {
-                    l.advance(secs, law::lfo_rate(sh.p[pm::lfo(k, pm::l::RATE)]));
-                }
+                l.advance(secs, LfoP::rate_of(sh.p, k), LfoP::one_shot_of(sh.p, k));
             }
         }
         self.eval(base, fx);
@@ -260,21 +239,13 @@ impl Ctl {
     /// One mod matrix pass at the current sources.
     fn eval(&mut self, sh: &Shared, fx: &Fixed) {
         // without `us-voice-lfo` no patch that reads an LFO loads (`check_modules`): the value is never used
-        let native = !new_math(sh.p);
-        let shape = |k: usize| {
-            if !cfg!(feature = "us-voice-lfo") {
-                0.0
-            } else if lfo_v2(sh.p, k) {
-                self.lfo[k].shape_v2(lfo_v2p(sh.p, k).shape, native)
-            } else {
-                self.lfo[k].shape(law::choice(sh.p[pm::lfo(k, pm::l::SHAPE)], lfo_shape::COUNT))
-            }
-        };
+        let shape = |k: usize| if cfg!(feature = "us-voice-lfo") { self.lfo[k].value(LfoP::shape_of(sh.p, k)) } else { 0.0 };
         let lfo_shape = [shape(0), shape(1)];
+        // an Add slot sees the value for the LFO's polarity (positive only without the LFO settings)
         let add_view = |k: usize| {
-            if lfo_v2(sh.p, k) {
-                let q = lfo_v2p(sh.p, k);
-                lfo_shape[k] * q.gain + q.dc
+            if cfg!(feature = "us-lfo-frame") {
+                let (gain, dc) = LfoP::view_of(sh.p, k);
+                lfo_shape[k] * gain + dc
             } else {
                 sh.p[pm::lfo(k, pm::l::DEPTH)] * lfo_shape[k]
             }
@@ -1196,17 +1167,18 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
             if !cfg!(feature = "us-voice-lfo") {
                 return Lfo::new(0.0);
             }
-            if lfo_v2(p, k) {
-                let mut l = prev_lfo[k];
-                if pm::v2_raw(p[pm::lfo(k, pm::l::SYNC)]) as i32 != 0 {
-                    l.sync_v2(p[pm::lfo_ext(k, pm::lx::PHASE)], self.rng.next_u32());
-                }
-                return l;
+            if !cfg!(feature = "us-lfo-frame") {
+                // without the LFO settings: restart at 0 or song time (what `sync_of` gives then)
+                let synced = law::choice(p[pm::lfo(k, pm::l::SYNC)], 2) == 1;
+                return Lfo::new(if synced { 0.0 } else { LfoP::rate_of(p, k) * cx.frame as f64 / sh.rate as f64 });
             }
-            let synced = law::choice(sh.p[pm::lfo(k, pm::l::SYNC)], 2) == 1;
-            let hz = law::lfo_rate(sh.p[pm::lfo(k, pm::l::RATE)]) as f64;
-            // free-running: the phase of an LFO that has run since frame 0, so every voice shares it
-            Lfo::new(if synced { 0.0 } else { hz * cx.frame as f64 / sh.rate as f64 })
+            let (sync, phase0, reseed) = LfoP::sync_of(p, k);
+            match sync {
+                lfo_sync::RESTART => Lfo::restart(phase0, reseed, if reseed { self.rng.next_u32() } else { 0 }),
+                lfo_sync::CONTINUE => prev_lfo[k],
+                // song time: the phase of an LFO that has run since frame 0, so every voice shares it
+                _ => Lfo::new(phase0 + LfoP::rate_of(p, k) * cx.frame as f64 / sh.rate as f64),
+            }
         });
         self.end = Ctl { pitch, env, lfo, mm: Matrix::new() };
         self.end.eval(&sh, &self.fx);

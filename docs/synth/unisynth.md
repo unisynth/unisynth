@@ -285,9 +285,25 @@ peak instead of growing past 1, and the sustain level is fixed at note-on (no ch
 
 ### LFOs
 
-Five shapes on a phase in turns (sine `(sin + 1)/2`, ramp up, ramp down, square, stepped random: 256 hashed steps per
-cycle). `sync` on restarts the phase at note-on, off joins the free-running phase. A Scale slot sees
-`1 − d + d·shape`, an Offset slot `d·(2·shape − 1)`, with `d = (depth · M(depth))²`.
+One LFO for every law (`lfo.rs`, change unify-v2-algorithms 3.1): a phase in turns advanced by elapsed time, with
+settings read per control segment (`LfoP::read`).
+- **Shapes:** sine `(sin + 1)/2` (one table sine for every law), ramp up, ramp down, square (high first),
+  stepped random (256 hashed steps per cycle, the same for every voice), triangle (rising first), sample-and-hold
+  (a new value at every cycle start from the LFO's seed), pulse (low first).
+- **Rate law:** Hz (`law::lfo_rate`, `0.01·10^(4p)`), or frame: `¼·calcfreq(p)` turns per 128-sample frame at
+  344.5 frames/s.
+- **One-shot:** one cycle, then the end value is held.
+- **Polarity:** what an Add slot sees, `shape·depth` (+), `−shape·depth` (−) or `(shape − ½)·depth` (±).
+- **Key sync:** restart at the start phase (and draw a new sample-and-hold seed), run on song time (every voice
+  shares the phase of an LFO running since frame 0), or continue the voice's previous phase.
+
+A Scale slot sees `1 − d + d·shape`, an Offset slot `d·(2·shape − 1)`, with `d = (depth · M(depth))²`.
+
+Until the format switch (task 6.1) `lfoN.law` picks two fixed sets. The Hz law uses the first five shapes, and `sync`
+on restarts at phase 0, off runs on song time. The frame law reads shape, rate and sync as 7-bit steps (saw, triangle,
+pulse, sine, sample-and-hold), and `sync` on restarts at `lfoN.phase`, off continues. `lfoN.polarity` and
+`lfoN.one_shot` apply to every LFO (both default to off: positive, free). The settings beyond the Hz law's are built
+with `us-lfo-frame`.
 
 ## Mod matrix
 
@@ -299,7 +315,7 @@ flowchart TD
     subgraph sources
         e["envelopes 1–4"]
         l["LFOs 1–2<br/>(scale, offset or add view)"]
-        w["wheel · velocity · key · CC2–CC7 · V2 note"]
+        w["wheel · velocity · key · CC2–CC7 · note (centred)"]
     end
     sources --> slot["slot i: res = amount × source × own_i"]
     own["own_i = Π Scale results aimed at 'slot i amount'<br/>from the previous pass (slots 1–12)"] --> slot
@@ -691,7 +707,7 @@ flowchart LR
 | `voice.routing`, `voice.balance` | `us-flt-parallel` | filter slots 1 and 2 single, serial or parallel with a balance |
 | drive | `us-drive` | off, overdrive (arctangent), clip, bit crush, decimate, low/band/high/notch/all-pass/4-pole filter; `drive.*` input gain, param 1/2 |
 | envelope law `Frame` | `us-env-frame` | per-frame (344.5 /s) attack/decay/sustain/release in 0..128 steps, sustain slope, `envN.amplify` |
-| LFO law `frame` | `us-lfo-frame` | saw/tri/pulse/sine/sample-and-hold, `lfoN.polarity` (+, −, ±), `lfoN.one_shot`, phase, keysync reseed |
+| LFO law `frame` | `us-lfo-frame` | the frame law and the LFO settings beyond the Hz law's: triangle, pulse, sample-and-hold, `lfoN.polarity` (+, −, ±), `lfoN.one_shot`, start phase, key sync reseed |
 | voice output | `us-voice-out` | the voice path above (sum, DC filter, keysync, pan after drive) |
 | channel strip | `us-strip` | see below; needs `synth-core/pairs` |
 | speech | `us-speech` | formant speech; text in chunk version 2 |
@@ -785,7 +801,7 @@ build lacks fails at load with `UnsupportedModule(id)` (`module.rs` names the id
 | `us-automation` | the mixer's automation walk (song-level) | any track with an automation lane (refused by `Player::new`) |
 | `us-quiet` | quiet-track skip (`Device::quiet_skip`; [synth-core](synth-core.md#quiet-tracks-sleep-devicequiet_skip-quiet_after-wake)): a silent track skips its devices. A speed option, not a module: no song needs it, `features` does not list it, a build without it plays the same. The instrument answers `quiet_after` 0 without voices, queued events, channel stage or speech; shaper, EQ 3band, wrap (no offset) 0, tempo delay and comb their line capacity; every other mode unknown (keeps its track awake). Costs Jizz's build +512 raw / +484 xz / +512 squishy | none |
 | `us-chunk-wide` | chunk escapes (index ≥ 240, ≥ 255 pairs); implied by `us-strip` | a chunk that uses an escape, at parse |
-| `us-matrix-add`, `us-speech`, `us-osc-naive`, `us-flt-feedback`, `us-flt-parallel`, `us-drive`, `us-env-frame`, `us-lfo-frame`, `us-voice-out`, `us-strip` | the V2 modules ([V2 voice](#v2-voice-change-add-v2-import)) | an Add or controller route; non-empty speech text; the slot, filter, routing, distortion, envelope, LFO mode; `v2.voice`; any channel field off its default |
+| `us-matrix-add`, `us-speech`, `us-osc-naive`, `us-flt-feedback`, `us-flt-parallel`, `us-drive`, `us-env-frame`, `us-lfo-frame`, `us-voice-out`, `us-strip` | the mono-sum voice modules ([Mono-sum voice](#mono-sum-voice-drive-channel-strip-and-speech-change-add-v2-import-names-unify-v2-algorithms)) | an Add or controller route; non-empty speech text; the slot, filter, routing, distortion, envelope, LFO law; `voice.stage`; any strip field off its default |
 
 Automating a parameter to a module the build lacks does not fail (the song is already loaded): a filter bypasses, an
 envelope runs the mode it has, an LFO reads 0, glide and slide snap, mono and unison play one poly voice, one-shot is off,

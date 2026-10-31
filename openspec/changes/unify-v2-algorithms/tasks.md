@@ -18,8 +18,8 @@ combination scenarios are engine tests until 6.1 and patch tests there.
 
 ## 3. LFOs
 
-- [ ] 3.1 Merge the LFO modes in `lfo.rs` into one LFO (one phase domain): shape union, polarity, one-shot, start phase and rate law (`hz`, `frame`) on every LFO. Verify: the LFO scenario tests pass; new "Sample-and-hold on a Hz-law LFO" test; the old-mode settings stay within 0.5 dB / one control block of the old code (test)
-- [ ] 3.2 Update `needs`, features, converters, song tables and the LFO section of `docs/synth/unisynth.md`. Verify: D7 gates 1–7, results recorded in design.md
+- [x] 3.1 Merge the LFO modes in `lfo.rs` into one LFO (one phase domain): shape union, polarity, one-shot, start phase and rate law (`hz`, `frame`) on every LFO. Verify: the LFO scenario tests pass; new "Sample-and-hold on a Hz-law LFO" test; the old-mode settings stay within 0.5 dB / one control block of the old code (test)
+- [x] 3.2 Update `needs`, features, converters, song tables and the LFO section of `docs/synth/unisynth.md`. Verify: D7 gates 1–7, results recorded in design.md
 
 ## 4. Envelopes
 

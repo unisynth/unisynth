@@ -156,7 +156,7 @@ index of its own and is handled by the value rules below.
 | noise | 98–101 | band_on, hp, lp, width |
 | filter 1–4 | 102–133, 8 each | type (off, **state-variable, 4-pole**, RBJ, resonator notch: Choice 5), **response** (low, band, high, notch, all-pass: Choice 5), cutoff, resonance, **form** (input / feedback resonance), **oversample** (interpolated / held), **clip** (4-pole feedback before / after the clip), **law** (Hz / 7-bit steps) |
 | env 1–4 | 134–169, 9 each | law (seconds / rate / frame: Choice 3; was mode), attack, decay, sustain, release, **curve** (quadratic / power / exponential), curve_slope (power exponent; was slope), **sustain_slope**, amplify |
-| LFO 1–2 | 170–185, 8 each | shape (sine, ramp up, ramp down, square, random, **triangle, sample-and-hold**: Choice 7), rate, depth, sync, law (Hz / frame; was mode), phase, polarity, one_shot (was eg) |
+| LFO 1–2 | 170–185, 8 each | shape (sine, ramp up, ramp down, square, random, **triangle, sample-and-hold, pulse**: Choice 8), rate, depth, sync, law (Hz / frame; was mode), phase, polarity, one_shot (was eg) |
 | mod 1–10 | 186–225 | source (…, `note (centred)` was "V2 note"), target, amount, operation |
 | controllers | 226–228 | ctl.wheel, ctl.bend, ctl.bend_range |
 | drive | 229–232 | drive.mode, gain, p1, p2 (were vdist.*) |
@@ -185,8 +185,9 @@ unisynth kinds, laws Hz/seconds/unisynth.
   naive generator. `s2` (ring) → `combine` multiply. The colour stays in `s1`, so it keeps its mod targets. `s0` and
   `s2` become free for the naive types.
 - `oscN.type` clocked (old id 6) → clocked; its shape fields and `feedback` move over unchanged.
-- `lfoN.shape` is re-encoded from Choice(5) to Choice(7) for the unisynth law. A V2-law LFO's V2 shape (saw, tri, pulse,
-  sine, S&H) maps to ramp up, triangle, square, sine, sample-and-hold.
+- `lfoN.shape` is re-encoded from Choice(5) to Choice(8) for the unisynth law. A V2-law LFO's V2 shape (saw, tri, pulse,
+  sine, S&H) maps to ramp up, triangle, pulse, sine, sample-and-hold (`lfo::FRAME_SHAPES`). Pulse is its own shape (a
+  square starting low): mapping it to square with +½ turn of start phase would move a one-shot LFO's end (stage 3).
 - `envN.mode` → law + curve: timed → seconds + quadratic; rate → rate + power; V2 → frame + exponential. The old
   `envN.slope` goes to `curve_slope` under the timed and rate modes, and to `sustain_slope` under V2 mode.
 - `v2.voice` on → amp_source envelope 1 only, pan_stage after drive, oscillator and voice laws 7-bit. Off → defaults.
@@ -287,6 +288,33 @@ each stage with HEAD.
     resonance.
 - *Found for stage 3:* the frame-law pulse is low in the first half-turn, the inverse of the Hz-law square, so the
   value rule "pulse → square" needs +½ turn on the start phase.
+
+**Stage 3 (LFOs, tasks 3.1–3.2).**
+- *Code:* one LFO for every law (`lfo.rs`).
+  - `LfoP` reads the settings per field (`shape_of`, `rate_of`, `one_shot_of`, `view_of`, `sync_of`), so each step
+    reads only what it uses.
+  - Shapes are one union of eight: sine, ramp up, ramp down, square, random, triangle, sample-and-hold, pulse.
+  - Rate in turns per second from the Hz or frame law; one-shot; polarity as Add-view `gain`/`dc`; start phase; key
+    sync restart / song time / continue.
+  - One `advance` (one-shot hold, sample-and-hold redraw on wrap) and one `value`. The frame law's sine is the table
+    sine: the fast sine and the native sine of formats below 6 are gone from the LFO. `V2P`, `advance_v2`, `shape_v2`
+    and `sync_v2` are removed; copies stay in the tests.
+- *Settings on every LFO:* `lfoN.polarity`, `lfoN.one_shot` and `lfoN.phase` now apply under both laws. They default to
+  neutral, so no song changes.
+- *Size work:* a first version read every setting at every call site, and its unused `powf` calls stayed in the code
+  (+150 to +260 B xz on the LFO songs, two squishy steps). Reading per field and keeping the earlier arithmetic where
+  `us-lfo-frame` is off fixed it.
+- *Gate 1:* workspace tests and feature builds pass.
+- *Gate 2:* parity 49/49, V2 18/18.
+- *Gate 3 (drift against stage 2):* one song moves: fr-052_platinum, worst band −0.03 dB at 8 kHz (the table sine).
+  Nothing to listen to.
+- *Gate 4 (goldens):* unchanged.
+- *Gate 5:* bake check 7/7.
+- *Gate 6 (size against stage 2):* squishy is unchanged on all 13 songs. xz moves −28 to +44 B on the reference songs.
+  The V2 songs are −512 B raw, −244 to +116 B xz.
+- *Gate 7 (speed against HEAD, interleaved, median of 3):* elysian −1.0 %, engage +1.2 %, eladamri −2.1 %, no-remorse
+  +3.3 %, tf4testsong +2.0 %. V2 songs, × real time against stage 2: median +1.2 % (single runs, −8.4 % to +6.7 %).
+- *Design correction:* the frame law's pulse stays its own shape, so the D4 shape choice has 8 values.
 
 ## Risks / Trade-offs
 
