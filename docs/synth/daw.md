@@ -209,7 +209,7 @@ modules: a hot-reloaded module re-runs, and a store defined next to components w
 `npx tsc -p packages/daw/tsconfig.json`; UI cost with `ROOT=<repo> SONG=<song> bun packages/daw/bench/ui-mixer.ts`.
 
 The song list also shows `project/music/released/`: 25 WaveSabre songs from released intros and executable music,
-built locally by `python3 tools/ws-extract/make-demos.py` (git-ignored, no licence; see `project/music/NOTICE.md`).
+built locally by `python3 tools/ws-extract/make-demos.py` (no licence; committed while the authors are asked for permission, see `project/music/NOTICE.md`).
 Songs with Adultery (GM.DLS) instruments sound as released only with the Windows bank: start the server with
 `GM_DLS=<path to gm.dls>`.
 

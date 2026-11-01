@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Turn extracted WaveSabre blobs into DAW demo songs with meta (title, author, description, copyright, url,
-adapted_from) and derived track names, written to project/music/released/ (git-ignored: third-party music).
+adapted_from) and derived track names, written to project/music/released/ (third-party music, committed
+while the authors are asked for permission; see project/music/NOTICE.md).
 
   python3 tools/ws-extract/make-demos.py [<ws-intros dir>]   # default ~/Downloads/64k-tools/ws-intros
 
@@ -236,7 +237,8 @@ def main():
             f"{dl:+.2f} dB loudness and at most {band:.2f} dB in any octave band from 63 Hz to 8 kHz (16 kHz up to 3 dB "
             "brighter, a known difference of the unified engine). Track names are derived here from each track's "
             "instrument and notes; the executable does not store the authors' names. No licence is stated: the music "
-            "belongs to its authors and is kept as a local reference copy, never committed."
+            "belongs to its authors. It is published here as an adapted reference copy while its authors are asked for "
+            "permission, and is removed at any author's request."
         )
         meta = {
             "title": d["title"],

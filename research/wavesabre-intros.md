@@ -40,7 +40,7 @@ song, what the DAW plays): BS.1770 loudness Î” and the worst octave band 63 Hzâ€
 
 ## DAW demos
 
-The 25 rows within ~1 dB (all but Biohazards) are imported as DAW songs in `project/music/released/` (git-ignored) by
+The 25 rows within ~1 dB (all but Biohazards) are imported as DAW songs in `project/music/released/` (committed pending the authors' permission) by
 `python3 tools/ws-extract/make-demos.py`, using `details.json` (Demozoo credits and placings) next to `catalog.json`.
 
 ## Not extracted

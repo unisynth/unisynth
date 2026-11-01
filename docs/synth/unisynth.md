@@ -1449,7 +1449,8 @@ Engage 0.00 dB, Eladamri −0.24 dB, no_remorse −0.04 dB, tf4testsong +0.13 dB
 closed (noise width and the fine window: it now reads 0.00 dB). The current figures are in
 `tools/unisynth-parity/report.md` (see Parity, speed and size).
 
-Released songs (local only, `project/music/released/`, git-ignored: no licence) are written by
+Released songs (`project/music/released/`, no licence; committed while the authors are asked for permission, see
+`project/music/NOTICE.md`) are written by
 `tools/ws-extract/make-demos.py` (25 WaveSabre intros) and `research/tbl-mini-cauldron/tools/make_demos.py` (TBL's
 three clocked soundtracks: Jizz "Smokeout", Stash "over2" and "bluish" by Probe, as `tbl-jizz-smokeout`,
 `tbl-stash-over2`, `tbl-stash-bluish`; `synth-convert xm … --names` gives the track names, `<sample> (record r,

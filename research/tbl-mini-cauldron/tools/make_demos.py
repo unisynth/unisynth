@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Turn the three converted TBL soundtracks (Jizz, Stash song 1, Stash BLUISH) into DAW demo songs with meta (title,
-author, description, copyright, url, adapted_from) and track names, written to project/music/released/ (git-ignored:
-third-party music, no licence stated).
+author, description, copyright, url, adapted_from) and track names, written to project/music/released/ (third-party
+music, no licence stated; committed while the authors are asked for permission, see project/music/NOTICE.md).
 
   python3 research/tbl-mini-cauldron/tools/make_demos.py
 
@@ -74,7 +74,8 @@ def main():
             "approved 2026-10-30); known differences: reversed ping-pong loops attack sharper, extreme slow-downs lose "
             "the echo the original bakes in (a quiet gap near 21.5 s in over2). Track names are derived here from the XM "
             "sample, the record and the speed class, not the author's. No licence is stated: the music belongs to its "
-            "authors and is kept as a local reference copy, never committed."
+            "authors. It is published here as an adapted reference copy while its authors are asked for permission, and "
+            "is removed at any author's request."
         )
         meta = {
             "title": f["title"],

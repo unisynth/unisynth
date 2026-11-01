@@ -23,11 +23,12 @@ it sounds close to, not identical with, the intro. Composers the
 repositories do not name are not guessed. `elysian` and `engage` are test projects named after logicoma's intros; the WaveSabre README lists those intros as made
 with WaveSabre.
 
-## Released songs (local only, `released/`)
+## Released songs (`released/`, pending the authors' permission)
 
 `released/` holds 25 WaveSabre songs taken from released 64K intros and executable music (2018-2026; Robo Outer Space Epos uses QM's fork device Screwdriver, played as the distortion's curve mode), extracted with
 `tools/ws-extract` and written by `tools/ws-extract/make-demos.py`. **No licence is stated for any of them: the music
-belongs to its authors.** The folder is git-ignored and is rebuilt locally; it is never committed or redistributed.
+belongs to its authors.** They are committed and published as adapted reference copies while each production's
+authors are sent the link and asked for permission; a song is removed at any author's request.
 Each file's `meta` names the production, its authors and music credit (Demozoo), its release and party placing, a pouet
 or Demozoo link, and says that it is an adapted version (converted to the unified synth, within 0.5 dB loudness and
 ~1 dB per octave band of the original engine). Track names are derived from instrument and notes, not the authors'.
@@ -36,7 +37,7 @@ The full list and the productions that could not be extracted are in `research/w
 It also holds three songs of The Black Lotus's 1997 64K intros, music by Probe: "Smokeout" (Jizz, 1st at Wired 1997)
 and "over2" and "bluish" (Stash, 1st at The Party 1997), titles from Demozoo, `tbl-*.song.json`. They are converted
 from the intros' XMs with their synthesized samples played by the unified synth's cauldron oscillator
-(`research/tbl-mini-cauldron/tools/make_demos.py`); same rules: no licence, local only, adapted version.
+(`research/tbl-mini-cauldron/tools/make_demos.py`); same rules: no licence, published pending permission, adapted version.
 
 ## MIT (WaveSabre)
 

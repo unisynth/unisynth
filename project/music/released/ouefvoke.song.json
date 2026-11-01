@@ -1,0 +1,1600 @@
+{
+  "format": "song/1",
+  "meta": {
+    "title": "Ouefvoke",
+    "author": "Teo (Rebels)",
+    "description": "The soundtrack of Ouefvoke by Rebels (2023-07-29). A 64K intro that shared 1st place in the PC 64K intro competition at Evoke 2023. Music credited to Teo on Demozoo. 110 BPM, 2:02, 18 tracks, 2109 notes. Instruments: 2 Falcon (FM synth), 2 Slaughter (subtractive synth), 8 Specimen (GSM sampler). Effects: 1 Scissor, 2 Leveller, 2 Echo, 5 Smasher, 1 Chamber. This is an adapted version, not the original recording: the WaveSabre song was read from the running executable's memory (tools/ws-extract, Wine), converted by `synth-convert ws` to the unified synth (instrument kind 64, effects 65-73) and imported with `song import` (lanes cut into 2-, 4- or 8-bar patterns, notes rounded to 960 ticks per beat). Against the bit-exact WaveSabre port it differs by -0.47 dB loudness and at most 0.68 dB in any octave band from 63 Hz to 8 kHz (16 kHz up to 3 dB brighter, a known difference of the unified engine). Track names are derived here from each track's instrument and notes; the executable does not store the authors' names. No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
+    "copyright": "© 2023 Rebels",
+    "url": "https://www.pouet.net/prod.php?which=94754",
+    "adapted_from": "Ouefvoke (64K Intro, 2023-07-29), https://www.pouet.net/prod.php?which=94754"
+  },
+  "rate": 44100,
+  "tempo": 110.0,
+  "signature": [4, 4],
+  "ticks_per_beat": 960,
+  "length": 216000,
+  "clips": [
+    {
+      "id": "t1/A",
+      "length": 7680,
+      "notes": [
+        [0, 130, 60, 103],
+        [240, 130, 62, 103],
+        [480, 190, 55, 100],
+        [960, 190, 60, 100],
+        [1440, 190, 55, 100],
+        [1680, 190, 62, 98],
+        [1920, 190, 60, 99],
+        [2400, 190, 62, 98],
+        [2640, 190, 55, 100],
+        [3120, 190, 55, 98],
+        [3360, 190, 60, 100],
+        [3840, 130, 60, 103],
+        [4080, 130, 62, 103],
+        [4320, 190, 55, 100],
+        [4800, 190, 60, 100],
+        [5280, 190, 55, 100],
+        [5520, 190, 62, 98],
+        [5760, 190, 60, 99],
+        [6240, 190, 62, 98],
+        [6480, 190, 55, 100],
+        [6960, 190, 63, 100],
+        [7200, 190, 60, 100],
+        [7440, 190, 55, 98]
+      ]
+    },
+    {
+      "id": "t1/B",
+      "length": 7680,
+      "notes": [
+        [0, 130, 60, 103],
+        [240, 130, 62, 103],
+        [480, 190, 55, 100],
+        [960, 130, 60, 103],
+        [1200, 130, 62, 103],
+        [1440, 190, 55, 100],
+        [1920, 190, 60, 100],
+        [2400, 190, 55, 100],
+        [2640, 190, 62, 98],
+        [2880, 190, 60, 99],
+        [3360, 190, 62, 98],
+        [3600, 190, 55, 100],
+        [4080, 190, 55, 98],
+        [4320, 190, 60, 100],
+        [4800, 130, 60, 103],
+        [5040, 130, 62, 103],
+        [5280, 190, 55, 100],
+        [5760, 190, 60, 100],
+        [6240, 190, 55, 100],
+        [6480, 190, 62, 98],
+        [6720, 190, 60, 99],
+        [7200, 190, 62, 98],
+        [7440, 190, 55, 100]
+      ]
+    },
+    {
+      "id": "t1/C",
+      "length": 7680,
+      "notes": [
+        [0, 130, 60, 103],
+        [240, 130, 62, 103],
+        [480, 190, 55, 100]
+      ]
+    },
+    {
+      "id": "t3/A",
+      "length": 7680,
+      "notes": [
+        [0, 80, 67, 100],
+        [240, 160, 67, 100],
+        [480, 80, 74, 100],
+        [720, 160, 67, 100],
+        [960, 80, 67, 100],
+        [1200, 160, 72, 100],
+        [1440, 80, 67, 100],
+        [1680, 80, 67, 100],
+        [1920, 80, 74, 100],
+        [2160, 80, 67, 100],
+        [2400, 160, 67, 100],
+        [2640, 80, 72, 100],
+        [2880, 80, 67, 100],
+        [3120, 80, 67, 100],
+        [3360, 160, 74, 100],
+        [3840, 80, 67, 100],
+        [4080, 160, 67, 100],
+        [4320, 80, 74, 100],
+        [4560, 160, 67, 100],
+        [4800, 80, 67, 100],
+        [5040, 160, 72, 100],
+        [5280, 80, 67, 100],
+        [5520, 80, 67, 100],
+        [5760, 80, 74, 100],
+        [6000, 80, 67, 100],
+        [6240, 160, 67, 100],
+        [6480, 80, 72, 100],
+        [6720, 80, 67, 100],
+        [6960, 80, 67, 100],
+        [7200, 160, 74, 100]
+      ]
+    },
+    {
+      "id": "t3/A.1",
+      "length": 7680,
+      "notes": [
+        [0, 80, 67, 100],
+        [240, 160, 67, 100],
+        [480, 80, 74, 100],
+        [720, 160, 67, 100],
+        [960, 80, 67, 100],
+        [1200, 160, 72, 100],
+        [1440, 80, 67, 100],
+        [1680, 80, 67, 100],
+        [1920, 80, 74, 100],
+        [2160, 80, 67, 100],
+        [2400, 160, 67, 100],
+        [2640, 80, 72, 100],
+        [2880, 80, 67, 100],
+        [3120, 80, 67, 100],
+        [3360, 160, 74, 100],
+        [3840, 80, 67, 100],
+        [4080, 80, 67, 100],
+        [4320, 160, 67, 100],
+        [4560, 80, 74, 100],
+        [4800, 160, 67, 100],
+        [5040, 80, 67, 100],
+        [5280, 160, 72, 100],
+        [5520, 80, 67, 100],
+        [5760, 80, 67, 100],
+        [6000, 80, 74, 100],
+        [6240, 80, 67, 100],
+        [6480, 160, 67, 100],
+        [6720, 80, 72, 100],
+        [6960, 80, 67, 100],
+        [7200, 80, 67, 100],
+        [7440, 160, 74, 100]
+      ]
+    },
+    {
+      "id": "t3/B",
+      "length": 7680,
+      "notes": [
+        [0, 80, 63, 100],
+        [240, 160, 63, 100],
+        [480, 80, 74, 100],
+        [720, 160, 63, 100],
+        [960, 80, 63, 100],
+        [1200, 160, 72, 100],
+        [1440, 80, 63, 100],
+        [1680, 80, 63, 100],
+        [1920, 80, 74, 100],
+        [2160, 80, 63, 100],
+        [2400, 160, 63, 100],
+        [2640, 80, 72, 100],
+        [2880, 80, 63, 100],
+        [3120, 80, 63, 100],
+        [3360, 160, 74, 100],
+        [3840, 80, 60, 100],
+        [4080, 160, 60, 100],
+        [4320, 80, 70, 100],
+        [4560, 160, 60, 100],
+        [4800, 80, 60, 100],
+        [5040, 160, 67, 100],
+        [5280, 80, 60, 100],
+        [5520, 80, 60, 100],
+        [5760, 80, 70, 100],
+        [6000, 80, 60, 100],
+        [6240, 160, 60, 100],
+        [6480, 80, 67, 100],
+        [6720, 80, 60, 100],
+        [6960, 80, 60, 100],
+        [7200, 160, 70, 100]
+      ]
+    },
+    {
+      "id": "t3/C",
+      "length": 7680,
+      "notes": [
+        [0, 80, 67, 100],
+        [240, 160, 67, 100],
+        [480, 80, 74, 100],
+        [720, 160, 67, 100]
+      ]
+    },
+    {
+      "id": "t5/A",
+      "length": 7680,
+      "notes": [
+        [240, 80, 31, 100],
+        [720, 160, 31, 100],
+        [1440, 160, 31, 100],
+        [1680, 160, 31, 100],
+        [2160, 80, 31, 100],
+        [2400, 80, 31, 100],
+        [2640, 80, 31, 100],
+        [3120, 160, 31, 100],
+        [3360, 80, 31, 100],
+        [3600, 80, 31, 100],
+        [4080, 80, 31, 100],
+        [4560, 160, 31, 100],
+        [5280, 160, 31, 100],
+        [5520, 160, 31, 100],
+        [6000, 80, 31, 100],
+        [6240, 80, 31, 100],
+        [6480, 80, 31, 100],
+        [6960, 160, 31, 100],
+        [7200, 80, 31, 100],
+        [7440, 80, 31, 100]
+      ]
+    },
+    {
+      "id": "t5/B",
+      "length": 7680,
+      "notes": [
+        [240, 80, 27, 100],
+        [720, 160, 27, 100],
+        [1440, 160, 27, 100],
+        [1680, 160, 27, 100],
+        [2160, 80, 27, 100],
+        [2400, 80, 27, 100],
+        [2640, 80, 27, 100],
+        [3120, 160, 27, 100],
+        [3360, 80, 27, 100],
+        [3600, 80, 27, 100],
+        [4080, 80, 24, 100],
+        [4560, 160, 24, 100],
+        [5280, 160, 24, 100],
+        [5520, 160, 24, 100],
+        [6000, 80, 24, 100],
+        [6240, 80, 24, 100],
+        [6480, 80, 24, 100],
+        [6960, 160, 24, 100],
+        [7200, 80, 24, 100],
+        [7440, 80, 24, 100]
+      ]
+    },
+    {
+      "id": "t6/A",
+      "length": 7680,
+      "notes": [
+        [240, 170, 31, 100],
+        [480, 160, 31, 100],
+        [720, 160, 31, 100],
+        [1200, 160, 31, 100],
+        [1440, 110, 31, 100],
+        [1680, 110, 31, 100],
+        [2160, 150, 31, 100],
+        [2400, 160, 31, 100],
+        [2640, 160, 31, 100],
+        [3120, 110, 31, 100],
+        [3360, 160, 31, 100],
+        [3600, 160, 31, 100],
+        [4080, 170, 31, 100],
+        [4320, 160, 31, 100],
+        [4560, 160, 31, 100],
+        [5040, 160, 31, 100],
+        [5280, 110, 31, 100],
+        [5520, 110, 31, 100],
+        [6000, 150, 31, 100],
+        [6240, 160, 31, 100],
+        [6480, 160, 31, 100],
+        [6960, 110, 31, 100],
+        [7200, 160, 31, 100],
+        [7440, 160, 31, 100]
+      ]
+    },
+    {
+      "id": "t6/B",
+      "length": 7680,
+      "notes": [
+        [240, 170, 27, 100],
+        [480, 160, 27, 100],
+        [720, 160, 27, 100],
+        [1200, 160, 27, 100],
+        [1440, 110, 27, 100],
+        [1680, 110, 27, 100],
+        [2160, 150, 27, 100],
+        [2400, 160, 27, 100],
+        [2640, 160, 27, 100],
+        [3120, 110, 27, 100],
+        [3360, 160, 27, 100],
+        [3600, 160, 27, 100],
+        [4080, 170, 24, 100],
+        [4320, 160, 24, 100],
+        [4560, 160, 24, 100],
+        [5040, 160, 24, 100],
+        [5280, 110, 24, 100],
+        [5520, 110, 24, 100],
+        [6000, 150, 24, 100],
+        [6240, 160, 24, 100],
+        [6480, 160, 24, 100],
+        [6960, 110, 24, 100],
+        [7200, 160, 24, 100],
+        [7440, 160, 24, 100]
+      ]
+    },
+    {
+      "id": "t8/A",
+      "length": 15360,
+      "notes": [
+        [0, 200, 55, 100],
+        [240, 200, 55, 100],
+        [480, 200, 62, 100],
+        [720, 200, 60, 100],
+        [960, 200, 55, 100],
+        [1200, 200, 55, 100],
+        [1440, 200, 62, 100],
+        [1680, 200, 60, 100],
+        [1920, 200, 55, 100],
+        [2160, 200, 55, 100],
+        [2400, 200, 62, 100],
+        [2640, 200, 60, 100],
+        [2880, 200, 55, 100],
+        [3120, 200, 55, 100],
+        [3360, 200, 62, 100],
+        [3600, 200, 60, 100],
+        [3840, 200, 55, 100],
+        [4080, 200, 55, 100],
+        [4320, 200, 62, 100],
+        [4560, 200, 60, 100],
+        [4800, 200, 55, 100],
+        [5040, 200, 55, 100],
+        [5280, 200, 62, 100],
+        [5520, 200, 60, 100],
+        [5760, 200, 55, 100],
+        [6000, 200, 55, 100],
+        [6240, 200, 62, 100],
+        [6480, 200, 60, 100],
+        [6720, 200, 55, 100],
+        [6960, 200, 55, 100],
+        [7200, 200, 62, 100],
+        [7440, 190, 60, 100],
+        [7680, 200, 51, 100],
+        [7920, 200, 51, 100],
+        [8160, 200, 62, 100],
+        [8400, 200, 60, 100],
+        [8640, 200, 51, 100],
+        [8880, 200, 51, 100],
+        [9120, 200, 62, 100],
+        [9360, 200, 60, 100],
+        [9600, 200, 51, 100],
+        [9840, 200, 51, 100],
+        [10080, 200, 62, 100],
+        [10320, 200, 60, 100],
+        [10560, 200, 51, 100],
+        [10800, 200, 51, 100],
+        [11040, 200, 62, 100],
+        [11280, 180, 60, 100],
+        [11520, 200, 48, 100],
+        [11760, 200, 48, 100],
+        [12000, 200, 58, 100],
+        [12240, 200, 55, 100],
+        [12480, 200, 48, 100],
+        [12720, 200, 48, 100],
+        [12960, 200, 58, 100],
+        [13200, 200, 55, 100],
+        [13440, 200, 48, 100],
+        [13680, 200, 48, 100],
+        [13920, 200, 58, 100],
+        [14160, 200, 55, 100],
+        [14400, 200, 48, 100],
+        [14640, 200, 48, 100],
+        [14880, 200, 58, 100],
+        [15120, 190, 55, 100]
+      ]
+    },
+    {
+      "id": "t8/B",
+      "length": 15360,
+      "notes": [
+        [0, 200, 55, 100],
+        [240, 200, 55, 100],
+        [480, 200, 62, 100],
+        [720, 200, 60, 100],
+        [3360, 200, 55, 100],
+        [3600, 200, 55, 100],
+        [3840, 200, 62, 100],
+        [4080, 200, 60, 100],
+        [4320, 200, 55, 100],
+        [4560, 200, 55, 100],
+        [7680, 200, 55, 100],
+        [7920, 200, 55, 100],
+        [8160, 200, 62, 100],
+        [8400, 200, 60, 100],
+        [10800, 200, 55, 100],
+        [11040, 200, 55, 100],
+        [11280, 200, 62, 100],
+        [11520, 200, 60, 100],
+        [11760, 200, 55, 100],
+        [12000, 200, 55, 100],
+        [12240, 200, 62, 100]
+      ]
+    },
+    {
+      "id": "t10/A",
+      "length": 7680,
+      "notes": [
+        [0, 2160, 60, 100],
+        [2160, 1680, 60, 100],
+        [3840, 2160, 60, 100],
+        [6000, 1680, 60, 100]
+      ]
+    },
+    {
+      "id": "t10/B",
+      "length": 7680,
+      "notes": [
+        [0, 480, 60, 100]
+      ]
+    },
+    {
+      "id": "t11/A",
+      "length": 7680,
+      "notes": [
+        [960, 1920, 60, 100],
+        [2880, 960, 60, 100],
+        [4800, 1920, 60, 100],
+        [6720, 960, 60, 100]
+      ]
+    },
+    {
+      "id": "t12/A",
+      "length": 7680,
+      "notes": [
+        [1680, 2160, 60, 100],
+        [5520, 2160, 60, 100]
+      ]
+    },
+    {
+      "id": "t13/A",
+      "length": 7680,
+      "notes": [
+        [480, 480, 60, 100],
+        [960, 480, 60, 100],
+        [1440, 480, 60, 100],
+        [1920, 480, 60, 100],
+        [2400, 480, 60, 100],
+        [2880, 480, 60, 100],
+        [3360, 480, 60, 100],
+        [4320, 480, 60, 100],
+        [4800, 480, 60, 100],
+        [5280, 480, 60, 100],
+        [5760, 480, 60, 100],
+        [6240, 480, 60, 100],
+        [6720, 480, 60, 100],
+        [7200, 480, 60, 100]
+      ]
+    },
+    {
+      "id": "t14/A",
+      "length": 7680,
+      "notes": [
+        [0, 3840, 60, 100],
+        [3840, 3840, 60, 100]
+      ]
+    },
+    {
+      "id": "t14/A.1",
+      "length": 7680,
+      "notes": [
+        [0, 480, 60, 100]
+      ]
+    },
+    {
+      "id": "t17/A",
+      "length": 15360,
+      "notes": [
+        [0, 3600, 55, 98],
+        [0, 3550, 60, 100],
+        [0, 3550, 62, 100],
+        [7680, 3600, 51, 98],
+        [7680, 3550, 60, 100],
+        [7680, 3550, 62, 100]
+      ]
+    },
+    {
+      "id": "t17/A.1",
+      "length": 15360,
+      "notes": [
+        [0, 3600, 55, 98],
+        [0, 3550, 60, 100],
+        [0, 3550, 62, 100],
+        [3840, 3600, 55, 98],
+        [3840, 3550, 60, 100],
+        [3840, 3550, 62, 100],
+        [7680, 3600, 51, 98],
+        [7680, 3550, 60, 100],
+        [7680, 3550, 62, 100],
+        [11520, 3600, 48, 98],
+        [11520, 3550, 55, 100],
+        [11520, 3550, 58, 100]
+      ]
+    },
+    {
+      "id": "t17/A.2",
+      "length": 15360,
+      "notes": [
+        [0, 3600, 55, 98],
+        [0, 3550, 60, 100],
+        [0, 3550, 62, 100]
+      ]
+    }
+  ],
+  "tracks": [
+    {
+      "id": "t1",
+      "name": "Lead (Specimen) 1",
+      "volume": 0.5463865399360657,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "master": 0.07300000637769699,
+            "capacity": 1.0,
+            "unison": 1.0,
+            "osc1.type": 1.0,
+            "osc1.s2": 1.0,
+            "osc1.s4": 1.0,
+            "osc1.s5": 1.0,
+            "filt1.type": 0.125,
+            "filt1.cutoff": 0.6399999856948853,
+            "env1.decay": 0.1849999725818634,
+            "env1.sustain": 0.39000004529953003,
+            "env1.release": 0.29500001668930054,
+            "env2.decay": 0.028284266591072083,
+            "env2.release": 0.009999999776482582,
+            "mod1.source": 0.2222222238779068,
+            "mod1.target": 0.20392157137393951,
+            "mod1.amount": 0.867423415184021,
+            "mod1.operation": 1.0,
+            "osc1.sample": 1.0
+          },
+          "samples": ["UQQAAEYpAAAxAAEARKwAAP0iAABBAAAAAgBAAaPpVt6G4mAkKZxuBRtlKVlywXeTxOQGXeVWa6bitmlcr4nxVYrr88pQkzb+xANRbSLZE8YFxY0kX1jr7dSN7QeDnAjjaKqUDWtoF6O2NA0W7SoW2dSMY2vFKPy0zDH9wRB5mQ7SaSjvSLUeLKYq55h9pnStrBOjzyNJAMUqn9EcObGYCJugiPT00kIq7q6KttxEYu46zfJip7BmF9dTHSiulVyJMNJtKjNbRuAOjs9Mu21FL5fSPNdojOpc807ZbQ3aktXpoJX6itJ0oVVQ6I3Roqnl4lYu02SfTSrXVnMGu6kcQ5mSFWryRsuXHEgy3BSjlKT+ylEdAad9KATkIhf7Wr+t0wgZoYhOVF1JchOEzlLa3fDMRG1wuWh2mlLtkRNbZp8akbPRbesQQ4NzaW5U+zBR3al5VA01a6zKw1TrBIViS+UUKRuZSNWP6Yw+nkkdDyUosipHNdGd5knnShXvYaFQZSmN9NGJVOGUq5tBq1TdLB6L0q1VD7eLKcOKU+v2Nc9AcVMJGaFIVZFUOY5kTjXtsEMHUU1VjRfVpk1HdZHVQ07TWJWzUWnUw6qibNgMVSEpVt/KDFTr9NIjt7lUByt2PMoI1ThfWUbNEDPJkdxMNW/oYp2ySLVQgtmN5TbV0AsNr11HmbINqlTlhqHaSFNU32qoR7uKU/GeaugmslTXUks71OfUORsdS10rbKcwFo70kGQfFTBLVe0eFyRzSvWvHFls3FyN8l1qVAOrb020slXv6G4zni5TBU097KZwVNfAltuJ1dRZo9lIvUwxaI3FQXWQ1NqO6z4VEc5aPuRE/Y1dyHGNUaXXUYpU9zbp4sMNVL+IZ/vLEdTNWJBUF8pUybLOItiVGUqjoUjVjl42Vb5EHSwWmSeiTVWteqaE9VlVbdWqQ7DJiTLWiVTTesmUxvFU+7RZ5oi109jKGz0Gg1XLjOFxt6iZWWOhSNVwpLd1GkG17ZSjvaVC3WwbS+2hThUO8OTQpmGp1lmKVOXSrfa2DFTdCFLW9JrTA8ONE8u81AFRbtNGtpV5J906Fe0SjJEnQ9WOMtTIkkt17ZOo5iVBle/VqFAcV5H0XYZV4dwPK1MbVPVEp8yKTlTZepNYOe7U07ZnZKwxFSkhJUf1De8teEM9va3y8syLQZ0PZquKrEiVruVWbgxRlbMRztS/nsckugZU5fZm19RsVOm0wnrdrVTjonnMqy3UKRvdSFWR4EaWlUa1rJa+plRPtU0OmvI1V9WsVHg1LkyN0pFp1A9RiiRLUdTrFLIsV8HU10Z41EMtVPfGlZs5nZNpF1VGNW14JAbWOhXsqMcZZ0m1D161TWFHlctmqmpyT5WSiWnU46Zt3AprVN9uhiNFflTHePARKdX09MxbareRFkkfnfYMrjzDc2tFLyp+3rRLhKdGvNedK+kloyU17xT+jXzpcXEYCM3TXXIoANSNJMmNKABIkiNHkigASJLkSJI="]
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t1/A",
+          "start": 153600,
+          "length": 23040,
+          "loop": true
+        },
+        {
+          "clip": "t1/B",
+          "start": 176640,
+          "length": 7680,
+          "loop": false
+        },
+        {
+          "clip": "t1/A",
+          "start": 184320,
+          "length": 30720,
+          "loop": true
+        },
+        {
+          "clip": "t1/C",
+          "start": 215040,
+          "length": 960,
+          "loop": false
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "id": "t2",
+      "name": "Bus 1",
+      "volume": 0.11102767288684845,
+      "mute": false,
+      "receives": [
+        {
+          "from": "t1",
+          "channel": "main",
+          "volume": 1.4125375747680664
+        }
+      ],
+      "devices": [
+        {
+          "kind": 67,
+          "values": {
+            "mode": 0.0,
+            "low_cut": 0.0,
+            "low_cut_q": 0.5,
+            "peak1_freq": 0.2214701920747757,
+            "peak1_gain": 0.5,
+            "peak1_q": 0.5,
+            "peak2_freq": 0.38619834184646606,
+            "peak2_gain": 0.6649999618530273,
+            "peak2_q": 0.5,
+            "peak3_freq": 0.5910578370094299,
+            "peak3_gain": 0.5,
+            "peak3_q": 0.5,
+            "high_cut": 0.6600000262260437,
+            "high_cut_q": 0.5,
+            "master": 1.0
+          },
+          "trailer": 60
+        },
+        {
+          "kind": 72,
+          "values": {
+            "mode": 0.0,
+            "sidechain": 1.0,
+            "input_gain": 0.9500000476837158,
+            "threshold": 0.8700000047683716,
+            "ratio": 0.4200000762939453,
+            "attack": 0.02828427031636238,
+            "release": 0.49999991059303284,
+            "output_gain": 0.824999988079071
+          },
+          "trailer": 32
+        },
+        {
+          "kind": 68,
+          "values": {
+            "mode": 0.0,
+            "left_coarse": 1.0,
+            "left_fine": 0.3999999761581421,
+            "right_coarse": 1.0,
+            "right_fine": 0.5,
+            "low_cut": 0.0,
+            "high_cut": 0.6944993734359741,
+            "feedback": 0.25,
+            "cross": 0.04000002145767212,
+            "dry_wet": 0.0
+          },
+          "trailer": 40
+        }
+      ],
+      "placements": [],
+      "lanes": []
+    },
+    {
+      "id": "t3",
+      "name": "Lead (Falcon)",
+      "volume": 0.5463865399360657,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "master": 0.08000000566244125,
+            "capacity": 0.2063492089509964,
+            "unison": 0.8666666746139526,
+            "velocity": 0.0,
+            "start_spread": 0.0,
+            "env1_at_output": 0.0,
+            "osc1.type": 0.25,
+            "osc1.ratio": 0.5999999046325684,
+            "osc1.ratio_fine": 0.20000001788139343,
+            "osc1.gain": 0.910013735294342,
+            "osc1.mix": 0.0,
+            "osc1.feedback": 0.024999981746077538,
+            "osc1.s0": 0.3999999165534973,
+            "osc2.type": 0.25,
+            "osc2.feedback": 0.18200267851352692,
+            "osc2.s0": 0.6000000238418579,
+            "env1.decay": 0.5,
+            "env1.sustain": 0.34999996423721313,
+            "env1.release": 0.009999999776482582,
+            "env2.decay": 0.49999991059303284,
+            "env2.sustain": 0.09999992698431015,
+            "env2.release": 0.0,
+            "env3.decay": 0.6282842755317688,
+            "env3.sustain": 0.5,
+            "env3.release": 0.009999999776482582,
+            "mod1.source": 0.2222222238779068,
+            "mod1.target": 0.019607843831181526,
+            "mod1.amount": 0.5,
+            "mod2.source": 0.1111111119389534,
+            "mod2.target": 0.0784313753247261,
+            "mod2.amount": 0.5
+          }
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t3/A",
+          "start": 92160,
+          "length": 38400,
+          "loop": true
+        },
+        {
+          "clip": "t3/A.1",
+          "start": 130560,
+          "length": 7680,
+          "loop": false
+        },
+        {
+          "clip": "t3/A",
+          "start": 138240,
+          "length": 7680,
+          "loop": false
+        },
+        {
+          "clip": "t3/B",
+          "start": 145920,
+          "length": 7680,
+          "loop": false
+        },
+        {
+          "clip": "t3/A",
+          "start": 184320,
+          "length": 23040,
+          "loop": true
+        },
+        {
+          "clip": "t3/B",
+          "start": 207360,
+          "length": 7680,
+          "loop": false
+        },
+        {
+          "clip": "t3/C",
+          "start": 215040,
+          "length": 960,
+          "loop": false
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "id": "t4",
+      "name": "Bus 2",
+      "volume": 0.5916893482208252,
+      "mute": false,
+      "receives": [
+        {
+          "from": "t3",
+          "channel": "main",
+          "volume": 1.4125375747680664
+        }
+      ],
+      "devices": [
+        {
+          "kind": 68,
+          "values": {
+            "mode": 0.0,
+            "left_coarse": 1.0,
+            "left_fine": 0.0,
+            "right_coarse": 1.0,
+            "right_fine": 0.0,
+            "low_cut": 0.2750000059604645,
+            "high_cut": 0.14949941635131836,
+            "feedback": 0.5,
+            "cross": 0.38999998569488525,
+            "dry_wet": 0.2800000011920929
+          },
+          "trailer": 40
+        },
+        {
+          "kind": 65,
+          "values": {
+            "mode": 0.0,
+            "drive": 1.0,
+            "threshold": 0.800000011920929,
+            "foldover": 0.7099999785423279,
+            "dry_wet": 0.5750000476837158,
+            "shaper": 1.0,
+            "oversampling": 1.0
+          },
+          "trailer": 28
+        },
+        {
+          "kind": 71,
+          "values": {
+            "mode": 1.0,
+            "room_size": 1.0,
+            "feedback": 0.3500000238418579,
+            "low_cut": 0.7099999785423279,
+            "high_cut": 0.30198055505752563,
+            "dry_wet": 0.7549999952316284,
+            "pre_delay": 0.2549999952316284
+          },
+          "trailer": 28
+        }
+      ],
+      "placements": [],
+      "lanes": []
+    },
+    {
+      "id": "t5",
+      "name": "Drum (Slaughter)",
+      "volume": 0.1376911997795105,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "master": 0.20000000298023224,
+            "capacity": 0.1111111119389534,
+            "unison": 0.46666666865348816,
+            "velocity": 0.0,
+            "start_spread": 0.5165349841117859,
+            "noise_level": 3.725290298461914e-9,
+            "osc1.type": 0.5,
+            "osc1.gain": 0.19750000536441803,
+            "osc1.s0": 0.5999999046325684,
+            "osc1.s1": 0.2349998950958252,
+            "osc2.type": 0.5,
+            "osc2.coarse": 1.0,
+            "osc2.gain": 0.20875000953674316,
+            "osc2.s0": 0.5849999785423279,
+            "osc2.s1": 0.6150000095367432,
+            "osc3.type": 0.5,
+            "osc3.coarse": 0.75,
+            "osc3.gain": 0.20125000178813934,
+            "osc3.s0": 0.3999999165534973,
+            "osc3.s1": 0.6650000810623169,
+            "filt1.type": 0.5,
+            "filt1.cutoff": 0.1850000023841858,
+            "filt1.resonance": 0.1899999976158142,
+            "env1.decay": 0.3782842755317688,
+            "env1.sustain": 0.0,
+            "env1.release": 0.009999999776482582,
+            "env2.decay": 0.0,
+            "env2.release": 0.0,
+            "env3.decay": 0.028284266591072083,
+            "env3.sustain": 0.19999998807907104,
+            "env3.release": 0.009999999776482582,
+            "noise.width": 0.0
+          }
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t5/A",
+          "start": 30720,
+          "length": 53760,
+          "loop": true
+        },
+        {
+          "clip": "t5/B",
+          "start": 84480,
+          "length": 7680,
+          "loop": false
+        },
+        {
+          "clip": "t5/A",
+          "start": 122880,
+          "length": 23040,
+          "loop": true
+        },
+        {
+          "clip": "t5/B",
+          "start": 145920,
+          "length": 7680,
+          "loop": false
+        },
+        {
+          "clip": "t5/A",
+          "start": 153600,
+          "length": 23040,
+          "loop": true
+        },
+        {
+          "clip": "t5/B",
+          "start": 176640,
+          "length": 7680,
+          "loop": false
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "id": "t6",
+      "name": "Drum (Falcon)",
+      "volume": 0.5463865399360657,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "master": 0.08999999612569809,
+            "capacity": 0.1428571492433548,
+            "unison": 0.6000000238418579,
+            "uni_spread": 0.49999991059303284,
+            "velocity": 0.0,
+            "start_spread": 0.0,
+            "env1_at_output": 0.0,
+            "osc1.type": 0.25,
+            "osc1.gain": 0.910013735294342,
+            "osc1.mix": 0.0,
+            "osc1.pm_out": 0.0949999988079071,
+            "osc1.feedback": 0.08750000596046448,
+            "osc1.s0": 0.22499999403953552,
+            "osc2.type": 0.25,
+            "osc2.feedback": 0.31395477056503296,
+            "osc2.s0": 0.16499996185302734,
+            "env1.decay": 0.26328423619270325,
+            "env1.sustain": 0.0,
+            "env1.release": 0.009999999776482582,
+            "env2.decay": 0.3349999785423279,
+            "env2.sustain": 0.0,
+            "env2.release": 0.0,
+            "env3.decay": 0.028284266591072083,
+            "env3.sustain": 0.5,
+            "env3.release": 0.009999999776482582,
+            "mod1.source": 0.2222222238779068,
+            "mod1.target": 0.019607843831181526,
+            "mod1.amount": 0.5,
+            "mod2.source": 0.1111111119389534,
+            "mod2.target": 0.0784313753247261,
+            "mod2.amount": 0.5
+          }
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t6/A",
+          "start": 30720,
+          "length": 53760,
+          "loop": true
+        },
+        {
+          "clip": "t6/B",
+          "start": 84480,
+          "length": 7680,
+          "loop": false
+        },
+        {
+          "clip": "t6/A",
+          "start": 122880,
+          "length": 23040,
+          "loop": true
+        },
+        {
+          "clip": "t6/B",
+          "start": 145920,
+          "length": 7680,
+          "loop": false
+        },
+        {
+          "clip": "t6/A",
+          "start": 153600,
+          "length": 23040,
+          "loop": true
+        },
+        {
+          "clip": "t6/B",
+          "start": 176640,
+          "length": 7680,
+          "loop": false
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "id": "t7",
+      "name": "Bus 3",
+      "volume": 0.17908374965190887,
+      "mute": false,
+      "receives": [
+        {
+          "from": "t5",
+          "channel": "main",
+          "volume": 1.4125375747680664
+        },
+        {
+          "from": "t6",
+          "channel": "main",
+          "volume": 1.4125375747680664
+        }
+      ],
+      "devices": [
+        {
+          "kind": 72,
+          "values": {
+            "mode": 0.0,
+            "sidechain": 1.0,
+            "input_gain": 0.8600000143051147,
+            "threshold": 1.0,
+            "ratio": 0.6049999594688416,
+            "attack": 0.7332842350006104,
+            "release": 0.19949936866760254,
+            "output_gain": 0.7200000286102295
+          },
+          "trailer": 32
+        }
+      ],
+      "placements": [],
+      "lanes": []
+    },
+    {
+      "id": "t8",
+      "name": "Lead (Slaughter)",
+      "volume": 0.5463865399360657,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "master": 0.20000000298023224,
+            "capacity": 0.1746031790971756,
+            "unison": 0.7333333492279053,
+            "velocity": 0.0,
+            "start_spread": 0.5165349841117859,
+            "osc1.type": 0.5,
+            "osc1.s0": 0.44999995827674866,
+            "osc1.s1": 0.2850000262260437,
+            "osc2.type": 0.5,
+            "osc2.gain": 0.17374999821186066,
+            "osc2.s0": 0.6599999666213989,
+            "osc2.s1": 0.6800000071525574,
+            "osc3.type": 0.5,
+            "osc3.gain": 0.13625000417232513,
+            "osc3.s0": 0.6899999976158142,
+            "filt1.type": 0.375,
+            "filt1.cutoff": 0.45449936389923096,
+            "env1.decay": 0.7182842493057251,
+            "env1.release": 0.009999999776482582,
+            "env2.decay": 0.028284266591072083,
+            "env2.sustain": 0.050000011920928955,
+            "env2.release": 0.009999999776482582,
+            "env3.decay": 0.5832842588424683,
+            "env3.sustain": 0.5,
+            "env3.release": 0.009999999776482582,
+            "noise.width": 0.0
+          }
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t8/A",
+          "start": 0,
+          "length": 92160,
+          "loop": true
+        },
+        {
+          "clip": "t8/B",
+          "start": 107520,
+          "length": 15360,
+          "loop": false
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "id": "t9",
+      "name": "Bus 4",
+      "volume": 0.17412056028842926,
+      "mute": false,
+      "receives": [
+        {
+          "from": "t8",
+          "channel": "main",
+          "volume": 1.4125375747680664
+        }
+      ],
+      "devices": [
+        {
+          "kind": 72,
+          "values": {
+            "mode": 0.0,
+            "sidechain": 0.0,
+            "input_gain": 0.5,
+            "threshold": 1.0,
+            "ratio": 0.0,
+            "attack": 0.02828427031636238,
+            "release": 0.19949936866760254,
+            "output_gain": 0.5
+          },
+          "trailer": 32
+        }
+      ],
+      "placements": [],
+      "lanes": []
+    },
+    {
+      "id": "t10",
+      "name": "Lead (Specimen) 2",
+      "volume": 0.5463865399360657,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "master": 0.08400000631809235,
+            "capacity": 0.4920634925365448,
+            "unison": 1.0,
+            "osc1.type": 1.0,
+            "osc1.s1": 0.0,
+            "osc1.s2": 1.0,
+            "osc1.s4": 1.0,
+            "osc1.s6": 1.0,
+            "filt1.type": 0.125,
+            "filt1.cutoff": 0.9994993805885315,
+            "env1.decay": 0.3799999952316284,
+            "env1.release": 0.38999998569488525,
+            "env2.decay": 0.028284268453717232,
+            "env2.release": 0.009999999776482582,
+            "osc1.sample": 1.0
+          },
+          "samples": ["UQQAAMopAAAxAAEARKwAAP0iAABBAAAAAgBAAcsKzUSCQmHcNh4ZWXtIIyVS4BezCmIFa2BT3G1yWI3TmbgsIUnENcdr87GxNtTInfPAkWCAXLu+95+uUuz//+//wUmRzaSiov5d2yTZJmjbuC0X58pIInVu4IciKGshjswWmDWZTMyUQook4mnLSETohDRWQCIQgaKkSWEYSGiTpmiBSNfN1EZDlmalt5DKo+1Ian0x7SOt21PPWIzEs1Xu6BuEMyFRLj5ylezK0lI2ltodybt2MiDP9zKOrTyac9sq8kFI1dHEDWTipFe05u5CLM9N1E6lwRkNlWtXC2NziK7EKJAzHU2rGnAqY8CY3ibEaU2eCW80OLIQWInNNLBGE6WJQEgX0jRNAtK2eAz9TCMlKbVVzrSCIDsPVqMq4kpHoa4WkDQdTc0Y8jzaGZDpKpaSFb6trizkxZph8c9E1tDT3lQCOc/RtKui8ZnOejrNobo9N5xbLWPn9pUkXQ9Cc9ntJBqIMyFRPi3MaC8nXdYYotZwM7bFGra5Uavu7iLyUd3W0YE409EkzEEdq12cZc8h9QjSoocKAWz2fJO6qkHp44jxXJjSWE29EMLBTnVWThK4wmNLacwUunmOWmi4DvRUhCc2yAlNEYVNgaNUTqldr0Hgpm4bXcNgUUGjashOQXREjQsxlPLYLNcU3mieulCzEDypU6lNWA6kcQcoTu0gxk0sQU4BKdEVBaxgmlJRnEpsITJya/pEjqDjWKazvoQgnE5nXDWI8xht5w5KqSoZ+eYKwFLk5Hm7CriSrUzRvgyqUSXlTgM6j9FEzKBNXU70RsxgHUc564auYE2mFhQHriCbpJHRGIBTYVFeCKSM2rCJ9gqoTavAVEkLVujZuGy+ClQyLXZ0gTjTEXUsIJ6v5WIVTaANG9/T2eaAo0xxVdvKQKM70p0VgFRhUbMC6ld95V7LDLqym8dv1Qosd+ZMUsgKylWki49BSBfWBAvAks/J+xjPwNu6kVyHT4Bln1I99M7A6UqVbBaAdSFNyABakaQu8dsCIk86pZHKBshJ4zax8wC4VBqpTgNIk9EUD4BhSnEaISvAoUYpJKVLYFNDSaNkz4Db0kkkFYBU4UyzBGZx2ypSRgA6NqvEbXAAqm7zuImyAMioZMVtgUcX1vQOYCPXjSMVT4DcxKniZC+AHLVN3JgMIKTGjRQHfHVhTeYERnEcR3FnAEZyJLeKcQBIjtvWqdIEKJIbSa5CZ1MSM0NgXLeNHGtPgOpKceO2KoAcOW4deQ1gZEdyJRdwlGFRuARIcqTYbakEum0dSZLVAEqSZMeS8QRKkiTJjsBHGRbVFYAkt20jp2KAHMlxI2cvYOO2cRuHSoAcyY0jF2x1JU3eBMiNJEmSsgRIkiRHbrwCOHLkSJLcAjZy3EZuREZV0tQMYOQ4juMoC2AkuY3jpkOA47Zt2/gCYBu3jeM2Ye7YKMMCtk2bFknvRbZt2/ZtNAC2bdu2bV0Atm3buG0="]
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t10/A",
+          "start": 30720,
+          "length": 61440,
+          "loop": true
+        },
+        {
+          "clip": "t10/A",
+          "start": 122880,
+          "length": 61440,
+          "loop": true
+        },
+        {
+          "clip": "t10/B",
+          "start": 215040,
+          "length": 960,
+          "loop": false
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "id": "t11",
+      "name": "Lead (Specimen) 3",
+      "volume": 0.5892674922943115,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "master": 0.06850000470876694,
+            "capacity": 0.5555555820465088,
+            "unison": 0.7333333492279053,
+            "osc1.type": 1.0,
+            "osc1.s1": 0.0,
+            "osc1.s2": 1.0,
+            "osc1.s4": 1.0,
+            "osc1.s6": 1.0,
+            "filt1.type": 0.125,
+            "filt1.cutoff": 0.9994993805885315,
+            "env1.decay": 0.6399999856948853,
+            "env1.sustain": 0.38999998569488525,
+            "env1.release": 0.4749999940395355,
+            "env2.decay": 0.028284268453717232,
+            "env2.release": 0.009999999776482582,
+            "osc1.sample": 1.0
+          },
+          "samples": ["UQQAAC4pAAAxAAEARKwAAP0iAABBAAAAAgBAAZta452GAoAkSZIkiQKAJEmSJIn8dtu2reC50peSYmp5nJnZGWkrky+tnMdNxXpLSO7msXN8q86fO5bkREuTpc4g0PfQTFRnUgIlEJyEprTkxErfWCvv4U6P1Bokze/csS2peCtRKW3mJBZMmaCp6sg1FOSRL4IsgRpDZmHitpHbuPLP19BMkrpRJMuP3MgqzKQb7a5LRYtm21mPib9RFTFBhziFTY0kqSAzPLKgNj/sRjAEjWfqBrmufOPc7xy5d9zJ6hcZFU0iDDA09xrkRe6v9ce4obNWs100i6Cz8pSkVqkqgZmVmURXVddC67Buw0AnkqGgM9kiq4iRe3TNMEW2O2qL1ugUlQKus+1a09zZa1Ot6Ctt3O10KtVpJERM0jKSTQJDhQ6NRNEimREMSUrVBE2O1zu+9TArlyS5P1D1shvmnE9a6dRQIqxSZZlr1fj+tEKHp8zE4tTKyEkFB+0QsoaED6OZkBEF9VK5Ep3Kcko12Y6vc8osQ11R3+bQuABrjV948Vn5VlEg67NaF3rDmu0zW6EVGyGtc9s4aFV+zlLSRu5Kk5V1DSVHP/ld8jnWtT75rfRattMW+V3VK13sILW3KSHV2kkZTTTN0sw0YuKo6nGALE0Nk8sxG76ooRRO8eEoQze4obMRRasO3WinzcrGHOeW7s7N7yrLzp81V1Ex7VHZtc3aOVtNQAsR6uKIcKYuUxnDoJGU7hLbxKjMiA5PNnZtvaGZkNEkWCvduvtkmrrw2njdr3XA6E7tHM7s9QzTrdEhStpZ2VDkTHEiqFHYwksx2oZYFLYOkobK6CBLV3EeLe4cv51zDSVTBGmqX2eSNwvDl+oqlvQG+U01x8M5D8OqCKmN2xldTZJUU5xIwFq3KhCYjFRolGpvRBfuFBtG0Fhf0ZyLmZbVJPb6Htfc67HC6lq147ov29QsVvp0eLrIJIkbvCiaKVtN8m1QaKbBko4qEeqmkVx2LNAczHGk6CqtM9XHl6ydsxUlyPg8bu2ns8XarHZvVlpC06iaGrBz7soGJ6yQSdhZW1GETXAayGzUIBRLIw5wzXANzd1y6VOtjK4x16vmuqXzWQWw0miyLqWT9cTsPpxPkszMSrnxPlCx/2RpkkasmzkXSdJKDFOSUGqsi0zZErZb0c3rQh1zttQzjWbzUW+5mXKRJOTEtMt8z6nBovKXVbuS48I6mNsxK7bGlG4Dui2aCRlNQjNNYhlsNMpWCyXWbJQH7QwPvc6cbwTMUV26456ZVU1F3rTY8aKZk/aE3J3zYmHppCB2yoptPa+kFHwmSdw5nZnUVY3RNmnDiNtrsBrr06tLbPTUr8Vea+tlx/rprZmz1STkoFzy7C/zwqpIfuoGe+iwwq3DKkm6zEZw2ZHNWhnXTMIKK5BYhenIS2oPrfgpL49K3GfqZdsrrPLIcsMIgnRhTSgSVnQKyVMoAMZxJMdxKABIkiRJkigASJIkSZI="]
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t11/A",
+          "start": 61440,
+          "length": 30720,
+          "loop": true
+        },
+        {
+          "clip": "t11/A",
+          "start": 122880,
+          "length": 61440,
+          "loop": true
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "id": "t12",
+      "name": "Lead (Specimen) 4",
+      "volume": 0.5463865399360657,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "master": 0.07950000464916229,
+            "capacity": 0.1587301641702652,
+            "unison": 0.6666666865348816,
+            "osc1.type": 1.0,
+            "osc1.s2": 1.0,
+            "osc1.s3": 1.0,
+            "osc1.s4": 0.2500000298023224,
+            "osc1.s6": 1.0,
+            "filt1.type": 0.125,
+            "filt1.cutoff": 0.9994993805885315,
+            "env1.decay": 0.6399999856948853,
+            "env1.release": 0.0,
+            "env2.decay": 0.028284268453717232,
+            "env2.release": 0.009999999776482582,
+            "osc1.sample": 1.0
+          },
+          "samples": ["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"]
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t12/A",
+          "start": 61440,
+          "length": 30720,
+          "loop": true
+        },
+        {
+          "clip": "t12/A",
+          "start": 122880,
+          "length": 61440,
+          "loop": true
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "id": "t13",
+      "name": "Drum (Specimen)",
+      "volume": 0.5463865399360657,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "master": 0.07050000131130219,
+            "capacity": 0.3650793731212616,
+            "unison": 0.7333333492279053,
+            "osc1.type": 1.0,
+            "osc1.s1": 0.0,
+            "osc1.s2": 1.0,
+            "osc1.s4": 1.0,
+            "osc1.s6": 1.0,
+            "filt1.type": 0.125,
+            "filt1.cutoff": 0.8444993495941162,
+            "filt1.resonance": 0.14499998092651367,
+            "env1.decay": 0.4399999976158142,
+            "env1.release": 0.07000000029802322,
+            "env2.decay": 0.028284268453717232,
+            "env2.release": 0.009999999776482582,
+            "osc1.sample": 1.0
+          },
+          "samples": ["BAEAALoIAAAxAAEARKwAAP0iAABBAAAAAgBAAVyL4y6JwnnbxpEqvmq44K5KTi6L10Q37kRnjRf2xMlcqbE3qpLpirmuZ2Iq6XRL1QElxs1uhU3qqjLyThPJf09GHYshZlmvNNC1u/bbLJUnQ2Erlkt1zArFzBUW1BgJVrLrrTYmdrJEbUWf2uTjUgN0HTnJ0iphb+Y3VuAsLSukFSIai2fmmo2xJHWsXg00UWSXg2QXVLH7Bor7+k5xoUi01MCxV6au5govVey2lcoKGQq5x67jBDXOWKbxxgbDpRVPdd1qZyopjXAleZLzks5w7Qub87aqUOQWD6BKTXBrJOqrBoJ0YU1pPESsIctxKAyskRu3jSgERo7kSHIoAEiSI0mS"]
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t13/A",
+          "start": 30720,
+          "length": 61440,
+          "loop": true
+        },
+        {
+          "clip": "t13/A",
+          "start": 122880,
+          "length": 61440,
+          "loop": true
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "id": "t14",
+      "name": "Lead (Specimen) 5",
+      "volume": 0.5463865399360657,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "master": 0.07250000536441803,
+            "capacity": 0.3650793731212616,
+            "unison": 0.7333333492279053,
+            "osc1.type": 1.0,
+            "osc1.s1": 0.0,
+            "osc1.s2": 1.0,
+            "osc1.s4": 1.0,
+            "osc1.s6": 1.0,
+            "filt1.type": 0.125,
+            "filt1.cutoff": 0.9994993805885315,
+            "env1.decay": 0.0,
+            "env1.release": 0.0,
+            "env2.decay": 0.028284268453717232,
+            "env2.release": 0.009999999776482582,
+            "osc1.sample": 1.0
+          },
+          "samples": ["TQMAADIgAAAxAAEARKwAAP0iAABBAAAAAgBAAd9qZ6qK4pXcyDzfkFv2kZexW81sU7CbPq27bnUidwowCK426o7Mn9dozCWpsIzjbe1+adqSP7HruCm/jDlykqGZ3mqnqhqrtYexkadgjVe1V3zMEu7X/drEDp/z1XokdDoptpdmkkmDA26o1o7dZEGZCQvNP53ZmJPUb+mMV5Q1xUkde6WqJs1X04WaWquOVjQWXmp7TdmE6rDTvGt3+Eoq/tqxeKqS1XilUX5WgfeESZBPm7iuZk1qplYa6mRJwOO8rp5aa2ppb3ljF3PTzo5Wi/B2E+mKtJgtOpgZr1UhZsx36bF4qmpvfSvoI7uuaWGr8FqVsdmCyTbkOpjyTpOVZR7q32pj6sZUONz6pSzeS7jJx4njnuw1StZWeB6udEV6G1vjrZcmkvZcda6YZGn2SD8iHtsyWFk9sbW87OlKoV6TsUreimHqyJaVc5GKfRZO9yvFmdMga7QURQEuvc2U6sTkfOmtdiKO814HMlw1TupOX+KTNsY8Y8+tW8pt4WATy+LFqt56aeb4tVdzB5Lilu20JTP2Jr7KVU1mWR30yrTco26r97FYZm7EXtUNGtly6UAzmmxqDfVmxZYNYmrdOvuQjnjt33pfLtmT0hGXnuCMLzVQ61oiHK519Ch4XVlvk6MoqrzsrfelblpONextJq1qM0t6hqH1vCLJaswjVr0Uy+CkjSGbeqnqytO0pPaNI/lKkXaWhXpbzVGSYOubONax0XkxUf21WWZuvBK9dRo42TwZPRbUN471Dgf1LJz03xq1jfugWx17oy5Jr3AN0q1e7ktQoy4Tm/8t0GMg5vwaDLBHlahx0603Zo66BlHL7LioOBs784wiVb4kN48jSQffBJvjFD2G3Hqhpvgqb/NbNqEcrnCUVGieVU9wTFl0PQdWUD0XFie9pZWmjmkpuYuL2i7I5sS1ohXz1gqxUh2lMzLlulZCbercaqGqCo2wBCvJ3VhOjBd5DNF5zc58Koyka0sOoyp3tMKt96mG0uqWVee6LPbGnPMrGJLm6pqF2HqWu/Qksns11tp6n6aKjDHlVhIjpyrvnUqoFzvtbJCnNt9YL010zFYp1qkX7o7w+mZSE4vO1PpUEzQ5Y7rgvmUk2iV0qH6J3DiO"]
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t14/A",
+          "start": 30720,
+          "length": 61440,
+          "loop": true
+        },
+        {
+          "clip": "t14/A",
+          "start": 122880,
+          "length": 61440,
+          "loop": true
+        },
+        {
+          "clip": "t14/A.1",
+          "start": 215040,
+          "length": 960,
+          "loop": false
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "id": "t15",
+      "name": "Lead (Specimen) 6",
+      "volume": 0.2943786084651947,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "master": 0.07449999451637268,
+            "capacity": 0.460317462682724,
+            "unison": 0.9333333373069763,
+            "osc1.type": 1.0,
+            "osc1.s1": 0.0,
+            "osc1.s2": 1.0,
+            "osc1.s4": 1.0,
+            "osc1.s6": 1.0,
+            "filt1.type": 0.125,
+            "filt1.resonance": 0.2799999713897705,
+            "env1.decay": 0.5,
+            "env1.release": 0.0,
+            "env2.decay": 0.028284268453717232,
+            "env2.release": 0.009999999776482582,
+            "osc1.sample": 1.0
+          },
+          "samples": ["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"]
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t10/A",
+          "start": 30720,
+          "length": 61440,
+          "loop": true
+        },
+        {
+          "clip": "t10/A",
+          "start": 122880,
+          "length": 61440,
+          "loop": true
+        },
+        {
+          "clip": "t10/B",
+          "start": 215040,
+          "length": 960,
+          "loop": false
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "id": "t16",
+      "name": "Bus 5",
+      "volume": 0.4018833041191101,
+      "mute": false,
+      "receives": [
+        {
+          "from": "t10",
+          "channel": "main",
+          "volume": 1.4125375747680664
+        },
+        {
+          "from": "t11",
+          "channel": "main",
+          "volume": 1.4125375747680664
+        },
+        {
+          "from": "t12",
+          "channel": "main",
+          "volume": 1.4125375747680664
+        },
+        {
+          "from": "t13",
+          "channel": "main",
+          "volume": 1.4125375747680664
+        },
+        {
+          "from": "t14",
+          "channel": "main",
+          "volume": 1.4125375747680664
+        },
+        {
+          "from": "t15",
+          "channel": "main",
+          "volume": 1.4125375747680664
+        }
+      ],
+      "devices": [
+        {
+          "kind": 72,
+          "values": {
+            "mode": 0.0,
+            "sidechain": 1.0,
+            "input_gain": 0.8500000238418579,
+            "threshold": 1.0,
+            "ratio": 0.7350000143051147,
+            "attack": 0.4032842814922333,
+            "release": 0.9194993376731873,
+            "output_gain": 0.6499999761581421
+          },
+          "trailer": 32
+        }
+      ],
+      "placements": [],
+      "lanes": []
+    },
+    {
+      "id": "t17",
+      "name": "Chords (Specimen)",
+      "volume": 0.5463865399360657,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "master": 0.06499999761581421,
+            "capacity": 1.0,
+            "unison": 0.7333333492279053,
+            "osc1.type": 1.0,
+            "osc1.s1": 1.0,
+            "osc1.s2": 1.0,
+            "osc1.s3": 0.26499998569488525,
+            "osc1.s4": 1.0,
+            "osc1.s6": 1.0,
+            "filt1.type": 0.25,
+            "filt1.cutoff": 0.0,
+            "filt1.resonance": 0.7249999046325684,
+            "env1.decay": 0.2750000059604645,
+            "env1.release": 0.8650000095367432,
+            "env2.decay": 0.028284266591072083,
+            "env2.release": 0.009999999776482582,
+            "mod1.source": 0.2222222238779068,
+            "mod1.target": 0.20392157137393951,
+            "mod1.operation": 1.0,
+            "osc1.sample": 1.0
+          },
+          "samples": ["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"]
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t17/A",
+          "start": 15360,
+          "length": 15360,
+          "loop": false
+        },
+        {
+          "clip": "t17/A.1",
+          "start": 92160,
+          "length": 30720,
+          "loop": true
+        },
+        {
+          "clip": "t17/A.2",
+          "start": 153600,
+          "length": 30720,
+          "loop": true
+        },
+        {
+          "clip": "t17/A.1",
+          "start": 184320,
+          "length": 15360,
+          "loop": false
+        },
+        {
+          "clip": "t17/A",
+          "start": 199680,
+          "length": 15360,
+          "loop": false
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "id": "t18",
+      "name": "Bus 6",
+      "volume": 0.4596211314201355,
+      "mute": false,
+      "receives": [
+        {
+          "from": "t17",
+          "channel": "main",
+          "volume": 1.4125375747680664
+        }
+      ],
+      "devices": [
+        {
+          "kind": 72,
+          "values": {
+            "mode": 0.0,
+            "sidechain": 0.0,
+            "input_gain": 0.8300000429153442,
+            "threshold": 1.0,
+            "ratio": 0.0,
+            "attack": 0.5032842755317688,
+            "release": 0.4394993782043457,
+            "output_gain": 0.8050000071525574
+          },
+          "trailer": 32
+        },
+        {
+          "kind": 67,
+          "values": {
+            "mode": 0.0,
+            "low_cut": 0.0,
+            "low_cut_q": 0.41999998688697815,
+            "peak1_freq": 0.35647016763687134,
+            "peak1_gain": 0.5,
+            "peak1_q": 0.5,
+            "peak2_freq": 0.6061983108520508,
+            "peak2_gain": 0.5899999737739563,
+            "peak2_q": 0.5,
+            "peak3_freq": 0.5910578370094299,
+            "peak3_gain": 0.4749999940395355,
+            "peak3_q": 0.5,
+            "high_cut": 0.30000001192092896,
+            "high_cut_q": 0.5,
+            "master": 1.0
+          },
+          "trailer": 60
+        }
+      ],
+      "placements": [],
+      "lanes": []
+    }
+  ],
+  "master": {
+    "id": "master",
+    "name": "Master",
+    "volume": 0.4688134491443634,
+    "mute": false,
+    "receives": [
+      {
+        "from": "t2",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "t4",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "t7",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "t9",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "t16",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "t18",
+        "channel": "main",
+        "volume": 1.0
+      }
+    ],
+    "devices": [],
+    "placements": [],
+    "lanes": []
+  }
+}

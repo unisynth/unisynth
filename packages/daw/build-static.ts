@@ -1,6 +1,6 @@
 // Static, server-less DAW build for a private preview (e.g. https://preview.judo.technology/dsp/): the page from
 // packages/daw/dist plus a snapshot of what the server's /api routes return — the song list, every file under
-// project/music (incl. the git-ignored released/ songs), the library catalog and the GM bank — as plain files.
+// project/music (incl. the released/ songs), the library catalog and the GM bank — as plain files.
 // The page runs read-only (api.ts static mode: Save downloads the file).
 //
 // Usage: GM_DLS=<gm.dls> bun packages/daw/build-static.ts [outDir]   (default packages/daw/build/dsp)
