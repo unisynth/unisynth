@@ -45,7 +45,7 @@ separate commits; 6.5–6.8 are checkpoints of one switch commit (each needs a p
 - [x] 6.2 Baseline renders of every tracked song (`project/music/**`; patches and DAW templates as a one-note phrase)
   with the current build, stored outside the repo as the drift reference. Verify: one render per inventory song and
   template, listed with its hash
-- [ ] 6.3 Quirk survey before the freeze (was 7.1): split the candidates (`integer_fm` apart from `exact_math`, DC bias
+- [x] 6.3 Quirk survey before the freeze (was 7.1): split the candidates (`integer_fm` apart from `exact_math`, DC bias
   apart from the DC filters), clear each in turn through `era_settings`, render the V2 parity set and every tracked V2
   song. Keep a quirk when clearing it takes a song outside the parity tolerance (against the original render where one
   exists, else against its quirk-on render); songs that only cross the D7.3 thresholds are listed for listening. Write the quirk table (flag, what it reproduces, source, format

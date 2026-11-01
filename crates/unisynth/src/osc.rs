@@ -402,9 +402,8 @@ pub struct V2T {
     pub nfres: f32,
     /// Format version below 6: native sine for the sine and FM modes.
     pub native_sin: bool,
-    /// Format version below 3: saw/triangle and pulse are the year-2000 4× oversampled box filter (v2redux
-    /// `DELTA_OSC_BOXFILTER`).
-    pub box4: bool,
+    /// [`crate::params::EraSettings::integer_fm`].
+    pub integer_fm: bool,
     /// Format version below 5: the older noise (MSVC LCG, its own filter recurrence; `DELTA_NOISE_LCG_MSVC`).
     pub old_noise: bool,
 }
@@ -607,29 +606,6 @@ fn v2_step(slot: &mut V2Slot, r: &mut SlotRamps, mono: f32, aux: [(f32, f32); 2]
     let t = &r.v2.get();
     let freq = (inc * TWO_32) as i64 as u32;
     match t.mode {
-        v2mode::TRI_SAW | v2mode::PULSE if t.box4 => {
-            // four sub-steps of a quarter increment, averaged
-            let step = freq / 4;
-            let col = utof23(t.brpt);
-            let bg = gain * 0.25;
-            let mut acc = 0.0f32;
-            let mut c = slot.cnt;
-            for _ in 0..4 {
-                if t.mode == v2mode::TRI_SAW {
-                    let p = f32::from_bits((c >> 9) | 0x3f80_0000);
-                    acc += if c < t.brpt {
-                        p * (2.0 / col.max(1e-9)) + (-1.0 - 2.0 / col.max(1e-9))
-                    } else {
-                        p * (-2.0 / (1.0 - col).max(1e-9)) + (4.0 / (1.0 - col).max(1e-9) - 1.0)
-                    };
-                } else if c >= t.brpt {
-                    acc += 2.0;
-                }
-                c = c.wrapping_add(step);
-            }
-            slot.cnt = c;
-            if t.mode == v2mode::TRI_SAW { acc * bg } else { (acc - 4.0) * bg }
-        }
         v2mode::TRI_SAW | v2mode::PULSE => {
             let cnt = slot.cnt;
             let brpt = t.brpt;
@@ -707,7 +683,7 @@ fn v2_step(slot: &mut V2Slot, r: &mut SlotRamps, mono: f32, aux: [(f32, f32); 2]
         v2mode::FM => {
             let cnt = slot.cnt;
             slot.cnt = cnt.wrapping_add(freq);
-            let y = if t.native_sin {
+            let y = if t.integer_fm {
                 // the x87 `fistp`: round to nearest, and the "integer indefinite" 0x80000000 when out of range (a
                 // loud modulator collapses the carrier, as in V2 before version 6)
                 let m = libm::rint((mono as f64) * 4.0 * 2_147_483_648.0);

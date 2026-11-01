@@ -383,17 +383,17 @@ pub struct EraSettings {
     pub four_pole: bool,
     /// Key sync 2 resets the voice (version 6); earlier it acts as 1.
     pub full_keysync: bool,
-    /// The voice output and channel strip DC filters, and the strip's denormal bias (version 6).
+    /// The voice output and channel strip DC filters (version 6).
     pub dc_filters: bool,
     /// Channel routes read the voice sources (version 5 on); earlier only velocity and the controllers.
     pub chan_voice_sources: bool,
-    /// Quirk `boxed_osc`: the 4× box-averaged naive saw and pulse (before version 3).
-    pub boxed_osc: bool,
     /// Quirk `lcg_noise`: the old LCG noise (before version 5).
     pub lcg_noise: bool,
-    /// Quirks `exact_math` and `integer_fm`: exact sine and arctangent, integer FM phase (before version 6, except
-    /// the 2004 build of version 5).
+    /// Quirk `exact_math`: exact sine and arctangent (before version 6, except the 2004 build of version 5).
     pub exact_math: bool,
+    /// Quirk `integer_fm`: the FM generator's phase offset rounded to an integer, out of range = the x87 "integer
+    /// indefinite" (before version 6, except the 2004 build of version 5).
+    pub integer_fm: bool,
     /// Quirk `fixed_seed`: noise seeds 0 (before version 6).
     pub fixed_seed: bool,
     /// Quirk `coarse_env`: 256-sample frames and the year-2000 envelope laws (before version 2).
@@ -402,6 +402,7 @@ pub struct EraSettings {
 
 pub fn era_settings(p: &[f32; COUNT]) -> EraSettings {
     let (v, new_math) = era(p);
+    // the quirk survey (task 6.3) builds with `--cfg us_quirk_off="<quirk>"` to clear one quirk everywhere
     EraSettings {
         fm_osc: v >= 4,
         aux_osc: v >= 6,
@@ -409,11 +410,11 @@ pub fn era_settings(p: &[f32; COUNT]) -> EraSettings {
         full_keysync: v >= 6,
         dc_filters: v >= 6,
         chan_voice_sources: v >= 5,
-        boxed_osc: v < 3,
-        lcg_noise: v < 5,
-        exact_math: !new_math,
-        fixed_seed: v < 6,
-        coarse_env: v < 2,
+        lcg_noise: v < 5 && !cfg!(us_quirk_off = "lcg_noise"),
+        exact_math: !new_math && !cfg!(us_quirk_off = "exact_math"),
+        integer_fm: !new_math && !cfg!(us_quirk_off = "integer_fm"),
+        fixed_seed: v < 6 && !cfg!(us_quirk_off = "fixed_seed"),
+        coarse_env: v < 2 && !cfg!(us_quirk_off = "coarse_env"),
     }
 }
 

@@ -683,7 +683,7 @@ impl<'a> Voice<'a> {
                 nffrq: linfreq(sh.rate) * calcfreq((pitch + 64.0) / 128.0),
                 nfres: 1.0 - libm::sqrtf(col),
                 native_sin: era.exact_math,
-                box4: era.boxed_osc,
+                integer_fm: era.integer_fm,
                 old_noise: era.lcg_noise,
             };
             return SlotT { inc: hz / sh.rate, gain, mix, pan_l, pan_r, v2: Opt::new(v2), combine, ..SlotT::default() };

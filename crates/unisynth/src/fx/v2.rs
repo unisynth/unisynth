@@ -6,7 +6,7 @@
 //! same mono mix on both channels) and output only the wet signal. Port of V2 (public domain) after v2redux (CC0).
 
 use super::{Effect, Params};
-use crate::v2::{dcf_r, linfreq, Dcf, DC_OFFSET};
+use crate::v2::{dcf_r, linfreq, Dcf};
 use crate::v2fx::{Comp, CompP, ModDel, ModDelP};
 use synth_core::device::{Ctx, Io};
 use synth_core::mix::{Env, LoadError};
@@ -107,9 +107,8 @@ impl<'a> Effect<'a> for CompressorV2<'a> {
         let q = self.p.map(raw);
         let p = CompP::new(q[0], q[1], q[2], q[3], q[4], q[5], q[6], q[7], q[8], ctx.rate as f32);
         self.comp.set(&p);
-        let dc = if self.era >= 6 { DC_OFFSET } else { 0.0 };
         let [l, r, ..] = &mut io.ch;
-        self.comp.render(&p, &mut l[..n], &mut r[..n], dc);
+        self.comp.render(&p, &mut l[..n], &mut r[..n]);
     }
 }
 
@@ -146,7 +145,6 @@ impl<'a> Effect<'a> for DelayV2<'a> {
     fn run(&mut self, io: &mut Io, n: usize, ctx: &mut Ctx) {
         let q = self.p.map(raw);
         let p = ModDelP::new(q[0], q[1], q[2], q[3], q[4], q[5], q[6], DELAY_LEN, ctx.rate as f32);
-        let dc = if self.era >= 6 { DC_OFFSET } else { 0.0 };
         let mut x = [0.0f32; 128];
         let mut pos = 0;
         while pos < n {
@@ -155,7 +153,7 @@ impl<'a> Effect<'a> for DelayV2<'a> {
             let [l, r, ..] = &mut io.ch;
             l[pos..pos + len].fill(0.0);
             r[pos..pos + len].fill(0.0);
-            self.del.render_add(&p, &x[..len], &mut l[pos..pos + len], &mut r[pos..pos + len], dc);
+            self.del.render_add(&p, &x[..len], &mut l[pos..pos + len], &mut r[pos..pos + len]);
             pos += len;
         }
     }
@@ -241,9 +239,8 @@ impl<'a> Effect<'a> for ReverbV2<'a> {
         let gainin = vol / 128.0;
         // no low cut stage before format version 4 (its parameter came then)
         let low = if self.era >= 4 { lf * sq(sq(lowcut / 128.0)) } else { 0.0 };
-        let dc = if self.era >= 6 { DC_OFFSET } else { 0.0 };
         for i in 0..n {
-            let x = io.ch[0][i] * gainin + dc;
+            let x = io.ch[0][i] * gainin;
             for ch in 0..2 {
                 let mut cur = 0.0;
                 for j in 0..4 {

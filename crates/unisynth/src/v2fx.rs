@@ -2,7 +2,7 @@
 //! the global stereo delay) and the reverb. Shared by the instrument's channel stage (`chan.rs`) and the `v2` effect
 //! modes. Port of V2 by Tammo "kb" Hinrichs (public domain), following v2redux's `v2core.cpp` (CC0) where it corrects
 //! ryg's C++ port to the assembly (compressor look-ahead ring length and RMS order, channel gain order).
-//! Settings take V2 raw values (`0..128`). `dc` is V2's denormal bias: `DC_OFFSET` at format version 6, 0 before.
+//! Settings take V2 raw values (`0..128`).
 
 use crate::v2::{calcfreq, ftou32, linfreq, utof23};
 
@@ -119,7 +119,7 @@ impl<'a> Comp<'a> {
     }
 
     /// Compresses `l`/`r` in place.
-    pub fn render(&mut self, p: &CompP, l: &mut [f32], r: &mut [f32], dc: f32) {
+    pub fn render(&mut self, p: &CompP, l: &mut [f32], r: &mut [f32]) {
         if !p.on {
             return;
         }
@@ -133,17 +133,17 @@ impl<'a> Comp<'a> {
                 let (a, b) = (l[pos + i], r[pos + i]);
                 lv[i] = match (p.rms, p.stereo) {
                     (false, false) => {
-                        let x = self.peak_of(0.5 * (a + b), 0, dc);
+                        let x = self.peak_of(0.5 * (a + b), 0);
                         [p.invol * x; 2]
                     }
                     (true, false) => {
-                        let x = self.rms_of(0.5 * (a + b) + dc, 0, 0.0);
+                        let x = self.rms_of(0.5 * (a + b), 0);
                         self.rmscnt = (self.rmscnt + 1) & (COMP_RMSLEN - 1);
                         [p.invol * x; 2]
                     }
-                    (false, true) => [p.invol * self.peak_of(a, 0, dc), p.invol * self.peak_of(b, 1, dc)],
+                    (false, true) => [p.invol * self.peak_of(a, 0), p.invol * self.peak_of(b, 1)],
                     (true, true) => {
-                        let x = [p.invol * self.rms_of(a, 0, dc), p.invol * self.rms_of(b, 1, dc)];
+                        let x = [p.invol * self.rms_of(a, 0), p.invol * self.rms_of(b, 1)];
                         self.rmscnt = (self.rmscnt + 1) & (COMP_RMSLEN - 1);
                         x
                     }
@@ -175,15 +175,14 @@ impl<'a> Comp<'a> {
     }
 
     #[inline]
-    fn peak_of(&mut self, x: f32, ch: usize, dc: f32) -> f32 {
-        self.peak[ch] = (self.peak[ch] * PEAK_FALLOFF + dc).max(libm::fabsf(x));
+    fn peak_of(&mut self, x: f32, ch: usize) -> f32 {
+        self.peak[ch] = (self.peak[ch] * PEAK_FALLOFF).max(libm::fabsf(x));
         self.peak[ch]
     }
 
     #[inline]
-    fn rms_of(&mut self, x: f32, ch: usize, accumdc: f32) -> f32 {
+    fn rms_of(&mut self, x: f32, ch: usize) -> f32 {
         self.rmsval[ch] -= self.rmsbuf[self.rmscnt][ch];
-        self.rmsval[ch] += accumdc;
         let sq = x * x;
         self.rmsval[ch] += sq;
         self.rmsbuf[self.rmscnt][ch] = sq;
@@ -238,14 +237,14 @@ pub struct Boost {
 }
 
 impl Boost {
-    pub fn render(&mut self, p: &BoostP, l: &mut [f32], r: &mut [f32], dc: f32) {
+    pub fn render(&mut self, p: &BoostP, l: &mut [f32], r: &mut [f32]) {
         if !p.on {
             return;
         }
         for (ch, buf) in [l, r].into_iter().enumerate() {
             let (mut xm1, mut xm2, mut ym1, mut ym2) = (self.x1[ch], self.x2[ch], self.y1[ch], self.y2[ch]);
             for x in buf.iter_mut() {
-                let xi = *x + dc;
+                let xi = *x;
                 let y = p.b0 * xi + p.b1 * xm1 + p.b2 * xm2 - p.a1 * ym1 - p.a2 * ym2;
                 (ym2, ym1, xm2, xm1) = (ym1, y, xm1, xi);
                 *x = y;
@@ -340,22 +339,22 @@ impl<'a> ModDel<'a> {
     }
 
     /// The channel chorus/flanger, in place (nothing when the effect is dry).
-    pub fn render_chan(&mut self, p: &ModDelP, l: &mut [f32], r: &mut [f32], dc: f32) {
+    pub fn render_chan(&mut self, p: &ModDelP, l: &mut [f32], r: &mut [f32]) {
         if p.wet == 0.0 {
             return;
         }
         for (a, b) in l.iter_mut().zip(r.iter_mut()) {
-            (*a, *b) = self.sample(p, *a + dc, *b + dc, p.dry);
+            (*a, *b) = self.sample(p, *a, *b, p.dry);
         }
     }
 
     /// The global delay: mono input `x`, wet output added to `l`/`r` (nothing when the effect is dry).
-    pub fn render_add(&mut self, p: &ModDelP, x: &[f32], l: &mut [f32], r: &mut [f32], dc: f32) {
+    pub fn render_add(&mut self, p: &ModDelP, x: &[f32], l: &mut [f32], r: &mut [f32]) {
         if p.wet == 0.0 {
             return;
         }
         for ((xi, a), b) in x.iter().zip(l.iter_mut()).zip(r.iter_mut()) {
-            let v = *xi + dc;
+            let v = *xi;
             let (wl, wr) = self.sample(p, v, v, 0.0);
             *a += wl;
             *b += wr;

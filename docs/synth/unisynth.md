@@ -707,8 +707,25 @@ Its parameters use 7-bit step laws (stored value = step / 128).
 
 `voice.era` holds the format version of a converted song (0–6, 7 = a 2004 build). Only `params::era_settings` reads
 it. That function derives the settings the converter will write at the format switch (FM and aux-in generators, the
-2× 4-pole filter, key sync 2, the DC filters, the channel routes' voice sources) and the quirk candidates
-(`boxed_osc`, `lcg_noise`, `exact_math`/`integer_fm`, `fixed_seed`, `coarse_env`). A test fails on any other read.
+2× 4-pole filter, key sync 2, the DC filters, the channel routes' voice sources) and the quirks. A test fails on any
+other read.
+
+**Quirks** (survey of 2026-11-01, change unify-v2-algorithms task 6.3, `tools/unisynth-parity/quirk-survey.ts`).
+A quirk reproduces one source build. It exists only if some converted song leaves the parity tolerance (1 dB loudness,
+3 dB per octave band) without it: against the original V2 render where one exists (the 18 parity songs), else against
+the song's own render with the quirk on. Each was cleared in turn (`--cfg us_quirk_off="<quirk>"`) over the 347 V2
+songs:
+
+| Quirk | Reproduces | Format versions | Songs that set it | Without it: outside parity tolerance | Decision |
+|---|---|---|---:|---|---|
+| `coarse_env` | 256-sample control frame, year-2000 envelope laws | 0, 1 | 9 | 5, incl. fr08 against its original (−1.46 dB loudness) | keep |
+| `lcg_noise` | the MSVC LCG noise generator | 0–4 | 19 | 6, incl. fr014 (+5.1 dB in one band) and fr08 against their originals | keep |
+| `exact_math` | exact sine and arctangent instead of the fast approximations | 0–5 (not the 2004 build) | 311 | 8, incl. kkrieger against its original (−6.4 dB in one band) | keep |
+| `integer_fm` | FM phase offset rounded to an integer; out of range collapses the carrier (x87 `fistp`) | 0–5 (not the 2004 build) | 311 | 11, incl. kkrieger (+7.6 dB) and fr029 (+3.0 dB) against their originals | keep |
+| `fixed_seed` | noise seeds start at 0 | 0–5 | 311 | 1: a keygen tune (−3.33 dB in one band) | keep |
+| `boxed_osc` | 4× box-averaged naive saw and pulse | 0–2 | 9 | none; none past the listening thresholds either | dropped |
+| `dc_bias` | the channel strip's and the 7-bit effects' denormal bias | 6 | 36 | none; none past the listening thresholds either | dropped |
+
 
 **Combine.** Every slot meets the running sum of the earlier slots through one step (`osc::mix_in`): add (panned by
 the slot and the voice pan), multiply (ring) or replace (both on both channels of the sum). The running mono sum

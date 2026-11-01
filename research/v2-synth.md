@@ -168,3 +168,20 @@ Open decisions at the time of the survey (answered above):
 - **Size.** V2 songs build to 27.6–35.3 KB squishy (`tools/unisynth-parity/size.md`). Next to the build before the V2
   work, songs without V2 first cost up to +1.8 KB xz. After gating (design D11) they cost +180 to +470 B xz, and
   squishy is +0 or +512 B.
+
+## 6. Quirk survey (2026-11-01, change unify-v2-algorithms task 6.3)
+
+Each version-dependent behaviour that only reproduces a source build was cleared in turn over the 347 converted V2
+songs (`tools/unisynth-parity/quirk-survey.ts`), against the original V2 render for the parity songs and against the
+song's own quirk-on render otherwise. Kept: a song leaves the parity tolerance without it. Full rows and numbers:
+`~/Downloads/64k-tools/synth-lab/unify/quirks/` (`<quirk>.json`, `quirks.md`).
+
+| Quirk | Reproduces | Format versions | Songs that set it | Without it: outside parity tolerance | Decision |
+|---|---|---|---:|---|---|
+| `coarse_env` | 256-sample control frame, year-2000 envelope laws | 0, 1 | 9 | 5, incl. fr08 against its original (−1.46 dB loudness) | keep |
+| `lcg_noise` | the MSVC LCG noise generator | 0–4 | 19 | 6, incl. fr014 (+5.1 dB in one band) and fr08 against their originals | keep |
+| `exact_math` | exact sine and arctangent instead of the fast approximations | 0–5 (not the 2004 build) | 311 | 8, incl. kkrieger against its original (−6.4 dB in one band) | keep |
+| `integer_fm` | FM phase offset rounded to an integer; out of range collapses the carrier (x87 `fistp`) | 0–5 (not the 2004 build) | 311 | 11, incl. kkrieger (+7.6 dB) and fr029 (+3.0 dB) against their originals | keep |
+| `fixed_seed` | noise seeds start at 0 | 0–5 | 311 | 1: a keygen tune (−3.33 dB in one band) | keep |
+| `boxed_osc` | 4× box-averaged naive saw and pulse | 0–2 | 9 | none; none past the listening thresholds either | dropped |
+| `dc_bias` | the channel strip's and the 7-bit effects' denormal bias | 6 | 36 | none; none past the listening thresholds either | dropped |

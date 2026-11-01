@@ -116,3 +116,7 @@ us-fx = ["us-fx-distortion", "us-fx-crusher", "us-fx-eq", "us-fx-delay", "us-fx-
          "us-fx-reverb", "us-fx-compressor", "us-fx-compressor-lookahead", "us-fx-formant"]
 us-voice = ["us-voice-lfo", "us-voice-glide", "us-voice-mono", "us-voice-unison", "us-voice-oneshot", "us-drive", "us-lfo-frame", "us-voice-out"]
 us-all = ["us-osc", "us-noise", "us-flt", "us-env", "us-voice", "us-matrix", "us-matrix-add", "us-speech", "us-strip", "us-chunk-wide", "us-automation", "us-quiet", "us-fx"]
+
+[lints.rust]
+# the quirk survey (change unify-v2-algorithms task 6.3) clears one quirk: --cfg us_quirk_off="<quirk>"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(us_quirk_off, values("lcg_noise", "exact_math", "integer_fm", "fixed_seed", "coarse_env"))'] }

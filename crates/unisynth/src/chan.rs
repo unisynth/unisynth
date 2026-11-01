@@ -6,7 +6,7 @@
 //! `storeChanValues`).
 
 use crate::params::{self as pm, ch, dist, v2_raw};
-use crate::v2::{dcf_r, Dcf, Dist, DistP, DC_OFFSET};
+use crate::v2::{dcf_r, Dcf, Dist, DistP};
 use crate::v2fx::{Boost, BoostP, Comp, CompP, ModDel, ModDelP};
 use synth_core::mix::LoadError;
 use synth_core::pool::Pool;
@@ -34,7 +34,7 @@ pub struct ChanP {
     pub chorus: ModDelP,
     pub comp: CompP,
     pub boost: BoostP,
-    /// Format version 6 (DC filters, denormal bias).
+    /// Format version 6 (DC filters).
     pub v6: bool,
 }
 
@@ -108,7 +108,6 @@ impl<'a> Chan<'a> {
     /// `aux` is the aux input (A, B) added at the start.
     pub fn process(&mut self, p: &ChanP, l: &mut [f32], r: &mut [f32], rate: f32, mut sends: Option<Sends>, aux: Option<[(&[f32], &[f32]); 2]>) {
         self.comp.set(&p.comp);
-        let dc = if p.v6 { DC_OFFSET } else { 0.0 };
         if let Some(aux) = aux {
             for (k, (al, ar)) in aux.iter().enumerate() {
                 if p.recv[k] != 0.0 {
@@ -125,8 +124,8 @@ impl<'a> Chan<'a> {
         if p.v6 {
             dcf(&mut self.dcf1, l, r);
         }
-        self.comp.render(&p.comp, l, r, dc);
-        self.boost.render(&p.boost, l, r, dc);
+        self.comp.render(&p.comp, l, r);
+        self.boost.render(&p.boost, l, r);
         let dist = |d: &mut Dist, l: &mut [f32], r: &mut [f32]| {
             if p.dist.mode != 0 {
                 for (a, b) in l.iter_mut().zip(r.iter_mut()) {
@@ -135,7 +134,7 @@ impl<'a> Chan<'a> {
             }
         };
         if p.chorus_first {
-            self.chorus.render_chan(&p.chorus, l, r, dc);
+            self.chorus.render_chan(&p.chorus, l, r);
             dist(&mut self.dist, l, r);
             if p.v6 {
                 dcf(&mut self.dcf2, l, r);
@@ -145,7 +144,7 @@ impl<'a> Chan<'a> {
             if p.v6 {
                 dcf(&mut self.dcf2, l, r);
             }
-            self.chorus.render_chan(&p.chorus, l, r, dc);
+            self.chorus.render_chan(&p.chorus, l, r);
         }
         if let Some(s) = sends.as_mut() {
             for i in 0..l.len() {

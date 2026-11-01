@@ -478,6 +478,23 @@ tolerance (the spec's rule; songs that only cross the D7.3 drift thresholds are 
   `~/Downloads/64k-tools/synth-lab/unify/songs-base`. Renders are deterministic: a re-run against the baseline shows no
   drift.
 
+### Task 6.3 results: the quirk survey (2026-11-01)
+
+`tools/unisynth-parity/quirk-survey.ts` cleared each candidate in turn (`--cfg us_quirk_off`, read only in
+`era_settings`) over the 347 V2 songs: against the original render for the parity songs, else against the 6.2
+profile. `integer_fm` was split from `exact_math`, and the denormal bias from the DC filters, first.
+
+- **Kept (5):** `coarse_env` (5 of 9 songs outside tolerance, fr08 among them), `lcg_noise` (6 of 19, fr014 +5.1 dB in
+  one band), `exact_math` (8 of 311, kkrieger −6.4 dB in one band), `integer_fm` (11 of 311, kkrieger +7.6 dB, fr029),
+  `fixed_seed` (1 of 311: a keygen tune at −3.33 dB in one band, a different noise seed; kept by the rule).
+- **Dropped (2), code deleted:** `boxed_osc` (9 songs) and `dc_bias` (36 songs; the strip's and the 7-bit effects'
+  bias, so the `dc` argument of `v2fx` is gone). No song moved past even the listening thresholds without them.
+- **Check after the drop:** 347 songs against 6.2, none past D7.3 (largest +0.09 dB, chip-no-tv); V2 parity 18/18,
+  drift ≤ 0.11 dB. Goldens unchanged.
+- **Layout:** the quirk block shrinks from 7 to 5 indices at the freeze (6.4). The effect `dc_bias` field of D4 is
+  not needed; the Cut EQ's DC filter stays a setting.
+- Table: `docs/synth/unisynth.md` (Quirks) and `research/v2-synth.md` §6.
+
 ## Risks / Trade-offs
 
 - [Drift accumulates across stages until a song leaves tolerance] → D7.3 records drift per stage. A song near the
