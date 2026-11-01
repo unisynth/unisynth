@@ -157,9 +157,13 @@ before → `AGENTS.md` rows → land on `main`.
 
 ## 6. Device panel and live view (D4, D5)
 
-- [ ] 6.1 Contract test on the old code for anything existing tests do not cover: knob keyboard/drag/wheel and value
+- [x] 6.1 Contract test on the old code for anything existing tests do not cover: knob keyboard/drag/wheel and value
   text, effect add/reorder/bypass/remove/mode, preset save/load, block collapse persistence, sampler settings, mod
   matrix rows.
+  Done: `test/device.test.ts` (6 tests, 3/3 runs on the old code). Already covered elsewhere: knob keys + undo
+  (browser), block collapse, slot cards, screens, sampler settings + waveform drag, GSM import (editing). Found on
+  the old code, for 6.2: knobs have no wheel handler (not added: not asked); focus falls to `<body>` after a
+  successful preset save (panel rebuild); the mod-matrix amount knob has an empty `aria-label`.
 - [ ] 6.2 `ui/common/Knob.tsx` bound to `devices[i].values[name]` (automation writes update only that knob), then slot
   racks, mod matrix, screens (osc/filter/LFO/envelope) and effect boxes. Verify: contract, editing tests (5.6a/c
   slot tests), bench knob ≤ 1 frame.
