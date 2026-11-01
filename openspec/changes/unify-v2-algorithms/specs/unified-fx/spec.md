@@ -34,3 +34,18 @@ test song rendered by the reference player and, converted, by the unified effect
 #### Scenario: Delay parity
 - **WHEN** a song with one plucked note into the V2 delay at full feedback is rendered both ways
 - **THEN** the parity report passes
+
+## ADDED Requirements
+
+### Requirement: Effect chunk version
+An effect chunk in the new layout SHALL carry a version marker. The player SHALL reject an effect chunk without it,
+or with an unknown version, or truncated at any byte, with an error and no panic (the checked build). The host
+migration SHALL convert old effect chunks.
+
+#### Scenario: Old effect chunk rejected
+- **WHEN** the player loads an effect chunk written before the format switch
+- **THEN** loading fails with an unknown-version error
+
+#### Scenario: Truncated effect chunk
+- **WHEN** a new effect chunk is truncated at any byte
+- **THEN** loading returns an error and does not panic

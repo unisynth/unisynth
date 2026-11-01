@@ -4,12 +4,14 @@
 
 ### Requirement: Functional names
 Parameter names, option values, cargo features, module ids, effect modes and the synth's documentation sections SHALL
-be named by what they do. They SHALL NOT name a source synth (V2, Tunefish, WaveSabre). Source names SHALL appear only
-where the subject is the source: converter commands, parity against a reference and provenance tables.
+be named by what they do, and so SHALL the DAW's user-facing strings. They SHALL NOT name a source synth or its maker
+(V2, Farbrausch, Tunefish, WaveSabre, Ronan, Moog, cauldron). Source names SHALL appear only where the subject is the
+source: converter commands, parity against a reference, provenance tables and song credits.
 
 #### Scenario: No source names in the parameter table
 - **WHEN** the parameter names, option values and feature names of the instrument are listed
-- **THEN** none contains `v2`, `tunefish`, `tf`, `wavesabre`, `ws`, `ronan` or `moog` (case-insensitive)
+- **THEN** no word token (split on non-letters) is `v2`, `tf`, `ws`, `farbrausch`, `tunefish`, `wavesabre`, `ronan`, `moog`
+  or `cauldron` (case-insensitive)
 
 #### Scenario: Provenance kept
 - **WHEN** the provenance table of the synth documentation is read
@@ -171,7 +173,8 @@ layout before this change) with an error; the host migration converts them.
 
 #### Scenario: Malformed chunk
 - **WHEN** a chunk is truncated at any byte, has an unknown version, a parameter index out of range, repeated or unsorted indices, a non-finite or out-of-range value, or bytes after its last section
-- **THEN** loading returns an error and does not panic
+- **THEN** loading returns an error and does not panic (the checked build; a baked build trusts the song it was
+  generated with and is not required to check)
 
 #### Scenario: Speech text section
 - **WHEN** a patch with speech text is encoded and loaded again

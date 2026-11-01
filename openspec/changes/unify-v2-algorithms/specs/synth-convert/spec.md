@@ -17,13 +17,23 @@ re-authoring.
 - **THEN** it loads, re-exports in the new layout, and its render passes the parity tolerances against its render before this change
 
 #### Scenario: Migrated once
-- **WHEN** a `song/1` file is loaded, saved as `song/2`, and loaded again
+- **WHEN** a `song/1` or `us-patch/1` file is loaded, saved as `/2`, and loaded again
 - **THEN** the second load applies no migration and yields the same values
+
+#### Scenario: New file with an old name
+- **WHEN** a `song/2` file names a parameter only the old layout has (for example `env1.mode`)
+- **THEN** loading fails with an error naming the parameter
+
+#### Scenario: Lanes across a split
+- **WHEN** an old song automates a parameter that the new layout splits (a filter type, an envelope slope under an automated law)
+- **THEN** the migration writes one lane per changed setting, at the old lane's times, and the render passes the drift report like the rest of the song
+- **AND** a lane or route on a naive generator's mode or ring fails with an error naming it
 
 #### Scenario: No song left behind
 - **WHEN** the format switch is complete
-- **THEN** every song in the inventory (design, "Song inventory") is in the new layout, migrated or re-converted, and loads in the new player
-- **AND** the load-all check fails if any song fails to load, is skipped, or if an inventory location holds fewer songs than recorded
+- **THEN** every tracked song in the inventory (design, "Song inventory") is in the new layout and loads in the new player
+- **AND** the load-all check fails if any tracked song fails to load, is skipped, or if a tracked location holds fewer songs than recorded
+- **AND** external and git-ignored corpora present on the machine are re-converted and checked, and absent ones are reported, not failed
 
 ### Requirement: Fidelity across the merge
 After each merge of a source module into a shared algorithm, every song the converters produce SHALL still pass its

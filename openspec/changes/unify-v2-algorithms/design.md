@@ -140,7 +140,8 @@ parameters at 260+ with an "as the type says" default; both rejected because the
 **clocked** (user decision 2026-10-31): it runs naive waveforms and a resonant filter at its own sample clock and
 resamples to the song rate. Old → new: osc type `Cauldron` → `Clocked`, `us-osc-cauldron` → `us-osc-clocked`,
 `OSC_CAULDRON` → `OSC_CLOCKED` (id 54 unchanged), `CD_*` → `CLK_*`, `Cauldron{Slot,T,F,Lp}` → `Clocked*`,
-`osc::cauldron_*` → `osc::clocked_*`. The stored type value is unchanged, so no migration is needed. The source name
+`osc::cauldron_*` → `osc::clocked_*`. Its fields keep their meanings; the type value re-encodes like every choice at the format switch (3/8 in the expanded
+choice today). The source name
 stays in the converter (`synth-convert xm`, `src/cauldron*`), the parity tool (`cauldron.ts`), research and the
 provenance table, and "cauldron" joins the source-name ban. The oscillator adds no parameter indices: it reuses
 `s0`–`s8` and `feedback`.
@@ -432,14 +433,15 @@ the contract "every song migrates, sound within tolerance, old versions rejected
   before and after it.
 - **4-pole forms.** The value rules above had the clip placement swapped; they now match `P4Form::ONE` (ladder) and
   `P4Form::TWO`. The filter block stores `steps` and `bias` as well as `clip`.
-- **Envelope law and slope both automated.** Supported rather than rejected (spec "Automated envelope mode"): the
+- **Envelope law and slope both automated.** Supported rather than rejected (spec "Automation reach" and "Lanes across
+  a split"): the
   slope lane splits into `curve_slope` and `sustain_slope` by the law in force at each point.
 - **Quirk survey.** Candidates are split first (`integer_fm` from `exact_math`; DC bias from the DC filters). A quirk is
   kept when clearing it moves a song past the drift thresholds against the quirk-on render, or past the parity
   tolerance where an original render exists. The integer-FM scenario follows the survey's result.
 - **Size.** Contract: no squishy growth for songs that don't use the new settings. Defaults are chosen so that
-  reference songs store no new pairs: `curve` defaults to "follows law" (quadratic for seconds, power for rate,
-  exponential for frame), filter `response` to the type's own. The freeze is gated on a squishy probe of the reference
+  reference songs store no new pairs: `curve` gains the option "by law" (value 0, the default constant: quadratic for
+  seconds, power for rate, exponential for frame), filter `response` likewise "the type's own". The freeze is gated on a squishy probe of the reference
   songs built with a prototype of the layout, and the switch commit is gated again (D7.6, D7.7).
 - **Effect chunks** get a version marker in v3, so an old effect chunk is rejected rather than decoded as another mode.
   The Cut EQ's DC filter (on from format 6) is an effect setting next to `dc_bias`.
@@ -449,6 +451,18 @@ the contract "every song migrates, sound within tolerance, old versions rejected
   attribution, not names, and are exempt. Merging `main` applies the 1.3 and clocked renames to its new code.
 - **Checked player API.** `LoadError` gains `UnknownVersion`; `is_channel` and the other index-order checks follow the
   new strides.
+
+### Cycle 3 (same date), stopped after three cycles
+
+Spec text now carries the cycle-2 decisions: the source-name ban by word token with Farbrausch and cauldron, the DAW's
+strings and the credits exemption; the checked-build scope of "Malformed chunk"; "No song left behind" for tracked
+songs with external corpora reported when absent; "Migrated once" for patches, "New file with an old name", "Lanes
+across a split"; the effect-chunk version requirement. Folded into tasks: effect truncation (it loads silently today),
+the full converter list, the DAW's lane fallback to `filt1.cutoff`, renumbering after quirks drop, lane fan-out at the
+old lane's times, re-running the corpus lane check after the merge.
+
+Open for the user: one switch commit (6.5–6.8) or a player that reads both layouts for a transition; the quirk
+keep threshold (parity tolerance as the spec says, or the stricter drift thresholds); the baked-path exemption.
 
 ## Risks / Trade-offs
 

@@ -38,7 +38,8 @@ Revised after the doubt-driven review of 2026-11-01, cycles 1 and 2 (design "For
 separate commits; 6.5–6.8 are checkpoints of one switch commit (each needs a player that reads v3); 6.9 follows.
 
 - [ ] 6.1 Merge `main` into this branch (the 28 + 347 released songs, `tools/v2-extract/make-demos.py`, the DAW
-  rewrite, converter changes), applying the 1.3 and clocked renames to main's new code. Verify: workspace tests and
+  rewrite, converter changes), applying the 1.3 and clocked renames to main's new code; re-run the corpus lane and route check over every tracked
+  song. Verify: workspace tests and
   both parity reports pass; the source-name check (parameter table and the DAW's user-facing strings) passes;
   inventory counts match the design's "Song inventory"
 - [ ] 6.2 Baseline renders of every tracked song (`project/music/**`; patches and DAW templates as a one-note phrase)
@@ -50,7 +51,7 @@ separate commits; 6.5–6.8 are checkpoints of one switch commit (each needs a p
   parity tolerance where an original render exists. Write the quirk table (flag, what it reproduces, source, format
   versions, songs that set it, songs that move without it) to `docs/synth/unisynth.md` and `research/v2-synth.md`.
   Verify: "Quirk table" scenario; each kept quirk lists at least one song that moves without it
-- [ ] 6.4 Freeze the v3 layout: index map with the kept quirks only, `DEFAULTS[COUNT]` (curve "follows law", filter
+- [ ] 6.4 Freeze the v3 layout: index map with the kept quirks only (renumbered), `DEFAULTS[COUNT]` (curve "follows law", filter
   response the type's own, so reference songs store no new pairs), every value rule (combine replace for FM/aux, the
   oscillator law from the slot kind, raw polarity/one-shot/sync/routing/keysync, 4-pole clip/steps/bias, the Cut EQ DC
   filter, slope by the law at each lane point), the effect-chunk version marker. Gate: a prototype build of the layout
@@ -58,21 +59,23 @@ separate commits; 6.5–6.8 are checkpoints of one switch commit (each needs a p
   index map and pair-count table in design.md; probe table
 - [ ] 6.5 (switch commit) Frozen old layout host-side (old `COUNT`, `DEFAULTS`, decoders, indices, `era_settings`
   over the old layout, old effect modes) and the migration `old → new` for instrument and effect chunks, lanes (one
-  lane per changed setting; a lane or route on a naive slot's mode or ring is a named error) and mod routes. Verify:
-  a unit test per value rule
+  lane per changed setting at the old lane's times, merged into an existing lane on the same setting; a lane or route
+  on a naive slot's mode or ring is a named error) and mod routes. Verify:
+  a unit test per value rule; "Lanes across a split"
 - [ ] 6.6 (switch commit) `song/2` and `us-patch/2`: `/1` files migrate on load (values and names) and save as `/2`;
   `/2` is never migrated and rejects old names. The DAW migrates on open through synth-wasm; its templates, fixtures,
-  option sniffing and the schema move to the new layout. Verify: "Old song file", "Migrated once"; a `/1` file opened
+  option sniffing, its lane fallback (an unknown lane is an error, not `filt1.cutoff`) and the schema move to the new
+  layout. Verify: "Old song file", "Migrated once", "New file with an old name"; a `/1` file opened
   in the DAW plays the same as its migrated `/2`
 - [ ] 6.7 (switch commit) Converters write the new layout directly: `Patch` at the new `COUNT`, `ws`, `tfm`/`tf4m`,
-  `v2m`, `xm`/`xm-phrase`, `auto.rs`, `features`/`needs` (new settings, quirk modules and features, `us-chunk-wide`
+  `v2m`, `xm`/`xm-phrase`, `legacy`, `instr`, `fx`, `tf`, `cauldron`, `capacity`, `rust` (bake), `auto.rs`, `features`/`needs` (new settings, quirk modules and features, `us-chunk-wide`
   reach), song tables. No converter writes `voice.era`. Verify: each converter's output equals the migration of its
   old output
 - [ ] 6.8 (switch commit) The player reads chunk versions 3/4 and the effect-chunk marker, rejects versions 1/2 and
-  unmarked effect chunks with `LoadError::UnknownVersion`, and no longer derives settings from era/type; quirk
+  unmarked or truncated effect chunks with `LoadError::UnknownVersion` / an error, and no longer derives settings from era/type; quirk
   parameters are structural, each behind its module id and feature; `is_channel` and the other index-order checks
   follow the new strides. The trusted (baked) path stays unchecked by design (documented). Verify: "Device kind and
-  chunk" incl. "Old layout rejected by the player"; truncation at every byte without a panic (checked build); "Quirk
+  chunk" and "Effect chunk version", incl. "Old layout rejected by the player"; truncation at every byte without a panic (checked build); "Quirk
   disabled"; workspace tests, feature builds, bake check, parity 49/49 and V2 18/18; squishy probe and speed against
   6.4 (D7.6, D7.7)
 - [ ] 6.9 Migrate every tracked song to `song/2` and regenerate the git-ignored binaries (size probe, parity caches,
