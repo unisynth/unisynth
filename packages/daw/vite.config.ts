@@ -18,8 +18,11 @@ const devEntry: Plugin = {
   transformIndexHtml: { order: "pre", handler: (html) => html.replace('src="main.js"', 'src="./main.ts"') },
 };
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   root: SRC,
+  // `vite build` must pick solid-js's production build whatever NODE_ENV says: unset (Bun scripts) or "test" (bun test)
+  // left Vite on the development condition, and the page shipped Solid's dev runtime (devComponent, dev checks).
+  ...(command === "build" ? { mode: "production", resolve: { conditions: ["module", "browser", "production"] }, define: { "process.env.NODE_ENV": JSON.stringify("production") } } : {}),
   base: "/daw/",
   plugins: [solid(), devEntry],
   server: {
@@ -49,4 +52,4 @@ export default defineConfig({
     },
   },
   logLevel: "warn",
-});
+}));

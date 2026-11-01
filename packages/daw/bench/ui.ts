@@ -7,6 +7,8 @@
 //   fader       one input event on a strip fader, mean ms
 //   mute        click a strip's M button, mean ms
 //   undo        Ctrl+Z after a knob step, mean ms
+//   tab-dev     Mixer → Device tab with the fullest instrument selected (the panel mounts, D5): handler ms and
+//               ms until the frame after it (double rAF), means of 10
 //   roll        show the Piano roll tab on the track with the most notes, ms
 //   open        navigation → first track header (boot: engine, song, UI), ms
 //   scroll      arrangement scrolled 40 px per frame for 2 s: frame intervals
@@ -65,6 +67,18 @@ const r = await p.evaluate(async () => {
   out.fader = await time(200, (i) => { f.value = String(v0 - (i % 20) * 0.1); f.dispatchEvent(new Event("input", { bubbles: true })); });
   f.value = String(v0); f.dispatchEvent(new Event("input", { bubbles: true })); f.dispatchEvent(new Event("change", { bubbles: true }));
   out.mute = await time(20, () => strips()[1].querySelector<HTMLButtonElement>('button[aria-label^="Mute "]')!.click());
+  {
+    const sg = (window as any).DAW.debug.song(), size = (t: any) => Object.keys(t.devices.find((d: any) => d.kind === 64)?.values ?? {}).length;
+    const full = [...sg.tracks].sort((a: any, b: any) => size(b) - size(a))[0];
+    strips().find((x) => x.querySelector(".sn")!.textContent!.endsWith(full.name))!.querySelector<HTMLButtonElement>(".sn")!.click();
+    const raf = () => new Promise((r) => requestAnimationFrame(r)), sync: number[] = [], toFrame: number[] = [];
+    for (let i = 0; i < 10; i++) {
+      tab("tab-mix"); await raf(); await raf();
+      const t = performance.now(); tab("tab-dev"); sync.push(performance.now() - t); await raf(); await raf(); toFrame.push(performance.now() - t);
+    }
+    out["tab-dev"] = `${mean(sync).toFixed(1)} / ${mean(toFrame).toFixed(1)} (${full.name}, ${size(full)} values)`;
+    tab("tab-mix");
+  }
 
   const song = (window as any).DAW.debug.song();
   const notes = (id: string) => song.clips.filter((c: any) => song.tracks.find((t: any) => t.id === id)?.placements?.some((pl: any) => pl.clip === c.id)).reduce((a: number, c: any) => a + (c.notes?.length ?? 0), 0);
@@ -97,6 +111,6 @@ const r = await p.evaluate(async () => {
 });
 const f2 = (x: number) => x.toFixed(2);
 const fr = (x: any) => `mean ${f2(x.mean)} p95 ${f2(x.p95)} max ${f2(x.max)} >20 ${x.over20}`;
-console.log(`open ${f2(openMs)}  |  ` + Object.entries(r).map(([k, v]) => `${k} ${typeof v === "number" ? f2(v) : fr(v)}`).join("  |  "));
+console.log(`open ${f2(openMs)}  |  ` + Object.entries(r).map(([k, v]) => `${k} ${typeof v === "number" ? f2(v) : typeof v === "string" ? v : fr(v)}`).join("  |  "));
 await b.close();
 await s.stop();

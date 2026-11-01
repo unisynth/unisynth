@@ -360,7 +360,8 @@ const curVal = (d, name) => devst.autoValue(d.values, name) ?? vget(d, ip(name))
 // engine update (structural parameters rebuild the device there). ----
 const status = document.createElement("div"); status.className = "rack-status"; status.setAttribute("aria-live", "polite");
 function INST() { return TABLES.find(t => t.kind === 64); }
-function ip(name) { return INST().params.find(p => p.name === name); } // hoisted: fmtVal may run before this line
+// by name from a map built on first use (on the function: ip is hoisted, fmtVal may run before this line, so no `let`)
+function ip(name) { return (ip.map ??= new Map(INST().params.map(p => [p.name, p]))).get(name); }
 function vget(d, p) { return d.values[p.name] ?? p.default; }
 /** An envelope `law` value plays the Tunefish rate law (its option, by stored position: the law gained V2's kind). */
 function envRate(v) { const o = ip("env1.law").options; return o[choice(v, o.length)] === "Rate"; }

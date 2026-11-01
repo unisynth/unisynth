@@ -9,8 +9,8 @@ const BASELINE = 97;
 const BASELINE = 96;
 
 /** Assignment targets that are DOM, canvas, engine, view or local state, not the song model (`store[…]` in the knob
- * is `d.values`: counted). */
-const NOT_MODEL = /^(el|e|b|k|h|g|box|btn|lane|li|s|ph|ph2|cursorEl|shade|keys|grid|gridc|velc|ah|al|nb|m|i|o|wrap|row|dlg|d\.close|document|window|location|navigator|liveCost|status|ctx|x\.style|style|v|LOOP|E|av|peaks|fre|fim|taps|out|db|mono|labels|old|drag|aDrag|rDrag|ccDrag|clipboard|laneVals|previewSrc|vf|pr)\b|\.(style|textContent|innerHTML|innerText|hidden|value|className|title|tabIndex|width|height|scroll\w*|dataset|on\w+|disabled|checked|selectedIndex|href|download|src|_\w+)\b/;
+ * is `d.values`: counted; `ip.map` is a cache on the function). */
+const NOT_MODEL = /^(ip|el|e|b|k|h|g|box|btn|lane|li|s|ph|ph2|cursorEl|shade|keys|grid|gridc|velc|ah|al|nb|m|i|o|wrap|row|dlg|d\.close|document|window|location|navigator|liveCost|status|ctx|x\.style|style|v|LOOP|E|av|peaks|fre|fim|taps|out|db|mono|labels|old|drag|aDrag|rDrag|ccDrag|clipboard|laneVals|previewSrc|vf|pr)\b|\.(style|textContent|innerHTML|innerText|hidden|value|className|title|tabIndex|width|height|scroll\w*|dataset|on\w+|disabled|checked|selectedIndex|href|download|src|_\w+)\b/;
 
 export function countModelWrites(src: string): { n: number; lines: string[] } {
   const lines: string[] = [];

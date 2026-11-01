@@ -134,13 +134,13 @@ interface GroupOpts { cols: number; labels?: Record<string, string>; pre?: () =>
 /** A group panel: title, choice controls in its header row, knobs below; optional screen (`pre`) and slot chrome. */
 function PGroup(p: { t: Track; d: Device; title: string; ps: () => Param[]; o: GroupOpts }): JSX.Element {
   const { t, d } = p, o = p.o, isChoice = (x: Param) => x.law === "Index" || x.options.length > 0 || !!x.raw;
-  const pre = createMemo(() => o.pre?.() ?? null);
-  // the screen follows the values its drawing reads (D4: drawing stays imperative)
-  createEffect(() => { const el = pre(); if (el?._draw) { el._draw(); markLiveDirty(); } });  // a redraw drops the overlay
-  const s0 = o.slot;  // screens carry per-voice overlays (ui/device/live.ts) while mounted
-  createEffect(() => { const el = pre(); if (el && s0 && el.matches("svg.scr, svg.env")) { el.setAttribute("data-live", `${s0.g}${s0.i}`); onCleanup(registerLive(el, `${s0.g}${s0.i}`)); } });
   const s = o.slot, key = s && `${t.id}:${s.g}${s.i}`, used = () => !!s && A.slotUsed(d, s.g, s.i);
   const closed = () => !!s && !(slotOpenOf(key!) ?? used());
+  const pre = createMemo(() => closed() ? null : untrack(() => o.pre?.() ?? null));  // built only while open
+  // the screen follows the values its drawing reads (D4: drawing stays imperative)
+  createEffect(() => { const el = pre(); if (el?._draw) { el._draw(); markLiveDirty(); } });  // a redraw drops the overlay
+  // screens carry per-voice overlays (ui/device/live.ts) while mounted
+  createEffect(() => { const el = pre(); if (el && s && el.matches("svg.scr, svg.env")) { el.setAttribute("data-live", `${s.g}${s.i}`); onCleanup(registerLive(el, `${s.g}${s.i}`)); } });
   const title = s ? `${SLOT_NOUN[s.g]} ${s.i}` : p.title;
   const routes = () => s && (s.g === "env" || s.g === "lfo") ? (s.g === "env" && s.i === 1 ? ["amplitude"] : A.routesOf(d, s.g, s.i)) : null;
   const knobs = () => p.ps().filter((x) => x && !isChoice(x)), choices = () => p.ps().filter((x) => x && isChoice(x));
@@ -158,11 +158,14 @@ function PGroup(p: { t: Track; d: Device; title: string; ps: () => Param[]; o: G
       </Show>
     </div>
     <Show when={routes()}>{(r) => <div class="rt">{r().length ? `→ ${r().join(", ")}` : "unrouted · knobs inactive"}</div>}</Show>
-    {pre()}
-    <Show when={knobs().length}>
-      <div class="knobs" style={{ "--cols": o.cols }}>
-        <For each={knobs()}>{(x) => <PCtl t={t} d={d} p={x} label={o.labels?.[x.name]} />}</For>
-      </div>
+    {/* a collapsed slot renders only its header (D5) */}
+    <Show when={!closed()}>
+      {pre()}
+      <Show when={knobs().length}>
+        <div class="knobs" style={{ "--cols": o.cols }}>
+          <For each={knobs()}>{(x) => <PCtl t={t} d={d} p={x} label={o.labels?.[x.name]} />}</For>
+        </div>
+      </Show>
     </Show>
   </div>;
 }
@@ -172,7 +175,7 @@ function Block(p: { k: string; label: string; count: () => string; children: JSX
   return <div class="blk" classList={{ closed: closed() }} data-k={p.k} role="group" aria-label={p.label}>
     <div class="blk-h"><button class="tw" aria-expanded={!closed()} aria-label={`${closed() ? "Expand" : "Collapse"} ${p.label}`} onClick={() => setBlockClosed(p.k, !closed())}>{closed() ? "▸" : "▾"}</button>
       <span>{p.label}</span><span class="cnt num">{p.count()}</span></div>
-    <div class="blk-list">{p.children}</div>
+    <Show when={!closed()}><div class="blk-list">{p.children}</div></Show>
   </div>;
 }
 
@@ -189,12 +192,11 @@ function Instrument(p: { t: Track; d: Device }): JSX.Element {
       return [A.ip(`osc${i}.type`), ...OSC_COMMON.map((f) => A.ip(`osc${i}.${f}`)), ...ks.map((k) => A.ip(`osc${i}.s${k}`)), ...(ty() === 4 ? [A.ip(`osc${i}.sample`)] : [])];
     }));
     // the screen: a waveform drawing, or the sampler block (6.3)
-    const pre = createMemo(() => { const k = ty(); return k === 4 ? untrack(() => <Sampler t={t} d={d} i={i} a={A} /> as HTMLElement) : k ? untrack(() => A.screen(t, d, "osc", i)) : null; });
+    const pre = () => { const k = ty(); return k === 4 ? <Sampler t={t} d={d} i={i} a={A} /> as HTMLElement : k ? A.screen(t, d, "osc", i) : null; };
     return <Show when={ty() + 1} keyed>{(_k) => <PGroup t={t} d={d} title={`Osc ${i}`} ps={ps} o={{ cols: 6, get labels() { return labels(); }, pre, slot: { g: "osc", i } }} />}</Show>;
   };
   const card = (g: "filt" | "env" | "lfo", i: number, names: string[], cols: number) => {
-    const scr = untrack(() => A.screen(t, d, g, i));
-    return <PGroup t={t} d={d} title={`${SLOT_NOUN[g]} ${i}`} ps={() => P(names)} o={{ cols, pre: () => scr, slot: { g, i } }} />;
+    return <PGroup t={t} d={d} title={`${SLOT_NOUN[g]} ${i}`} ps={() => P(names)} o={{ cols, pre: () => A.screen(t, d, g, i), slot: { g, i } }} />;
   };
   return <div class="devbox" classList={{ byp: !!d.bypass }} aria-label="Instrument">
     <h3>Unisynth <span class="kind">kind 64 · preset {d.preset || "init"}{d._edited ? "*" : ""}</span><span class="vox" role="group" aria-label="Sounding voices">
