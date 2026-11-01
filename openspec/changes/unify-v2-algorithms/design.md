@@ -437,8 +437,8 @@ the contract "every song migrates, sound within tolerance, old versions rejected
   a split"): the
   slope lane splits into `curve_slope` and `sustain_slope` by the law in force at each point.
 - **Quirk survey.** Candidates are split first (`integer_fm` from `exact_math`; DC bias from the DC filters). A quirk is
-  kept when clearing it moves a song past the drift thresholds against the quirk-on render, or past the parity
-  tolerance where an original render exists. The integer-FM scenario follows the survey's result.
+  kept when clearing it takes a song outside the parity tolerance (against the original render where one exists, else
+  against the quirk-on render). The integer-FM scenario follows the survey's result.
 - **Size.** Contract: no squishy growth for songs that don't use the new settings. Defaults are chosen so that
   reference songs store no new pairs: `curve` gains the option "by law" (value 0, the default constant: quadratic for
   seconds, power for rate, exponential for frame), filter `response` likewise "the type's own". The freeze is gated on a squishy probe of the reference
@@ -461,8 +461,10 @@ across a split"; the effect-chunk version requirement. Folded into tasks: effect
 the full converter list, the DAW's lane fallback to `filt1.cutoff`, renumbering after quirks drop, lane fan-out at the
 old lane's times, re-running the corpus lane check after the merge.
 
-Open for the user: one switch commit (6.5–6.8) or a player that reads both layouts for a transition; the quirk
-keep threshold (parity tolerance as the spec says, or the stricter drift thresholds); the baked-path exemption.
+Decided by the user (2026-11-01, "go on" on the recommendations): the switch lands as one commit (6.5–6.8 are its
+checkpoints), not a player reading both layouts; a quirk is kept when clearing it takes a song outside the parity
+tolerance (the spec's rule; songs that only cross the D7.3 drift thresholds are listed for listening); the baked
+(trusted) path is exempt from the version and truncation checks.
 
 ## Risks / Trade-offs
 

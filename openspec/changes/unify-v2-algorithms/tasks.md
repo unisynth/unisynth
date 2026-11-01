@@ -47,8 +47,8 @@ separate commits; 6.5–6.8 are checkpoints of one switch commit (each needs a p
   template, listed with its hash
 - [ ] 6.3 Quirk survey before the freeze (was 7.1): split the candidates (`integer_fm` apart from `exact_math`, DC bias
   apart from the DC filters), clear each in turn through `era_settings`, render the V2 parity set and every tracked V2
-  song. Keep a quirk when clearing it moves a song past the D7.3 thresholds against its quirk-on render, or past the
-  parity tolerance where an original render exists. Write the quirk table (flag, what it reproduces, source, format
+  song. Keep a quirk when clearing it takes a song outside the parity tolerance (against the original render where one
+  exists, else against its quirk-on render); songs that only cross the D7.3 thresholds are listed for listening. Write the quirk table (flag, what it reproduces, source, format
   versions, songs that set it, songs that move without it) to `docs/synth/unisynth.md` and `research/v2-synth.md`.
   Verify: "Quirk table" scenario; each kept quirk lists at least one song that moves without it
 - [ ] 6.4 Freeze the v3 layout: index map with the kept quirks only (renumbered), `DEFAULTS[COUNT]` (curve "follows law", filter
