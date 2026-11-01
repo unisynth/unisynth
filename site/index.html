@@ -715,7 +715,7 @@ pills.forEach((b, i) => b.addEventListener('click', () => setType(i, true)));
 const ph = document.getElementById('phosphor'), word = document.querySelector('.word'); const t0 = performance.now();
 const meters = [...document.querySelectorAll('.ch .meter i')];
 function hero(now) {
-  const [x, w, h] = fit(ph), t = (now - t0) / 1000;
+  const [x, w, h] = fit(ph), t = Math.max(0, now - t0) / 1000;
   if (auto && !reduce) { const i = Math.floor(t / 3.5) % 6; if (i !== type) setType(i); }
   x.globalCompositeOperation = 'destination-out'; x.fillStyle = 'rgba(0,0,0,0.2)'; x.fillRect(0, 0, w, h); x.globalCompositeOperation = 'source-over';
   const f = SHAPES[type], wr = word.getBoundingClientRect(), cy = wr.top - ph.getBoundingClientRect().top + wr.height * .5, amp = Math.min(h * .2, wr.height * .55), cyc = w < 700 ? 2 : 3.5;
