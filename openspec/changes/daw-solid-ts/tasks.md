@@ -247,6 +247,10 @@ before → `AGENTS.md` rows → land on `main`.
   - [x] step 2: `ui/app/session.ts` (engine, api, song store, selection as live bindings + setters) and
     `ui/app/core.ts` (say, history, snap/commit/undo/redo/restore with hooks). Shared app.js state moves the same way
     in later steps: an exported `let` plus a setter, so reads stay unchanged. 158/158 twice, bench unchanged.
+  - [x] steps 3–4 (together: the clock reads the transport state every frame): `ui/app/transport.ts` (length,
+    playhead, loop, play, follow hold; position maths reuse the transport store's) and `ui/app/engine.ts` (push,
+    play/stop/seek, frame clock, meters, load, drops, buffer, open filters; hooks into the arrangement). Ruler and loop
+    strip DOM stay for step 5. 161/161 twice, bench unchanged on both songs.
 - [ ] 9.2 Integration check of the spec budgets on the 50-track song: bench every scenario against the step-3
   baseline, "Edit response budget" and "Playback display budget" as browser tests. Verify: `/daw/` from `serve`,
   `/dsp` static build loads and bounces, hot-reload dev loop works.

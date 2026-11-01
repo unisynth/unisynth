@@ -2,6 +2,8 @@
 import { raw } from "./ui/state/song.ts";
 import { api, armed, E, initSession, master, selected, setArmed, setSelected, song, tracks } from "./ui/app/session.ts";
 import { commit, H, initCore, lastSaid, redo, restore, say, snap, undo } from "./ui/app/core.ts";
+import { BARS, barsPerSec, beatsPerBar, fmtBars, followHold, holdFollow, LOOP, loopOn, PAD_BARS, playing, resumeFollow, setBars, setLoopOn, setPos, sig, SONG_POS } from "./ui/app/transport.ts";
+import { audible, ensureAudio, initEngine, livePush, liveLoop, onBuffer, onOpenFilters, pushSong, seek, setPlay, setSongMeta, songOf, stopPressed, unloadLive } from "./ui/app/engine.ts";
 import * as liveState from "./ui/state/live.ts";
 import * as tr from "./ui/state/transport.ts";
 import { mountTransport } from "./ui/transport/TransportBar.tsx";
@@ -33,13 +35,13 @@ import { b64ToBytes, bytesToB64, gmInstrument } from "./ui/model/bytes.ts";  // 
 // engine (AudioWorklet + synth-wasm live host), device panels generated from the engine's parameter tables and
 // /api/music. Started by main.ts with { engine, model, api, tables, initial, files, library }.
 export function start(DAW) {
-let BARS = 32, BW = 44; const PAD_BARS = 8;  // song length grows; the view shows 8 bars past the end
-let SONG_POS = 1; const LOOP = [1, 5], laneVals = [];  // transport: playhead (bars, 1-based), loop range
+let BW = 44;  // arrangement px per bar (song length, playhead, loop: ui/app/transport.ts)
+const laneVals = [];
 let CAT = null;  // library catalog (/api/library)
 initSession(DAW);  // engine, api, song store proxies, selection (ui/app/session.ts)
 const M = DAW.model, TABLES = DAW.tables;
 const st0 = DAW.initial;
-BARS = st0.bars; LOOP[1] = Math.min(BARS, 4) + 1;
+setBars(st0.bars); LOOP[1] = Math.min(BARS, 4) + 1;
 // ---- device tables (design D8): every device's parameters come from the engine module (ui/model/params.ts) ----
 initParams(TABLES, (k, m, i, p) => E.physical(k, m, i, p));
 const senders = t => tracks.filter(x => x.sends.some(s1 => s1[0] === t.name));
@@ -1110,16 +1112,12 @@ mountSplitter(document.getElementById("split-h-slot"), { id: "split-h", label: "
 
 // ===== Transport: song length, loop, seek, playback (clock + meters + a small WebAudio preview voice per track) =====
 function onTempo(v) { tr.setTempo(v); showPos(); say(`tempo ${v} BPM`); dirtyUpd(); livePush(); }
-// Time signature: beats per bar in the signature's unit (7/8 → 7 eighths); one quarter = 960 ticks.
-const sig = () => tr.sig().split("/").map(Number), beatsPerBar = () => sig()[0], quartersPerBar = () => sig()[0] * 4 / sig()[1];
-const fmtPos = b => { const n = beatsPerBar(), t = Math.max(0, b - 1) * n, beat = Math.floor(t); return `${1 + Math.floor(beat / n)}.${1 + beat % n}.${Math.floor((t - beat) * 960 * 4 / sig()[1])}`; };
 function onSig(v) { tr.setSig(v); document.documentElement.style.setProperty("--beats", beatsPerBar()); showPos(); dirtyUpd(); say(`time signature ${v}: beat grid and positions follow; the piano roll keeps 16 steps per bar`); }
-const fmtBars = b => +b.toFixed(2);
 const afterEl = Object.assign(document.createElement("div"), { className: "after-end" }); lanes.append(afterEl);
 // Grow the song to cover the last clip (never shrinks by itself).
 function fitSong(quiet) {
   const end = Math.max(1, ...tracks.flatMap(t => t.clips.map(c => c.start + c.len))), need = Math.ceil(end - 1 - 1e-9);
-  if (need > BARS) { BARS = need; relayout(); if (!quiet) say(`${lastSaid()} · song extended to ${BARS} bars`); }
+  if (need > BARS) { setBars(need); relayout(); if (!quiet) say(`${lastSaid()} · song extended to ${BARS} bars`); }
 }
 function relayout() {
   const W = (BARS + PAD_BARS) * BW;
@@ -1133,7 +1131,7 @@ function relayout() {
 }
 function onLength(v) {
   const last = Math.ceil(Math.max(1, ...tracks.flatMap(t => t.clips.map(c => c.start + c.len))) - 1 - 1e-9);
-  if (v < last) { BARS = last; say(`length kept at ${last} bars: clips reach bar ${last + 1}`); } else { BARS = v; say(`song length ${v} bars`); }
+  if (v < last) { setBars(last); say(`length kept at ${last} bars: clips reach bar ${last + 1}`); } else { setBars(v); say(`song length ${v} bars`); }
   relayout();
 }
 // Loop: top strip of the ruler. Drag the bar to move, its edges to resize, empty strip to draw a new loop.
@@ -1150,7 +1148,7 @@ function updateLoop(msg) {
   if (msg) say(msg);
   if (typeof liveLoop === "function") liveLoop();
 }
-let loopOn = false, lDrag = null;  // loop off by default: playback runs through the song (L or ⟲ turns it on)
+let lDrag = null;
 const rbar = e => 1 + (e.clientX - ruler.getBoundingClientRect().left) / BW;
 ruler.addEventListener("pointerdown", e => {
   ruler.setPointerCapture(e.pointerId); const b1 = rbar(e), top = e.clientY - ruler.getBoundingClientRect().top < 10;
@@ -1159,7 +1157,7 @@ ruler.addEventListener("pointerdown", e => {
   const mode = Math.abs(x - x0) < 6 ? "a" : Math.abs(x - x1) < 6 ? "b" : x > x0 && x < x1 ? "move" : "new";
   lDrag = { mode, b0: b1, a: LOOP[0], b: LOOP[1], anchor: snapBar(b1) };
   if (mode === "new") { LOOP[0] = LOOP[1] = lDrag.anchor; }
-  loopOn = true; updateLoop();
+  setLoopOn(true); updateLoop();
 });
 ruler.addEventListener("pointermove", e => {
   const b1 = rbar(e);
@@ -1182,18 +1180,12 @@ lp.addEventListener("keydown", e => {
 function onLoopText(str) {
   const m = str.match(/(\d+(?:\.\d+)?)\s*[–\-—,: ]+\s*(\d+(?:\.\d+)?)/);
   if (!m || +m[1] < 1 || +m[2] <= +m[1]) { say("loop: type start – end in bars, e.g. 5 – 13"); return false; }
-  LOOP[0] = +m[1]; LOOP[1] = +m[2]; loopOn = true; updateLoop(`loop ${fmtBars(LOOP[0])} – ${fmtBars(LOOP[1])}`); return true;
+  LOOP[0] = +m[1]; LOOP[1] = +m[2]; setLoopOn(true); updateLoop(`loop ${fmtBars(LOOP[0])} – ${fmtBars(LOOP[1])}`); return true;
 }
-const toggleLoop = () => { loopOn = !loopOn; updateLoop(loopOn ? "loop on" : "loop off"); };
+const toggleLoop = () => { setLoopOn(!loopOn); updateLoop(loopOn ? "loop on" : "loop off"); };
 const loopSelection = () => { const cs = selClips(); if (!cs.length) return say("select clips to loop them");
-  LOOP[0] = Math.min(...cs.map(x => x.c.start)); LOOP[1] = Math.max(...cs.map(x => x.c.start + x.c.len)); loopOn = true; updateLoop(`loop set to the selection ${fmtBars(LOOP[0])} – ${fmtBars(LOOP[1])}`); };
+  LOOP[0] = Math.min(...cs.map(x => x.c.start)); LOOP[1] = Math.max(...cs.map(x => x.c.start + x.c.len)); setLoopOn(true); updateLoop(`loop set to the selection ${fmtBars(LOOP[0])} – ${fmtBars(LOOP[1])}`); };
 // Follow pauses when the user scrolls or zooms a view by hand (Ableton's rule); ⇥/F, play or a ruler click resume it.
-let followHold = false;
-function holdFollow() {
-  if (followHold || !playing || !tr.follow()) return;
-  followHold = true; tr.setFollowHeld(true); say("follow paused while you look around · F resumes");
-}
-function resumeFollow() { followHold = false; tr.setFollowHeld(false); }
 function toggleFollow() {
   if (followHold) { resumeFollow(); tr.setFollow(true); say("follow resumed"); showPos(); return; }
   tr.setFollow(!tr.follow()); resumeFollow();
@@ -1211,12 +1203,8 @@ function toggleMuteSolo(t, solo) {
   if (!solo) setTimeout(() => commit(before, `${name} ${t.mute ? "muted" : "unmuted"}`));
   say(`${name} ${solo ? (t.solo ? "soloed" : "unsoloed") : (t.mute ? "muted" : "unmuted")}`); livePush();
 }
-// Audible = not muted, and soloed, a send source of a soloed track, or a bus it sends to when any solo is on (model.ts).
-const audible = t => M.audible(tracks, t);
 
 // Clock. Position in bars; 4/4 at the tempo field. The loop wraps when the playhead reaches its end.
-let playing = false, lastT = 0, raf = 0;
-const barsPerSec = () => (tr.tempo() || 128) / 60 / quartersPerBar();
 function moveRollPh() {
   const el = rollEls?.rollPh; if (!el) return; if (!rollClip) { el.hidden = true; return; }
   let x = songStep(SONG_POS); if (rollClip.loop && x >= 0 && x < rollClip.len * 16) x %= rollLen; const hide = x < 0 || x > rollLen; if (el.hidden !== hide) el.hidden = hide; el.style.transform = `translateX(${x * STEP}px)`;
@@ -1320,41 +1308,15 @@ function tick(now) {
   SONG_POS = b; if (recOn && recHold) recordPoint(recHold.t, recHold.d, recHold.p, curVal(recHold.d, recHold.p.name)); showPos(); applyAutomation(); laneTick(now);
   raf = requestAnimationFrame(tick);
 }
+// Engine link (ui/app/engine.ts): a seek and every playing frame refresh the arrangement, automation and recording.
+initEngine({
+  showPos: () => showPos(),
+  seeked: () => { applyAutomation(); laneVals.forEach(l => l.val()); },
+  frame: now => { if (recOn && recHold) recordPoint(recHold.t, recHold.d, recHold.p, curVal(recHold.d, recHold.p.name)); showPos(); applyAutomation(); laneTick(now); },
+});
 let lastLane = 0;
 function laneTick(now) { if (now - lastLane < 100) return; lastLane = now; laneVals.forEach(l => l.val());
   for (const t of tracks) laneEl.get(t.id)?.querySelectorAll(".clip").forEach(el => el.classList.toggle("playing", SONG_POS >= el._clip.start && SONG_POS < el._clip.start + el._clip.len)); }
-// Meters: per-track peaks from the engine (master last), falling 20 dB/s.
-const lvl = {};
-let loadShown = -1, loadAvg = 0;  // engine load: mean render time per real time, averaged over about 0.5 s
-// Audio drops: the browser's count of output underruns (silence played because samples came late), counted from
-// the last Play, with the song positions where new ones appeared (the counter updates about once a second).
-// The first 1.5 s after Play are not counted: a just-started output often underruns once before any sound, and the
-// browser updates the counter about once a second.
-let dropBase = null, dropSeen = 0, dropWhere = [], dropFrom = 0;
-function dropsReset() { dropBase = E.drops(); dropSeen = 0; dropWhere = []; dropFrom = performance.now() + 1500; dropsShow(0, 0); }
-function dropsCheck() {
-  if (!playing) return;
-  const d = E.drops(); if (!d) return;
-  if (!dropBase || d.events < dropBase.events || performance.now() < dropFrom) dropBase = d;  // start-up; a new context starts from zero
-  const n = d.events - dropBase.events;
-  if (n > dropSeen) { dropWhere.push(fmtPos(SONG_POS)); if (dropWhere.length > 8) dropWhere.shift(); dropSeen = n; }
-  dropsShow(n, d.seconds - dropBase.seconds);
-}
-function dropsShow(n, sec) {
-  if (!E.drops()) return tr.setDrops(null);
-  tr.setDrops({ n, title: n ? `Audio drops since Play: ${n}, ${Math.round(sec * 1000)} ms of silence, at ${dropWhere.join(", ")}${dropWhere.length >= 8 ? " (last 8)" : ""}. Raise Buffer, or close other heavy programs.`
-    : "Audio drops since Play: none (the sound card always got its samples in time)" });
-}
-function setLoad(v) { if (v === loadShown) return; loadShown = v; liveState.setLoad(v); }
-let meterAt = performance.now();
-function meters(st) {
-  const now = performance.now(), dt = Math.min(.2, (now - meterAt) / 1000); meterAt = now;
-  [...tracks, master].forEach((t, i) => {
-    const id = t.id, pk = [st.peaks[2 * i] || 0, st.peaks[2 * i + 1] || 0], cur = lvl[id] || [0, 0];
-    const v = pk.map((p, c) => { const x = Math.max(Math.min(1, p), cur[c] * Math.pow(10, -dt)); return x < 1e-3 ? 0 : x; }); lvl[id] = v;
-    liveState.setPeak(id, v[0], v[1]);  // publishes only a visible change (liveState.PEAK_STEP)
-  });
-}
 relayout(); updateLoop(); showPos();
 queueMicrotask(() => updateArmed());
 
@@ -1430,14 +1392,14 @@ function dirtyUpd() {
 // Puts a song/2 source into the editor (undo history cleared).
 function useSong(s, file, saved) {
   if (playing) setPlay(false);
-  const st = M.fromSong(s), d = JSON.parse(snap()); songMeta = st.meta; songLen0 = st.length0;
+  const st = M.fromSong(s), d = JSON.parse(snap()); setSongMeta(st.meta, st.length0);
   d.tracks = st.tracks; d.sel = (st.tracks.find(t => !t.bus) || st.tracks[0])?.id ?? "master"; d.armed = st.tracks.find(t => t.devices.some(x => x.kind === 64))?.id;
   Object.keys(master).forEach(k => delete master[k]); Object.assign(master, st.master);
   tr.setTempo(st.tempo); const v = st.sig.join("/"); tr.ensureSig(v); document.documentElement.style.setProperty("--beats", beatsPerBar());
-  BARS = st.bars; LOOP[0] = 1; LOOP[1] = Math.min(BARS, 4) + 1;
+  setBars(st.bars); LOOP[0] = 1; LOOP[1] = Math.min(BARS, 4) + 1;
   restore(JSON.stringify(d));
   H.clear(); songFile = file; files.setSongFile(file); files.addSong(file); savedDepth = 0; savedAt = saved ? new Date() : null;
-  relayout(); updateLoop(); SONG_POS = 1; showPos(); fitSong(true); if (saved) markSaved(); else savedId = -1; liveLoaded = false; livePush(); dirtyUpd();
+  relayout(); updateLoop(); setPos(1); showPos(); fitSong(true); if (saved) markSaved(); else savedId = -1; unloadLive(); livePush(); dirtyUpd();
 }
 // A song file as the current layout: a song/1 file migrates (the engine's `song_migrate`), song/2 as it is.
 function songText(text) {
