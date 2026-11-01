@@ -185,3 +185,4 @@ song's own quirk-on render otherwise. Kept: a song leaves the parity tolerance w
 | `fixed_seed` | noise seeds start at 0 | 0–5 | 311 | 1: a keygen tune (−3.33 dB in one band) | keep |
 | `boxed_osc` | 4× box-averaged naive saw and pulse | 0–2 | 9 | none; none past the listening thresholds either | dropped |
 | `dc_bias` | the channel strip's and the 7-bit effects' denormal bias | 6 | 36 | none; none past the listening thresholds either | dropped |
+| `filter bias` | the feedback and 4-pole forms' denormal bias (every version; the drive's filter modes too) | 0–6 | 347 | none; none past the listening thresholds either (checked at the freeze, task 6.4) | dropped |

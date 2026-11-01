@@ -124,6 +124,9 @@ provenance table in `docs/synth/unisynth.md`.
 
 ## D4 results: the new layout (task 1.2, revised after doubt-driven review)
 
+*Superseded where they differ by "v3 layout (frozen, task 6.4)" below (no filter response or bias fields, five
+quirks, COUNT 294).*
+
 Names: `crates/unisynth/src/params/rename.rs` maps every old index to its new name (`""` = removed). Names change where
 the name was source-flavoured (`v2.*`, `vdist.*`, `ch.*`, `eg`) or where the meaning changes (`envN.mode` → `law`, the
 mode is split into law + curve). Every other parameter keeps its song-file name. The target index map applies at the
@@ -494,6 +497,121 @@ profile. `integer_fm` was split from `exact_math`, and the denormal bias from th
 - **Layout:** the quirk block shrinks from 7 to 5 indices at the freeze (6.4). The effect `dc_bias` field of D4 is
   not needed; the Cut EQ's DC filter stays a setting.
 - Table: `docs/synth/unisynth.md` (Quirks) and `research/v2-synth.md` §6.
+
+## v3 layout (frozen, task 6.4, 2026-11-01)
+
+This supersedes the D4 draft above where they differ. Data and code: `research/unify-v3-layout/` (`v3-layout.tsv`
+the index map, `layout.py` the reference migration old → v3, `pairs.tsv` the pair counts, `probe.sh` the gate).
+Task 6.5's Rust migration must give the same pairs as `layout.py` for every tracked song.
+
+**Changes from the draft**, each measured:
+- **No filter `response` field.** The filter type keeps the response (`state-variable low`, …), so reference songs
+  store no extra pair for a high-pass or band-pass (the draft's "the type's own" default needed the type to carry it
+  anyway). Forms and law stay free settings.
+- **No filter `bias` field.** Clearing the filters' DC bias (`--cfg us_quirk_off="filter_bias"`, the 6.3 tool) moved no
+  V2 song past even the listening thresholds, and the player flushes denormals (`synth-core` guard). It is deleted
+  from the code (`flt.rs`, so the drive's filter modes too) like `dc_bias` in 6.3. After the deletion: workspace tests,
+  feature builds, bake 7/7, V2 parity 18/18 with drift ≤ 0.08 dB, goldens unchanged. The 4-pole `clip` and `steps` of the
+  draft are the filter's `form` and `oversample` fields (one meaning per algorithm).
+- **Quirks:** five (6.3), in the one-byte range before the strip, and written only where their code is reached:
+  `exact_math` with a sine or FM generator or an overdrive (voice or strip drive), `integer_fm` with an FM generator,
+  `lcg_noise` and `fixed_seed` with a noise generator, `coarse_env` with a frame-law envelope.
+- **Byte placement:** CC2–7 (set by no tracked song) move to the two-byte range; the strip's ten most-set fields take
+  the one-byte room. Quirks (3,779 pairs over the V2 songs) beat the strip fields they displace (612).
+- **Discrete fields are plain choices.** Keysync, routing, polarity, one-shot and LFO sync were 7-bit raw values; the
+  LFO sync gains the frame law's "continue". Effect modes are plain `Choice(n)` too (the chunk is tagged).
+
+**Index map (COUNT 294; one-byte indices 0–239).**
+
+| block | indices | fields |
+|---|---|---|
+| voice | 0–15 | master, pan, capacity, steal, unison, uni_detune, uni_spread, mode, slide, glide, transpose, velocity, start_spread, one_shot, noise_level, env1_at_output |
+| voice settings | 16–22 | amp_source (full, envelope 1 only), pan_stage (per slot, after drive), dc_filter (off, on), law (semitones, 7-bit steps), keysync (free, oscillators, full reset), routing (serial, parallel), balance (steps, default 0.5) |
+| osc 1–3 | 23–97, 25 each | type, tracking, coarse, fine, octave, ratio, ratio_fine, fixed_hz, gain, mix, pan, pm_out, feedback, s0–s8, sample (raw), combine (add, multiply, replace), law (unisynth, 7-bit steps) |
+| noise | 98–101 | band_on, hp, lp, width |
+| filter 1–4 | 102–125, 6 each | type, cutoff, resonance, form (input / feedback resonance; 4-pole: feedback before / after the clip), oversample (interpolated / held; 4-pole: 1 / 2 steps), law (Hz, 7-bit steps) |
+| env 1–4 | 126–161, 9 each | law (seconds, rate, frame), attack, decay, sustain, release, curve (by law, quadratic, power, exponential), curve_slope, sustain_slope (steps, 0.5 = flat), amplify (steps, 1) |
+| LFO 1–2 | 162–177, 8 each | shape, rate, depth, sync (song time, continue, restart; default restart), law (Hz, frame), phase (steps), polarity (positive, negative, bipolar), one_shot |
+| mod 1–10 | 178–217 | source, target, amount, operation |
+| controllers | 218–220 | wheel, bend, bend_range |
+| drive | 221–224 | mode, gain, p1, p2 |
+| quirks | 225–229 | exact_math, integer_fm, fixed_seed, lcg_noise, coarse_env (off, on) |
+| channel strip | 230–260 | on, volume, drive_mode, drive_gain, drive_p1, drive_p2, send_reverb, send_delay, boost, order (one-byte to here), send_aux_a/b, recv_aux_a/b, dc_filter, chorus ×7, compressor ×9. One block: `is_channel` = an index in it |
+| mod 11–16 | 261–284 | as mod 1–10 |
+| controllers | 285–290 | cc2–cc7 |
+| speech | 291–293 | on, select, pitch |
+
+Choices: osc type `Choice(13)` (off, phase mod, saw/pulse, wavetable, sampler, naive saw/tri, naive pulse, sine,
+coloured noise, fm, aux in A, aux in B, clocked); filter type `Choice(11)` (off, state-variable low/high/band/notch,
+4-pole low, RBJ high/band, resonator notch, state-variable all-pass, 4-pole high); LFO shape `Choice(8)` (sine, ramp
+up, ramp down, square, random, triangle, sample-and-hold, pulse); mod source `Choice(17)`, operation `Choice(3)`, the
+same ids as today. Defaults: every new field 0 (its first option) except balance and sustain_slope 0.5, amplify 1,
+LFO sync restart; every kept field keeps its default. Old `voice.stage` and `voice.era` have no index.
+
+**Value rules** (old value → v3; `layout.py migrate` is the executable form):
+- *Voice:* `voice.stage` on → amp_source envelope 1, pan_stage after drive, voice law 7-bit, and dc_filter on at format
+  6. Keysync raw 0/1/2 → the choice, 2 → 1 below format 6. Routing raw 2 → parallel, else serial.
+- *Oscillator:* the naive generator's mode (`s0`) becomes the type (0 → off; FM below format 4 and aux in below 6 →
+  off); combine multiply if ring (`s2` bit 0), else replace for FM and aux in, else add; law 7-bit; `s0` and `s2` are
+  cleared. Clocked keeps its fields. The sample index moves in from 177–179. A route on a naive slot's `s0`/`s2` is a
+  named migration error (none exists).
+- *Filter:* SVF types → state-variable, input form, interpolated, Hz; the V2 types → state-variable with feedback form,
+  held, 7-bit; ladder → 4-pole low, feedback before the clip, one step, Hz; the Moog types → 4-pole low/high, after the
+  clip, two steps, 7-bit (off below format 6); RBJ and resonator keep their type.
+- *Envelope:* mode → law (seconds, rate, frame), curve "by law" (the default); slope → curve_slope, but on the frame
+  law → sustain_slope; amplify moves in.
+- *LFO:* the frame law's 7-bit shape → the union shape (`FRAME_SHAPES`; steps 5–7 → ramp up); sync: Hz law choice 0 →
+  song time, 1 → restart; frame law raw 0 → continue, else restart. Polarity raw 0/1/2 and one-shot raw ≠ 0 → choices.
+- *Mod:* source and operation re-encoded by id; targets unchanged (ids frozen; `PARAMS` entries are named constants and
+  follow the map, the envelope-slope entry → sustain_slope). Below format 5 a strip route on a voice source (env, LFO)
+  becomes an empty slot (the player skipped it).
+- *Strip:* fields move by name; dc_filter on when the strip is on at format 6.
+- *Quirks:* from the format version (the 6.3 table), each written only where its code is reached (above).
+- *Lanes:* by name to the new index. A lane on a re-encoded choice (types, laws, shapes, sync, polarity, one-shot,
+  keysync, routing, mod source/operation) is re-encoded point by point; a lane on `envN.slope` splits by the law in
+  force at each point; a lane on `voice.stage`/`voice.era` or a naive slot's `s0`/`s2` is a named error. The tracked
+  songs have none of these.
+- *Effect chunks:* the 4-byte trailer (ignored today; WaveSabre writes the size there) becomes the version tag
+  `0xFFFF_FF03` (`i32` −253, never a size); no extra byte. A checked player rejects a chunk whose length is not a multiple of
+  four or whose last four bytes are not the tag (old, unknown version or truncated: a cut chunk ends in a parameter, and the tag is a NaN, never a
+  value). Modes re-encode as `Choice(n)` of each kind's modes. The 7-bit modes lose `era`: cut EQ → `dc_filter` in its
+  place (on from format 6; default on), comb reverb at format < 4 → low cut 0, delay and compressor drop it (it only
+  set the bias).
+- Chunk version 1 → 3, 2 → 4; the samples and the speech text move over unchanged.
+
+**Kept as is (documented, not settings):** an envelope's instant 0 attack on a voice with a clocked slot (`env.rs`
+`instant`: the clocked source's behaviour, derived from the slot); the program-change cut, CC7 reset, speech routing
+and 256-frame event grid stay in the V2 converter (song events).
+
+**Gate results.**
+- *Pair counts* (`pairs.tsv`, every tracked song and patch):
+
+  | location | songs | instruments | pairs old → v3 | chunk bytes old → v3 | two-byte pairs (v3) |
+  |---|---:|---:|---|---|---:|
+  | `project/music` | 8 | 121 | 3,961 → 3,961 | 20,047 → 20,047 | 0 |
+  | `released` | 28 | 597 | 15,420 → 15,420 | 78,294 → 78,294 | 0 |
+  | `released/v2` | 347 | 4,100 | 329,555 → 348,648 (+5.8 %) | 1,693,351 → 1,779,128 (+5.1 %) | 27,688 |
+  | patches | 2 | 2 | 16 → 16 | 84 → 84 | 0 |
+
+  Every non-V2 song keeps exactly its pairs. V2 songs gain the explicit settings (filter form, oversample, law: 3 ×
+  6,271; osc law 9,544; voice amp source, pan stage, law: 3 × 4,100; quirks 3,779) and lose the old switches (`s0` mode
+  9,544, `voice.stage`, `voice.era`, 6,869 LFO sync pairs that are now the default).
+- *Squishy probe* (`probe.sh`: compo probe, the same player code built with each song's old bytes and with its v3 bytes
+  plus the 34 added defaults; the effect tag was simulated as an extra byte, so the real chunks are smaller):
+
+  | song | squishy old → v3 | xz old → v3 |
+  |---|---|---|
+  | global-groove | 14,336 → 14,336 | 16,256 → 16,280 |
+  | elysian | 45,568 → 45,568 | 53,792 → 53,864 |
+  | engage | 38,912 → 38,912 | 48,128 → 48,152 |
+  | eladamri | 31,744 → 31,744 | 39,340 → 39,328 |
+  | no-remorse | 23,552 → 23,552 | 28,496 → 28,476 |
+  | tf4testsong | 22,016 → 22,016 | 26,640 → 26,656 |
+  | turtles | 28,672 → 28,672 | 37,108 → 37,068 |
+  | V2 fr08 / brullwurfel / candytron | 35,328 / 28,672 / 35,840, unchanged | +188 / +40 / +140 |
+  | V2 kkrieger / debris / platinum | 32,256 / 38,912 → 39,424 / 31,232, unchanged except debris | +80 / +468 / −8 |
+
+  Gate passed: no reference song grows in squishy. The code that reads the new settings is measured at 6.8 (D7.6).
 
 ## Risks / Trade-offs
 

@@ -1,0 +1,260 @@
+0	master	Gain	0.25	master
+1	pan	Pan	0.5	pan
+2	capacity	Count(1, 64)	0.23809524	capacity
+3	steal	Choice(2)	1	steal
+4	unison	Count(1, 16)	0	unison
+5	uni_detune	Unit	0	uni_detune
+6	uni_spread	Unit	0.5	uni_spread
+7	mode	Choice(2)	0	mode
+8	slide	Time	0	slide
+9	glide	Time	0	glide
+10	transpose	Transpose	0.5	transpose
+11	velocity	Unit	1	velocity
+12	start_spread	Unit	1	start_spread
+13	one_shot	Choice(2)	0	one_shot
+14	noise_level	Gain	0	noise_level
+15	env1_at_output	Choice(2)	1	env1_at_output
+16	osc1.type	Kinds { old: 5, all: 7 }	0	osc1.type
+17	osc1.tracking	Choice(2)	0	osc1.tracking
+18	osc1.coarse	Coarse	0.5	osc1.coarse
+19	osc1.fine	Fine	0.5	osc1.fine
+20	osc1.octave	Octave	0.5	osc1.octave
+21	osc1.ratio	Ratio	0	osc1.ratio
+22	osc1.ratio_fine	RatioFine	0.5	osc1.ratio_fine
+23	osc1.fixed_hz	FixedHz	0	osc1.fixed_hz
+24	osc1.gain	Gain	0.25	osc1.gain
+25	osc1.mix	Unit	1	osc1.mix
+26	osc1.pan	Pan	0.5	osc1.pan
+27	osc1.pm_out	PmOut	0	osc1.pm_out
+28	osc1.feedback	Feedback	0	osc1.feedback
+29	osc1.s0	Shape	0	osc1.s0
+30	osc1.s1	Shape	0.5	osc1.s1
+31	osc1.s2	Shape	0	osc1.s2
+32	osc1.s3	Shape	0	osc1.s3
+33	osc1.s4	Shape	0	osc1.s4
+34	osc1.s5	Shape	0	osc1.s5
+35	osc1.s6	Shape	0	osc1.s6
+36	osc1.s7	Shape	0	osc1.s7
+37	osc1.s8	Shape	0	osc1.s8
+38	osc2.type	Kinds { old: 5, all: 7 }	0	osc2.type
+39	osc2.tracking	Choice(2)	0	osc2.tracking
+40	osc2.coarse	Coarse	0.5	osc2.coarse
+41	osc2.fine	Fine	0.5	osc2.fine
+42	osc2.octave	Octave	0.5	osc2.octave
+43	osc2.ratio	Ratio	0	osc2.ratio
+44	osc2.ratio_fine	RatioFine	0.5	osc2.ratio_fine
+45	osc2.fixed_hz	FixedHz	0	osc2.fixed_hz
+46	osc2.gain	Gain	0.25	osc2.gain
+47	osc2.mix	Unit	1	osc2.mix
+48	osc2.pan	Pan	0.5	osc2.pan
+49	osc2.pm_out	PmOut	0	osc2.pm_out
+50	osc2.feedback	Feedback	0	osc2.feedback
+51	osc2.s0	Shape	0	osc2.s0
+52	osc2.s1	Shape	0.5	osc2.s1
+53	osc2.s2	Shape	0	osc2.s2
+54	osc2.s3	Shape	0	osc2.s3
+55	osc2.s4	Shape	0	osc2.s4
+56	osc2.s5	Shape	0	osc2.s5
+57	osc2.s6	Shape	0	osc2.s6
+58	osc2.s7	Shape	0	osc2.s7
+59	osc2.s8	Shape	0	osc2.s8
+60	osc3.type	Kinds { old: 5, all: 7 }	0	osc3.type
+61	osc3.tracking	Choice(2)	0	osc3.tracking
+62	osc3.coarse	Coarse	0.5	osc3.coarse
+63	osc3.fine	Fine	0.5	osc3.fine
+64	osc3.octave	Octave	0.5	osc3.octave
+65	osc3.ratio	Ratio	0	osc3.ratio
+66	osc3.ratio_fine	RatioFine	0.5	osc3.ratio_fine
+67	osc3.fixed_hz	FixedHz	0	osc3.fixed_hz
+68	osc3.gain	Gain	0.25	osc3.gain
+69	osc3.mix	Unit	1	osc3.mix
+70	osc3.pan	Pan	0.5	osc3.pan
+71	osc3.pm_out	PmOut	0	osc3.pm_out
+72	osc3.feedback	Feedback	0	osc3.feedback
+73	osc3.s0	Shape	0	osc3.s0
+74	osc3.s1	Shape	0.5	osc3.s1
+75	osc3.s2	Shape	0	osc3.s2
+76	osc3.s3	Shape	0	osc3.s3
+77	osc3.s4	Shape	0	osc3.s4
+78	osc3.s5	Shape	0	osc3.s5
+79	osc3.s6	Shape	0	osc3.s6
+80	osc3.s7	Shape	0	osc3.s7
+81	osc3.s8	Shape	0	osc3.s8
+82	noise.band_on	Choice(2)	0	noise.band_on
+83	noise.hp	Cutoff	0	noise.hp
+84	noise.lp	Cutoff	1	noise.lp
+85	filt1.type	Kinds { old: 9, all: 16 }	0	filt1.type
+86	filt1.cutoff	Cutoff	1	filt1.cutoff
+87	filt1.resonance	Unit	0	filt1.resonance
+88	filt2.type	Kinds { old: 9, all: 16 }	0	filt2.type
+89	filt2.cutoff	Cutoff	1	filt2.cutoff
+90	filt2.resonance	Unit	0	filt2.resonance
+91	filt3.type	Kinds { old: 9, all: 16 }	0	filt3.type
+92	filt3.cutoff	Cutoff	1	filt3.cutoff
+93	filt3.resonance	Unit	0	filt3.resonance
+94	filt4.type	Kinds { old: 9, all: 16 }	0	filt4.type
+95	filt4.cutoff	Cutoff	1	filt4.cutoff
+96	filt4.resonance	Unit	0	filt4.resonance
+97	env1.law	Kinds { old: 2, all: 3 }	0	env1.mode
+98	env1.attack	EnvTime	0	env1.attack
+99	env1.decay	EnvTime	0.3	env1.decay
+100	env1.sustain	Unit	1	env1.sustain
+101	env1.release	EnvTime	0.1	env1.release
+102	env1.curve_slope	Unit	0.5	env1.slope
+103	env2.law	Kinds { old: 2, all: 3 }	0	env2.mode
+104	env2.attack	EnvTime	0	env2.attack
+105	env2.decay	EnvTime	0.3	env2.decay
+106	env2.sustain	Unit	1	env2.sustain
+107	env2.release	EnvTime	0.1	env2.release
+108	env2.curve_slope	Unit	0.5	env2.slope
+109	env3.law	Kinds { old: 2, all: 3 }	0	env3.mode
+110	env3.attack	EnvTime	0	env3.attack
+111	env3.decay	EnvTime	0.3	env3.decay
+112	env3.sustain	Unit	1	env3.sustain
+113	env3.release	EnvTime	0.1	env3.release
+114	env3.curve_slope	Unit	0.5	env3.slope
+115	env4.law	Kinds { old: 2, all: 3 }	0	env4.mode
+116	env4.attack	EnvTime	0	env4.attack
+117	env4.decay	EnvTime	0.3	env4.decay
+118	env4.sustain	Unit	1	env4.sustain
+119	env4.release	EnvTime	0.1	env4.release
+120	env4.curve_slope	Unit	0.5	env4.slope
+121	lfo1.shape	Choice(5)	0	lfo1.shape
+122	lfo1.rate	LfoRate	0.6	lfo1.rate
+123	lfo1.depth	Unit	1	lfo1.depth
+124	lfo1.sync	Choice(2)	1	lfo1.sync
+125	lfo2.shape	Choice(5)	0	lfo2.shape
+126	lfo2.rate	LfoRate	0.6	lfo2.rate
+127	lfo2.depth	Unit	1	lfo2.depth
+128	lfo2.sync	Choice(2)	1	lfo2.sync
+129	mod1.source	Kinds { old: 10, all: 17 }	0	mod1.source
+130	mod1.target	Index	0	mod1.target
+131	mod1.amount	ModAmount	0	mod1.amount
+132	mod1.operation	Kinds { old: 2, all: 3 }	0	mod1.operation
+133	mod2.source	Kinds { old: 10, all: 17 }	0	mod2.source
+134	mod2.target	Index	0	mod2.target
+135	mod2.amount	ModAmount	0	mod2.amount
+136	mod2.operation	Kinds { old: 2, all: 3 }	0	mod2.operation
+137	mod3.source	Kinds { old: 10, all: 17 }	0	mod3.source
+138	mod3.target	Index	0	mod3.target
+139	mod3.amount	ModAmount	0	mod3.amount
+140	mod3.operation	Kinds { old: 2, all: 3 }	0	mod3.operation
+141	mod4.source	Kinds { old: 10, all: 17 }	0	mod4.source
+142	mod4.target	Index	0	mod4.target
+143	mod4.amount	ModAmount	0	mod4.amount
+144	mod4.operation	Kinds { old: 2, all: 3 }	0	mod4.operation
+145	mod5.source	Kinds { old: 10, all: 17 }	0	mod5.source
+146	mod5.target	Index	0	mod5.target
+147	mod5.amount	ModAmount	0	mod5.amount
+148	mod5.operation	Kinds { old: 2, all: 3 }	0	mod5.operation
+149	mod6.source	Kinds { old: 10, all: 17 }	0	mod6.source
+150	mod6.target	Index	0	mod6.target
+151	mod6.amount	ModAmount	0	mod6.amount
+152	mod6.operation	Kinds { old: 2, all: 3 }	0	mod6.operation
+153	mod7.source	Kinds { old: 10, all: 17 }	0	mod7.source
+154	mod7.target	Index	0	mod7.target
+155	mod7.amount	ModAmount	0	mod7.amount
+156	mod7.operation	Kinds { old: 2, all: 3 }	0	mod7.operation
+157	mod8.source	Kinds { old: 10, all: 17 }	0	mod8.source
+158	mod8.target	Index	0	mod8.target
+159	mod8.amount	ModAmount	0	mod8.amount
+160	mod8.operation	Kinds { old: 2, all: 3 }	0	mod8.operation
+161	mod9.source	Kinds { old: 10, all: 17 }	0	mod9.source
+162	mod9.target	Index	0	mod9.target
+163	mod9.amount	ModAmount	0	mod9.amount
+164	mod9.operation	Kinds { old: 2, all: 3 }	0	mod9.operation
+165	mod10.source	Kinds { old: 10, all: 17 }	0	mod10.source
+166	mod10.target	Index	0	mod10.target
+167	mod10.amount	ModAmount	0	mod10.amount
+168	mod10.operation	Kinds { old: 2, all: 3 }	0	mod10.operation
+169	mod11.source	Kinds { old: 10, all: 17 }	0	mod11.source
+170	mod11.target	Index	0	mod11.target
+171	mod11.amount	ModAmount	0	mod11.amount
+172	mod11.operation	Kinds { old: 2, all: 3 }	0	mod11.operation
+173	mod12.source	Kinds { old: 10, all: 17 }	0	mod12.source
+174	mod12.target	Index	0	mod12.target
+175	mod12.amount	ModAmount	0	mod12.amount
+176	mod12.operation	Kinds { old: 2, all: 3 }	0	mod12.operation
+177	osc1.sample	Raw	0	osc1.sample
+178	osc2.sample	Raw	0	osc2.sample
+179	osc3.sample	Raw	0	osc3.sample
+180	ctl.wheel	Unit	0	ctl.wheel
+181	ctl.bend	Unit	0.5	ctl.bend
+182	ctl.bend_range	BendRange	0.083333336	ctl.bend_range
+183	noise.width	Unit	1	noise.width
+184	voice.stage	Choice(2)	0	v2.voice
+185	voice.keysync	V2Raw	0	v2.keysync
+186	voice.era	Kinds { old: 7, all: 8 }	1	v2.era
+187	voice.routing	V2Raw	0	v2.routing
+188	voice.balance	V2Raw	0.5	v2.balance
+189	drive.mode	V2Raw	0	vdist.mode
+190	drive.gain	V2Raw	0.25	vdist.gain
+191	drive.p1	V2Raw	0	vdist.p1
+192	drive.p2	V2Raw	0.5	vdist.p2
+193	env1.amplify	V2Raw	1	env1.amplify
+194	env2.amplify	V2Raw	1	env2.amplify
+195	env3.amplify	V2Raw	1	env3.amplify
+196	env4.amplify	V2Raw	1	env4.amplify
+197	lfo1.law	Choice(2)	0	lfo1.mode
+198	lfo1.phase	V2Raw	0	lfo1.phase
+199	lfo1.polarity	V2Raw	0	lfo1.polarity
+200	lfo1.one_shot	V2Raw	0	lfo1.eg
+201	lfo2.law	Choice(2)	0	lfo2.mode
+202	lfo2.phase	V2Raw	0	lfo2.phase
+203	lfo2.polarity	V2Raw	0	lfo2.polarity
+204	lfo2.one_shot	V2Raw	0	lfo2.eg
+205	mod13.source	Kinds { old: 10, all: 17 }	0	mod13.source
+206	mod13.target	Index	0	mod13.target
+207	mod13.amount	ModAmount	0	mod13.amount
+208	mod13.operation	Kinds { old: 2, all: 3 }	0	mod13.operation
+209	mod14.source	Kinds { old: 10, all: 17 }	0	mod14.source
+210	mod14.target	Index	0	mod14.target
+211	mod14.amount	ModAmount	0	mod14.amount
+212	mod14.operation	Kinds { old: 2, all: 3 }	0	mod14.operation
+213	mod15.source	Kinds { old: 10, all: 17 }	0	mod15.source
+214	mod15.target	Index	0	mod15.target
+215	mod15.amount	ModAmount	0	mod15.amount
+216	mod15.operation	Kinds { old: 2, all: 3 }	0	mod15.operation
+217	mod16.source	Kinds { old: 10, all: 17 }	0	mod16.source
+218	mod16.target	Index	0	mod16.target
+219	mod16.amount	ModAmount	0	mod16.amount
+220	mod16.operation	Kinds { old: 2, all: 3 }	0	mod16.operation
+221	ctl.cc2	V2Raw	0	ctl.cc2
+222	ctl.cc3	V2Raw	0	ctl.cc3
+223	ctl.cc4	V2Raw	0	ctl.cc4
+224	ctl.cc5	V2Raw	0	ctl.cc5
+225	ctl.cc6	V2Raw	0	ctl.cc6
+226	ctl.cc7	V2Raw	0.9921875	ctl.cc7
+227	strip.on	Choice(2)	0	ch.on
+228	strip.volume	V2Raw	1	ch.volume
+229	strip.boost	V2Raw	0	ch.boost
+230	strip.order	V2Raw	0	ch.fx_order
+231	strip.send_reverb	V2Raw	0	ch.send_reverb
+232	strip.send_delay	V2Raw	0	ch.send_delay
+233	strip.send_aux_a	V2Raw	0	ch.send_aux_a
+234	strip.send_aux_b	V2Raw	0	ch.send_aux_b
+235	strip.recv_aux_a	V2Raw	0	ch.recv_aux_a
+236	strip.recv_aux_b	V2Raw	0	ch.recv_aux_b
+237	speech.on	Choice(2)	0	ch.speech
+238	speech.select	V2Raw	0	ch.speech_ctl4
+239	speech.pitch	V2Raw	0	ch.speech_ctl5
+240	strip.drive_mode	V2Raw	0	ch.dist_mode
+241	strip.drive_gain	V2Raw	0.25	ch.dist_gain
+242	strip.drive_p1	V2Raw	0.78125	ch.dist_p1
+243	strip.drive_p2	V2Raw	0.5	ch.dist_p2
+244	strip.chorus_amount	V2Raw	0.5	ch.chorus_amount
+245	strip.chorus_feedback	V2Raw	0.5	ch.chorus_feedback
+246	strip.chorus_delay_l	V2Raw	0.25	ch.chorus_delay_l
+247	strip.chorus_delay_r	V2Raw	0.25	ch.chorus_delay_r
+248	strip.chorus_rate	V2Raw	0	ch.chorus_rate
+249	strip.chorus_depth	V2Raw	0	ch.chorus_depth
+250	strip.chorus_phase	V2Raw	0.5	ch.chorus_phase
+251	strip.comp_mode	V2Raw	0	ch.comp_mode
+252	strip.comp_couple	V2Raw	0	ch.comp_couple
+253	strip.comp_auto_gain	V2Raw	0.0078125	ch.comp_auto_gain
+254	strip.comp_lookahead	V2Raw	0.015625	ch.comp_lookahead
+255	strip.comp_threshold	V2Raw	0.703125	ch.comp_threshold
+256	strip.comp_ratio	V2Raw	0.25	ch.comp_ratio
+257	strip.comp_attack	V2Raw	0.15625	ch.comp_attack
+258	strip.comp_release	V2Raw	0.5	ch.comp_release
+259	strip.comp_out_gain	V2Raw	0.5	ch.comp_out_gain

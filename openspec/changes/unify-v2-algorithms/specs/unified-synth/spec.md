@@ -19,7 +19,7 @@ source: converter commands, parity against a reference, provenance tables and so
 
 ### Requirement: Shared state-variable filter
 The state-variable filter SHALL be one algorithm whose coefficients come from per-slot settings: response (low-pass,
-band-pass, high-pass, notch, all-pass), resonance form (input-scaled or feedback-scaled), oversampling form
+band-pass, high-pass, notch, all-pass; chosen with the filter type), resonance form (input-scaled or feedback-scaled), oversampling form
 (interpolated input with averaged output, or held input with last output) and cutoff/resonance law.
 
 #### Scenario: Forms reproduce the earlier filters
@@ -31,7 +31,8 @@ band-pass, high-pass, notch, all-pass), resonance form (input-scaled or feedback
 - **THEN** the patch loads, and white noise through it keeps every octave-band level within 0.5 dB
 
 ### Requirement: Shared 4-pole filter
-The 4-pole filter SHALL be one algorithm with per-slot settings: response (low-pass, high-pass), feedback taken before
+The 4-pole filter SHALL be one algorithm with per-slot settings: response (low-pass, high-pass;
+chosen with the filter type), feedback taken before
 or after the cubic clip, 1× or 2× oversampling, and coefficient law. The settings replacing the earlier ladder and the
 earlier 4-pole types SHALL match them within 0.5 dB per octave band on white noise.
 

@@ -48,7 +48,8 @@ impl<T: Copy + Default> Opt<T> {
 
 /// V2 frames per second: 128 samples at 44.1 kHz; V2 scales its frame to the rate, so this holds at every rate.
 pub const FRAMES_PER_S: f32 = 44_100.0 / 128.0;
-/// `2^-18`: V2 biases filter inputs by this to keep their state away from denormals.
+/// `2^-18`: V2's bias against denormals. Only the DC filter's rounding keeps it (the filter, strip and effect biases
+/// were dropped in change unify-v2-algorithms 6.3/6.4; the player flushes denormals).
 pub const DC_OFFSET: f32 = 3.814_697_3e-6;
 /// Envelopes below `2^-13` (of 0..128) stop.
 pub const LOWEST: f32 = 1.220_703_1e-4;

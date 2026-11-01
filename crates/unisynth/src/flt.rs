@@ -15,7 +15,7 @@ pub const NC: usize = 5;
 /// State floats per channel.
 pub const NS: usize = 9;
 
-/// The feedback and 2× forms, the bias and the 7-bit step law are built with a module that uses them (the
+/// The feedback and 2× forms and the 7-bit step law are built with a module that uses them (the
 /// feedback-form filter types, the drive, the channel strip's drive); without one, the state-variable and 4-pole steps
 /// compile to the plain input-form and one-step arithmetic.
 const FORMS: bool = cfg!(any(feature = "us-flt-feedback", feature = "us-drive", feature = "us-strip"));
@@ -87,28 +87,27 @@ pub fn steps(ty: usize) -> bool {
 /// The state-variable form (design D1). `feedback`: the resonance damps the band feedback only
 /// (`high = x − (1 − r)·band − low`) instead of scaling the input too (`high = q·(x − band) − low`). `held`: both
 /// oversampling steps take the input and the output is the second step's, instead of the first step taking the mean of
-/// the previous and the current input and the output being the mean of both steps. `bias`: a tiny DC offset on the
-/// input, taken off the low-pass state at the first step (against denormals).
+/// the previous and the current input and the output being the mean of both steps. (The source's tiny DC bias against
+/// denormals is gone: the player flushes them, and no song moved without it; unify-v2-algorithms 6.4.)
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct SvForm {
     pub feedback: bool,
     pub held: bool,
-    pub bias: bool,
 }
 
 impl SvForm {
-    /// Input-scaled resonance, interpolated input, averaged output, no bias.
-    pub const INPUT: SvForm = SvForm { feedback: false, held: false, bias: false };
-    /// Feedback-scaled resonance, held input, last output, bias.
-    pub const FEEDBACK: SvForm = SvForm { feedback: true, held: true, bias: true };
+    /// Input-scaled resonance, interpolated input, averaged output.
+    pub const INPUT: SvForm = SvForm { feedback: false, held: false };
+    /// Feedback-scaled resonance, held input, last output.
+    pub const FEEDBACK: SvForm = SvForm { feedback: true, held: true };
 }
 
-/// State-variable coefficients `[f, a, c, bias, α]` for frequency coefficient `f` and normalized resonance `res`: one
+/// State-variable coefficients `[f, a, c, α, 0]` for frequency coefficient `f` and normalized resonance `res`: one
 /// step is `low += f·band; high = a·(x − c·band) − low; band += f·high`, α the weight of the interpolated half-step.
 pub fn sv_coefs(f: f32, res: f32, form: SvForm) -> [f32; NC] {
     let d = 1.0 - res.max(0.0).min(1.0);
     let (a, c) = if form.feedback { (1.0, d) } else { (d, 1.0) };
-    [f, a, c, if form.bias { crate::v2::DC_OFFSET } else { 0.0 }, if form.held { 0.0 } else { 0.5 }]
+    [f, a, c, if form.held { 0.0 } else { 0.5 }, 0.0]
 }
 
 /// The state-variable frequency coefficient on the Hz law: `1.5·sin(π·hz/2/rate)` (2× oversampled; the 1.5 puts the
@@ -124,23 +123,22 @@ pub fn sv_f_steps(cutoff: f32, rate: f32) -> f32 {
 
 /// The 4-pole form (design D1). `clip_after`: the feedback and the last pole's state take the clipped output (and the
 /// first pole's previous input is the dry input) instead of the unclipped last pole (and the fed-back input). `x2`:
-/// two steps per sample on the same input. `bias`: a tiny DC offset on the input, taken off the output.
+/// two steps per sample on the same input.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct P4Form {
     pub clip_after: bool,
     pub x2: bool,
-    pub bias: bool,
 }
 
 impl P4Form {
-    /// Feedback before the clip, one step, no bias.
-    pub const ONE: P4Form = P4Form { clip_after: false, x2: false, bias: false };
-    /// Feedback after the clip, two steps, bias.
-    pub const TWO: P4Form = P4Form { clip_after: true, x2: true, bias: true };
+    /// Feedback before the clip, one step.
+    pub const ONE: P4Form = P4Form { clip_after: false, x2: false };
+    /// Feedback after the clip, two steps.
+    pub const TWO: P4Form = P4Form { clip_after: true, x2: true };
 }
 
-/// 4-pole coefficients `[g, p, fb, bias, form]` for frequency coefficient `f` (from a law: [`p4_f_hz`],
-/// [`p4_f_steps`]) and normalized resonance `res`. One step is `xin = x + bias − fb·state₄`, each pole
+/// 4-pole coefficients `[g, p, fb, form, 0]` for frequency coefficient `f` (from a law: [`p4_f_hz`],
+/// [`p4_f_steps`]) and normalized resonance `res`. One step is `xin = x − fb·state₄`, each pole
 /// `(in + prev)·p + g·state`, then the cubic clip `y − y³/6`, with `p = f + 0.8·f·(1 − f)`, `g = 1 − 2p` (the ladder's
 /// and the 2× filter's poles are the same function of `f`). The feedback follows the clip form, which decides what is
 /// stable: before the clip (a linear loop) `min(res, 0.85)·e^{1.386249·(1 − p)}`, after it
@@ -158,7 +156,7 @@ pub fn p4_coefs(f: f32, res: f32, form: P4Form) -> [f32; NC] {
         res.max(0.0).min(0.85) * crate::fm::expf((1.0 - p) * 1.386249)
     };
     let code = form.clip_after as u32 + 2 * form.x2 as u32;
-    [1.0 - (p + p), p, fb, if form.bias { crate::v2::DC_OFFSET } else { 0.0 }, code as f32]
+    [1.0 - (p + p), p, fb, code as f32, 0.0]
 }
 
 /// The 4-pole frequency coefficient on the Hz law: `2·hz` over the step rate.
@@ -380,18 +378,17 @@ impl Slot {
 #[inline]
 pub fn run(kind: Kind, c: &[f32; NC], s: &mut [f32; NS], x: f32) -> f32 {
     match kind {
-        // one formula for both forms (design D1), exact for each: the input form is `(a, c, bias, α) = (q, 1, 0, ½)`,
-        // the feedback form `(1, 1 − r, DC, 0)` (`sv_coefs`)
+        // one formula for both forms (design D1), exact for each: the input form is `(a, c, α) = (q, 1, ½)`, the feedback
+        // form `(1, 1 − r, 0)` (`sv_coefs`)
         Kind::SvfLp | Kind::SvfHp | Kind::SvfBp | Kind::SvfNotch | Kind::SvfAll
             if cfg!(feature = "us-flt-svf") || FORMS =>
         {
             let (f, a) = (c[0], c[1]);
-            // without the forms: c = 1, no bias, α = ½ as constants (the plain input-form arithmetic)
-            let (cb, bias, al) = if FORMS { (c[2], c[3], c[4]) } else { (1.0, 0.0, 0.5) };
-            let x = if FORMS { x + bias } else { x };
+            // without the forms: c = 1, α = ½ as constants (the plain input-form arithmetic)
+            let (cb, al) = if FORMS { (c[2], c[3]) } else { (1.0, 0.5) };
             let (mut low, mut band) = (s[0], s[1]);
-            let mut step = |x: f32, sub: f32| {
-                low += if FORMS { f * band - sub } else { f * band };
+            let mut step = |x: f32| {
+                low += f * band;
                 let high = a * (x - cb * band) - low;
                 band += f * high;
                 match kind {
@@ -403,10 +400,10 @@ pub fn run(kind: Kind, c: &[f32; NC], s: &mut [f32; NS], x: f32) -> f32 {
                 }
             };
             let y = if FORMS {
-                let y1 = step(al * s[2] + (1.0 - al) * x, bias);
-                al * y1 + (1.0 - al) * step(x, 0.0)
+                let y1 = step(al * s[2] + (1.0 - al) * x);
+                al * y1 + (1.0 - al) * step(x)
             } else {
-                (step((s[2] + x) / 2.0, 0.0) + step(x, 0.0)) / 2.0
+                (step((s[2] + x) / 2.0) + step(x)) / 2.0
             };
             s[0] = low;
             s[1] = band;
@@ -417,21 +414,18 @@ pub fn run(kind: Kind, c: &[f32; NC], s: &mut [f32; NS], x: f32) -> f32 {
         // for the two-step form, the one-step form rounds `(in + prev)·p` where the ladder had `prev·p + in·p`
         Kind::Pole4Lp | Kind::Pole4Hp if cfg!(feature = "us-flt-ladder") || FORMS => {
             let (g, p, fb) = (c[0], c[1], c[2]);
-            // without the forms: one step, feedback before the clip, no bias, as constants
-            let (bias, code) = if FORMS { (c[3], c[4] as u32) } else { (0.0, 0) };
+            // without the forms: one step, feedback before the clip, as constants
+            let code = if FORMS { c[3] as u32 } else { 0 };
             let after = code & 1 != 0;
             let mut y = 0.0;
             for _ in 0..1 + (code >> 1) {
-                let xin = if FORMS { x + bias - fb * s[3] } else { x - fb * s[3] };
+                let xin = x - fb * s[3];
                 let (t0, t1, t2) = (s[0], s[1], s[2]);
                 s[0] = (xin + s[4]) * p + s[0] * g;
                 s[1] = (t0 + s[0]) * p + s[1] * g;
                 s[2] = (t1 + s[1]) * p + s[2] * g;
                 let y4 = (t2 + s[2]) * p + s[3] * g;
                 y = y4 - y4 * y4 * y4 * (1.0 / 6.0);
-                if FORMS {
-                    y -= bias;
-                }
                 (s[3], s[4]) = if after { (y, x) } else { (y4, xin) };
             }
             if kind == Kind::Pole4Hp { x - y } else { y }
@@ -547,7 +541,8 @@ mod tests {
         }
     }
 
-    /// V2's LRC step, 2× oversampled with the input bias (`v2::Lrc::step_2x` before change unify-v2-algorithms).
+    /// V2's LRC step, 2× oversampled (`v2::Lrc::step_2x` before change unify-v2-algorithms), without its input bias:
+    /// the merged filter dropped it (6.4: no song moved; it leaves a standing DC near −60 dB in low and band).
     struct Lrc2 {
         l: f32,
         b: f32,
@@ -555,7 +550,7 @@ mod tests {
 
     impl Lrc2 {
         fn step_2x(&mut self, x: f32, f: f32, res: f32) -> f32 {
-            let dc = crate::v2::DC_OFFSET;
+            let dc = 0.0; // V2: `v2::DC_OFFSET`
             let x = x + dc;
             self.l += f * self.b - dc;
             self.b += f * (x - self.b * res - self.l);
@@ -670,14 +665,12 @@ mod tests {
         // every form on every response runs, and the low-pass keeps its slope (−9 dB an octave above the corner)
         for feedback in [false, true] {
             for held in [false, true] {
-                for bias in [false, true] {
-                    let c = sv_coefs(sv_f_hz(1000.0 / 0.75, RATE), 0.3, SvForm { feedback, held, bias });
-                    for kind in [Kind::SvfLp, Kind::SvfBp, Kind::SvfHp, Kind::SvfNotch, Kind::SvfAll] {
-                        assert!(run_c(kind, c, &noise(2000)).iter().all(|v| v.is_finite()), "{kind:?} {feedback} {held} {bias}");
-                    }
-                    let lp = |hz| sine_db(|v| run_c(Kind::SvfLp, c, v), hz);
-                    assert!(lp(2000.0) < lp(500.0) - 9.0, "low-pass {feedback} {held} {bias}: {} {}", lp(500.0), lp(2000.0));
+                let c = sv_coefs(sv_f_hz(1000.0 / 0.75, RATE), 0.3, SvForm { feedback, held });
+                for kind in [Kind::SvfLp, Kind::SvfBp, Kind::SvfHp, Kind::SvfNotch, Kind::SvfAll] {
+                    assert!(run_c(kind, c, &noise(2000)).iter().all(|v| v.is_finite()), "{kind:?} {feedback} {held}");
                 }
+                let lp = |hz| sine_db(|v| run_c(Kind::SvfLp, c, v), hz);
+                assert!(lp(2000.0) < lp(500.0) - 9.0, "low-pass {feedback} {held}: {} {}", lp(500.0), lp(2000.0));
             }
         }
     }
@@ -714,7 +707,7 @@ mod tests {
         let qb = reso * (1.0 + 0.5 * (t * qx));
         let q2 = qb + qb;
         let (f, q) = (1.0 - (p + p), q2 + q2);
-        let dc = crate::v2::DC_OFFSET;
+        let dc = 0.0; // V2: `v2::DC_OFFSET` (dropped by the merged filter, 6.4)
         let mut b = [0.0f32; 5];
         // V2Moog::step: biased input minus the feedback, four poles, cubic clip, un-biased once
         let mut step = |real: f32| {
@@ -780,14 +773,12 @@ mod tests {
     fn four_pole_forms_combine_freely() {
         for clip_after in [false, true] {
             for x2 in [false, true] {
-                for bias in [false, true] {
-                    let form = P4Form { clip_after, x2, bias };
-                    for c in [p4_coefs(p4_f_hz(1000.0, RATE, form), 0.3, form), p4_coefs(p4_f_steps(0.5, RATE, form), 0.3, form)] {
-                        assert!(run_c(Kind::Pole4Hp, c, &noise(2000)).iter().all(|v| v.is_finite()), "{form:?}");
-                        let lp = |hz| sine_db(|v| run_c(Kind::Pole4Lp, c, v), hz);
-                        let corner = corner(|v| run_c(Kind::Pole4Lp, c, v));
-                        assert!(lp(corner * 4.0) < lp(63.0) - 24.0, "{form:?} {c:?}: corner {corner}, {} {}", lp(63.0), lp(corner * 4.0));
-                    }
+                let form = P4Form { clip_after, x2 };
+                for c in [p4_coefs(p4_f_hz(1000.0, RATE, form), 0.3, form), p4_coefs(p4_f_steps(0.5, RATE, form), 0.3, form)] {
+                    assert!(run_c(Kind::Pole4Hp, c, &noise(2000)).iter().all(|v| v.is_finite()), "{form:?}");
+                    let lp = |hz| sine_db(|v| run_c(Kind::Pole4Lp, c, v), hz);
+                    let corner = corner(|v| run_c(Kind::Pole4Lp, c, v));
+                    assert!(lp(corner * 4.0) < lp(63.0) - 24.0, "{form:?} {c:?}: corner {corner}, {} {}", lp(63.0), lp(corner * 4.0));
                 }
             }
         }

@@ -51,7 +51,7 @@ separate commits; 6.5–6.8 are checkpoints of one switch commit (each needs a p
   exists, else against its quirk-on render); songs that only cross the D7.3 thresholds are listed for listening. Write the quirk table (flag, what it reproduces, source, format
   versions, songs that set it, songs that move without it) to `docs/synth/unisynth.md` and `research/v2-synth.md`.
   Verify: "Quirk table" scenario; each kept quirk lists at least one song that moves without it
-- [ ] 6.4 Freeze the v3 layout: index map with the kept quirks only (renumbered), `DEFAULTS[COUNT]` (curve "follows law", filter
+- [x] 6.4 Freeze the v3 layout: index map with the kept quirks only (renumbered), `DEFAULTS[COUNT]` (curve "follows law", filter
   response the type's own, so reference songs store no new pairs), every value rule (combine replace for FM/aux, the
   oscillator law from the slot kind, raw polarity/one-shot/sync/routing/keysync, 4-pole clip/steps/bias, the Cut EQ DC
   filter, slope by the law at each lane point), the effect-chunk version marker. Gate: a prototype build of the layout

@@ -16,6 +16,13 @@ static SONG: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/song.bin"));
 mod baked {
     include!(concat!(env!("OUT_DIR"), "/song.rs"));
 }
+/// `--cfg us_v3_pad` (unify-v2-algorithms 6.4): the 34 defaults the v3 layout adds (`research/unify-v3-layout`), so a
+/// probe of v3 data in this player also carries the larger defaults table.
+#[cfg(us_v3_pad)]
+static V3_PAD: [f32; 34] = [
+    0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0,
+];
 const MEM_BYTES: usize = 32 << 20; // .bss: costs no file size
 static mut MEM: [u8; MEM_BYTES] = [0; MEM_BYTES];
 static mut PCM: [i16; 2 * 4096] = [0; 2 * 4096];
@@ -44,6 +51,10 @@ pub unsafe extern "system" fn start() -> ! {
         p.render_i16(&mut pcm[..2 * n]);
         sum = pcm[..2 * n].iter().fold(sum, |h, &s| h.rotate_left(5) ^ s as u16 as u32);
         left -= n as u64;
+    }
+    #[cfg(us_v3_pad)]
+    {
+        sum ^= unsafe { core::ptr::read_volatile(core::ptr::addr_of!(V3_PAD).cast::<u32>().add(sum as usize % 34)) };
     }
     unsafe { ExitProcess(sum) }
 }

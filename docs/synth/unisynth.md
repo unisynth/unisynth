@@ -661,24 +661,25 @@ Until the format switch (task 6.1) the type value also picks the form and the la
 |---|---|---|---|
 | SVF low/high/band/notch | state-variable | input | Hz |
 | Ladder low-pass | 4-pole low | feedback before the clip, 1× | Hz |
-| Feedback SVF low/band/high/notch/all-pass | state-variable | feedback, held, bias | 7-bit steps |
-| 4-pole 2× low/high | 4-pole low/high | feedback after the clip, 2×, bias | 7-bit steps |
+| Feedback SVF low/band/high/notch/all-pass | state-variable | feedback, held | 7-bit steps |
+| 4-pole 2× low/high | 4-pole low/high | feedback after the clip, 2× | 7-bit steps |
 | RBJ high/band-pass | biquad with the reference's `log₁₀2` bandwidth law, `w0 = 2π·fc/rate` | | Hz, `clamp(p, 0, 0.85)` |
 | Resonator notch | zeros on the unit circle, poles at radius `q`, one sample of input latency, `z = cos(2π·fc/rate)` | | Hz, `clamp(p, 0, 0.85)`; the pole radius does not scale with the rate |
 
-**State-variable** (`flt::sv_coefs`, 2× oversampled): per half-step `low += f·band − sub; high = a·(x − c·band) − low;
+**State-variable** (`flt::sv_coefs`, 2× oversampled): per half-step `low += f·band; high = a·(x − c·band) − low;
 band += f·high`. The responses are low, band, high, notch (`low + high`) and all-pass (`low + band + high`: flat at
 zero resonance, a band-pass peak above it).
 - The **input form** scales the input by `q = 1 − p` (`a = q, c = 1`), so the passband falls with resonance. The
   **feedback form** damps only the band feedback (`a = 1, c = 1 − p`).
 - **Interpolated** oversampling feeds the first half-step the mean of the previous and the current input and outputs the
   mean of both half-steps. **Held** feeds both the input and outputs the second.
-- The **bias** adds 2⁻¹⁸ to the input and takes it off `low` at the first half-step (`sub`), against denormals.
+- No bias: the source's 2⁻¹⁸ input bias against denormals left a standing DC near −60 dB in low and band; it moved
+  no song (survey, unify-v2-algorithms 6.4) and the player flushes denormals, so it is gone.
 - Laws: Hz `f = 1.5·sin(π·fc/2/rate)`, so the corner is 3/4 of the cutoff (the original coefficient, kept); 7-bit
   steps `f = calcfreq(step/128)·44 100/rate`.
 
-**4-pole** (`flt::p4_coefs`): per step `xin = x + bias − fb·s₄`, four poles `(in + prev)·p + g·s` with
-`p = f + 0.8·f·(1 − f)` and `g = 1 − 2p`, then the cubic clip `y − y³/6` (minus the bias). The high-pass is the input
+**4-pole** (`flt::p4_coefs`): per step `xin = x − fb·s₄`, four poles `(in + prev)·p + g·s` with
+`p = f + 0.8·f·(1 − f)` and `g = 1 − 2p`, then the cubic clip `y − y³/6` (the source's bias is dropped, as above). The high-pass is the input
 minus the low-pass: about 10 dB down a decade below the corner, not a 24 dB/octave slope.
 - **Feedback before the clip** (a linear loop) feeds back the unclipped last pole, and the first pole's previous input
   is the fed-back input. The feedback is `min(p, 0.85)·e^(1.386249·(1 − p_pole))`, which stays stable.
@@ -725,6 +726,7 @@ songs:
 | `fixed_seed` | noise seeds start at 0 | 0–5 | 311 | 1: a keygen tune (−3.33 dB in one band) | keep |
 | `boxed_osc` | 4× box-averaged naive saw and pulse | 0–2 | 9 | none; none past the listening thresholds either | dropped |
 | `dc_bias` | the channel strip's and the 7-bit effects' denormal bias | 6 | 36 | none; none past the listening thresholds either | dropped |
+| `filter bias` | the feedback and 4-pole forms' denormal bias (every version; the drive's filter modes too) | 0–6 | 347 | none; none past the listening thresholds either (checked at the freeze, task 6.4) | dropped |
 
 
 **Combine.** Every slot meets the running sum of the earlier slots through one step (`osc::mix_in`): add (panned by
