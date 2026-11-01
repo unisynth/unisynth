@@ -16,7 +16,7 @@
     <section><!-- rendered by ui/files/Files.tsx --></section>
     <section id="lib" aria-label="Instrument library"><!-- rendered by ui/library/Library.tsx --></section>
   </nav>
-  <div class="splitter" id="split-v" role="separator" aria-orientation="vertical" aria-label="Resize browser" tabindex="0"></div>
+  <span id="split-v-slot" class="slot"><!-- ui/common/Splitter.tsx --></span>
 
   <div id="work">
     <section id="arr" aria-label="Arrangement">
@@ -25,7 +25,7 @@
       <div id="hdrs" aria-label="Track headers"></div>
       <div id="lanes-wrap" tabindex="0" aria-label="Arrangement clips. Click selects, drag moves (also to another track), right edge resizes, drag on empty space selects a range."><div id="lanes"></div></div>
     </section>
-    <div class="splitter" id="split-h" role="separator" aria-orientation="horizontal" aria-label="Resize arrangement" tabindex="0"></div>
+    <span id="split-h-slot" class="slot"><!-- ui/common/Splitter.tsx --></span>
 
     <section id="bottom" aria-label="Editor panel">
       <div id="tabs" role="tablist">
@@ -53,10 +53,7 @@
   <span class="num">44.1 kHz · kinds 64, 66, 72</span>
   <span id="saved-info">Saved 2 min ago · 1 unsaved change</span>
   <span id="edit-status" class="num" aria-live="polite"></span>
-  <span id="armed-info">Armed: <b>Bass</b> · octave C3 · vel 100</span>
-  <button id="kb-btn" aria-pressed="true" title="Computer keyboard plays the selected track like a tracker: Z–M and Q–P are notes, [ ] octave, ; ' velocity (`). Off: letters are shortcuts again">⌨</button>
-  <button id="midi-info" title="Connect Web MIDI input to the armed track">MIDI: connect</button>
-  <span class="wheels" aria-label="Audition controllers"><label>MW <input id="mw" type="range" min="0" max="127" value="0" aria-label="Mod wheel (audition)"></label><label>PB <input id="pb" type="range" min="-8192" max="8191" value="0" aria-label="Pitch bend (audition, springs back)"></label></span>
+  <span id="audition" class="slot"><!-- ui/footer/Audition.tsx --></span>
   <span><kbd>Ctrl+X/C/V</kbd> cut/copy/paste <kbd>Ctrl+Q</kbd> quantize/align <kbd>↑↓</kbd> transpose/track <kbd>Space</kbd> play <kbd>Z</kbd>–<kbd>M</kbd> <kbd>Q</kbd>–<kbd>P</kbd> notes <kbd>[</kbd><kbd>]</kbd> octave <kbd>Shift+R</kbd> record <kbd>Ctrl+D</kbd> duplicate <kbd>Ctrl+Shift+D</kbd> linked copy</span>
 </footer>
 <!-- A sandboxed frame (e.g. the pi-dashboard canvas: opaque origin) cannot load the module or reach /api/music. -->

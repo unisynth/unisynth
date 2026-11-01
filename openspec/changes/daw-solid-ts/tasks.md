@@ -227,8 +227,13 @@ before → `AGENTS.md` rows → land on `main`.
   Done: `test/keys.test.ts` (7 tests, written and passing on the old code) covers each global row of the key table
   and the precedence; editor-local rows stay covered by the arrangement, roll and files tests. `ui/keys.ts` replaces
   the four window/document listeners of app.js (one table, capture + bubble phases, see D7). 141/141 twice.
-- [ ] 8.2 Port audition (armed track, MW/PB sliders, Web MIDI), zoom (anchored) and splitters (persisted sizes).
+- [x] 8.2 Port audition (armed track, MW/PB sliders, Web MIDI), zoom (anchored) and splitters (persisted sizes).
   Verify: controllers test, editing zoom test.
+  Done: contract `test/controls.test.ts` (5 tests on the old code: armed/⌨, Web MIDI stub, anchored arrangement
+  wheel zoom, splitters incl. reload). `ui/footer/Audition.tsx` + `state/audition.ts`, `ui/common/Splitter.tsx` +
+  `state/layout.ts` (drops the MutationObserver that re-read computed style on every zoom), `state/persist.ts`
+  shared, `ui/zoom.ts` (`anchorScroll`, unit-tested). Footer and splitter geometry identical to the old build.
+  149/149 twice.
 
 ## 9. Finish
 

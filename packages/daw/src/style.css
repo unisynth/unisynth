@@ -43,6 +43,7 @@ header { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border
 
 /* Main split */
 main { flex: 1; display: grid; grid-template-columns: var(--browser-w, 200px) 6px 1fr; min-height: 0; }
+.slot { display: contents; }  /* mount point of a Solid component that must stay a direct grid/flex item */
 .splitter { background: var(--line); touch-action: none; }
 .splitter:hover, .splitter:focus-visible { background: var(--focus); outline: none; }
 #split-v { cursor: col-resize; }

@@ -13,7 +13,12 @@ import { popMenu } from "./ui/common/Menu.tsx";
 import * as arrange from "./ui/state/arrange.ts";
 import { mountTracks } from "./ui/arrange/Tracks.tsx";
 import { mountRoll } from "./ui/roll/Roll.tsx";
-import { installKeys } from "./ui/keys.ts";  // not `live`: that is the aria-live status element below
+import { installKeys } from "./ui/keys.ts";
+import { anchorScroll, clamp, wheelF } from "./ui/zoom.ts";
+import { mountSplitter } from "./ui/common/Splitter.tsx";
+import { mountAudition } from "./ui/footer/Audition.tsx";
+import * as au from "./ui/state/audition.ts";
+import { persist as store } from "./ui/state/persist.ts";  // not `live`: that is the aria-live status element below
 import { laneEl, overrides, overrideSet, rollClips, selectedId, setRollShown, setSelectedId } from "./ui/state/view.ts";
 import { mountMixer, setMixerShown } from "./ui/mixer.tsx";
 // DAW UI (change add-synth-daw): the reviewed mockup's views and interactions on the real song/2 model,
@@ -26,10 +31,6 @@ import * as live1 from "./ui/device/live.ts";  // live per-voice overlays (`live
 export function start(DAW) {
 let BARS = 32, BW = 44; const PAD_BARS = 8;  // song length grows; the view shows 8 bars past the end
 let SONG_POS = 1; const LOOP = [1, 5], laneVals = [];  // transport: playhead (bars, 1-based), loop range
-// localStorage throws in a sandboxed frame without allow-same-origin (the dashboard canvas): fall back to memory.
-const store = (() => { const mem = new Map(); let ls = null; try { ls = window.localStorage; ls.getItem("x"); } catch { ls = null; }
-  return { get: k => { try { return ls ? ls.getItem(k) : mem.get(k) ?? null; } catch { return mem.get(k) ?? null; } },
-           set: (k, v) => { try { ls ? ls.setItem(k, v) : mem.set(k, v); } catch { mem.set(k, v); } } }; })();
 let CAT = null;  // library catalog (/api/library)
 const E = DAW.engine, M = DAW.model, api = DAW.api, TABLES = DAW.tables;
 const st0 = DAW.initial;
@@ -672,7 +673,6 @@ function savePreset(t, d, btn) {
   pop.addEventListener("keydown", e => { if (e.key === "Escape") close(); if (e.key === "Enter") pop.querySelector(".ok").click(); });
 }
 const device = document.getElementById("device");
-devst.setPersist(store);  // block collapse is remembered in the browser
 live1.initLive({ on: liveOn, inst: () => instOf(selected) ?? null, curVal, choice, lfoShape: k => LFO_SHAPES[k], yDb, noteName: n => NAMES[n], rate: () => E.rate });
 let devMounted = false;
 function renderDevice() {
@@ -885,8 +885,6 @@ velc.addEventListener("wheel", e => {
 ccKind.addEventListener("change", () => { velc.setAttribute("aria-label", `Controller lane: ${ccKind.selectedOptions[0].text}`); ccVal.textContent = ""; drawCC(); });
 });
 // Audition controllers: MW holds, PB springs back to centre on release (live only, never recorded).
-const pb = document.getElementById("pb"); pb.addEventListener("pointerup", () => { pb.value = 0; pb.dispatchEvent(new Event("input")); });
-pb.addEventListener("keyup", () => { pb.value = 0; pb.dispatchEvent(new Event("input")); });
 onRollMount(() => { grid.addEventListener("scroll", () => { keys.scrollTop = grid.scrollTop; vel.scrollLeft = grid.scrollLeft; if (Math.floor(grid.scrollLeft) !== rollX0 && rollClip) redrawRollSoon(); });
 new ResizeObserver(redrawRollSoon).observe(grid);
 vel.addEventListener("wheel", e => { if (!e.ctrlKey && !e.metaKey && !e.altKey && Math.abs(e.deltaX) > Math.abs(e.deltaY)) { e.preventDefault(); grid.scrollLeft += e.deltaX; } }, { passive: false }); });
@@ -1227,26 +1225,12 @@ tabs.forEach((t, i) => { t.addEventListener("click", () => show(t)); t.addEventL
 const initial = new URLSearchParams(location.search).get("tab");
 show(tabs.find(t => t.id === "tab-" + initial) || tabs[1]);
 
-// Splitters (same behaviour as shader-viewer: drag + arrows)
-function splitter(el, cssVar, axis, min, max) {
-  const root = document.documentElement, key = "daw" + cssVar, saved = store.get(key);
-  if (saved) root.style.setProperty(cssVar, saved);
-  const aria = () => { const v = Math.round(parseFloat(getComputedStyle(root).getPropertyValue(cssVar)) || (axis === "x" ? 200 : 360)); el.setAttribute("aria-valuenow", v); el.setAttribute("aria-valuemin", min); el.setAttribute("aria-valuemax", max); };
-  aria();
-  new MutationObserver(() => { const v = root.style.getPropertyValue(cssVar); if (v) store.set(key, v); aria(); }).observe(root, { attributes: true, attributeFilter: ["style"] });
-  el.addEventListener("pointerdown", e => {
-    el.setPointerCapture(e.pointerId);
-    const mv = ev => { const v = Math.min(max, Math.max(min, axis === "x" ? ev.clientX : ev.clientY - document.getElementById("work").getBoundingClientRect().top)); root.style.setProperty(cssVar, v + "px"); };
-    el.addEventListener("pointermove", mv); el.addEventListener("pointerup", () => el.removeEventListener("pointermove", mv), { once: true });
-  });
-  el.addEventListener("keydown", e => {
-    const cur = parseFloat(getComputedStyle(root).getPropertyValue(cssVar)) || (axis === "x" ? 200 : 360);
-    const d = (e.shiftKey ? 40 : 10) * ((e.key === "ArrowRight" || e.key === "ArrowDown") ? 1 : (e.key === "ArrowLeft" || e.key === "ArrowUp") ? -1 : 0);
-    if (d) { e.preventDefault(); root.style.setProperty(cssVar, Math.min(max, Math.max(min, cur + d)) + "px"); }
-  });
-}
-splitter(document.getElementById("split-v"), "--browser-w", "x", 140, 360);
-splitter(document.getElementById("split-h"), "--arr-h", "y", 120, 700);
+
+// Splitters (ui/common/Splitter.tsx): drag or arrows, sizes remembered in the browser.
+mountSplitter(document.getElementById("split-v-slot"), { id: "split-v", label: "Resize browser", orientation: "vertical", cssVar: "--browser-w", min: 140, max: 360,
+  measure: () => document.getElementById("browser").getBoundingClientRect().width, at: e => e.clientX });
+mountSplitter(document.getElementById("split-h-slot"), { id: "split-h", label: "Resize arrangement", orientation: "horizontal", cssVar: "--arr-h", min: 120, max: 700,
+  measure: () => document.getElementById("arr").getBoundingClientRect().height, at: e => e.clientY - document.getElementById("work").getBoundingClientRect().top });
 
 // ===== Transport: song length, loop, seek, playback (clock + meters + a small WebAudio preview voice per track) =====
 function onTempo(v) { tr.setTempo(v); showPos(); say(`tempo ${v} BPM`); dirtyUpd(); livePush(); }
@@ -1500,18 +1484,15 @@ relayout(); updateLoop(); showPos();
 queueMicrotask(() => updateArmed());
 
 // ===== Audition (never recorded): computer keyboard on the armed track, piano-roll keys, library entries, Web MIDI =====
-let kbOn = true;
-const heldV = new Map(), mwEl = document.getElementById("mw"), pbEl = document.getElementById("pb");
+const heldV = new Map();
 // Mod wheel and pitch bend (sliders, Web MIDI CC1 / pitch bend) set the armed track's instrument controller block
 // (unisynth ctl.wheel / ctl.bend) live; never written to the song. A seek or stop restores the stored values.
 function ctlLive(name, v) {
   const t = armed, d = t && instOf(t), p = d && paramOf(d, name), di = d ? engineDev(t, d) : -1;
   if (p && di >= 0 && E.node) E.setParam(trackIndex(t), di, p.index, v);
 }
-mwEl.addEventListener("input", () => ctlLive("ctl.wheel", +mwEl.value / 127));
-pbEl.addEventListener("input", () => ctlLive("ctl.bend", (+pbEl.value + 8192) / 16383));
-mwEl.title = "Mod wheel: the armed track's ctl.wheel (audition, not recorded)";
-pbEl.title = "Pitch bend: the armed track's ctl.bend, ± its bend range (audition, not recorded; springs back)";
+function setWheel(v) { au.setMw(v); ctlLive("ctl.wheel", v / 127); }
+function setBend(v) { au.setPb(v); ctlLive("ctl.bend", (v + 8192) / 16383); }
 function noteOn(t, note, vel, key) {
   if (!t || t.bus || t.master || note < 0 || note > 127 || !instOf(t)) return; noteOff(key);
   const ti = trackIndex(t);
@@ -1524,39 +1505,39 @@ function keyLight(note, on) { keys?.children[HI - note]?.classList.toggle("on", 
 function auditionEntry(src, it, done) {
   if (src.id === "gsm") { gsmOf(it.gsm).then(b64 => b64 && playSample(b64)); return done(); }
   const n = src.id === "gm" && it.gm?.drums ? 36 : 48;
-  noteOn(selected, n, kbVel, "lib"); setTimeout(() => { noteOff("lib"); done(); }, 900);
+  noteOn(selected, n, au.kbVel(), "lib"); setTimeout(() => { noteOff("lib"); done(); }, 900);
 }
 // Computer keyboard as a tracker's note keyboard (FastTracker 2 / Renoise layout, by physical key so QWERTZ and
 // other layouts play the same): Z S X D C V G B H N J M = one octave from C, Q 2 W 3 E R 5 T 6 Y 7 U I 9 O 0 P = the
 // next octave and a half. It plays the selected track (arming follows selection). Octave [ ] (PageDown/PageUp,
 // numpad / *), velocity ; ' (numpad − +), ` or the ⌨ button toggles; Shift/Ctrl/Alt combinations stay shortcuts.
 // The keys are read by ui/keys.ts (installKeys, below); this holds the state and the actions.
-function toggleKb() { kbOn = !kbOn; document.getElementById("kb-btn").setAttribute("aria-pressed", kbOn); say(kbOn ? "computer keyboard plays the selected track (Z–M, Q–P)" : "computer keyboard off: letters are shortcuts again"); }
+function toggleKb() { const on = !au.kbOn(); au.setKbOn(on); say(on ? "computer keyboard plays the selected track (Z–M, Q–P)" : "computer keyboard off: letters are shortcuts again"); }
 // Piano-roll keys: press = audition on the selected track
 onRollMount(() => {
-keys.addEventListener("pointerdown", e => { const b = e.target.closest("button"); if (!b) return; e.preventDefault(); keys.setPointerCapture(e.pointerId); noteOn(selected, HI - [...keys.children].indexOf(b), kbVel, "mouse"); });
+keys.addEventListener("pointerdown", e => { const b = e.target.closest("button"); if (!b) return; e.preventDefault(); keys.setPointerCapture(e.pointerId); noteOn(selected, HI - [...keys.children].indexOf(b), au.kbVel(), "mouse"); });
 for (const ev of ["pointerup", "pointercancel"]) keys.addEventListener(ev, () => noteOff("mouse"));
-keys.addEventListener("keydown", e => { const b = e.target.closest("button"); if (b && (e.key === "Enter" || e.key === " ") && !e.repeat) { e.preventDefault(); noteOn(selected, HI - [...keys.children].indexOf(b), kbVel, "kbkey"); } });
+keys.addEventListener("keydown", e => { const b = e.target.closest("button"); if (b && (e.key === "Enter" || e.key === " ") && !e.repeat) { e.preventDefault(); noteOn(selected, HI - [...keys.children].indexOf(b), au.kbVel(), "kbkey"); } });
 keys.addEventListener("keyup", () => noteOff("kbkey"));
 });
 // Web MIDI (asks the browser on first use): notes to the armed track, CC1 to MW, pitch bend to PB
 function connectMidi() {
-  const info = document.getElementById("midi-info");
-  if (!navigator.requestMIDIAccess) { info.textContent = "MIDI: not available in this browser"; return; }
+  if (!navigator.requestMIDIAccess) { au.setMidiText("MIDI: not available in this browser"); return; }
   navigator.requestMIDIAccess().then(m => {
-    const hook = () => { let n = 0; for (const i of m.inputs.values()) { i.onmidimessage = midiMsg; n++; } info.textContent = n ? `MIDI: ${n} input${n > 1 ? "s" : ""} → ${armed ? armed.name : "arm a track"}` : "MIDI: no input connected"; };
+    const hook = () => { let n = 0; for (const i of m.inputs.values()) { i.onmidimessage = midiMsg; n++; } au.setMidiText(n ? `MIDI: ${n} input${n > 1 ? "s" : ""} → ${armed ? armed.name : "arm a track"}` : "MIDI: no input connected"); };
     hook(); m.onstatechange = hook;
-  }).catch(() => { info.textContent = "MIDI: permission denied"; });
+  }).catch(() => { au.setMidiText("MIDI: permission denied"); });
 }
 function midiMsg(e) {
   const [st, d1, d2] = e.data, cmd = st & 0xf0;
   if (cmd === 0x90 && d2) noteOn(armed, d1, d2, "m" + d1);
   else if (cmd === 0x80 || (cmd === 0x90 && !d2)) noteOff("m" + d1);
-  else if (cmd === 0xb0 && d1 === 1) { mwEl.value = d2; mwEl.dispatchEvent(new Event("input")); }
-  else if (cmd === 0xe0) { pbEl.value = ((d2 << 7) | d1) - 8192; pbEl.dispatchEvent(new Event("input")); }
+  else if (cmd === 0xb0 && d1 === 1) setWheel(d2);
+  else if (cmd === 0xe0) setBend(((d2 << 7) | d1) - 8192);
 }
-document.getElementById("kb-btn").onclick = toggleKb;
-document.getElementById("midi-info").onclick = connectMidi;
+// Footer (ui/footer/Audition.tsx): the armed track's name follows renames through the store.
+mountAudition(document.getElementById("audition"), { armedName: () => { const id = arrange.armedId(); return id == null ? null : tracks.find(t => t.id === id)?.name ?? null; },
+  toggleKb, connectMidi, wheel: setWheel, bend: setBend });
 // ===== Files: songs in project/music (/api/music), save with validation, export, import, bounce =====
 files.setSongs((DAW.files || []).filter(f => f.kind === "song").map(f => f.path).sort());
 let songFile = DAW.file || "project/music/demo.song.json", savedId = -1, savedExtra = "", savedDepth = 0, savedAt = null;
@@ -1772,9 +1753,7 @@ lanesEl.addEventListener("contextmenu", e => {
     ["Cut", "Ctrl+X", () => arrCmd("cut")], ["Copy", "Ctrl+C", () => arrCmd("copy")], ["Delete", "Del", () => arrCmd("del")]], `Clip ${c.name} menu`);
 });
 // ===== Arm, volume faders (header and mixer stay in sync), solo rule, splitter memory =====
-let kbOct = 4, kbVel = 100;  // computer-keyboard audition: octave of the A key (C4 = MIDI 60) and velocity
-function updateArmed() {
-  document.getElementById("armed-info").innerHTML = `Armed: <b>${armed ? armed.name : "none"}</b> · octave C${kbOct - 1} · vel ${kbVel}`;
+function updateArmed() {  // the footer (ui/footer/Audition.tsx) and the headers follow
   arrange.setArmedId(armed?.id ?? null);
 }
 function toggleArm(t) {
@@ -1789,22 +1768,20 @@ function setVolume(t, v, done) {
   t.vol = v; livePush();
 }
 // ===== Zoom: arrangement (px per bar) and piano roll (px per 1/16, px per key), anchored at the pointer =====
-const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-const wheelF = e => Math.exp(-clamp(e.deltaY * (e.deltaMode === 1 ? 33 : 1), -60, 60) * .008);  // pinch ≈ small deltas, mouse notch ≈ ±100
 function zoomArr(f, clientX, quiet) {
-  const r = lw.getBoundingClientRect(), ax = (clientX ?? r.left + lw.clientWidth / 2) - r.left, bar = 1 + (lw.scrollLeft + ax) / BW;
+  const r = lw.getBoundingClientRect(), ax = (clientX ?? r.left + lw.clientWidth / 2) - r.left, s0 = lw.scrollLeft, b0 = BW;
   const nb = clamp(BW * f, 6, 400); if (Math.abs(nb - BW) < .01) return;
   BW = nb; arrange.setBw(BW); document.documentElement.style.setProperty("--bar-w", BW + "px");
   relayout(); tracks.forEach(renderLane); updateLoop(); drawCursor(); showPos();
-  lw.scrollLeft = (bar - 1) * BW - ax; if (!quiet) say(`arrangement zoom ${Math.round(BW / 44 * 100)}%`);
+  lw.scrollLeft = anchorScroll(s0, ax, b0, BW); if (!quiet) say(`arrangement zoom ${Math.round(BW / 44 * 100)}%`);
 }
 function zoomRoll(fx, fy, clientX, clientY, quiet) {
   if (!grid) return;
   const r = grid.getBoundingClientRect(), ax = (clientX ?? r.left + grid.clientWidth / 2) - r.left, ay = (clientY ?? r.top + grid.clientHeight / 2) - r.top;
-  const st = (grid.scrollLeft + ax) / STEP, ky = (grid.scrollTop + ay) / KH;
+  const sx = grid.scrollLeft, sy = grid.scrollTop, step0 = STEP, kh0 = KH;
   STEP = clamp(STEP * fx, 3, 120); KH = clamp(Math.round(KH * fy * 4) / 4, 6, 32);
   document.documentElement.style.setProperty("--kh", KH + "px"); keys.style.fontSize = KH < 10 ? "0" : "";
-  drawRoll(); grid.scrollLeft = st * STEP - ax; grid.scrollTop = ky * KH - ay;
+  drawRoll(); grid.scrollLeft = anchorScroll(sx, ax, step0, STEP); grid.scrollTop = anchorScroll(sy, ay, kh0, KH);
   if (!quiet) say(`piano roll zoom ${Math.round(STEP / 22 * 100)}% × ${Math.round(KH / 12 * 100)}%`);
 }
 function fitArr() {
@@ -1838,10 +1815,9 @@ onRollMount(() => pinch(grid, (sc, e) => zoomRoll(g0 * sc / STEP, 1, e.clientX, 
 onRollMount(() => rollEls.tools.querySelectorAll("[data-zoom]").forEach(b => b.onclick = () => ({ "t+": () => zoomRoll(1.5, 1), "t-": () => zoomRoll(1 / 1.5, 1), "p+": () => zoomRoll(1, 1.25), "p-": () => zoomRoll(1, .8), fit: fitRoll })[b.dataset.zoom]()));
 // Global shortcuts (ui/keys.ts): Ctrl/⌘+S and the computer keyboard before the focused editor, the rest after it.
 installKeys({
-  save, undo, redo, toggleKb, kbPlays: () => !!(kbOn && armed),
-  kbNoteOn: (i, code) => noteOn(armed, 12 * kbOct + i, kbVel, "k" + code), kbNoteOff: code => noteOff("k" + code),
-  octave: d => { kbOct = Math.max(0, Math.min(8, kbOct + d)); updateArmed(); },
-  velocity: d => { kbVel = Math.max(1, Math.min(127, kbVel + 16 * d)); updateArmed(); },
+  save, undo, redo, toggleKb, kbPlays: () => !!(au.kbOn() && armed),
+  kbNoteOn: (i, code) => noteOn(armed, 12 * au.kbOct() + i, au.kbVel(), "k" + code), kbNoteOff: code => noteOff("k" + code),
+  octave: d => au.setKbOct(au.kbOct() + d), velocity: d => au.setKbVel(au.kbVel() + 16 * d),
   allNotesOff: () => [...heldV.keys()].forEach(noteOff),
   playPause: () => setPlay(!playing), toHome: () => seek(loopOn ? LOOP[0] : 1), toggleLoop, loopSelection, toggleFollow, toggleRec: () => setRec(!recOn),
   inRoll: e => e.target === gridc || e.target === velc || (focusArea === "roll" && !!rollEls && !e.target.closest?.("#arr, #hdrs")),

@@ -2,9 +2,10 @@
 // - auto values: the value of each automated parameter at the playhead, per device `values` object. Written by
 //   app.js's applyAutomation (only on change; it runs every frame while playing), read by the knobs, so playback
 //   moves just the automated knobs. Whether a lane exists comes from the song store; the override flag from here.
-// - slot and block collapse (block collapse persists in the browser through the `persist` hooks).
+// - slot and block collapse (block collapse persists in the browser, state/persist.ts).
 import { batch, createSignal } from "solid-js";
 import { createStore, type SetStoreFunction } from "solid-js/store";
+import { persist } from "./persist.ts";
 import { raw } from "./song.ts";
 
 type Auto = { v: Record<string, number | undefined>; ovr: Record<string, boolean | undefined> };
@@ -29,7 +30,6 @@ const [slotOpen, setSlotOpenStore] = createStore<Record<string, boolean | undefi
 export const slotOpenOf = (key: string): boolean | undefined => slotOpen[key];
 export const setSlotOpen = (key: string, v: boolean | undefined): void => { setSlotOpenStore(key, v); };
 
-let persist: { get(k: string): string | null; set(k: string, v: string): void } = { get: () => null, set: () => {} };
 const [blk, setBlk] = createStore<Record<string, boolean>>({});
 /** Block collapse (Oscillators, Filters, …), remembered in the browser (`daw.blk.<k>`), never in the song. */
 export function blockClosed(k: string): boolean {
@@ -37,7 +37,6 @@ export function blockClosed(k: string): boolean {
   return v ?? persist.get(`daw.blk.${k}`) === "1";
 }
 export function setBlockClosed(k: string, closed: boolean): void { persist.set(`daw.blk.${k}`, closed ? "1" : "0"); setBlk(k, closed); }
-export function setPersist(p: typeof persist): void { persist = p; }
 
 /** The track the panel shows: renderDevice() publishes app.js's `selected` (assigned in several places). */
 export const [shownTrack, setShownTrackSig] = createSignal<unknown>(null, { equals: false });
