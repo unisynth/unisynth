@@ -185,8 +185,13 @@ before → `AGENTS.md` rows → land on `main`.
   left (`devRev` gone). One deliberate change: a drag that turns the sample's own loop into a custom one is now
   inside the drag's undo step (the old code snapshotted after that conversion, so undo kept it). Screenshot of a
   Pad sampler slot matches the old build. 125/125, ratchet 98 → 96, bench unchanged.
-- [ ] 6.4 Live per-voice view as a component owning its SVG (`drawLive` kept, D4), active only while the Device tab
+- [x] 6.4 Live per-voice view as a component owning its SVG (`drawLive` kept, D4), active only while the Device tab
   shows and Live is on. Verify: browser live-display tests, `DAW.debug.live()` cost not higher than baseline.
+  Done: `ui/device/live.ts` owns probe parsing, spectra and the overlay drawing (SVG strings, D4); screens register
+  while mounted instead of being queried each frame; the voice chips are a component (`chips` signal); the frame
+  loop runs only while the Device tab shows (the watch was already off otherwise). `DAW.debug.live()` with a 6-note
+  chord on the Lead, 2 runs each, old → new: probe 0.23 → 0.23 ms, draw 0.25 → 0.25 ms. New test: the hidden Device
+  tab holds no content and comes back with edits made meanwhile. 126/126 twice.
 - [ ] 6.5 Measure the Device tab remount on a 50-track song with a full instrument. If over one frame, keep a cached
   panel with display effects suspended (D5 fallback). Record the result in design.md.
 

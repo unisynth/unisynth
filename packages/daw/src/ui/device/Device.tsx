@@ -3,10 +3,11 @@
 // reads it; nothing rebuilds the panel except a track change. Drawing stays imperative (design D4): each slot screen
 // is the element app.js builds, redrawn by an effect from the values its `_draw` reads; the sampler block is
 // ui/device/Sampler.tsx. Markup, classes and labels are the pre-port ones (contract tests).
-import { createEffect, createMemo, createSignal, For, Index, type JSX, on, Show, untrack } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Index, type JSX, on, onCleanup, Show, untrack } from "solid-js";
 import { render } from "solid-js/web";
 import { Knob } from "../common/Knob.tsx";
 import { Sampler, type SamplerActions } from "./Sampler.tsx";
+import { chips, markLiveDirty, registerLive } from "./live.ts";
 import { autoOverridden, autoValue, blockClosed, deviceShown, setBlockClosed, setSlotOpen, shownTrack, slotOpenOf } from "../state/device.ts";
 
 export interface Param { name: string; default: number; law: string; options: string[]; raw?: boolean; structural?: boolean; index: number }
@@ -135,7 +136,9 @@ function PGroup(p: { t: Track; d: Device; title: string; ps: () => Param[]; o: G
   const { t, d } = p, o = p.o, isChoice = (x: Param) => x.law === "Index" || x.options.length > 0 || !!x.raw;
   const pre = createMemo(() => o.pre?.() ?? null);
   // the screen follows the values its drawing reads (D4: drawing stays imperative)
-  createEffect(() => { const el = pre(); el?._draw?.(); });
+  createEffect(() => { const el = pre(); if (el?._draw) { el._draw(); markLiveDirty(); } });  // a redraw drops the overlay
+  const s0 = o.slot;  // screens carry per-voice overlays (ui/device/live.ts) while mounted
+  createEffect(() => { const el = pre(); if (el && s0 && el.matches("svg.scr, svg.env")) { el.setAttribute("data-live", `${s0.g}${s0.i}`); onCleanup(registerLive(el, `${s0.g}${s0.i}`)); } });
   const s = o.slot, key = s && `${t.id}:${s.g}${s.i}`, used = () => !!s && A.slotUsed(d, s.g, s.i);
   const closed = () => !!s && !(slotOpenOf(key!) ?? used());
   const title = s ? `${SLOT_NOUN[s.g]} ${s.i}` : p.title;
@@ -155,7 +158,7 @@ function PGroup(p: { t: Track; d: Device; title: string; ps: () => Param[]; o: G
       </Show>
     </div>
     <Show when={routes()}>{(r) => <div class="rt">{r().length ? `→ ${r().join(", ")}` : "unrouted · knobs inactive"}</div>}</Show>
-    {(() => { const el = pre(); if (el && s && (el.matches("svg.scr, svg.env"))) el.setAttribute("data-live", `${s.g}${s.i}`); return el; })()}
+    {pre()}
     <Show when={knobs().length}>
       <div class="knobs" style={{ "--cols": o.cols }}>
         <For each={knobs()}>{(x) => <PCtl t={t} d={d} p={x} label={o.labels?.[x.name]} />}</For>
@@ -194,7 +197,9 @@ function Instrument(p: { t: Track; d: Device }): JSX.Element {
     return <PGroup t={t} d={d} title={`${SLOT_NOUN[g]} ${i}`} ps={() => P(names)} o={{ cols, pre: () => scr, slot: { g, i } }} />;
   };
   return <div class="devbox" classList={{ byp: !!d.bypass }} aria-label="Instrument">
-    <h3>Unisynth <span class="kind">kind 64 · preset {d.preset || "init"}{d._edited ? "*" : ""}</span><span class="vox" role="group" aria-label="Sounding voices" />
+    <h3>Unisynth <span class="kind">kind 64 · preset {d.preset || "init"}{d._edited ? "*" : ""}</span><span class="vox" role="group" aria-label="Sounding voices">
+      <Index each={chips().list}>{(c) => <i style={{ "--vc": c().col }} classList={{ rel: c().rel }}>{c().label}</i>}</Index>
+      <Show when={chips().more}><b>+{chips().more}</b></Show></span>
       <span class="acts"><button class="livev" aria-pressed={live()} title="Live view: show the sounding voices on the screens (costs some engine time while on)" onClick={() => { A.toggleLive(); setLive(A.liveOn()); }}>Live</button>
         <button class="browse" onClick={() => A.browse()}>Browse…</button>
         <button class="impsmp" title="Encode an audio file (WAV, AIFF, MP3…) as a GSM sample and play it on a sampler slot (a free oscillator if there is no GSM sampler)" onClick={() => A.importSample(t, d)}>Import sample…</button>

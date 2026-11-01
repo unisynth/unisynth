@@ -17,6 +17,7 @@ import { mountMixer, setMixerShown } from "./ui/mixer.tsx";
 // DAW UI (change add-synth-daw): the reviewed mockup's views and interactions on the real song/2 model,
 import * as devst from "./ui/state/device.ts";
 import { mountDevice, SLOTS } from "./ui/device/Device.tsx";
+import * as live1 from "./ui/device/live.ts";  // live per-voice overlays (`live` is the aria-live element)
 // DAW UI (change add-synth-daw): the reviewed mockup's views and interactions on the real song/1 model,
 // engine (AudioWorklet + synth-wasm live host), device panels generated from the engine's parameter tables and
 // /api/music. Started by main.ts with { engine, model, api, tables, initial, files, library }.
@@ -669,6 +670,7 @@ function savePreset(t, d, btn) {
 }
 const device = document.getElementById("device");
 devst.setPersist(store);  // block collapse is remembered in the browser
+live1.initLive({ on: liveOn, inst: () => instOf(selected) ?? null, curVal, choice, lfoShape: k => LFO_SHAPES[k], yDb, noteName: n => NAMES[n], rate: () => E.rate });
 let devMounted = false;
 function renderDevice() {
   const t = selected;
@@ -679,19 +681,10 @@ function renderDevice() {
     (clip ? ` <span class="dim">· clip</span> <b>${clip.name}</b>${links(t, clip.name) > 1 ? ` <span class="badge">⧉ ${links(t, clip.name)} linked</span>` : ""}` : "") +
     ` <span class="dim">· ${t.devices.length} device${t.devices.length === 1 ? "" : "s"}</span>`;
   applyAutomation(); updateReauto(t);
-  updateWatch(); liveDirty = true;
+  updateWatch(); live1.markLiveDirty();
 }
 
-// ---- Live per-voice displays (change add-device-live-view D7): the engine's probe of the watched (selected) track's
-// instrument arrives with each ~30 ms status; an animation frame redraws only the overlay groups (`g.live`). Each
-// voice keeps one colour (by its note-on id) in every screen and a chip in the header; at most 16 voices are drawn,
-// the loudest; markers at one spot stack. Filters: input spectrum grey, output in the block colour, a tick per voice
-// at its modulated cutoff. ----
-const VCOL = ["#ffd166", "#4cc9f0", "#f72585", "#80ed99", "#ff8c42", "#b8a1ff", "#f4f1de", "#00f5d4", "#ff70a6", "#70d6ff", "#e9ff70", "#ff9770", "#c77dff", "#90f1ef", "#ffd6e0", "#a3e635"];
-const MAX_DRAWN = 16, VREC = 22;
-const vcol = new Map();  // voice id → palette index
-const relAt = new Map(); // voice id → age at which it was first seen released
-let liveP = null;         // { voices, taps, at } from the last probe
+// ---- Live per-voice displays: ui/device/live.ts (probe parsing, spectra, overlays, chips; change add-device-live-view D7). ----
 function liveOn() { return store.get("daw.live") !== "0"; }
 // The device panel's actions (ui/device/Device.tsx; called once, at the first renderDevice).
 function deviceActions() {
@@ -728,105 +721,11 @@ const SLOT_TITLE = (g, i) => `${{ osc: "Osc", filt: "Filter", env: "Env", lfo: "
 function updateWatch() {
   const t = selected, on = liveOn() && !document.getElementById("p-dev").hidden && t && !t.bus && !t.master && instOf(t);
   E.watch(on ? trackIndex(t) : -1);
-  if (!on) { liveP = null; liveDirty = true; }
+  if (!on) live1.liveClear();
 }
-function parseProbe(p) {
-  if (!p || p[0] !== 1) return null;
-  const nv = p[1], nf = p[2], L = p[3], voices = [], taps = [];
-  if (p.length < 4 + nv * VREC + nf) return null;  // layout mismatch (VREC = synth-wasm Host::probe's voice record)
-  let o = 4;
-  for (let v = 0; v < nv; v++, o += VREC) {
-    const r = p.subarray(o, o + VREC);
-    voices.push({ id: r[0], note: r[1], amp: r[2], rel: r[3] > 0, age: r[4], env: [0, 1, 2, 3].map(k => [r[5 + 2 * k], r[6 + 2 * k]]),
-      lfo: [r[13], r[14]], smp: [r[15], r[16], r[17]], cut: [r[18], r[19], r[20], r[21]] });
-  }
-  for (let f = 0; f < nf && o < p.length; f++) { if (p[o++]) { if (o + 2 * L > p.length) return null; taps[f] = [p.subarray(o, o + L), p.subarray(o + L, o + 2 * L)]; o += 2 * L; } }
-  return { voices, taps };
-}
-// 2048-point Hann FFT of the taps, folded onto the screens' log axis (x = 100·log10(f/20)/3), with a short peak hold
-const FN = 2048, FBINS = 140, fwin = Float64Array.from({ length: FN }, (_, i) => .5 - .5 * Math.cos(2 * Math.PI * i / (FN - 1)));
-const frev = Uint16Array.from({ length: FN }, (_, i) => { let r = 0; for (let b = 0, x = i; b < 11; b++, x >>= 1) r = (r << 1) | (x & 1); return r; });
-const fre = new Float64Array(FN), fim = new Float64Array(FN);
-function spectrumDb(x) {
-  for (let i = 0; i < FN; i++) { fre[frev[i]] = x[i] * fwin[i]; fim[frev[i]] = 0; }
-  for (let len = 2; len <= FN; len <<= 1) {
-    const ang = -2 * Math.PI / len, wr = Math.cos(ang), wi = Math.sin(ang);
-    for (let i = 0; i < FN; i += len) { let cr = 1, ci = 0;
-      for (let k = 0; k < len / 2; k++) { const a = i + k, b = a + len / 2, tr = fre[b] * cr - fim[b] * ci, ti = fre[b] * ci + fim[b] * cr;
-        fre[b] = fre[a] - tr; fim[b] = fim[a] - ti; fre[a] += tr; fim[a] += ti; const nr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = nr; } }
-  }
-  const out = new Float64Array(FBINS + 1), rate = E.rate || 44100;
-  for (let b = 0; b <= FBINS; b++) {
-    const f0 = 20 * 10 ** ((b - .5) / FBINS * 3), f1 = 20 * 10 ** ((b + .5) / FBINS * 3);
-    const k0 = Math.max(1, Math.floor(f0 / rate * FN)), k1 = Math.min(FN / 2 - 1, Math.max(k0, Math.ceil(f1 / rate * FN)));
-    let m = 0; for (let k = k0; k <= k1; k++) m = Math.max(m, Math.hypot(fre[k], fim[k]));
-    out[b] = 20 * Math.log10(m / (FN / 4) + 1e-6);
-  }
-  return out;
-}
-const specHold = new Map();  // `${slot}:in|out` → dB bins with peak hold
-function holdSpec(key, db) { const h = specHold.get(key); if (h) for (let b = 0; b < db.length; b++) db[b] = Math.max(db[b], h[b] - 2.5); specHold.set(key, db); return db; }
-let liveDirty = false;
-const liveCost = { probe: 0, nProbe: 0, draw: 0, nDraw: 0, voices: 0 };  // ms spent (DAW.debug.live)
-function liveProbe(p) {
-  const t0 = performance.now();
-  try { liveProbe1(p); } finally { liveCost.probe += performance.now() - t0; liveCost.nProbe++; }
-}
-function liveProbe1(p) {
-  const pr = liveOn() ? parseProbe(p) : null;  // a status sent before the view went off
-  if (!pr && !liveP) return;
-  liveP = pr; liveDirty = true;
-  if (!pr) return;
-  const ids = new Set(pr.voices.map(v => v.id));
-  for (const id of [...vcol.keys()]) if (!ids.has(id)) { vcol.delete(id); relAt.delete(id); }
-  for (const v of pr.voices) {
-    // a free palette entry; with all 16 taken (more voices than are drawn) the voice shares one, starting at its id
-    if (!vcol.has(v.id)) { const used = new Set(vcol.values()); let c = 0; while (used.has(c) && c < VCOL.length) c++; vcol.set(v.id, c < VCOL.length ? c : v.id % VCOL.length); }
-    if (v.rel && !relAt.has(v.id)) relAt.set(v.id, v.age);
-  }
-  pr.spec = pr.taps.map((t, f) => t && [holdSpec(`${f}:in`, spectrumDb(t[0])), holdSpec(`${f}:out`, spectrumDb(t[1]))]);
-}
-const vmark = (x, y, c, a, w = 6) => `<line class="vm" x1="${x.toFixed(2)}" y1="${y.toFixed(2)}" x2="${x.toFixed(2)}" y2="${y.toFixed(2)}" stroke="${c}" stroke-width="${w}" stroke-opacity="${a.toFixed(2)}"/>`;
-function beads(h) { const seen = []; return (x, y, c, a, dy, top) => { const k = seen.filter(b => Math.abs(b[0] - x) < dy * .6 && Math.abs(b[1] - y) < dy).length; seen.push([x, y]); return h(x, y + (y < top ? 1 : -1) * k * dy, c, a); }; }
-function drawLive() {
-  if (!liveDirty) return; liveDirty = false;
-  const t0 = performance.now();
-  try { drawLive1(); } finally { liveCost.draw += performance.now() - t0; liveCost.nDraw++; liveCost.voices = Math.max(liveCost.voices, liveP?.voices.length || 0); }
-}
-function drawLive1() {
-  const root = document.getElementById("device");
-  root.querySelectorAll("g.live").forEach(g => g.remove());
-  const vox = root.querySelector(".vox");
-  const vs = (liveP?.voices || []).slice().sort((a, b) => b.amp - a.amp), shown = vs.slice(0, MAX_DRAWN);
-  if (vox) vox.innerHTML = shown.map(v => `<i style="--vc:${VCOL[vcol.get(v.id)]}" class="${v.rel ? "rel" : ""}">${NAMES[v.note % 12]}${Math.floor(v.note / 12) - 1}</i>`).join("") + (vs.length > MAX_DRAWN ? `<b>+${vs.length - MAX_DRAWN}</b>` : "");
-  if (!shown.length) return;
-  const d = instOf(selected), alpha = v => .25 + .75 * Math.min(1, v.amp / Math.max(1e-6, shown[0].amp));
-  for (const svg of root.querySelectorAll("svg[data-live]")) {
-    if (!svg.isConnected || svg.closest(".closed")) continue;
-    const m = svg.dataset.live.match(/^([a-z]+)(\d)$/), g = m[1], i = +m[2];
-    let h = "";
-    if (g === "smp") for (const v of shown) { const pos = v.smp[i - 1]; if (pos < 0) continue; const x = Math.min(100, pos * 100), c = VCOL[vcol.get(v.id)];
-      h += `<line class="vm" x1="${x}" y1="0" x2="${x}" y2="40" stroke="${c}" stroke-width="1.5" stroke-opacity="${alpha(v).toFixed(2)}"/>`; }
-    if (g === "env" && svg._geo) { const { x, y, off, tot } = svg._geo, bead = beads(vmark), vb = svg.viewBox.baseVal;
-      shown.forEach((v, k) => { const [lvl] = v.env[i - 1], ra = relAt.get(v.id), t = ra == null ? Math.min(v.age, off) : Math.min(tot, off + (v.age - ra)), c = VCOL[vcol.get(v.id)];
-        h += bead(x(t), y(lvl), c, v.rel ? .55 : 1, 5, vb.height / 2) + `<line class="vm" x1="${vb.width - 3 - (k % 4) * 1.5}" y1="${y(0)}" x2="${vb.width - 3 - (k % 4) * 1.5}" y2="${y(lvl)}" stroke="${c}" stroke-width="1.5" stroke-opacity=".8"/>`; }); }
-    if (g === "lfo" && d) { const f = LFO_SHAPES[choice(curVal(d, `lfo${i}.shape`), 5)], dep = .25 + .75 * curVal(d, `lfo${i}.depth`), bead = beads(vmark);
-      for (const v of shown) { const ph = ((v.lfo[i - 1] % 1) + 1) % 1; h += bead(ph * 100, 20 - 15 * dep * f(ph), VCOL[vcol.get(v.id)], alpha(v), 4.5, 20); } }
-    if (g === "filt") { const sp = liveP.spec?.[i - 1];
-      if (sp) { const path = db => "M" + Array.from(db, (v, b) => `${(b / FBINS * 100).toFixed(2)} ${yDb(v).toFixed(2)}`).join(" L");
-        const pin = path(sp[0]); h += `<path class="sin" d="${pin} L100 40 L0 40 Z"/><path class="sinl" d="${pin}"/><path class="sout" d="${path(sp[1])}"/>`; }
-      for (const v of shown) { const hz = v.cut[i - 1]; if (hz < 0) continue; const x = Math.max(0, Math.min(100, Math.log10(Math.max(hz, 20) / 20) / .03));
-        h += `<line class="vm ct" x1="${x.toFixed(2)}" y1="0" x2="${x.toFixed(2)}" y2="5" stroke="${VCOL[vcol.get(v.id)]}" stroke-width="2" stroke-opacity="${alpha(v).toFixed(2)}"/>`; } }
-    if (h) svg.insertAdjacentHTML("beforeend", `<g class="live">${h}</g>`);
-  }
-  svg_playing(root);
-}
-// static curves step back while spectra are drawn
-function svg_playing(root) { root.querySelectorAll("svg.scr[data-live^=filt]").forEach(s => s.classList.toggle("playing", !!s.querySelector("g.live path.sout"))); }
 // Piano roll
 const keys = document.getElementById("keys"), gridc = document.getElementById("gridc"), velc = document.getElementById("velc");
 const NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
-(function liveFrames() { drawLive(); requestAnimationFrame(liveFrames); })();  // after NAMES (the live chips use it)
 const LO = 24, HI = 96; let KH = 12, STEP = 22;  // zoomable: KH = key row height, STEP = px per 1/16
 for (let n = HI; n >= LO; n--) {
   const b = document.createElement("button"); const nm = NAMES[n % 12];
@@ -1551,7 +1450,7 @@ document.addEventListener("keydown", e => {
   else if (e.key === "R" && e.shiftKey && !e.ctrlKey && !e.metaKey) setRec(!recOn);
   else if (e.key === "Home") { seek(loopOn ? LOOP[0] : 1); }
 });
-E.onStatus = st => { statusAt = performance.now(); meters(st); dropsCheck(); liveProbe(st.probe); loadAvg += (st.load - loadAvg) * .06; setLoad(Math.round(Math.min(1, st.load ? loadAvg : (loadAvg = 0)) * 100)); if (!st.playing && playing && st.gen === E.gen) setPlay(false); };
+E.onStatus = st => { statusAt = performance.now(); meters(st); dropsCheck(); live1.liveProbe(st.probe); loadAvg += (st.load - loadAvg) * .06; setLoad(Math.round(Math.min(1, st.load ? loadAvg : (loadAvg = 0)) * 100)); if (!st.playing && playing && st.gen === E.gen) setPlay(false); };
 function tick(now) {
   const st = E.status;
   // between status messages (about every 30 ms) the clock runs on from the last reported frame
@@ -1776,7 +1675,7 @@ function bounceSong() {
 }
 markSaved(); savedAt = null; files.setSongFile(songFile); files.addSong(songFile); dirtyUpd();
 DAW.debug = { song: () => songOf(false), selected: () => selected.id, bars: () => BARS, undoDepth: () => H.depth,
-  live: () => ({ probeMs: liveCost.probe / Math.max(1, liveCost.nProbe), drawMs: liveCost.draw / Math.max(1, liveCost.nDraw), maxVoices: liveCost.voices }) };
+  live: () => live1.liveStats() };
 // Menus: popMenu (ui/common/Menu.tsx), right-click or Shift+F10 / ContextMenu key on headers, lanes, clips.
 // ===== Tracks: add, rename, reorder, duplicate, delete =====
 const TCOL = ["--t-kick", "--t-bass", "--t-lead", "--t-pad", "--t-keys", "--t-hats"];

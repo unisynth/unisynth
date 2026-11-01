@@ -3,8 +3,9 @@
 // its playback settings plus the waveform with start and loop (D4: drawn on a canvas by an effect; drag the start
 // line, a loop edge or the loop body). `osc<i>.s7` = source (choice of 3), `osc<i>.sample` = raw index, shape values
 // s0–s6 (crates/unisynth/src/smp.rs). Markup and labels are the pre-port ones (contract tests).
-import { createEffect, createMemo, For, type JSX, Show } from "solid-js";
+import { createEffect, createMemo, For, type JSX, onCleanup, Show } from "solid-js";
 import type { Device, Param, Track } from "./Device.tsx";
+import { registerLive } from "./live.ts";
 
 export interface SamplerActions {
   ip(name: string): Param;
@@ -140,7 +141,7 @@ function Settings(p: { t: Track; d: Device; i: number; a: SamplerActions; b64: (
     <div class="smpwrap">
       <canvas ref={cvs} class="smpwave" width={W * devicePixelRatio} height={H * devicePixelRatio} style={{ width: `${W}px`, height: `${H}px` }}
         role="img" aria-label={label()} title={`${label()} · drag the start line or the loop`} onPointerDown={down} />
-      <svg class="smplive" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true" data-live={`smp${i}`} />
+      <svg class="smplive" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true" data-live={`smp${i}`} ref={(el) => onCleanup(registerLive(el, `smp${i}`))} />
     </div>
   </>;
 }

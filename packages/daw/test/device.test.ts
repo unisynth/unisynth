@@ -281,4 +281,16 @@ test("playback: automation changes only the automated knob and the screen drawn 
   await page.evaluate(() => localStorage.removeItem("daw.live"));
 }, 30_000);
 
+test("hidden Device tab holds no content; it comes back on show with edits made meanwhile (D5)", async () => {
+  await open();
+  await page.locator("#tab-mix").click();
+  expect(await page.locator("#device *").count()).toBe(0);
+  await page.locator('[role="group"][aria-label="Bass channel strip"] [aria-label="Mute Bass"]').click();  // an edit while hidden
+  await page.locator('.thdr.track[data-track="lead"]').click();
+  expect(await page.locator("#device *").count()).toBe(0);
+  await page.locator("#tab-dev").click();
+  expect(await page.locator('#device .devbox[aria-label="Instrument"] h3 .kind').textContent()).toContain("preset Saw Lead");
+  expect(await page.locator("#device .grp").count()).toBeGreaterThan(10);
+}, 30_000);
+
 test("no page errors", () => expect(errors).toEqual([]));
