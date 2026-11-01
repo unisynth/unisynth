@@ -104,8 +104,15 @@ before → `AGENTS.md` rows → land on `main`.
   validation and converted legacy entries stay in browser/library tests). Found and fixed: the focused menu item's
   shortcut (`kbd`, `--dim` on `--sel`, 4.4:1) failed axe colour contrast; it now uses `--fg`. Import of
   `<name>.song.bin` opens as `<name>.song.json`, unsaved (kept).
-- [ ] 4.2 `ui/common/Dialog.tsx`, `Menu.tsx` (mounted only while open, focus return to the opener), then port files and
+- [x] 4.2 `ui/common/Dialog.tsx`, `Menu.tsx` (mounted only while open, focus return to the opener), then port files and
   bounce (`ui/files/`) and library (`ui/library/`). Verify: contract, existing library/threads tests, axe.
+  Done: `ui/common/{Dialog,Menu}.tsx`, `ui/state/{files,library}.ts`, `ui/files/{Files,dialogs}.tsx`,
+  `ui/library/Library.tsx`; 91/91 twice (files contract 12, library unit 4). Ratchet 102 → 101 (the old tree's
+  `d.open =` was a `<details>`, counted as a model write). Bench within noise (trashpanda open measured 3× each side
+  in one session: 1 597–1 641 before, 1 603–1 627 after; the earlier ~1 050 baseline ran on a less loaded machine).
+  Found: Solid templates with `<table><tr>` need an explicit `<tbody>`. The inspector now follows the selected track
+  (target name, Audition/Load enabled) instead of a snapshot at click time; the library keeps open groups after a
+  preset save. Track/lane/clip menus use `popMenu` unchanged until the arrangement port.
 
 ## 5. Arrangement (D6, D7)
 

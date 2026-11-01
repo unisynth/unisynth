@@ -1,11 +1,12 @@
 // Transport bar in SolidJS (change daw-solid-ts 3.3): the page header. Same ids, classes, names and titles as the old
 // static markup (tests and style.css rely on them). Reads state/transport.ts and state/live.ts; edits go through
 // `TransportActions` (app.js). Position and time derive from the playhead, tempo and signature, so a tempo change
-// updates the time at once. Bounce / Export / Save keep their ids; app.js still drives them (files, group 4).
+// updates the time at once. Save shows the unsaved state (ui/state/files.ts); Bounce / Export / Save call actions.
 import { createEffect, createMemo, For, type JSX } from "solid-js";
 import { render } from "solid-js/web";
 import { load, playing, pos } from "../state/live.ts";
 import * as tr from "../state/transport.ts";
+import { dirty, saveLabel, songFile } from "../state/files.ts";
 
 export interface TransportActions {
   play(): void;
@@ -26,6 +27,9 @@ export interface TransportActions {
   openFilters(on: boolean): void;
   undo(): void;
   redo(): void;
+  save(): void;
+  bounce(): void;
+  exportSong(): void;
 }
 
 export function mountTransport(header: HTMLElement, a: TransportActions): () => void {
@@ -89,9 +93,9 @@ function TransportBar(p: { a: TransportActions }): JSX.Element {
     <div class="group">
       <button title="Undo (Ctrl+Z)" aria-label="Undo" onClick={() => a.undo()}>↶</button>
       <button title="Redo (Ctrl+Shift+Z)" aria-label="Redo" onClick={() => a.redo()}>↷</button>
-      <button id="bounce-btn" title="Render the song or the loop to WAV">Bounce…</button>
-      <button id="export-btn" title="Export the song blob next to the song">Export</button>
-      <button id="save" class="dirty" title="Save (Ctrl+S)">Save</button>
+      <button id="bounce-btn" title="Render the song or the loop to WAV" onClick={() => a.bounce()}>Bounce…</button>
+      <button id="export-btn" title="Export the song blob next to the song" onClick={() => a.exportSong()}>Export</button>
+      <button id="save" classList={{ dirty: dirty().on }} aria-label={saveLabel(songFile(), dirty())} title="Save (Ctrl+S)" onClick={() => a.save()}>Save</button>
     </div>
   </>;
 }

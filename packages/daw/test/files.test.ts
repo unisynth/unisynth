@@ -44,6 +44,7 @@ afterAll(async () => {
 const songButtons = () => page.locator("#songlist button").allTextContents();
 const current = () => page.locator("#songlist button[aria-current=true]").textContent();
 const dialog = () => page.locator("dialog.dlg");
+const saveDirty = () => page.locator("#save").evaluate((b) => b.classList.contains("dirty"));
 const undoDepth = () => page.evaluate(() => (window as any).DAW.debug.undoDepth());
 /** An undoable edit: mute the selected-track header's M button twice would cancel out, so toggle the lead's mute. */
 async function edit() {
@@ -54,10 +55,10 @@ async function edit() {
 test("song list: sorted names, the current song marked with its track count; an edit adds the unsaved dot", async () => {
   expect(await songButtons()).toEqual([expect.stringMatching(/^demo\.song\.json \d+ tr$/), "global-groove.song.json"]);
   expect(await current()).toMatch(/^demo\.song\.json/);
-  expect(await page.locator("#save").getAttribute("class")).not.toContain("dirty");
+  expect(await saveDirty()).toBe(false);
   await edit();
   expect(await current()).toMatch(/^• demo\.song\.json/);
-  expect(await page.locator("#save").getAttribute("class")).toContain("dirty");
+  expect(await saveDirty()).toBe(true);
 });
 
 test("switching with unsaved changes asks: Cancel stays, Don't save opens the other song", async () => {
@@ -98,7 +99,7 @@ test("save: clean afterwards; a 422 from the server lists the JSON paths and a p
   await page.keyboard.press("Control+s");
   await expect(dialog().getAttribute("aria-label")).resolves.toBe("Save blocked: 2 validation errors");
   expect(await dialog().locator(".errs button").allTextContents()).toEqual(["/tracks/1/devices/0 bad device", "/master/volume too loud"]);
-  expect(await page.locator("#save").getAttribute("class")).toContain("dirty");
+  expect(await saveDirty()).toBe(true);
   const second = await page.evaluate(() => (window as any).DAW.debug.song().tracks[1].id);
   await dialog().locator(".errs button").first().click();
   expect(await dialog().count()).toBe(0);

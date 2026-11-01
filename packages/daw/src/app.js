@@ -3,8 +3,14 @@ import { batch, createSong, raw, restoreSong } from "./ui/state/song.ts";
 import { createHistory } from "./ui/state/history.ts";
 import * as liveState from "./ui/state/live.ts";
 import * as tr from "./ui/state/transport.ts";
-import { mountTransport } from "./ui/transport/TransportBar.tsx";  // not `live`: that is the aria-live status element below
-import { laneEl, overrides, overrideSet, rollClips, setSelectedId } from "./ui/state/view.ts";
+import { mountTransport } from "./ui/transport/TransportBar.tsx";
+import * as files from "./ui/state/files.ts";
+import * as lib from "./ui/state/library.ts";
+import { mountFiles } from "./ui/files/Files.tsx";
+import * as dialogs from "./ui/files/dialogs.tsx";
+import { mountLibrary, openLibrary } from "./ui/library/Library.tsx";
+import { popMenu } from "./ui/common/Menu.tsx";  // not `live`: that is the aria-live status element below
+import { laneEl, overrides, overrideSet, rollClips, selectedId, setSelectedId } from "./ui/state/view.ts";
 import { mountMixer, setMixerShown } from "./ui/mixer.tsx";
 // DAW UI (change add-synth-daw): the reviewed mockup's views and interactions on the real song/1 model,
 // engine (AudioWorklet + synth-wasm live host), device panels generated from the engine's parameter tables and
@@ -53,6 +59,15 @@ mountTransport(document.querySelector("header"), {
   toggleFollow: () => toggleFollow(), zoomOut: () => zoomArr(1 / 1.5), zoomIn: () => zoomArr(1.5), zoomFit: () => fitArr(),
   tempo: v => onTempo(v), sig: v => onSig(v), snap: v => tr.setSnap(v), loopText: str => onLoopText(str),
   length: v => onLength(v), buffer: v => onBuffer(v), openFilters: on => onOpenFilters(on), undo: () => undo(), redo: () => redo(),
+  save: () => save(), bounce: () => bounceSong(), exportSong: () => exportSong(),
+});
+// Songs section and instrument library (Solid, ui/files/Files.tsx, ui/library/Library.tsx)
+mountFiles(document.querySelector("#browser > section"), {
+  open: f => openSong(f), importFile: f => importFile(f), newSong: () => newSong(), trackCount: () => tracks.length,
+});
+mountLibrary(document.getElementById("lib"), {
+  hasInst: () => { selectedId(); return !!instOf(selected); }, target: () => { selectedId(); return selected.name; },
+  audition: (src, it, done) => auditionEntry(src, it, done), load: (src, it) => loadInto(selected, src, it),
 });
 // Colour tokens of style.css (static: no theme switching), cached — getComputedStyle per knob/lane draw cost seconds
 // per undo on large songs (bench/ui-profile.ts).
@@ -892,7 +907,7 @@ function savePreset(t, d, btn) {
     const { _edited, ...dev } = d; const text = E.presetSave({ ...dev, values: { ...d.values } }, nm);
     const res = await api.write(path, text);
     if (!res.ok) { pop.querySelector(".perr").textContent = res.errors?.map(e => `${e.path}: ${e.message}`).join("; ") || res.error; return; }
-    const before = snap(); d.preset = nm; d._edited = false; close(); CAT = await api.library() || CAT; renderAll(); renderLibrary(); commit(before, `saved preset ${nm} → ${path}`);
+    const before = snap(); d.preset = nm; d._edited = false; close(); CAT = await api.library() || CAT; lib.setCatalog(CAT); renderAll(); commit(before, `saved preset ${nm} → ${path}`);
   };
   pop.addEventListener("keydown", e => { if (e.key === "Escape") close(); if (e.key === "Enter") pop.querySelector(".ok").click(); });
 }
@@ -1241,7 +1256,6 @@ function selectTrack(t) {
   document.querySelectorAll(".lane.track").forEach(l => l.classList.toggle("sel", l.dataset.track === t.id));
   genRoll(t); renderAll();
   if (!document.getElementById("p-roll").hidden) drawRoll();
-  const lt = document.getElementById("lib-target"); if (lt) lt.textContent = t.name;
 }
 document.getElementById("hdrs").addEventListener("click", e => {
   if (e.target.closest("button, input, select")) return;
@@ -1502,59 +1516,6 @@ function arrKeys(e, hdrTrack) {
   if (!cmd) return; e.preventDefault(); arrCmd(cmd, arg);
 }
 
-// Library: every instrument source in one searchable tree. Names/counts from catalog.json; loading converts
-// legacy patches with synth-convert into us-patch/1 (Tunefish, WaveSabre) or sets a sampler source (GM.DLS).
-// Library: every instrument source in one searchable tree (/api/library). Project presets load as us-patch/1;
-// the GM bank sets a sampler wave; Tunefish and WaveSabre entries are converted by synth-convert (not yet
-// available in this build: shown, not loadable).
-const SOURCES = [
-  { id: "project", label: "Project presets", note: "project/music/patches · us-patch/1", lic: "ours" },
-  { id: "gm", label: "GM.DLS bank", note: "OS bank read at runtime (Win gm.dls / macOS gs_instruments.dls); never shipped in the intro", lic: "OS bank" },
-  { id: "gsm", label: "GSM samples", note: "stored in the instruments of project/music songs · GSM 06.10, about 9 KB per second", lic: "from project songs: each song's meta gives its licence" },
-  { id: "tunefish", label: "Tunefish 4 programs", note: "tf4programs/*.txt → synth-convert → unisynth instrument + insert effects", lic: "GPL-3 reference: converted and re-saved as an own patch" },
-  { id: "wavesabre", label: "WaveSabre songs", note: "instruments inside the reference songs → synth-convert → unisynth instrument", lic: "WaveSabre reference songs (MIT)" },
-  { id: "tests", label: "Test patches", note: "crates/wavesabre/tests, crates/tfsynth/tests (synthetic, cover every module)", lic: "ours" },
-];
-function libItems(src) {
-  if (!CAT) return [];
-  if (src === "project") return (CAT.project?.presets || []).map(p => ({ name: p.name, tag: "patch", preset: p }));
-  if (src === "gm") return (CAT.gm?.instruments || []).map(g => ({ name: g.name, tag: g.drums ? "kit" : `${String(g.prog).padStart(3, "0")}${g.bank ? "·b" + g.bank : ""}`, gm: g }));
-  if (src === "gsm") return (CAT.gsm?.samples || []).map(g => ({ name: `${g.song} · ${g.trackName}${g.sample ? ` #${g.sample + 1}` : ""}`, tag: `${g.seconds.toFixed(2)} s`, gsm: g }));
-  if (src === "tunefish") return (CAT.tunefish?.programs || []).map(p => ({ name: p.name, tag: "#" + p.n, conv: p.conv }));
-  if (src === "wavesabre") return (CAT.wavesabre?.songs || []).flatMap(s => s.instruments.filter(d => !d.dup).map((d, i) => ({ name: `${s.song} · ${d.kind} ${i + 1}`, tag: d.kind === "Adultery" ? `wave ${d.wave}` : d.kind.slice(0, 5).toLowerCase(), ws: d, song: s.song, conv: d.conv })));
-  if (src === "tests") return [...(CAT.repo?.["wavesabre-tests"] || []).map(n => ({ name: n, tag: "ws" })), ...(CAT.repo?.["tfsynth-tests"] || []).map(n => ({ name: n, tag: "tf" }))];
-}
-const libTree = document.getElementById("lib-tree"), libQ = document.getElementById("lib-q"), insp = document.getElementById("lib-insp");
-function renderLibrary(open) {
-  const q = libQ.value.trim().toLowerCase();
-  libTree.replaceChildren(...SOURCES.filter(src => !CAT || src.id === "project" || CAT[src.id === "tests" ? "repo" : src.id]).map(src => {
-    const all = libItems(src.id) || [], items = q ? all.filter(i => (i.name + " " + i.tag).toLowerCase().includes(q)) : all;
-    const d = document.createElement("details"); d.dataset.src = src.id;
-    d.open = !!q && items.length > 0 || open === src.id;
-    d.innerHTML = `<summary><span>${src.label}</span><span class="kind num">${q ? items.length + "/" : ""}${all.length || (CAT ? 0 : "…")}</span></summary>`;
-    const ul = document.createElement("ul");
-    const fill = () => { ul.replaceChildren(...items.slice(0, 300).map(it => { const li = document.createElement("li"); const b = document.createElement("button");
-      b.innerHTML = `<span class="nm">${it.name}</span><span class="kind">${it.tag}</span>`; b.onclick = () => inspect(src, it, b); li.append(b); return li; }));
-      if (items.length > 300) ul.append(Object.assign(document.createElement("li"), { className: "dim more", textContent: `+ ${items.length - 300} more · refine the search` })); };
-    if (d.open) fill(); d.addEventListener("toggle", () => { if (d.open && !ul.childElementCount) fill(); });
-    d.append(ul); return d;
-  }));
-}
-function inspect(src, it, btn) {
-  libTree.querySelectorAll("button[aria-current]").forEach(b => b.removeAttribute("aria-current")); btn.setAttribute("aria-current", "true");
-  // legacy entries load once converted (`conv`: synth-convert → song/1 devices, from project/music/.library.json)
-  const inst = instOf(selected), legacy = src.id === "tests" || ((src.id === "tunefish" || src.id === "wavesabre") && !it.conv?.devices?.length);
-  const canLoad = !!inst && !legacy;
-  const what = src.id === "gm" ? `${it.gm.drums ? "drum kit" : "melodic"} · bank ${it.gm.bank} · prog ${it.gm.prog} · ${it.gm.regions.length} regions` :
-    src.id === "gsm" ? `${it.gsm.seconds.toFixed(2)} s · ${(it.gsm.bytes / 1024).toFixed(1)} KB · ${it.gsm.path}${it.gsm.uses > 1 ? ` · used ${it.gsm.uses}×` : ""}` :
-    src.id === "wavesabre" ? `${it.ws.kind} in “${it.song}”${it.ws.kind === "Adultery" ? ` · plays GM wave ${it.ws.wave}` : ""}` : src.note;
-  insp.innerHTML = `<div class="iname">${it.name}</div><div class="dim">${src.label} · ${what}</div><div class="lic">${src.lic}</div>
-    <div class="iacts">${src.id === "gsm" ? `<button class="aud" aria-label="Play ${it.name}">▶ Play sample</button>` : `<button class="aud" aria-label="Audition ${it.name}" ${inst ? "" : "disabled"}>▶ Audition C3</button>`}<button class="loadin" ${canLoad ? "" : "disabled"}>Load into <span id="lib-target">${selected.name}</span></button></div>
-    ${legacy ? `<div class="dim small">${src.id === "tests" ? "Test patches are listed for reference." : "Not converted yet: run <code>cargo run --release -p synth-convert --example library</code> (writes project/music/.library.json)."}</div>` : ""}
-    ${it.conv?.devices?.length ? `<div class="dim small">Converted by synth-convert: ${it.conv.devices.length > 1 ? `instrument + ${it.conv.devices.length - 1} insert effect${it.conv.devices.length > 2 ? "s" : ""}` : "instrument"}${it.conv.warnings?.length ? ` · ${it.conv.warnings.length} note${it.conv.warnings.length > 1 ? "s" : ""}: ${it.conv.warnings.slice(0, 2).join("; ")}` : ""}</div>` : ""}`;
-  insp.querySelector(".aud").onclick = e => auditionEntry(src, it, e.currentTarget);
-  insp.querySelector(".loadin").onclick = () => loadInto(selected, src, it);
-}
 async function loadInto(t, src, it) {
   const before = snap(); let inst = instOf(t); if (!inst) return;
   if (src.id === "project") {
@@ -1579,11 +1540,8 @@ async function loadInto(t, src, it) {
   }
   overrides.get(t.id)?.clear(); rebuildTracks(); renderAll(); say(`${t.name}: loaded “${it.name}” (one undo step)`); commit(before, `${t.name}: loaded ${it.name}`);
 }
-function openLibrary(src = "project") { libQ.value = ""; renderLibrary(src); libTree.querySelector(`details[data-src="${src}"] summary`)?.focus(); }
-libQ.addEventListener("input", () => renderLibrary());
-CAT = DAW.library;
+CAT = DAW.library; lib.setCatalog(CAT);
 if (CAT?.gm && E.bank == null) api.bank().then(b => { if (b) E.setBank(b); });
-renderLibrary();
 genRoll(selected);
 renderAll();
 
@@ -1913,10 +1871,10 @@ function noteOn(t, note, vel, key) {
 function noteOff(key) { const h = heldV.get(key); if (!h) return; if (E.node) E.noteOff(h.ti, h.note); heldV.delete(key); if (![...heldV.values()].some(x => x.note === h.note)) keyLight(h.note, false); }
 function keyLight(note, on) { keys.children[HI - note]?.classList.toggle("on", on); }
 // Library: "Audition" plays C3 on the selected track's instrument (load the entry to hear its own sound)
-function auditionEntry(src, it, btn) {
-  if (src.id === "gsm") { gsmOf(it.gsm).then(b64 => b64 && playSample(b64)); return; }
+function auditionEntry(src, it, done) {
+  if (src.id === "gsm") { gsmOf(it.gsm).then(b64 => b64 && playSample(b64)); return done(); }
   const n = src.id === "gm" && it.gm?.drums ? 36 : 48;
-  noteOn(selected, n, kbVel, "lib"); btn.textContent = "■ playing C3"; setTimeout(() => { noteOff("lib"); btn.textContent = "▶ Audition C3"; }, 900);
+  noteOn(selected, n, kbVel, "lib"); setTimeout(() => { noteOff("lib"); done(); }, 900);
 }
 // Computer keyboard as a tracker's note keyboard (FastTracker 2 / Renoise layout, by physical key so QWERTZ and
 // other layouts play the same): Z S X D C V G B H N J M = one octave from C, Q 2 W 3 E R 5 T 6 Y 7 U I 9 O 0 P = the
@@ -1964,7 +1922,7 @@ function midiMsg(e) {
 document.getElementById("kb-btn").onclick = toggleKb;
 document.getElementById("midi-info").onclick = connectMidi;
 // ===== Files: songs in project/music (/api/music), save with validation, export, import, bounce =====
-const songs = new Map((DAW.files || []).filter(f => f.kind === "song").map(f => [f.path, f]));
+files.setSongs((DAW.files || []).filter(f => f.kind === "song").map(f => f.path).sort());
 let songFile = DAW.file || "project/music/demo.song.json", savedId = -1, savedExtra = "", savedDepth = 0, savedAt = null;
 const base = p => p.replace(/^.*\//, "");
 // Unsaved = another committed state than at save (history state ids) or song settings that are not undoable changed.
@@ -1974,15 +1932,8 @@ const isDirty = () => H.stateId !== savedId || extraKey() !== savedExtra;
 function dirtyUpd() {
   const d = isDirty(), n = Math.max(d ? 1 : 0, Math.abs(H.depth - savedDepth));
   document.title = `${d ? "• " : ""}${base(songFile)} — 64k DAW`;
-  const sv = document.getElementById("save"); sv.classList.toggle("dirty", d); sv.setAttribute("aria-label", d ? `Save ${base(songFile)}, ${n} unsaved change${n > 1 ? "s" : ""}` : `Save ${base(songFile)}, no changes`);
+  files.setDirty({ on: d, n });
   document.getElementById("saved-info").textContent = d ? `${n} unsaved change${n > 1 ? "s" : ""}` : savedAt ? `Saved ${savedAt.toTimeString().slice(0, 5)}` : "No changes";
-  renderSongList();
-}
-function renderSongList() {
-  const ul = document.getElementById("songlist");
-  if (!songs.has(songFile)) songs.set(songFile, { path: songFile, kind: "song" });
-  ul.replaceChildren(...[...songs.keys()].sort().map(f => { const li = document.createElement("li"), b = document.createElement("button"), cur = f === songFile;
-    b.innerHTML = `${cur && isDirty() ? "• " : ""}${base(f)}${cur ? ` <span class="kind">${tracks.length} tr</span>` : ""}`; if (cur) b.setAttribute("aria-current", "true"); b.onclick = () => openSong(f); li.append(b); return li; }));
 }
 // Puts a song/1 source into the editor (undo history cleared).
 function useSong(s, file, saved) {
@@ -1993,32 +1944,21 @@ function useSong(s, file, saved) {
   tr.setTempo(st.tempo); const v = st.sig.join("/"); tr.ensureSig(v); document.documentElement.style.setProperty("--beats", beatsPerBar());
   BARS = st.bars; LOOP[0] = 1; LOOP[1] = Math.min(BARS, 4) + 1;
   restore(JSON.stringify(d));
-  H.clear(); songFile = file; savedDepth = 0; savedAt = saved ? new Date() : null;
+  H.clear(); songFile = file; files.setSongFile(file); files.addSong(file); savedDepth = 0; savedAt = saved ? new Date() : null;
   relayout(); updateLoop(); SONG_POS = 1; showPos(); fitSong(true); if (saved) markSaved(); else savedId = -1; liveLoaded = false; livePush(); dirtyUpd();
 }
 async function loadSong(f) {
   try { useSong(JSON.parse(await api.read(f)), f, true); say(`opened ${f}`); } catch (e) { say(`cannot open ${f}: ${e.message}`); }
 }
-// A dialog: title, body HTML, buttons [[label, fn, primary]]; returns the <dialog>.
-function dlg(title, body, buttons) {
-  document.querySelector("dialog.dlg")?.remove();
-  const d = document.createElement("dialog"); d.className = "dlg"; d.setAttribute("aria-label", title);
-  d.innerHTML = `<h3>${title}</h3><div class="dbody">${body}</div><div class="dacts"></div>`;
-  for (const [label, fn, primary] of buttons) { const b = Object.assign(document.createElement("button"), { textContent: label }); if (primary) b.className = "primary"; b.onclick = async () => { if (await fn?.(d) !== false) d.close(); }; d.querySelector(".dacts").append(b); }
-  d.addEventListener("close", () => d.remove()); document.body.append(d); d.showModal(); return d;
-}
 function openSong(f) {
   if (f === songFile) return;
   if (!isDirty()) return loadSong(f);
-  dlg(`Save changes to ${base(songFile)}?`, `<p>Your changes are lost if you switch without saving.</p>`,
-    [["Save", async () => { if (await save()) loadSong(f); else return false; }, true], ["Don't save", () => loadSong(f)], ["Cancel"]]);
+  dialogs.confirmSave(songFile, "Your changes are lost if you switch without saving.", save, () => loadSong(f));
 }
 // Errors carry their JSON path (crates/song rules, also checked by the server before it writes).
 function trackOfPath(path) { const m = path.match(/^\/tracks\/(\d+)/); return m ? tracks[+m[1]] : path.startsWith("/master") ? master : null; }
 function showErrors(errs, what) {
-  const d = dlg(`${what} blocked: ${errs.length} validation error${errs.length > 1 ? "s" : ""}`,
-    `<ul class="errs">${errs.map((e, i) => `<li><button data-i="${i}"><code>${e.path || "/"}</code> ${e.message}</button></li>`).join("")}</ul><p class="dim">Fix them and ${what.toLowerCase()} again. Click an error to go to it.</p>`, [["Close", null, true]]);
-  d.querySelectorAll(".errs button").forEach(b => b.onclick = () => { const t = trackOfPath(errs[+b.dataset.i].path); d.close(); if (!t) return; selectTrack(t); document.querySelector(`.thdr.track[data-track="${t.id}"]`)?.focus(); });
+  dialogs.showErrors(errs, what, path => { const t = trackOfPath(path); if (!t) return; selectTrack(t); document.querySelector(`.thdr.track[data-track="${t.id}"]`)?.focus(); });
 }
 function localIssues() {
   const errs = [], seen = new Map();
@@ -2030,91 +1970,57 @@ async function save() {
   if (errs.length) { showErrors(errs, "Save"); return false; }
   const r = await api.write(songFile, json);
   if (!r.ok) { if (r.errors) showErrors(r.errors, "Save"); else say(`save failed: ${r.error}`); return false; }
-  markSaved(); savedDepth = H.depth; savedAt = new Date(); songs.set(songFile, { path: songFile, kind: "song" });
+  markSaved(); savedDepth = H.depth; savedAt = new Date(); files.addSong(songFile);
   dirtyUpd(); say(`${api.static ? "downloaded (read-only preview)" : "saved"} ${songFile} (song/1, ${(json.length / 1024).toFixed(1)} kB)`); return true;
 }
-document.getElementById("save").onclick = save;
 window.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); e.stopImmediatePropagation(); save(); } }, true);
 window.addEventListener("beforeunload", e => { if (isDirty()) { e.preventDefault(); e.returnValue = ""; } });
 const emptySong = () => ({ format: "song/1", rate: 44100, tempo: 120, signature: [4, 4], ticks_per_beat: 960, length: 8 * 3840, clips: [],
   tracks: [{ id: "t1", name: "Track 1", color: "--t-lead", volume: 0.5, mute: false, receives: [], devices: [initInstrument()], placements: [], lanes: [] }],
   master: { id: "master", name: "Master", volume: 1, mute: false, receives: [{ from: "t1", channel: "main", volume: 1 }], devices: [], placements: [], lanes: [] } });
-document.getElementById("new-btn").onclick = () => {
-  const go = () => { let n = 1; while (songs.has(`project/music/untitled-${n}.song.json`)) n++; const f = `project/music/untitled-${n}.song.json`;
+function newSong() {
+  const go = () => { let n = 1; while (files.songs().includes(`project/music/untitled-${n}.song.json`)) n++; const f = `project/music/untitled-${n}.song.json`;
     useSong(emptySong(), f, false); say(`new song ${base(f)}: one instrument track and the master · double-click the lane to create a clip`); };
   if (!isDirty()) return go();
-  dlg(`Save changes to ${base(songFile)}?`, `<p>Creating a new song closes this one.</p>`, [["Save", async () => { if (await save()) go(); else return false; }, true], ["Don't save", go], ["Cancel"]]);
-};
+  dialogs.confirmSave(songFile, "Creating a new song closes this one.", save, go);
+}
 // Import blob: `song import` in the engine module (devices, routing and automation exact; each lane one clip).
-document.getElementById("imp-btn").onclick = () => document.getElementById("imp-file").click();
-document.getElementById("imp-file").onchange = async e => {
-  const file = e.target.files[0]; if (!file) return; e.target.value = "";
+async function importFile(file) {
   const r = E.importBlob(new Uint8Array(await file.arrayBuffer()));
-  if (!r.json) return dlg(`Cannot import ${file.name}`, `<p>${r.error}</p>`, [["Close", null, true]]);
+  if (!r.json) return dialogs.notice(`Cannot import ${file.name}`, r.error);
   const f = `project/music/${file.name.replace(/\.(song\.)?bin$/i, "")}.song.json`;
   useSong(JSON.parse(r.json), f, false); say(`imported ${file.name} (${file.size} bytes) → ${base(f)} · save to keep it`);
-};
+}
 // Export: the blob the intro player reads, written next to the song (same code as `song export`).
-document.getElementById("export-btn").onclick = async () => {
+async function exportSong() {
   const errs = localIssues(); if (errs.length) return showErrors(errs, "Export");
   const s1 = songOf(false), r = E.exportBlob(JSON.stringify(s1)); if (!r.blob) return showErrors(r.errors, "Export");
   const bin = songFile.replace(/\.song\.json$/, ".song.bin"), notes = s1.tracks.filter(t => !t.mute).reduce((n, t) => n + t.placements.reduce((k, p) => k + (s1.clips.find(c => c.id === p.clip)?.notes.length || 0), 0), 0);
-  const sec = BARS / barsPerSec(), devs = [...s1.tracks, s1.master].reduce((n, t) => n + t.devices.filter(d => !d.bypass).length, 0), lanesN = [...s1.tracks, s1.master].reduce((n, t) => n + t.lanes.length, 0);
-  dlg(`Export ${base(bin)}`, `<table class="kv">
-    <tr><th>File</th><td><code>${bin}</code></td></tr><tr><th>Size</th><td>${(r.blob.length / 1024).toFixed(1)} kB before packing</td></tr>
-    <tr><th>Tracks / devices</th><td>${s1.tracks.length} + master · ${devs} devices (kinds 64–73)</td></tr>
-    <tr><th>Notes</th><td>≥ ${notes} (linked and looped clips flattened into one lane per track; muted tracks exported silent)</td></tr>
-    <tr><th>Automation</th><td>${lanesN} lanes, quantized to 256 steps, applied per 100-frame block</td></tr>
-    <tr><th>Length</th><td>${BARS} bars · ${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, "0")} at ${tr.tempo()} BPM · 44.1 kHz</td></tr>
-    <tr><th>Validation</th><td class="ok">passed</td></tr></table>`,
-    [["Write blob", async () => { const w = await api.write(bin, r.blob); say(w.ok ? `exported ${bin} (${(r.blob.length / 1024).toFixed(1)} kB)` : `export failed: ${w.error}`); }, true],
-     ["Download song.json", () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([M.prettyJson(s1)], { type: "application/json" })); a.download = base(songFile); a.click(); return false; }], ["Close"]]);
-};
+  const sec = BARS / barsPerSec(), all = [...s1.tracks, s1.master];
+  dialogs.exportDialog({ bin, kb: (r.blob.length / 1024).toFixed(1), tracks: s1.tracks.length, notes,
+    devices: all.reduce((n, t) => n + t.devices.filter(d => !d.bypass).length, 0), lanes: all.reduce((n, t) => n + t.lanes.length, 0),
+    length: `${BARS} bars · ${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, "0")} at ${tr.tempo()} BPM · 44.1 kHz` },
+    async () => { const w = await api.write(bin, r.blob); say(w.ok ? `exported ${bin} (${(r.blob.length / 1024).toFixed(1)} kB)` : `export failed: ${w.error}`); },
+    () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([M.prettyJson(s1)], { type: "application/json" })); a.download = base(songFile); a.click(); });
+}
 // Bounce: the exported blob rendered by the song player in a Worker (design D7, equal to `song render`).
-document.getElementById("bounce-btn").onclick = () => {
+function bounceSong() {
   const whole = [1, BARS + 1], fmt = (a, b1) => { const sec = (b1 - a) / barsPerSec(); return `bars ${fmtBars(a)}–${fmtBars(b1)} · ${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, "0")}`; };
-  let job = null;
-  const d = dlg("Bounce to WAV", `<fieldset><legend>Range</legend>
-      <label><input type="radio" name="rng" value="song" checked> Whole song <span class="dim">${fmt(...whole)}</span></label>
-      <label><input type="radio" name="rng" value="loop"> Loop <span class="dim">${fmt(LOOP[0], LOOP[1])}</span></label></fieldset>
-    <p class="dim small">44.1 kHz · 16-bit stereo · the exported blob through the intro's song player · mute applies, solo does not.</p>
-    <progress max="1" value="0" hidden></progress><div class="bres" aria-live="polite"></div>`,
-    [["Render", dd => { if (job) return false; render(dd); return false; }, true], ["Cancel", dd => { if (job) { job.cancel(); job = null; dd.querySelector(".bres").textContent = "cancelled"; dd.querySelector("progress").hidden = true; return false; } }]]);
-  function render(dd) {
-    const loop = dd.querySelector('input[value="loop"]').checked, [a, b1] = loop ? [LOOP[0], LOOP[1]] : whole;
-    const r = E.exportBlob(JSON.stringify(songOf(false))); if (!r.blob) { d.close(); return showErrors(r.errors, "Bounce"); }
-    const pr = dd.querySelector("progress"), res = dd.querySelector(".bres"); pr.hidden = false; pr.value = 0; res.textContent = "rendering…";
+  dialogs.bounceDialog({ song: fmt(...whole), loop: fmt(LOOP[0], LOOP[1]) }, (loop, progress) => {
+    const [a, b1] = loop ? [LOOP[0], LOOP[1]] : whole;
+    const r = E.exportBlob(JSON.stringify(songOf(false))); if (!r.blob) { showErrors(r.errors, "Bounce"); return null; }
     const rate = 44100, range = loop ? [Math.round((a - 1) / barsPerSec() * rate), Math.round((b1 - 1) / barsPerSec() * rate)] : null;
-    job = E.bounce(r.blob, range, v => { pr.value = v; res.textContent = `rendering… ${Math.round(v * 100)}%`; });
-    job.done.then(samples => {
-      job = null; const blob = DAW.wav16(samples, rate), name = base(songFile).replace(/\.song\.json$/, "") + (loop ? `-bars${fmtBars(a)}-${fmtBars(b1)}` : "") + ".wav";
-      pr.value = 1; res.innerHTML = `Done: <a download="${name}" href="${URL.createObjectURL(blob)}">${name}</a> · ${(samples.length / 2 / rate).toFixed(1)} s · ${(blob.size / 1048576).toFixed(1)} MB`;
-      say(`bounced ${name}`);
-    }).catch(e => { if (e.message !== "cancelled") res.textContent = `bounce failed: ${e.message}`; job = null; });
-  }
-};
-markSaved(); savedAt = null; renderSongList(); dirtyUpd();
+    const job = E.bounce(r.blob, range, progress);
+    return { cancel: () => job.cancel(), done: job.done.then(samples => {
+      const blob = DAW.wav16(samples, rate), name = base(songFile).replace(/\.song\.json$/, "") + (loop ? `-bars${fmtBars(a)}-${fmtBars(b1)}` : "") + ".wav";
+      say(`bounced ${name}`); return { name, url: URL.createObjectURL(blob), seconds: samples.length / 2 / rate, mb: blob.size / 1048576 };
+    }) };
+  });
+}
+markSaved(); savedAt = null; files.setSongFile(songFile); files.addSong(songFile); dirtyUpd();
 DAW.debug = { song: () => songOf(false), selected: () => selected.id, bars: () => BARS, undoDepth: () => H.depth,
   live: () => ({ probeMs: liveCost.probe / Math.max(1, liveCost.nProbe), drawMs: liveCost.draw / Math.max(1, liveCost.nDraw), maxVoices: liveCost.voices }) };
-// ===== Menus (right-click or Shift+F10 / ContextMenu key) =====
-function popMenu(x, y, items, label, opener = document.activeElement) {
-  document.querySelector(".menu")?.remove();
-  const m = document.createElement("div"); m.className = "menu"; m.setAttribute("role", "menu"); m.setAttribute("aria-label", label);
-  for (const it of items) {
-    if (it === "-") { m.append(document.createElement("hr")); continue; }
-    const [text, key, fn, off] = it, b = document.createElement("button"); b.setAttribute("role", "menuitem"); b.disabled = !!off;
-    b.innerHTML = `<span>${text}</span>${key ? `<kbd>${key}</kbd>` : ""}`; b.onclick = () => { close(); fn(); }; m.append(b);
-  }
-  const close = () => { m.remove(); document.removeEventListener("pointerdown", out, true); opener?.focus?.({ preventScroll: true }); };
-  const out = e => { if (!m.contains(e.target)) close(); };
-  m.addEventListener("keydown", e => {
-    const bs = [...m.querySelectorAll("button:not(:disabled)")], i = bs.indexOf(document.activeElement);
-    if (e.key === "Escape") { e.preventDefault(); close(); } else if (e.key === "ArrowDown") { e.preventDefault(); bs[(i + 1) % bs.length].focus(); } else if (e.key === "ArrowUp") { e.preventDefault(); bs[(i - 1 + bs.length) % bs.length].focus(); }
-  });
-  document.body.append(m); const r = m.getBoundingClientRect();
-  m.style.left = Math.min(x, innerWidth - r.width - 4) + "px"; m.style.top = Math.min(y, innerHeight - r.height - 4) + "px";
-  setTimeout(() => document.addEventListener("pointerdown", out, true)); m.querySelector("button:not(:disabled)")?.focus();
-}
+// Menus: popMenu (ui/common/Menu.tsx), right-click or Shift+F10 / ContextMenu key on headers, lanes, clips.
 // ===== Tracks: add, rename, reorder, duplicate, delete =====
 const TCOL = ["--t-kick", "--t-bass", "--t-lead", "--t-pad", "--t-keys", "--t-hats"];
 const newId = p1 => p1 + Math.random().toString(36).slice(2, 7);
