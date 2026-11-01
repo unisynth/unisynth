@@ -206,6 +206,17 @@ test("live view off: no watch, no probe, no overlays; the choice survives a relo
   expect(await page.locator('#device button.livev').getAttribute("aria-pressed")).toBe("true");
 }, 60_000);
 
+test("concurrent engine starts (several keys pressed before the first start finished) make one engine", async () => {
+  await open();
+  const n = await page.evaluate(async () => {
+    const w = window as any, AC = w.AudioContext; let made = 0;
+    w.AudioContext = class extends AC { constructor(...a: any[]) { super(...a); made++; } };
+    try { await Promise.all([w.DAW.engine.start(44100), w.DAW.engine.start(44100), w.DAW.engine.start(44100)]); } finally { w.AudioContext = AC; }
+    return made;
+  });
+  expect(n).toBe(1);
+});
+
 test("live displays: a chord shows one chip and one marker per voice; silence clears them", async () => {
   await open();
   await page.locator('.thdr.track[data-track="lead"] .name').click(); // selecting arms it; lead: 2 saws into a low-pass

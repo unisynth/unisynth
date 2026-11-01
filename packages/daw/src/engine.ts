@@ -106,9 +106,14 @@ export class Engine {
   /** The audio engine stopped (a trap in the worklet); the next `start` builds a new graph. */
   dead = false;
   onError?: (message: string) => void;
+  /** A start in flight: calls while it runs share it (each early key press starts the engine; without this every
+   *  one made its own AudioContext and the extra worklets posted empty statuses). */
+  private starting: Promise<void> | null = null;
   /** Creates the audio graph (call from a user gesture). */
-  async start(rate = 44100): Promise<void> {
-    if (this.dead) return this.restart(rate);
+  start(rate = 44100): Promise<void> {
+    return this.starting ??= (this.dead ? this.restart1(rate) : this.start1(rate)).finally(() => { this.starting = null; });
+  }
+  private async start1(rate: number): Promise<void> {
     if (this.node) {
       await this.ctx!.resume();
       return;
@@ -126,6 +131,7 @@ export class Engine {
     };
     node.onprocessorerror = () => died("processor error");
     node.port.onmessage = (e) => {
+      if (this.node && this.node !== node) return;  // a replaced engine's messages
       const m = e.data;
       if (m.t === "error") died(m.message);
       else if (this.dead) return; // messages still in flight from an engine that has stopped
@@ -148,14 +154,17 @@ export class Engine {
     await ctx.resume();
   }
   /** Closes the audio graph and builds it again with the current `latency` (the song must be loaded again). */
-  async restart(rate = 44100): Promise<void> {
+  restart(rate = 44100): Promise<void> {
+    return this.starting ??= this.restart1(rate).finally(() => { this.starting = null; });
+  }
+  private async restart1(rate: number): Promise<void> {
     const old = this.ctx;
     this.node?.disconnect();
     this.node = null;
     this.ctx = null;
     this.dead = false;
     await old?.close();
-    await this.start(rate);
+    await this.start1(rate);
   }
   /** Seconds of output buffering the browser granted (0 before start). */
   get bufferSeconds() {
