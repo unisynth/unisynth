@@ -227,16 +227,16 @@ quirk candidate.
 
 **Byte budget trade-off.** The one-byte range holds the fields converted songs set most: voice, slots, filters,
 envelopes, LFOs, mod 1–10, drive, CC2–7 and the strip switch. The strip's other 29 fields cost one extra byte each
-when set. Every converted V2 patch sets several of them, so the cost is one index byte per stored strip field. Task 6.3
+when set. Every converted V2 patch sets several of them, so the cost is one index byte per stored strip field. Task 6.4
 measures the chunk bytes of the converted V2 songs and swaps the strip's most-set fields with CC2–7 if that is
 smaller (mod 11–12 likewise against the reference songs).
 
 **Review (doubt-driven, cross-model on @propose-review-1, two cycles).** Cycle 2 found: exact choice re-encoding,
 the colour move contradicting the map, slope by name vs by value, automation lanes, the chunk checks, the effect-mode
 era field, no era table, the keysync write, the 2004 build, the env-slope Add target, and strip fields set on every V2
-patch. All are fixed above, and the strip/mod byte placement is measured at 6.3. Noise: law changes altering target
+patch. All are fixed above, and the strip/mod byte placement is measured at 6.4. Noise: law changes altering target
 physics (the laws are chosen to reproduce the old mapping). Stopped after two cycles: the remaining items are
-implementation detail owned by tasks 6.1–6.3. Cycle 1:
+implementation detail owned by tasks 6.4–6.9. Cycle 1:
 - Actionable and fixed above: there were no value rules for split and removed parameters; envelope `slope` maps by
   mode; chunk v3/v4 and the speech text were unspecified; there was no index rule; the PARAMS handling was unstated;
   the choice cardinalities were missing; mod 11–16 and drive/CC were placed badly.
@@ -375,7 +375,7 @@ each stage with HEAD.
 ### Song inventory (decision 2026-11-01)
 
 The player may reject chunk versions 1 and 2, but no song we hold may be left on them: each is migrated (host
-migration, task 6.2) or re-converted from its source (task 6.3). Counts as of 2026-11-01.
+migration, tasks 6.5–6.6) or re-converted from its source (tasks 6.7, 6.9). Counts as of 2026-11-01.
 
 | Location | Songs | Kind | Brought over by |
 |---|---|---|---|
@@ -391,10 +391,39 @@ migration, task 6.2) or re-converted from its source (task 6.3). Counts as of 20
 | `synth-lab/tunefish/media/tf4modules` | 2 `.tfm` | external source | re-converted per parity run |
 | `synth-lab/v2songs` `acceptance`, `fr_public`, `modland`, `carved` | 15 + 20 + 325 + 1 `.v2m` | external source | re-converted |
 | `synth-lab/v2songs/parity/*.song` | 70 | cached conversions | regenerated (stale caches deleted first) |
-| DAW browser storage, user files outside the repo | unknown | user-held | migration on import (6.2) |
+| User files outside the repo (the DAW's browser storage holds only UI preferences) | unknown | user-held | migration on load and in the DAW on open (6.6) |
 
-The load-all check (task 6.3) walks every location in the table except the last row and fails when a song does not
+The load-all check (task 6.9) walks every tracked location (external and git-ignored ones when present, reported) in the table except the last row and fails when a song does not
 load in the new player, is skipped, or a location holds fewer songs than recorded.
+
+## Format-switch review (doubt-driven, 2026-11-01)
+
+Three adversarial reviewers (one same-model, two cross-model) read tasks 6–7, D1–D7, D4 and the inventory against
+the contract "every song migrates, sound within tolerance, old versions rejected". Findings and what changed:
+
+- **No layout marker in song files (blocker).** `song/1` stores named values with no version, and the v3 choice
+  re-encoding keeps names such as `envN.law` (rate law 1.0 today, frame law under `Choice(3)`). A migrated file looks
+  like an un-migrated one. Song files become `song/2` / `us-patch/2`; only `/1` migrates (task 6.6).
+- **Clocked.** Its stored value is an expanded-choice position (3/8). Under plain `Choice(13)` it re-encodes like every
+  choice. The "no migration needed" note above holds only for its fields (`s0`–`s8`, feedback).
+- **Missing work.** Converters, `Patch`, `auto.rs`, `features` (6.7); the frozen old layout with `era_settings`
+  host-side (6.5); the DAW migrating on open (6.6); merging `main`, which holds the released songs (6.1).
+- **Value rules.** FM and aux-in generators combine by replace, ring by multiply (stage 5 code). The 7-bit oscillator
+  law follows the slot kind, not `voice.stage`. Raw-encoded polarity, one-shot, sync, routing and keysync, and the Cut
+  EQ's DC filter (on from format 6) get rules (6.4). Effect chunks have no version: the new effect modes take new ids,
+  so old ones are rejected rather than misread.
+- **Lanes.** One old lane becomes one lane per changed setting. Corpus check over the 383 tracked songs: no lane on
+  any type, law, shape, voice or raw choice; none automates a law and its slope; the 94 `oscN.sN` lanes are on
+  clocked and unisynth slots, none on a naive slot's mode or ring. V2 never modulates mode or ring (V2 parameters
+  2/3, 8/9, 14/15 are not destinations). Such lanes and routes are therefore a named migration error, not a design case.
+- **Order.** The quirk survey runs before the freeze (6.3), and stored-pair counts per song are checked before the
+  layout is fixed (6.4), so neither forces a second layout change.
+- **Drift.** The 0.5/1.5 dB thresholds flag songs for listening (D7.3, unchanged); baseline renders of every tracked
+  song (6.2) give each one a drift report.
+- **Trade-off kept.** The trusted (baked) chunk path checks no version and assumes well-formed input: baked songs are
+  generated from the same tree. The no-panic and rejection requirements apply to the checked build.
+- **Rejected.** Two findings (cauldron names and `era(` reads still in the player) came from a stale read; both are
+  gone (`88cd0a3`, stage 5).
 
 ## Risks / Trade-offs
 
@@ -414,6 +443,7 @@ load in the new player, is skipped, or a location holds fewer songs than recorde
    bake check, size and speed.
 2. Fix the layout and the names (tasks 1.2–1.3).
 3. Do the stages in order: filters, LFOs, envelopes, oscillator combine plus voice settings. Each stage passes D7.
-4. Then the format switch to chunk version 3/4, the migration, the repo songs, and the quirk survey (deleting quirks
-   no song needs).
+4. Then the format switch (tasks 6.1–6.9, order revised by the format-switch review): merge `main`, baseline renders
+   of every tracked song, quirk survey, freeze the layout with a pair-count check, the frozen old layout and the
+   migration, `song/2`, the converters, and only then the player rejects versions 1/2.
 5. Rollback: each stage is its own commit. Old songs are unaffected until the format switch.

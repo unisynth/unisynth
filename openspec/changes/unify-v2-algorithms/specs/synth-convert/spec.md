@@ -16,6 +16,10 @@ re-authoring.
 - **WHEN** a song file from `project/music/` written before this change is imported
 - **THEN** it loads, re-exports in the new layout, and its render passes the parity tolerances against its render before this change
 
+#### Scenario: Migrated once
+- **WHEN** a `song/1` file is loaded, saved as `song/2`, and loaded again
+- **THEN** the second load applies no migration and yields the same values
+
 #### Scenario: No song left behind
 - **WHEN** the format switch is complete
 - **THEN** every song in the inventory (design, "Song inventory") is in the new layout, migrated or re-converted, and loads in the new player
