@@ -94,7 +94,7 @@ that use it. Each flag SHALL be a cargo feature.
 
 #### Scenario: A quirk is listed with its songs
 - **WHEN** the documentation of the integer-FM quirk is read
-- **THEN** it names its source (V2 before format 6), the format versions it applies to and the corpus songs (for example kkrieger) that leave tolerance without it
+- **THEN** it names its source, the format versions it applies to and the corpus songs that move past tolerance without it (if the survey keeps it; a dropped quirk is listed as dropped with the survey's numbers)
 
 #### Scenario: Quirk disabled
 - **WHEN** a patch sets a quirk flag and the build lacks that feature

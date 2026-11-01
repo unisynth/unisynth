@@ -29,61 +29,65 @@ combination scenarios are engine tests until 6.1 and patch tests there.
 ## 5. Oscillator combine and voice settings
 
 - [x] 5.1 Add the combine op (add, multiply, replace) to every oscillator slot kind, and move the V2 generators onto the shared slot path with the oscillator law (transpose, detune, colour, volume). Verify: "Ring on a band-limited slot" and the V2 oscillator tests pass; the `mix_*` tests pass
-- [x] 5.2 Replace `v2.voice` with voice settings (amplitude source, pan stage, output DC filter, voice law; keysync is `voice.keysync`), and remove the `era` parameter from the player. The remaining era behaviour becomes quirk candidates (`boxed_osc`, `lcg_noise`, `integer_fm`, `exact_math`, `fixed_seed`; design D2) or converter writes (design D3). Verify: no `era(` reads remain in `crates/unisynth/src` outside `era_settings` (a test greps for them); "Pan after distortion" test. ("Quirk disabled" moves to 6.1/7.1 with the quirk parameters, decision C)
-- [x] 5.3 Update `needs`, features (quirk features: with the quirk parameters at 6.1, decision C), converters, song tables and the voice / V2 sections of `docs/synth/unisynth.md`. Verify: D7 gates 1–7, results recorded in design.md
+- [x] 5.2 Replace `v2.voice` with voice settings (amplitude source, pan stage, output DC filter, voice law; keysync is `voice.keysync`), and remove the `era` parameter from the player. The remaining era behaviour becomes quirk candidates (`boxed_osc`, `lcg_noise`, `integer_fm`, `exact_math`, `fixed_seed`; design D2) or converter writes (design D3). Verify: no `era(` reads remain in `crates/unisynth/src` outside `era_settings` (a test greps for them); "Pan after distortion" test. ("Quirk disabled" moves to 6.8 with the quirk parameters, decision C)
+- [x] 5.3 Update `needs`, features (quirk features: with the quirk parameters at 6.8, decision C), converters, song tables and the voice / V2 sections of `docs/synth/unisynth.md`. Verify: D7 gates 1–7, results recorded in design.md
 
 ## 6. Format and migration
 
-Revised after the doubt-driven review of 2026-11-01 (design "Format-switch review"). 6.1–6.4 come before the layout
-is frozen; nothing old is rejected until 6.8.
+Revised after the doubt-driven review of 2026-11-01, cycles 1 and 2 (design "Format-switch review"). 6.1–6.4 are
+separate commits; 6.5–6.8 are checkpoints of one switch commit (each needs a player that reads v3); 6.9 follows.
 
 - [ ] 6.1 Merge `main` into this branch (the 28 + 347 released songs, `tools/v2-extract/make-demos.py`, the DAW
-  rewrite, converter changes). Verify: workspace tests and both parity reports pass; inventory counts match the
-  design's "Song inventory"
-- [ ] 6.2 Baseline renders of every tracked song (`project/music/**`, patches as a one-note phrase) with the current
-  build, stored outside the repo as the drift reference. Verify: one render per inventory song, listed with its hash
-- [ ] 6.3 Quirk survey before the freeze (was 7.1): force each `EraSettings` quirk candidate off in turn (one-line
-  override in `era_settings`), run the V2 parity set and the corpus, write the quirk table (flag, what it reproduces,
-  source, format versions, songs that set it, songs outside tolerance without it) to `docs/synth/unisynth.md` and
-  `research/v2-synth.md`. Drop every quirk no song needs from the layout (design D2). Verify: "Quirk table"
-  scenario; each kept quirk has at least one song outside tolerance without it
-- [ ] 6.4 Freeze the v3 layout: `DEFAULTS[COUNT]`, every value rule (including combine replace for FM/aux, the
-  oscillator law from the slot kind, raw-encoded polarity/one-shot/sync/routing/keysync, the Cut EQ DC filter) and
-  the lane fan-out rule, then count stored pairs per tracked song under the rules (script) and swap placements that
-  grow a reference song. Verify: pair-count table in design.md; no reference song stores more pairs than now unless
-  recorded as a trade-off
-- [ ] 6.5 Frozen old layout, host-side (`crates/song` or `unisynth::old`): old `COUNT`, `DEFAULTS`, decoders, indices,
-  `era_settings` over the old layout, old effect modes. The migration `old → new` for an instrument chunk, an effect
-  chunk, lanes (one lane per changed setting; a dual law+slope lane or a lane/route on a naive slot's mode or ring is
-  a named error) and mod routes. Verify: unit tests per value rule; round trip old → new → render within tolerance on
-  every tracked song (`--drift` against 6.2)
-- [ ] 6.6 Song file format `song/2` and `us-patch/2`: `song/1` and `us-patch/1` files migrate on load (values and
-  names; names via `rename.rs`), are written as `/2`; `/2` is never migrated again. The DAW migrates on open through
-  synth-wasm (not only on export); its templates, fixtures, `envRate`-style option sniffing and the schema move to
-  the new layout. Verify: "Old song file" for every tracked song; a `/1` file opened in the DAW plays the same as its
-  migrated `/2`; loading a `/2` twice is identical
-- [ ] 6.7 Converters write the new layout directly: `Patch` at the new `COUNT`, `ws`, `tfm`/`tf4m`, `v2m`,
-  `xm`/`xm-phrase`, `auto.rs` (reach, steps), `features` / `needs` (new settings, quirk modules, `us-chunk-wide`
-  reach), song tables. No converter writes `voice.era`. Verify: converter tests; each converter's output equals the
-  migration of its old output (same values)
-- [ ] 6.8 Switch the player to chunk versions 3/4 and the new effect mode ids; reject versions 1/2 and old effect
-  modes with an unknown-version error; remove the derivation from era/type. The trusted (baked) path stays unchecked
-  by design: baked songs come from the same tree (documented). Verify: "Device kind and chunk" scenarios including
-  "Old layout rejected by the player"; truncation at every byte without a panic (checked build); "Quirk disabled"
-- [ ] 6.9 Migrate or re-convert every song in the inventory and regenerate size and speed tables. Load-all check
-  over the tracked inventory (fails on a song that does not load, is skipped, or a location with fewer songs than
-  recorded); external and git-ignored corpora are re-converted by their tools and checked when present (opt-in,
-  reported). Verify: load-all ok; "No song left behind"; drift report per tracked song against 6.2 (flags listed for
-  listening, D7.3); parity 49/49 and V2 18/18; bake check; `check-song-features.sh --minimal`; size and speed in
-  `tools/unisynth-parity/size.md` and design.md
+  rewrite, converter changes), applying the 1.3 and clocked renames to main's new code. Verify: workspace tests and
+  both parity reports pass; the source-name check (parameter table and the DAW's user-facing strings) passes;
+  inventory counts match the design's "Song inventory"
+- [ ] 6.2 Baseline renders of every tracked song (`project/music/**`; patches and DAW templates as a one-note phrase)
+  with the current build, stored outside the repo as the drift reference. Verify: one render per inventory song and
+  template, listed with its hash
+- [ ] 6.3 Quirk survey before the freeze (was 7.1): split the candidates (`integer_fm` apart from `exact_math`, DC bias
+  apart from the DC filters), clear each in turn through `era_settings`, render the V2 parity set and every tracked V2
+  song. Keep a quirk when clearing it moves a song past the D7.3 thresholds against its quirk-on render, or past the
+  parity tolerance where an original render exists. Write the quirk table (flag, what it reproduces, source, format
+  versions, songs that set it, songs that move without it) to `docs/synth/unisynth.md` and `research/v2-synth.md`.
+  Verify: "Quirk table" scenario; each kept quirk lists at least one song that moves without it
+- [ ] 6.4 Freeze the v3 layout: index map with the kept quirks only, `DEFAULTS[COUNT]` (curve "follows law", filter
+  response the type's own, so reference songs store no new pairs), every value rule (combine replace for FM/aux, the
+  oscillator law from the slot kind, raw polarity/one-shot/sync/routing/keysync, 4-pole clip/steps/bias, the Cut EQ DC
+  filter, slope by the law at each lane point), the effect-chunk version marker. Gate: a prototype build of the layout
+  passes the squishy probe of the reference songs (no growth); pair counts per tracked song recorded. Verify:
+  index map and pair-count table in design.md; probe table
+- [ ] 6.5 (switch commit) Frozen old layout host-side (old `COUNT`, `DEFAULTS`, decoders, indices, `era_settings`
+  over the old layout, old effect modes) and the migration `old → new` for instrument and effect chunks, lanes (one
+  lane per changed setting; a lane or route on a naive slot's mode or ring is a named error) and mod routes. Verify:
+  a unit test per value rule
+- [ ] 6.6 (switch commit) `song/2` and `us-patch/2`: `/1` files migrate on load (values and names) and save as `/2`;
+  `/2` is never migrated and rejects old names. The DAW migrates on open through synth-wasm; its templates, fixtures,
+  option sniffing and the schema move to the new layout. Verify: "Old song file", "Migrated once"; a `/1` file opened
+  in the DAW plays the same as its migrated `/2`
+- [ ] 6.7 (switch commit) Converters write the new layout directly: `Patch` at the new `COUNT`, `ws`, `tfm`/`tf4m`,
+  `v2m`, `xm`/`xm-phrase`, `auto.rs`, `features`/`needs` (new settings, quirk modules and features, `us-chunk-wide`
+  reach), song tables. No converter writes `voice.era`. Verify: each converter's output equals the migration of its
+  old output
+- [ ] 6.8 (switch commit) The player reads chunk versions 3/4 and the effect-chunk marker, rejects versions 1/2 and
+  unmarked effect chunks with `LoadError::UnknownVersion`, and no longer derives settings from era/type; quirk
+  parameters are structural, each behind its module id and feature; `is_channel` and the other index-order checks
+  follow the new strides. The trusted (baked) path stays unchecked by design (documented). Verify: "Device kind and
+  chunk" incl. "Old layout rejected by the player"; truncation at every byte without a panic (checked build); "Quirk
+  disabled"; workspace tests, feature builds, bake check, parity 49/49 and V2 18/18; squishy probe and speed against
+  6.4 (D7.6, D7.7)
+- [ ] 6.9 Migrate every tracked song to `song/2` and regenerate the git-ignored binaries (size probe, parity caches,
+  library) with the new converters. Load-all check over the tracked inventory (fails on a song that does not load, is
+  skipped, or a location with fewer songs than recorded); external corpora re-converted and checked when present
+  (opt-in, reported). Verify: load-all ok; "No song left behind"; drift report per tracked song and template against
+  6.2 (flags listed for listening, D7.3); size and speed recorded in `tools/unisynth-parity/size.md` and design.md
 
 ## 7. Quirk documentation and integration
 
-- [ ] 7.1 Document the kept quirks (table from 6.3) with their cargo features and module ids; the source-name ban
-  also covers "farbrausch". Verify: "A quirk is listed with its songs"
+- [ ] 7.1 Document the kept quirks (table from 6.3) with their cargo features and module ids; the source-name ban also
+  covers "farbrausch" (song credits exempt). Verify: "A quirk is listed with its songs"
 - [ ] 7.2 Integration check: workspace tests, `tools/check-unisynth-features.sh`, bake check, both parity reports,
-  total drift against the task 1.1 baseline per song; AGENTS rows for every touched file. Verify: all pass;
-  `openspec validate unify-v2-algorithms --strict` passes
+  drift per song against the 1.1 baseline (parity items) and 6.2 (every tracked song); AGENTS rows for every touched
+  file. Verify: all pass; `openspec validate unify-v2-algorithms --strict` passes
 
 ## Workflow follow-up
 

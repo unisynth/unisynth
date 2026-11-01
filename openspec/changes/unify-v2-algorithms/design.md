@@ -132,8 +132,8 @@ format switch (task 6.1).
 **Order of work (user decision 2026-10-31).** Stages 2–5 merge the engine code only. Each module's settings are an
 internal struct, derived from today's type and mode values, so the stored parameters, the converters and the song
 tables do not change, and each stage is gated on parity and drift. All new parameters, the converter writes and the
-migration land once, at the format switch (tasks 6.1/6.2). Settings combinations that today's values cannot express
-are tested on the engine API until then and as patches at 6.1. *Alternatives:* format switch first, or interim
+migration land once, at the format switch (tasks 6.5–6.8). Settings combinations that today's values cannot express
+are tested on the engine API until then and as patches at the switch (6.5–6.8). *Alternatives:* format switch first, or interim
 parameters at 260+ with an "as the type says" default; both rejected because they write converters and migration twice.
 
 **Clocked oscillator.** The oscillator of change add-cauldron-xm-import (landed after 1.2) is renamed by function to
@@ -154,7 +154,7 @@ index of its own and is handled by the value rules below.
 | voice settings | 16–22 | **voice.amp_source** (full / envelope 1 only), **voice.pan_stage** (per slot / after drive), **voice.dc_filter** (off / on), **voice.law** (transpose: semitones / 7-bit steps), voice.keysync (free / restart / full reset; was v2.keysync), voice.routing, voice.balance (were v2.*) |
 | osc 1–3 | 23–97, 25 each | 22 old fields (type, tracking, coarse, fine, octave, ratio, ratio_fine, fixed_hz, gain, mix, pan, pm_out, feedback, s0–s8), sample (moved in from 177–179), **combine**, **law** (unisynth / 7-bit steps). type = off, phase mod, saw/pulse, wavetable, sampler, **naive saw/tri, naive pulse, sine, coloured noise, fm, aux in A, aux in B**, clocked (Choice 13; came with change add-cauldron-xm-import, keeps its `s0`–`s8` and `feedback` meanings) |
 | noise | 98–101 | band_on, hp, lp, width |
-| filter 1–4 | 102–133, 8 each | type (off, **state-variable, 4-pole**, RBJ, resonator notch: Choice 5), **response** (low, band, high, notch, all-pass: Choice 5), cutoff, resonance, **form** (input / feedback resonance), **oversample** (interpolated / held), **clip** (4-pole feedback before / after the clip), **law** (Hz / 7-bit steps) |
+| filter 1–4 | 102–133, 8 each | type (off, **state-variable, 4-pole**, RBJ, resonator notch: Choice 5), **response** (low, band, high, notch, all-pass: Choice 5), cutoff, resonance, **form** (input / feedback resonance), **oversample** (state-variable: interpolated / held), **clip** (4-pole feedback before / after the clip), **steps** (4-pole: 1 / 2 per sample), **bias** (4-pole: off / on), **law** (Hz / 7-bit steps). The extra fields move the filter stride; 6.4 fixes the final indices |
 | env 1–4 | 134–169, 9 each | law (seconds / rate / frame: Choice 3; was mode), attack, decay, sustain, release, **curve** (quadratic / power / exponential), curve_slope (power exponent; was slope), **sustain_slope**, amplify |
 | LFO 1–2 | 170–185, 8 each | shape (sine, ramp up, ramp down, square, random, **triangle, sample-and-hold, pulse**: Choice 8), rate, depth, sync, law (Hz / frame; was mode), phase, polarity, one_shot (was eg) |
 | mod 1–10 | 186–225 | source (…, `note (centred)` was "V2 note"), target, amount, operation |
@@ -178,8 +178,8 @@ unisynth kinds, laws Hz/seconds/unisynth.
 - `filtN.type` splits into type + response + form + law:
   - SVF LP/HP/BP/notch → state-variable, input form, interpolated, Hz law
   - V2 LP/BP/HP/notch/all-pass → state-variable, feedback form, held, 7-bit law
-  - ladder → 4-pole low-pass, clip after, 1×, Hz law
-  - V2 Moog LP/HP → 4-pole, clip before, 2×, 7-bit law
+  - ladder → 4-pole low-pass, feedback before the clip, 1 step, no bias, Hz law (`P4Form::ONE`)
+  - V2 Moog LP/HP → 4-pole, feedback after the clip, 2 steps, bias, 7-bit law (`P4Form::TWO`)
   - RBJ HP/BP → RBJ + response; resonator notch → resonator
 - `oscN.type` V2 + its old `s0` (mode 0–7: off, saw/tri, pulse, sine, noise, fm, aux A, aux B) → type off or the
   naive generator. `s2` (ring) → `combine` multiply. The colour stays in `s1`, so it keeps its mod targets. `s0` and
@@ -190,7 +190,7 @@ unisynth kinds, laws Hz/seconds/unisynth.
   square starting low): mapping it to square with +½ turn of start phase would move a one-shot LFO's end (stage 3).
 - `envN.mode` → law + curve: timed → seconds + quadratic; rate → rate + power; V2 → frame + exponential. The old
   `envN.slope` goes to `curve_slope` under the timed and rate modes, and to `sustain_slope` under V2 mode.
-- `v2.voice` on → amp_source envelope 1 only, pan_stage after drive, oscillator and voice laws 7-bit. Off → defaults.
+- `v2.voice` on → amp_source envelope 1 only, pan_stage after drive, voice law 7-bit (the oscillator law follows each slot's kind: 7-bit for the naive generators). Off → defaults.
 - `v2.era` and the effect modes' `era` field → the era table below, applied to the migrated values. The converter uses
   the same function (`era_settings`), so the two cannot disagree. Both era fields leave the player.
 - Chunk v1 becomes v3 and v2 becomes v4; the speech text section moves over unchanged. The chunk checks (`is_raw`,
@@ -382,7 +382,7 @@ migration, tasks 6.5–6.6) or re-converted from its source (tasks 6.7, 6.9). Co
 | `project/music/*.song.json` | 8 (demo + 7 reference) | tracked song/1 | migration, resaved |
 | `project/music/patches/*.patch.json` | 2 | tracked patches | migration, resaved |
 | `project/music/released/*.song.json` | 28 (25 WaveSabre intros, 3 TBL) | tracked song/1 (main `cf1c106`) | migration, resaved |
-| `project/music/released/v2/*.song.json` | 347 V2 songs | tracked song/1 (main `a721861`) | re-converted (`tools/v2-extract/make-demos.py`) |
+| `project/music/released/v2/*.song.json` | 347 V2 songs | tracked song/1 (main `a721861`) | migration, resaved (re-conversion from the external corpus: optional cross-check) |
 | DAW templates and fixtures (`packages/daw/src/app.js`, `main.ts`, `test/library.test.ts`, `test/editing.test.ts`, `bench/dense.ts`) | embedded | code | edited to the new names and values |
 | `research/us-size-probe/out/songs/*.song`, `legacy/` | 28 + 16 | git-ignored binaries | re-converted (`measure.sh`, `songs-size.sh`) |
 | `project/music/.library.json` | 1 | git-ignored, generated | regenerated (`synth-convert` library example) |
@@ -424,6 +424,31 @@ the contract "every song migrates, sound within tolerance, old versions rejected
   generated from the same tree. The no-panic and rejection requirements apply to the checked build.
 - **Rejected.** Two findings (cauldron names and `era(` reads still in the player) came from a stale read; both are
   gone (`88cd0a3`, stage 5).
+
+### Cycle 2 (same date)
+
+- **One switch commit.** The migration, `song/2`, the converters and the player's v3 reading cannot be verified
+  apart: each needs a player that reads v3. Tasks 6.5–6.8 are checkpoints of one commit; the workspace is green
+  before and after it.
+- **4-pole forms.** The value rules above had the clip placement swapped; they now match `P4Form::ONE` (ladder) and
+  `P4Form::TWO`. The filter block stores `steps` and `bias` as well as `clip`.
+- **Envelope law and slope both automated.** Supported rather than rejected (spec "Automated envelope mode"): the
+  slope lane splits into `curve_slope` and `sustain_slope` by the law in force at each point.
+- **Quirk survey.** Candidates are split first (`integer_fm` from `exact_math`; DC bias from the DC filters). A quirk is
+  kept when clearing it moves a song past the drift thresholds against the quirk-on render, or past the parity
+  tolerance where an original render exists. The integer-FM scenario follows the survey's result.
+- **Size.** Contract: no squishy growth for songs that don't use the new settings. Defaults are chosen so that
+  reference songs store no new pairs: `curve` defaults to "follows law" (quadratic for seconds, power for rate,
+  exponential for frame), filter `response` to the type's own. The freeze is gated on a squishy probe of the reference
+  songs built with a prototype of the layout, and the switch commit is gated again (D7.6, D7.7).
+- **Effect chunks** get a version marker in v3, so an old effect chunk is rejected rather than decoded as another mode.
+  The Cut EQ's DC filter (on from format 6) is an effect setting next to `dc_bias`.
+- **Tracked songs migrate** (`song/1 → song/2`); re-converting from the external corpora is an optional cross-check.
+  A `/2` file with an old parameter name fails to load (names are migrated only with `/1`).
+- **Names.** The DAW's user-facing strings join the source-name check; song credits ("a Farbrausch V2 song") are
+  attribution, not names, and are exempt. Merging `main` applies the 1.3 and clocked renames to its new code.
+- **Checked player API.** `LoadError` gains `UnknownVersion`; `is_channel` and the other index-order checks follow the
+  new strides.
 
 ## Risks / Trade-offs
 

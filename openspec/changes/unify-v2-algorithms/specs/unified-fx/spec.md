@@ -15,7 +15,7 @@ The effects SHALL have these modes:
 - EQ `cut`: a low cut and a high cut
 
 Their parameters SHALL use 7-bit laws (value = step / 128). These four modes SHALL have no format-version (era)
-parameter: version-dependent behaviour is written by the converter (low cut off) or is the mode's own DC-bias flag.
+parameter: version-dependent behaviour is written by the converter (low cut off) or is a setting of the mode: the DC-bias flag, and the Cut EQ's DC filter.
 The other modes and their parameter layouts SHALL be unchanged.
 
 #### Scenario: Existing modes unchanged
