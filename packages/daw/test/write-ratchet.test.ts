@@ -2,11 +2,15 @@
 // createMutable proxies. Ported panels move those writes into actions; the store becomes `createStore` (where a
 // direct write is silently ignored) only when none are left. This counts the direct writes still in app.js and
 // fails when the count changes: higher = a new direct write (put it in an action), lower = lower BASELINE.
+// Task 9.1 splits app.js into modules: the moved code is still counted (SPLIT), so the baseline drops only when a
+// write is really replaced, not when it changes file.
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
 const BASELINE = 97;
 const BASELINE = 96;
+/** Modules split out of app.js (daw-solid-ts 9.1), counted with it. */
+const SPLIT = ["ui/model/params.ts", "ui/model/track.ts", "ui/model/bytes.ts"];
 
 /** Assignment targets that are DOM, canvas, engine, view or local state, not the song model (`store[…]` in the knob
  * is `d.values`: counted; `ip.map` is a cache on the function). */
@@ -26,8 +30,9 @@ export function countModelWrites(src: string): { n: number; lines: string[] } {
   return { n: lines.length, lines };
 }
 
-test("direct model writes in app.js only go down", () => {
-  const { n, lines } = countModelWrites(readFileSync(new URL("../src/app.js", import.meta.url), "utf8"));
+test("direct model writes in app.js (and the modules split from it) only go down", () => {
+  let n = 0; const lines: string[] = [];
+  for (const f of ["app.js", ...SPLIT]) { const r = countModelWrites(readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8")); n += r.n; lines.push(...r.lines.map((l) => `${f}:${l}`)); }
   if (n > BASELINE) console.log(`app.js has ${n} lines with direct model writes (baseline ${BASELINE}). Move the new ones into an action.\n` + lines.join("\n"));
   if (n < BASELINE) console.log(`app.js is down to ${n} lines with direct model writes: lower BASELINE in ${import.meta.path} to ${n}.`);
   expect(n).toBe(BASELINE);

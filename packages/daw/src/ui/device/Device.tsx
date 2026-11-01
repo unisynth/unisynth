@@ -9,6 +9,7 @@ import { Knob } from "../common/Knob.tsx";
 import { Sampler, type SamplerActions } from "./Sampler.tsx";
 import { chips, markLiveDirty, registerLive } from "./live.ts";
 import { autoOverridden, autoValue, blockClosed, deviceShown, setBlockClosed, setSlotOpen, shownTrack, slotOpenOf } from "../state/device.ts";
+import { SLOTS } from "../model/params.ts";
 
 export interface Param { name: string; default: number; law: string; options: string[]; raw?: boolean; structural?: boolean; index: number }
 export interface Table { kind: number; mode: number; label: string; params: Param[] }
@@ -61,7 +62,7 @@ export interface DeviceActions extends SamplerActions {
   status: HTMLElement;
 }
 
-export const SLOTS = { osc: 3, filt: 4, env: 4, lfo: 2, mod: 12 } as const;
+export { SLOTS };
 const SLOT_NOUN = { osc: "Osc", filt: "Filter", env: "Env", lfo: "LFO" };
 const OSC_COMMON = ["tracking", "coarse", "fine", "octave", "ratio", "ratio_fine", "fixed_hz", "gain", "mix", "pan", "pm_out", "feedback"];
 const OSC_SHAPES: Record<number, (string | null)[]> = { 1: ["waveform"], 2: ["waveform", "pulse width"], 3: ["bandwidth", "harmonics", "damp", "scale", "mod", "drive", "layers", "layer detune", "layer spread"],

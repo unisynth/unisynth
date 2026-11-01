@@ -239,6 +239,11 @@ before → `AGENTS.md` rows → land on `main`.
 
 - [ ] 9.1 Delete `app.js`, `app.d.ts`; `main.ts` mounts `ui/App.tsx`. Remove `// @ts-nocheck` users. Verify: tsc
   clean, `rg "app.js" packages/daw/src` empty, all tests green.
+  Plan (one commit each, tsc + suite twice + bench): 1 model helpers, 2 core (undo, say, selection), 3 engine link,
+  4 transport, 5 arrangement, 6 piano roll, 7 device helpers, 8 files/tracks, 9 `ui/App.tsx` + delete. The write
+  ratchet counts app.js plus the split modules (`SPLIT`).
+  - [x] step 1: `ui/model/params.ts`, `track.ts`, `bytes.ts` (typed, unit-tested on the real engine tables);
+    `SLOTS` moves there (Device.tsx re-exports); dead law table `L` removed. 156/156 twice, bench unchanged.
 - [ ] 9.2 Integration check of the spec budgets on the 50-track song: bench every scenario against the step-3
   baseline, "Edit response budget" and "Playback display budget" as browser tests. Verify: `/daw/` from `serve`,
   `/dsp` static build loads and bounces, hot-reload dev loop works.

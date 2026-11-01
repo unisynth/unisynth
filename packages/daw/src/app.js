@@ -24,7 +24,10 @@ import { mountMixer, setMixerShown } from "./ui/mixer.tsx";
 // DAW UI (change add-synth-daw): the reviewed mockup's views and interactions on the real song/2 model,
 import * as devst from "./ui/state/device.ts";
 import { mountDevice, SLOTS } from "./ui/device/Device.tsx";
-import * as live1 from "./ui/device/live.ts";  // live per-voice overlays (`live` is the aria-live element)
+import * as live1 from "./ui/device/live.ts";
+import { autoParams, choice, devName, effectChoices, envCurve, envRate, fmtVal, initParams, ip, modSrcName, nModes, oscType, paramOf, routesOf, slotKeys, slotUsed, smpShapes, tableOf, TARGETS, vget } from "./ui/model/params.ts";
+import { carry, cleanDev, devicesOf, engineDev, fxOf, instOf, laneText, links, patOf } from "./ui/model/track.ts";
+import { b64ToBytes, bytesToB64, gmInstrument } from "./ui/model/bytes.ts";  // live per-voice overlays (`live` is the aria-live element)
 // DAW UI (change add-synth-daw): the reviewed mockup's views and interactions on the real song/1 model,
 // engine (AudioWorklet + synth-wasm live host), device panels generated from the engine's parameter tables and
 // /api/music. Started by main.ts with { engine, model, api, tables, initial, files, library }.
@@ -36,28 +39,11 @@ const E = DAW.engine, M = DAW.model, api = DAW.api, TABLES = DAW.tables;
 const st0 = DAW.initial;
 const song = createSong(st0), tracks = song.tracks, master = song.master;  // store proxies (ui/state/song.ts)
 BARS = st0.bars; LOOP[1] = Math.min(BARS, 4) + 1;
-// ---- device tables (design D8): every device's parameters come from the engine module ----
-const choice = (p, n) => Math.min(n - 1, Math.max(0, Math.floor(p * (n - 1) + .5)));
-const nModes = k => TABLES.filter(t => t.kind === k).length;
-const modeOf = d => { const r = raw(d); return r.kind === 64 ? 0 : choice(r.values.mode ?? 0, nModes(r.kind)); };  // read-only, hot: raw
-const tableOf = d => { const k = raw(d).kind, m = modeOf(d); return TABLES.find(t => t.kind === k && t.mode === m); };  // read d once (store proxy)
-const paramOf = (d, name) => tableOf(d)?.params.find(p => p.name === name);
-const devName = d => d.kind === 64 ? (d.preset || "Unisynth") : tableOf(d)?.label ?? `kind ${d.kind}`;
-const instOf = t => t.devices.find(d => d.kind === 64);
-const fxOf = t => t.devices.filter(d => d.kind !== 64);
-const devicesOf = t => t.devices.map(d => d.kind === 64 ? "Unisynth" : tableOf(d)?.label ?? `kind ${d.kind}`);
+// ---- device tables (design D8): every device's parameters come from the engine module (ui/model/params.ts) ----
+initParams(TABLES, (k, m, i, p) => E.physical(k, m, i, p));
 const senders = t => tracks.filter(x => x.sends.some(s1 => s1[0] === t.name));
 const devLabel = t => t.bus ? `Bus · ← ${senders(t).map(x => x.name).join(", ") || "no sends"}${fxOf(t).length ? " · " + fxOf(t).map(devName).join(" → ") : ""}`
   : t.devices.map(d => devName(d) + (d._edited ? "*" : "") + (d.bypass ? " (off)" : "")).join(" → ") || "no devices";
-const links = (t, name) => t.clips.filter(c => c.name === name).length;
-// Notes live in a pattern per clip name: linked placements share it, a shorter placement plays its start.
-function patOf(t, name) {
-  t.pats ??= {};
-  if (!t.pats[name]) t.pats[name] = { len: Math.max(1, Math.round(Math.max(...t.clips.filter(c => c.name === name).map(c => c.len), 1))), notes: [], cc: { wheel: [], bend: [] } };
-  const pt = t.pats[name]; pt.cc ??= { wheel: [], bend: [] }; return pt;
-}
-// A clip moved or pasted onto another track brings its notes (never overwrites a pattern already there).
-const carry = (from, to, name, pat) => { if (from !== to && !to.pats?.[name]) (to.pats ??= {})[name] = structuredClone(raw(pat || patOf(from, name))); };
 let selected = tracks.find(t => !t.bus) || tracks[0] || master, armed = tracks.find(t => instOf(t)) || null;
 let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 tr.setTempo(st0.tempo); tr.ensureSig(st0.sig.join("/"));
@@ -105,47 +91,6 @@ function* clipNotes(t, c) {
 }
 // The lane's content changed (notes, patterns): its clip thumbnails redraw. Position, size and state are reactive.
 function renderLane(t) { arrange.bumpLane(t.id); }
-// Laws from docs/synth/unisynth.md
-const L = {
-  cutoff: p => { const v = 20 + 19980 * p * p; return v >= 1000 ? (v / 1000).toFixed(2) + "k" : v.toFixed(0) + " Hz"; },
-  pct: p => (p * 100).toFixed(0) + "%",
-  ms: p => { const v = p * p * 5000 + 1; return v >= 1000 ? (v / 1000).toFixed(2) + " s" : v.toFixed(0) + " ms"; },
-  gain: p => { const g = 16 * p * p; return g <= 0 ? "−∞ dB" : (20 * Math.log10(g)).toFixed(1) + " dB"; },
-  semi: p => { const v = Math.round((p - .5) * 48); return (v > 0 ? "+" : "") + v + " st"; },
-  fine: p => { const v = (p - .5) * 2; return (v >= 0 ? "+" : "") + v.toFixed(2); },
-  oct: p => { const v = Math.round((p - .5) * 8); return (v > 0 ? "+" : "") + v; },
-  hz: p => (0.01 * Math.pow(10, 4 * p)).toFixed(2) + " Hz",
-  pan: p => p === .5 ? "C" : (p < .5 ? "L" + Math.round((.5 - p) * 200) : "R" + Math.round((p - .5) * 200)),
-  fb: p => (8 * p * p).toFixed(2),
-  int: n => p => String(1 + Math.round(p * (n - 1))),
-};
-// Automation targets: every non-structural parameter of the track's devices (engine tables).
-const autoParams = d => (tableOf(d)?.params || []).filter(p => !p.structural && !p.raw);
-// Physical value text of a device parameter (laws from the tables; the engine computes the value).
-function fmtVal(d, p, v) {
-  if (p.law === "Index") return p.options[Math.round(v * 255)] ?? String(Math.round(v * 255));
-  if (p.options.length) return p.options[choice(v, p.options.length)] ?? String(v);
-  if (p.raw) return String(Math.round(v));
-  if (/^osc\d\.s[034]$/.test(p.name) && oscType(d, +p.name[3]) === 4) return (v * 100).toFixed(1) + " %";
-  const x = E.physical(d.kind, modeOf(d), p.index, v), law = p.law;
-  if (law === "Cutoff" || law === "FixedHz" || law === "LfoRate") return x >= 1000 ? (x / 1000).toFixed(2) + "k" : x.toFixed(x < 10 ? 2 : 0) + " Hz";
-  if (law === "Gain") return x <= 0 ? "−∞ dB" : (20 * Math.log10(x)).toFixed(1) + " dB";
-  if (law === "Time") return x.toFixed(x < 1 ? 3 : 2) + " s";
-  if (law === "EnvTime") {
-    const m = /^env(\d)\.(attack|decay|release)$/.exec(p.name), tf = m && d.kind === 64 && envRate(vget(d, ip(`env${m[1]}.law`)));
-    const s = tf ? tfEnvSeconds(m[2], v, vget(d, ip(`env${m[1]}.sustain`)), vget(d, ip(`env${m[1]}.curve_slope`))) : envMs(v) / 1000;
-    return !isFinite(s) ? (m[2] === "decay" ? "holds" : "∞") : s >= 1 ? s.toFixed(2) + " s" : Math.round(s * 1000) + " ms";
-  }
-  if (law === "Transpose" || law === "Coarse") return (x > 0 ? "+" : "") + Math.round(x) + " st";
-  if (law === "Fine") return (x >= 0 ? "+" : "") + x.toFixed(2) + " st";
-  if (law === "Octave") return (x > 0 ? "+" : "") + x;
-  if (law === "Ratio" || law === "RatioFine") return x.toFixed(3) + "×";
-  if (law === "Feedback" || law === "PmOut") return x.toFixed(2);
-  if (law === "Pan") return L.pan(v);
-  if (law.startsWith("Count")) return String(x);
-  return (v * 100).toFixed(0) + "%";
-}
-const laneText = (t, ln, v) => { const d = t.devices[ln.dev], p = d && paramOf(d, ln.param); return p ? fmtVal(d, p, v) : (v * 100).toFixed(0) + "%"; };
 function laneValue(pts, bar) {
   pts = raw(pts);  // read-only, runs per lane per frame
   if (bar <= pts[0][0]) return pts[0][1];
@@ -362,14 +307,7 @@ const curVal = (d, name) => devst.autoValue(d.values, name) ?? vget(d, ip(name))
 // (`d.values`, by parameter name); a knob or select writes there, sets the live parameter at once and queues an
 // engine update (structural parameters rebuild the device there). ----
 const status = document.createElement("div"); status.className = "rack-status"; status.setAttribute("aria-live", "polite");
-function INST() { return TABLES.find(t => t.kind === 64); }
-// by name from a map built on first use (on the function: ip is hoisted, fmtVal may run before this line, so no `let`)
-function ip(name) { return (ip.map ??= new Map(INST().params.map(p => [p.name, p]))).get(name); }
-function vget(d, p) { return d.values[p.name] ?? p.default; }
-/** An envelope `law` value plays the Tunefish rate law (its option, by stored position: the law gained V2's kind). */
-function envRate(v) { const o = ip("env1.law").options; return o[choice(v, o.length)] === "Rate"; }
 const trackIndex = t => t.master ? tracks.length : tracks.indexOf(t);
-const engineDev = (t, d) => t.devices.filter(x => !x.bypass).indexOf(d);
 function liveParam(t, d, p, v) {
   if (p.structural) return livePush();
   const di = engineDev(t, d); if (di >= 0 && E.node) E.setParam(trackIndex(t), di, p.index, v);
@@ -435,9 +373,9 @@ function slotUsed(d, g, i) {
   if (g === "env" && i === 1) return true;
   return slotKeys(g, i).some(n => n in d.values && d.values[n] !== ip(n).default) || (g === "env" || g === "lfo") && routesOf(d, g, i).length > 0;
 }
+/** A choice parameter's option name: expanded choices (`Law::Kinds`) store later kinds between the old ones. */
 // Slot edits rewrite mod-matrix targets and automation lanes in one command (design D8a). `map(slot)` → new slot
 // number or 0 (gone) for every slot of group g.
-const TARGETS = () => ip("mod1.target").options;
 function remapSlots(t, d, g, map) {
   const n = SLOTS[g], old = {};
   for (let i = 1; i <= n; i++) for (const k of slotKeys(g, i)) if (k in d.values) { (old[i] ??= {})[k.slice(k.indexOf("."))] = d.values[k]; delete d.values[k]; }
@@ -459,13 +397,6 @@ function remapSlots(t, d, g, map) {
 // to its header (type control); ✕ clears in place; only filters swap (serial order). Slot collapse overrides live
 // for the session (per track), block collapse in `store` (editor state, never in the song).
 // a mod row's source name ("None", "Env 1", "LFO 2", "Velocity", V2 CCs …) from the parameter table
-function modSrcName(d, m) { const p = ip(`mod${m}.source`); return p.options[choice(vget(d, p), p.options.length)] || "None"; }
-// mod targets an envelope or LFO slot routes to (by its mod rows)
-function routesOf(d, g, i) {
-  const src = `${g === "env" ? "Env" : "LFO"} ${i}`, out = [];
-  for (let m = 1; m <= SLOTS.mod; m++) if (modSrcName(d, m) === src) out.push(TARGETS()[Math.round(vget(d, ip(`mod${m}.target`)) * 255)] || "?");
-  return out;
-}
 function slotCmd(t, msg, fn) { const before = snap(); fn(); rebuildTracks(); renderDevice(); status.textContent = msg; commit(before, msg); }
 // Slot screens (D4): an SVG in a 100×40 box (stretched), redrawn from the current values through the group's
 // `_redraw` (knobs, automation, selects). Drawings, not measurements: shapes follow the parameters' meaning.
@@ -510,42 +441,8 @@ function lfoView(d, i) {
 // Envelope curve as the engine plays it (crates/unisynth/src/env.rs): WaveSabre mode in closed form (linear attack,
 // quadratic decay and release, times `p²·5000 + 1` ms), Tunefish mode integrated per 512-frame block. A note is held
 // for a while after the decay, then released. Redrawn from the knobs (`_draw`), so it follows edits and automation.
-function envMs(p) { return p * p * 5000 + 1; } // hoisted (like ip/vget/INST/oscType): fmtVal runs from the first mounted row (mountTracks), above
-function envCurve(tf, a, dcy, s, r, slope) {
-  const pts = [];
-  if (!tf) {
-    const A = envMs(a) / 1000, D = envMs(dcy) / 1000, R = envMs(r) / 1000, hold = Math.max(0.05, 0.25 * (A + D));
-    pts.push([0, 0], [A, 1]);
-    for (let k = 1; k <= 24; k++) { const f = (1 - k / 24) ** 2; pts.push([A + D * k / 24, f + s * (1 - f)]); }
-    const off = A + D + hold; pts.push([off, s]);
-    for (let k = 1; k <= 24; k++) pts.push([off + R * k / 24, s * (1 - k / 24) ** 2]);
-    return { pts, off };
-  }
-  const B = 512 / 44100, STEP = 0.0005 * 512, cube = x => x * x * x, sus = Math.min(s, 0.99), MAX = 20 / B;
-  let v = 0, n = 0, stage = 0; pts.push([0, 0]);
-  const up = -Math.log10(Math.max(cube(a), 1e-9) * 0.94) * STEP, dn = Math.log10(Math.max(cube(dcy), 1e-9) * 0.94) * 0.25 * STEP;
-  while (stage < 2 && n < MAX) {
-    if (stage === 0) { v += up; if (v >= 1) { v = 1; stage = 1; } }
-    else if (v < sus) { v = sus; stage = 2; }
-    else { v += dn * ((0.01 + v - sus) / (1 - sus)) ** slope; if (v <= sus) { v = sus; stage = 2; } v = Math.min(v, 1); if (dn >= 0) stage = 2; }
-    n++; pts.push([n * B, v]);
-  }
-  const off = n * B + Math.max(0.05, 0.25 * n * B); pts.push([off, v]);
-  const rel = Math.log10(Math.max(cube(r), 1e-9) * 0.94) * 0.25 * STEP;
-  for (let k = 1; v > 1e-5 && k < MAX; k++) { v += rel * Math.max(v, 0) ** slope; if (rel >= 0) break; pts.push([off + k * B, Math.max(v, 0)]); }
-  return { pts, off };
-}
 // Tunefish-mode stage times in seconds (same integration as envCurve): attack 0 → 1, decay 1 → sustain (with the
 // current sustain and slope), release from full level to silence. Infinity when the stage never ends.
-function tfEnvSeconds(stage, x, s, slope) {
-  const B = 512 / 44100, STEP = 0.0005 * 512, cube = q => q * q * q, MAX = 600 / B;
-  if (stage === "attack") return B * (1 / (-Math.log10(Math.max(cube(x), 1e-9) * 0.94) * STEP));
-  const rate = Math.log10(Math.max(cube(x), 1e-9) * 0.94) * 0.25 * STEP; if (rate >= 0) return Infinity;
-  let v = 1, n = 0;
-  if (stage === "decay") { const sus = Math.min(s, 0.99); while (v > sus && n < MAX) { v += rate * ((0.01 + v - sus) / (1 - sus)) ** slope; n++; } }
-  else while (v > 1e-5 && n < MAX) { v += rate * Math.max(v, 0) ** slope; n++; }
-  return n >= MAX ? Infinity : n * B;
-}
 function envView(d, i) {
   const W = 196, H = 54, NS = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(NS, "svg"); svg.setAttribute("class", "env"); svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("aria-hidden", "true");
@@ -569,7 +466,6 @@ function envView(d, i) {
 // instrument (0.5; a region per note: index = 1 + drums·16384 + bank·128 + program) or one GM.DLS wave (1.0; index =
 // wave + 1) — and `osc<i>.sample` holds the raw index (0 = none). Both are structural (the engine rebuilds the device).
 const NOBANK = new URLSearchParams(location.search).has("nobank");
-const gmInstrument = idx => { if (idx < 1) return null; const n = idx - 1, drums = n >= 16384, r = n % 16384; return { drums, bank: Math.floor(r / 128), prog: r % 128 }; };
 /** What a sampler slot plays (ui/device/Sampler.tsx shows it); store and catalog reads, so the line follows them. */
 function smpWhat(d, i) {
   const src = choice(vget(d, ip(`osc${i}.s7`)), 3), idx = Math.round(vget(d, ip(`osc${i}.sample`))), nGsm = d.samples?.length ?? 0, gm = lib.catalog()?.gm;
@@ -584,8 +480,6 @@ const pcmOf = b64 => { if (!pcmCache.has(b64)) pcmCache.set(b64, E.gsmDecode(b64
 // ---- GSM samples: stored (base64) in the instrument's `samples`; a sampler slot plays one by 1-based number. From the
 // library (samples in project songs), or imported from an audio file: decoded and resampled to 44.1 kHz by the
 // browser, mixed to mono, encoded to GSM 06.10 by the engine (bit-exact libgsm port, about 9 KB per second). ----
-const b64ToBytes = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-const bytesToB64 = b => { let s = ""; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000)); return btoa(s); };
 const gsmSongs = new Map();  // song path → parsed song (library loads)
 async function gsmOf(g) {
   if (!gsmSongs.has(g.path)) gsmSongs.set(g.path, songText(await api.read(g.path)));
@@ -649,7 +543,6 @@ function removeDev(t, i) {
   t.devices.splice(i, 1); t.lanes = t.lanes.filter(l => l.dev !== i); t.lanes.forEach(l => { if (l.dev > i) l.dev--; });
   rebuildTracks(); renderAll(); commit(before, `${t.name}: ${name} removed${gone ? `, with ${gone} automation lane${gone > 1 ? "s" : ""}` : ""}`);
 }
-const effectChoices = () => TABLES.filter(tb => tb.kind !== 64);
 function addEffect(t, label) {
   const tb = effectChoices().find(x => x.label === label); if (!tb) return; const before = snap(), n = nModes(tb.kind);
   t.devices.push({ kind: tb.kind, values: { mode: n > 1 ? tb.mode / (n - 1) : 0 } }); rebuildTracks(); renderAll(); commit(before, `${t.name}: ${label} added`);
@@ -1366,7 +1259,6 @@ const frameOf = b => Math.max(0, Math.round((b - 1) / barsPerSec() * E.rate));
 const barOf = f => 1 + f / E.rate * barsPerSec();
 let songMeta = st0.meta, songLen0 = st0.length0;  // song/2 meta (title, author, licence notes) and [bars, ticks] as loaded
 const uiState = () => ({ tracks: raw(tracks), master: raw(master), tempo: tr.tempo() || 120, sig: sig(), bars: BARS, length0: songLen0, ...(songMeta ? { meta: songMeta } : {}) });
-const cleanDev = d => { const { _edited, _dev, ...x } = d; return x; };
 const songOf = live => { const s1 = M.toSong(uiState(), live ? audible : undefined); for (const t of [...s1.tracks, s1.master]) t.devices = t.devices.map(cleanDev); return s1; };
 let liveLoaded = false, pushT = 0, pushing = false, statusAt = 0, lastIssue = "";
 // One push at a time; a push asked for while one runs runs once more after it (never dropped: a Play or an edit
