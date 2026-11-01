@@ -90,6 +90,8 @@ Used to thank the teams whose synths unisynth learned from. The marks belong to 
 Not found: Farbrausch (farbrausch.de shows a different joke logo on every visit, no fixed mark), Team210 (no group logo published; NR4's "210" box-glyph logo from *Cybertopia* is one logo-compo entry, not a group mark), Exceed. The site shows typographic `fr` / `210` placeholders.
 Logos are the teams' marks, used here for credit only.
 
-## GM sound bank
+## GM sound bank (`site/daw/data/bank.dls`)
 
-Not included. Instruments that use the GM.DLS sampler play silent in the web DAW.
+The Windows General MIDI bank `gm.dls` (Roland GS sound set, licensed to Microsoft), copied unchanged from a Windows
+installation so instruments that use the GM.DLS sampler play as released. It is not covered by this repository's
+licence; all rights stay with its owners. Published by the repository owner's decision; it will be removed on request.

@@ -11,7 +11,7 @@ the same voice and checked against the originals.
 | Path | What |
 |---|---|
 | `site/` | The page served by GitHub Pages (`site/CNAME` = `unisynth.exceed.hu`) |
-| `site/daw/` | Static, read-only build of the DAW (WebAssembly synth + editor + song snapshot) |
+| `site/daw/` | Static, read-only build of the DAW (WebAssembly synth + editor + song snapshot + GM bank) |
 | `scripts/build-daw.sh` | Rebuilds `site/daw/` from the current source tree |
 | `.github/workflows/pages.yml` | Deploys `site/` on every push to `main` |
 
