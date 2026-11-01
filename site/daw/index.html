@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head><meta name="daw-static" content="1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>64k DAW</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+<header aria-label="Transport"><!-- rendered by ui/transport/TransportBar.tsx --></header>
+
+<main>
+  <nav id="browser" aria-label="Music browser">
+    <section><!-- rendered by ui/files/Files.tsx --></section>
+    <section id="lib" aria-label="Instrument library"><!-- rendered by ui/library/Library.tsx --></section>
+  </nav>
+  <div class="splitter" id="split-v" role="separator" aria-orientation="vertical" aria-label="Resize browser" tabindex="0"></div>
+
+  <div id="work">
+    <section id="arr" aria-label="Arrangement">
+      <div id="arr-corner"><button title="Add track" aria-label="Add track">+</button><span class="sep"></span><button data-arr="cut" title="Cut (Ctrl+X)">Cut</button><button data-arr="copy" title="Copy (Ctrl+C)">Copy</button><button data-arr="paste" title="Paste at the cursor (Ctrl+V; Ctrl+Shift+V linked)">Paste</button><button data-arr="align" title="Align clip starts to the snap grid (Q)">Align</button></div>
+      <div id="ruler-wrap"><div id="ruler" aria-label="Ruler. Top strip: drag the loop, its edges, or empty strip for a new loop. Below: click or drag to seek."></div></div>
+      <div id="hdrs" aria-label="Track headers"></div>
+      <div id="lanes-wrap" tabindex="0" aria-label="Arrangement clips. Click selects, drag moves (also to another track), right edge resizes, drag on empty space selects a range."><div id="lanes"></div></div>
+    </section>
+    <div class="splitter" id="split-h" role="separator" aria-orientation="horizontal" aria-label="Resize arrangement" tabindex="0"></div>
+
+    <section id="bottom" aria-label="Editor panel">
+      <div id="tabs" role="tablist">
+        <button role="tab" id="tab-roll" aria-controls="p-roll" aria-selected="false">Piano roll</button>
+        <button role="tab" id="tab-dev" aria-controls="p-dev" aria-selected="true">Device</button>
+        <button role="tab" id="tab-mix" aria-controls="p-mix" aria-selected="false">Mixer</button>
+        <div class="ctx" id="ctx"></div>
+      </div>
+
+      <div class="tabpanel" id="p-roll" role="tabpanel" aria-labelledby="tab-roll" hidden>
+        <div id="roll-tools" role="toolbar" aria-label="Note editing">
+          <button data-roll="cut" title="Cut (Ctrl+X)">Cut</button><button data-roll="copy" title="Copy (Ctrl+C)">Copy</button><button data-roll="paste" title="Paste at the cursor (Ctrl+V)">Paste</button><button data-roll="dup" title="Duplicate after the selection (Ctrl+D)">Duplicate</button><button data-roll="del" title="Delete (Del)">Delete</button>
+          <span class="sep"></span>
+          <span class="dim">Transpose</span><button data-roll="t-12" title="Octave down (Shift+↓)">−12</button><button data-roll="t-1" title="Semitone down (↓)">−1</button><button data-roll="t+1" title="Semitone up (↑)">+1</button><button data-roll="t+12" title="Octave up (Shift+↑)">+12</button>
+          <span class="sep"></span>
+          <button data-roll="quant" title="Quantize starts to the snap (Q)">Quantize</button><button data-roll="quantlen" title="Quantize starts and lengths (Shift+Q)">+ lengths</button>
+          <label class="dim">Strength <select id="qstr" aria-label="Quantize strength"><option value="1">100%</option><option value=".75">75%</option><option value=".5">50%</option></select></label>
+          <button data-roll="legato" title="Extend each note to the next one">Legato</button>
+          <span class="sep"></span>
+          <label class="dim">Vel <input id="vel-set" type="number" min="1" max="127" step="1" disabled aria-label="Velocity of the selected notes" title="Set the velocity of every selected note"></label>
+          <span class="sep"></span>
+          <button data-roll="all" title="Select all (Ctrl+A)">Select all</button>
+          <span class="sep"></span>
+          <span class="dim">Zoom</span><button data-zoom="t-" aria-label="Zoom out in time" title="Time zoom out (−; Ctrl/⌘+wheel or pinch)">−</button><button data-zoom="t+" aria-label="Zoom in in time" title="Time zoom in (+)">+</button><button data-zoom="p-" aria-label="Smaller key rows" title="Pitch zoom out (Alt+wheel)">↕−</button><button data-zoom="p+" aria-label="Taller key rows" title="Pitch zoom in (Alt+wheel)">↕+</button><button data-zoom="fit" aria-label="Fit clip" title="Fit the clip and its notes (Shift+Z)">⤢</button>
+          <span id="roll-info" class="dim num" aria-live="polite"></span>
+          <span id="roll-clip" class="num" style="margin-left:auto"></span>
+        </div>
+        <div id="roll">
+          <div id="keys" aria-label="Keyboard, click to audition"></div>
+          <div id="grid"><div id="roll-ph" class="playhead" hidden></div><canvas id="gridc" tabindex="0" aria-label="Notes. Click selects, drag moves, edge resizes, double-click adds or deletes, drag on empty space selects a range. Arrows move and transpose."></canvas></div>
+          <div id="vel-lbl"><select id="cc-kind" aria-label="Controller lane"><option value="vel">Velocity</option><option value="wheel">Mod wheel</option><option value="bend">Pitch bend</option></select><span id="cc-val" class="num" aria-live="polite"></span></div>
+          <div id="vel"><canvas id="velc" tabindex="0" aria-label="Controller lane: velocity. Drag a stem to set that note; on a selected note it sets the selection (Ctrl or Cmd: that note only, Alt: all equal). Drag from an empty spot to paint. Mouse wheel nudges."></canvas></div>
+        </div>
+      </div>
+
+      <div class="tabpanel" id="p-dev" role="tabpanel" aria-labelledby="tab-dev">
+        <div id="device"></div>
+      </div>
+
+      <div class="tabpanel" id="p-mix" role="tabpanel" aria-labelledby="tab-mix" hidden>
+        <div id="mixer"></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<div id="live" class="sr" aria-live="polite"></div>
+<footer>
+  <span class="num">44.1 kHz · kinds 64, 66, 72</span>
+  <span id="saved-info">Saved 2 min ago · 1 unsaved change</span>
+  <span id="edit-status" class="num" aria-live="polite"></span>
+  <span id="armed-info">Armed: <b>Bass</b> · octave C3 · vel 100</span>
+  <button id="kb-btn" aria-pressed="true" title="Computer keyboard plays the selected track like a tracker: Z–M and Q–P are notes, [ ] octave, ; ' velocity (`). Off: letters are shortcuts again">⌨</button>
+  <button id="midi-info" title="Connect Web MIDI input to the armed track">MIDI: connect</button>
+  <span class="wheels" aria-label="Audition controllers"><label>MW <input id="mw" type="range" min="0" max="127" value="0" aria-label="Mod wheel (audition)"></label><label>PB <input id="pb" type="range" min="-8192" max="8191" value="0" aria-label="Pitch bend (audition, springs back)"></label></span>
+  <span><kbd>Ctrl+X/C/V</kbd> cut/copy/paste <kbd>Ctrl+Q</kbd> quantize/align <kbd>↑↓</kbd> transpose/track <kbd>Space</kbd> play <kbd>Z</kbd>–<kbd>M</kbd> <kbd>Q</kbd>–<kbd>P</kbd> notes <kbd>[</kbd><kbd>]</kbd> octave <kbd>Shift+R</kbd> record <kbd>Ctrl+D</kbd> duplicate <kbd>Ctrl+Shift+D</kbd> linked copy</span>
+</footer>
+<!-- A sandboxed frame (e.g. the pi-dashboard canvas: opaque origin) cannot load the module or reach /api/music. -->
+<script type="module" src="main.js" onerror="dawBlocked()"></script>
+<script>
+function dawBlocked() {
+  var d = document.createElement("div");
+  d.setAttribute("role", "alert");
+  d.style.cssText = "position:fixed;inset:0;z-index:99;display:grid;place-items:center;background:#0b0e13ee;color:#e6e9ef;font:15px system-ui;text-align:center;padding:24px";
+  d.innerHTML = "<div><b>The DAW could not start here.</b><br><br>This frame is sandboxed, so the browser blocks the engine and the song files.<br>Open <a style=\"color:#7ab4ff\" target=\"_blank\" href=\"" + location.href + "\">" + location.href + "</a> in a browser tab.</div>";
+  document.body.appendChild(d);
+}
+</script>
+</body>
+</html>

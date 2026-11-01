@@ -1,0 +1,891 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>unisynth · by robson / Exceed</title>
+<meta name="description" content="unisynth: one soft synth for a 64k intro. Three oscillator slots, four filters, nine effect kinds, four legacy synth families in one voice. By robson / Exceed.">
+<style>
+/* Palette = the DAW's tokens (packages/daw). Block colours carry meaning: osc, filter, env, lfo, mod, voice. */
+:root {
+  color-scheme: dark;
+  --bg: #0e1013; --bg-2: #121417; --panel: #1b1e23; --panel-2: #20242a; --line: #2c3139; --line-2: #23272e;
+  --fg: #e4e8ee; --dim: #8a94a3; --faint: #5f6875;
+  --ok: #5fd38d; --warn: #e7b84c; --err: #ff6b6b; --focus: #6aa7ff; --sel: #263040; --playhead: #e7b84c;
+  --osc: #f0a04b; --filt: #3fc1c9; --env: #6fd08c; --lfo: #a98bf5; --mod: #ee7aa8; --voice: #8fa6c4;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --w: 1240px;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.6 var(--sans); overflow-x: hidden; }
+a { color: inherit; text-decoration-color: var(--line); text-underline-offset: 3px; }
+a:hover { text-decoration-color: var(--focus); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.mono, code, pre { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+code { font-size: .86em; background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
+.wrap { max-width: var(--w); margin: 0 auto; padding: 0 28px; }
+.wrap > *, .g2 > *, .sec-hd > * { min-width: 0; }
+.skip { position: absolute; left: -999px; top: 8px; background: var(--panel); padding: 6px 10px; border-radius: 4px; z-index: 30; }
+.skip:focus { left: 8px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* ── Transport ─────────────────────────────── */
+.transport { position: fixed; inset: 0 0 auto 0; z-index: 20; transition: background .3s, border-color .3s; border-bottom: 1px solid transparent; }
+.transport.solid { background: color-mix(in srgb, var(--bg-2) 88%, transparent); backdrop-filter: blur(10px); border-color: var(--line); }
+.transport .wrap { display: flex; align-items: center; gap: 16px; height: 52px; }
+.logo { font: 600 15px var(--mono); text-decoration: none; display: flex; align-items: center; gap: 9px; }
+.bars3 { display: inline-flex; gap: 2px; align-items: end; height: 13px; }
+.bars3 b { width: 4px; border-radius: 1px; }
+.bars3 b:nth-child(1) { background: var(--osc); height: 13px; } .bars3 b:nth-child(2) { background: var(--filt); height: 9px; } .bars3 b:nth-child(3) { background: var(--env); height: 5px; }
+.transport nav { display: flex; gap: 2px; margin-left: 10px; }
+.transport nav a { font-size: 13px; color: var(--dim); text-decoration: none; padding: 5px 10px; border-radius: 5px; }
+.transport nav a:hover, .transport nav a[aria-current="true"] { color: var(--fg); background: var(--sel); }
+.sp { flex: 1; }
+.pos { font: 13px var(--mono); border: 1px solid var(--line); background: #0b0c0f; border-radius: 5px; padding: 3px 10px; color: var(--playhead); min-width: 116px; text-align: right; }
+
+/* ── Hero ──────────────────────────────────── */
+.hero { position: relative; min-height: 100svh; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; isolation: isolate; padding-top: 96px; }
+.hero .wrap { position: relative; }
+#phosphor { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; }
+.hero::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(180deg, transparent 0 55%, var(--bg) 100%), repeating-linear-gradient(0deg, #0000 0 3px, #00000038 3px 4px); }
+.presents { display: inline-block; font: 13px var(--mono); color: var(--dim); letter-spacing: .02em; margin: 0 0 18px; background: #0e1013d9; border: 1px solid var(--line); border-radius: 5px; padding: 3px 9px; }
+.presents b { color: var(--fg); font-weight: 600; }
+.word { font: 800 clamp(76px, 17.5vw, 268px)/.82 var(--mono); letter-spacing: -.07em; margin: 0 0 0 -.04em; white-space: nowrap; }
+.word .u { color: var(--fg); }
+.word .s { -webkit-text-stroke: 2px var(--fg); color: transparent; }
+.hero-low { display: grid; grid-template-columns: 1.1fr 1fr; gap: 48px; align-items: end; padding: 34px 0 48px; }
+.lede { font-size: clamp(19px, 1.7vw, 23px); line-height: 1.5; margin: 0; max-width: 36ch; }
+.lede .o { color: var(--osc); } .lede .f { color: var(--filt); } .lede .l { color: var(--lfo); } .lede .m { color: var(--mod); }
+.osc-pick { display: flex; flex-direction: column; gap: 10px; }
+.osc-pick .lbl { font: 11px var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--dim); display: flex; justify-content: space-between; }
+.osc-pick .lbl b { color: var(--osc); font-weight: 500; text-transform: none; letter-spacing: 0; }
+.pills { display: grid; grid-template-columns: repeat(6, 1fr); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #0b0c0fcc; backdrop-filter: blur(4px); }
+.pills button { all: unset; cursor: pointer; text-align: center; padding: 13px 4px; font: 12px var(--mono); color: var(--dim); border-right: 1px solid var(--line); transition: color .2s, background .2s; }
+.pills button:last-child { border-right: 0; }
+.pills button:hover { color: var(--fg); }
+.pills button[aria-pressed="true"] { color: #0b0c0f; background: var(--osc); }
+.pills button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.osc-pick .from { font: 12px var(--mono); color: var(--faint); }
+
+/* channel strip of numbers */
+.strip { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--bg); }
+.ch { padding: 26px 22px 24px; border-right: 1px solid var(--line); display: grid; grid-template-columns: 8px 1fr; gap: 0 16px; }
+.ch:last-child { border-right: 0; }
+.ch .meter { grid-row: span 2; background: #0b0c0f; border: 1px solid var(--line); border-radius: 3px; position: relative; overflow: hidden; }
+.ch .meter i { position: absolute; left: 0; right: 0; bottom: 0; height: var(--h, 70%); background: linear-gradient(0deg, var(--ok) 0 70%, var(--warn) 70% 90%, var(--err) 90%); background-size: 100% calc(100% / var(--h-n, .7)); background-position: bottom; transition: height .12s; }
+.ch .v { font: 700 clamp(26px, 2.6vw, 38px)/1 var(--mono); letter-spacing: -.04em; }
+.ch .l { font-size: 13.5px; color: var(--dim); margin-top: 10px; line-height: 1.45; }
+
+/* ── Sections ─────────────────────────────── */
+section { padding: 140px 0 0; scroll-margin-top: 52px; }
+.sec-hd { display: grid; grid-template-columns: 1fr 1.25fr; gap: 56px; align-items: end; margin-bottom: 48px; }
+.tn { font: 800 clamp(64px, 9vw, 132px)/.8 var(--mono); letter-spacing: -.06em; color: transparent; -webkit-text-stroke: 1.5px var(--acc, var(--line)); margin-bottom: 18px; display: block; opacity: .9; }
+.kicker { font: 12px var(--mono); color: var(--acc, var(--dim)); text-transform: uppercase; letter-spacing: .1em; }
+h2 { font: 700 clamp(34px, 4.4vw, 60px)/1.02 var(--sans); letter-spacing: -.035em; margin: 10px 0 0; }
+.sec-hd p { margin: 0; color: var(--dim); font-size: 18px; max-width: 54ch; }
+.sec-hd p strong { color: var(--fg); font-weight: 500; }
+
+/* ── Voice diagram ─────────────────────────── */
+.flow { position: relative; border: 1px solid var(--line); border-radius: 14px; background:
+  radial-gradient(circle at 1px 1px, #ffffff10 1px, transparent 0) 0 0/22px 22px, var(--bg-2); padding: 28px; overflow-x: auto; }
+.flow svg { display: block; width: 100%; min-width: 960px; height: auto; }
+.flow text { font: 13px var(--mono); fill: var(--fg); }
+.flow .d { fill: var(--dim); font-size: 11px; }
+.flow .w { stroke: #3a414c; stroke-width: 1.5; fill: none; }
+.flow .mw { stroke: var(--mod); stroke-width: 1.2; fill: none; stroke-dasharray: 2 5; opacity: .75; }
+.flow .pulse { fill: none; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 18 1200; animation: pulse 2.8s linear infinite; filter: drop-shadow(0 0 5px currentColor); }
+.flow .pulse.p2 { animation-delay: -1.4s; }
+.flow .mpulse { fill: none; stroke: var(--mod); color: var(--mod); stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 10 900; animation: pulse 3.6s linear infinite; filter: drop-shadow(0 0 4px currentColor); }
+@keyframes pulse { from { stroke-dashoffset: 18; } to { stroke-dashoffset: -1200; } }
+.blk rect { stroke-width: 1.5; }
+.legend { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 16px; font: 12px var(--mono); color: var(--dim); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 7px; vertical-align: -1px; }
+
+/* ── Rack ─────────────────────────────────── */
+.rack { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; }
+.dev { --acc: var(--voice); grid-column: span 4; position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column;
+  transition: transform .25s, border-color .25s; }
+.dev:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--acc) 55%, var(--line)); }
+.dev::before { content: ""; position: absolute; inset: 0 0 auto; height: 3px; background: var(--acc); }
+.dev.w6 { grid-column: span 6; } .dev.w8 { grid-column: span 8; }
+.devhd { display: flex; align-items: center; gap: 8px; padding: 14px 18px 0; font: 600 11px var(--mono); text-transform: uppercase; letter-spacing: .08em; color: color-mix(in srgb, var(--acc) 75%, var(--dim)); }
+.led { width: 7px; height: 7px; border-radius: 50%; background: var(--acc); box-shadow: 0 0 8px var(--acc); }
+.dev .body { padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.dev h3 { font: 650 21px/1.2 var(--sans); margin: 0; letter-spacing: -.015em; }
+.dev p { margin: 0; color: var(--dim); font-size: 15px; }
+.dev .ft { margin-top: auto; padding-top: 16px; display: flex; align-items: center; gap: 14px; }
+.knob { width: 52px; height: 52px; flex: none; }
+.knob .bg { stroke: var(--line); } .knob .fg { stroke: var(--acc); transition: stroke-dasharray 1.2s cubic-bezier(.2,.7,.2,1); }
+.knob .cap { fill: var(--panel-2); stroke: var(--line); }
+.knob .ptr { stroke: var(--fg); stroke-width: 2; stroke-linecap: round; transition: transform 1.2s cubic-bezier(.2,.7,.2,1); transform-origin: 26px 26px; }
+.dev .n { font: 700 22px var(--mono); letter-spacing: -.02em; }
+.dev .u { display: block; font: 11.5px var(--mono); color: var(--faint); margin-top: 2px; }
+.dev canvas.mini { width: 100%; height: 70px; display: block; border-radius: 6px; background: #0b0c0f; border: 1px solid var(--line-2); }
+
+/* ── Effects merge ─────────────────────────── */
+.merge { border: 1px solid var(--line); border-radius: 14px; background: var(--bg-2); padding: 26px 26px 18px; overflow-x: auto; }
+.merge svg { display: block; width: 100%; min-width: 900px; height: auto; }
+.merge text { font-family: var(--mono); }
+.note { font-size: 14.5px; color: var(--dim); margin: 16px 0 0; }
+
+/* ── Size ─────────────────────────────────── */
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+pre.term { margin: 0; background: #0a0b0d; border: 1px solid var(--line); border-radius: 12px; padding: 0; font-size: 13.5px; line-height: 1.7; overflow: hidden; color: #c3cad3; }
+pre.term .bar { display: flex; gap: 6px; padding: 11px 14px; border-bottom: 1px solid var(--line-2); }
+pre.term .bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+pre.term code { display: block; background: none; border: 0; padding: 18px 20px 22px; font-size: inherit; overflow-x: auto; white-space: pre; }
+.t-p { color: var(--ok); } .t-c { color: var(--faint); } .t-o { color: var(--osc); } .caret { display: inline-block; width: 8px; height: 15px; background: var(--fg); vertical-align: -2px; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.sizes { display: flex; flex-direction: column; gap: 22px; }
+.sz .row { display: flex; justify-content: space-between; font-size: 14px; color: var(--dim); margin-bottom: 7px; }
+.sz .row b { font: 600 15px var(--mono); color: var(--fg); }
+.sz .tr { height: 22px; border-radius: 4px; background: #0b0c0f; border: 1px solid var(--line); position: relative; overflow: hidden; }
+.sz .tr i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--c); transition: width 1.6s cubic-bezier(.2,.7,.2,1); }
+.sz .tr i::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, #0000 0 5px, #00000030 5px 6px); }
+.sz .tr s { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--fg); left: var(--x); opacity: .7; }
+.caveat { font-size: 15px; color: var(--dim); border-left: 2px solid var(--warn); padding: 4px 0 4px 16px; margin: 8px 0 0; }
+.caveat b { color: var(--warn); }
+
+/* ── Parity ───────────────────────────────── */
+.par { display: grid; grid-template-columns: 1.4fr 1fr; gap: 28px; align-items: stretch; }
+.spec { border: 1px solid var(--line); border-radius: 14px; background: var(--bg-2); padding: 22px; display: flex; flex-direction: column; }
+.spec .hd { display: flex; justify-content: space-between; font: 12px var(--mono); color: var(--dim); margin-bottom: 14px; }
+.spec .hd span i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 6px 0 14px; vertical-align: -1px; }
+.spec canvas { width: 100%; flex: 1; min-height: 240px; display: block; }
+.counters { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.ctr { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 20px; }
+.ctr .v { font: 700 44px/1 var(--mono); color: var(--ok); letter-spacing: -.04em; }
+.ctr .v small { font-size: 20px; color: var(--faint); font-weight: 400; }
+.ctr .l { font-size: 14px; color: var(--dim); margin-top: 10px; line-height: 1.45; }
+.crit { grid-column: 1 / -1; font-size: 14.5px; color: var(--dim); margin: 2px 0 0; }
+
+/* ── Process ──────────────────────────────── */
+.roll { position: relative; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-2); overflow-x: auto; }
+.rg { min-width: 980px; display: grid; grid-template-columns: 150px repeat(7, 1fr); }
+.rg .hd { font: 11px var(--mono); color: var(--dim); padding: 12px; border-left: 1px solid var(--line-2); border-bottom: 1px solid var(--line); }
+.rg .hd b { color: var(--fg); display: block; font: 600 16px var(--mono); }
+.rg .lane { font: 12px var(--mono); color: var(--dim); padding: 0 12px; height: 56px; display: flex; align-items: center; gap: 9px; border-bottom: 1px solid var(--line-2); background: #101215; }
+.rg .lane i { width: 9px; height: 9px; border-radius: 2px; }
+.rg .cell { height: 56px; border-left: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2); }
+.rg .cell:nth-child(16n+3), .rg .cell:nth-child(16n+5) { background: #ffffff03; }
+.notes { position: absolute; top: 61px; left: 150px; right: 0; min-width: 830px; pointer-events: none; }
+.nt { position: absolute; height: 40px; border-radius: 5px; padding: 4px 8px; font: 11.5px/1.3 var(--mono); color: #0b0c0f; background: var(--c); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; pointer-events: auto;
+  transform-origin: left; transform: scaleX(0); transition: transform .5s cubic-bezier(.2,.7,.2,1), box-shadow .2s; }
+.nt.on { transform: scaleX(1); }
+.nt.hit { box-shadow: 0 0 0 2px var(--fg), 0 0 18px var(--c); }
+.nt span { display: block; opacity: .72; font-size: 10.5px; }
+.nt.open { background: transparent; border: 1px dashed var(--c); color: var(--c); }
+.ph { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--playhead); left: 150px; box-shadow: 0 0 12px var(--playhead); pointer-events: none; }
+.steps { counter-reset: s; display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 36px; margin: 56px 0 0; padding: 0; list-style: none; }
+.steps li { counter-increment: s; padding: 22px 0; border-top: 1px solid var(--line); }
+.steps li::before { content: counter(s, decimal-leading-zero); display: block; font: 700 13px var(--mono); color: var(--playhead); margin-bottom: 10px; }
+.steps h3 { font-size: 18px; margin: 0 0 8px; letter-spacing: -.01em; }
+.steps p { margin: 0; color: var(--dim); font-size: 15px; }
+
+/* ── Clips ────────────────────────────────── */
+.clips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.clip { position: relative; aspect-ratio: 16/9; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: #0b0c0f; }
+.clip video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.reel { margin: 0 0 22px; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: #0b0c0f; }
+.reel video { display: block; width: 100%; aspect-ratio: 16/9; background: #0b0c0f; }
+.reel figcaption { display: flex; justify-content: space-between; gap: 12px; padding: 10px 16px; font: 12px var(--mono); color: var(--dim); border-top: 1px solid var(--line); }
+.clip .tag { position: absolute; left: 10px; top: 10px; font: 10.5px var(--mono); color: var(--dim); background: #0b0c0fd0; border: 1px solid var(--line); border-radius: 4px; padding: 2px 7px; }
+.clipc h3 { font-size: 17px; margin: 14px 0 4px; }
+.clipc p { margin: 0; color: var(--dim); font-size: 14.5px; }
+
+/* ── Thanks ───────────────────────────────── */
+.thanks { padding-top: 160px; }
+.scroller { width: 100%; height: 170px; display: block; margin: 0 0 64px; }
+.teams { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.team { --acc: var(--voice); position: relative; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); padding: 28px 28px 26px; overflow: hidden; }
+.team::after { content: attr(data-mark); position: absolute; right: -6px; bottom: -34px; font: 800 150px/1 var(--mono); letter-spacing: -.08em; color: transparent;
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--acc) 35%, transparent); pointer-events: none; }
+.team .who { font: 12px var(--mono); color: var(--acc); text-transform: uppercase; letter-spacing: .1em; }
+.team h3 { font: 750 34px/1.05 var(--sans); letter-spacing: -.03em; margin: 8px 0 4px; }
+.team .made { font: 13px var(--mono); color: var(--dim); margin: 0 0 18px; }
+.team .took { font-size: 15px; color: var(--dim); margin: 0 0 18px; position: relative; z-index: 1; }
+.team .to { position: relative; z-index: 1; display: grid; gap: 12px; }
+.team .to p { margin: 0; font-size: 16px; line-height: 1.55; padding-left: 16px; border-left: 2px solid var(--acc); }
+.team .to p b { display: block; font: 600 11px var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--acc); margin-bottom: 2px; }
+.team .lmark { height: 92px; margin: 0 0 18px; display: flex; align-items: center; color: var(--fg); }
+.team .lmark .logo { height: 100%; width: auto; max-width: 220px; display: block; }
+.team[data-mark=""]::after { content: none; }
+.logos-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 56px; margin: -24px 0 56px; color: var(--dim); }
+.logos-row svg { height: 64px; width: auto; display: block; opacity: .9; }
+.logos-row .mono { font: 800 40px/1 var(--mono); letter-spacing: -.05em; color: var(--dim); }
+.team.wide { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1.4fr; gap: 32px; }
+.also { margin-top: 26px; font-size: 15px; color: var(--dim); max-width: 80ch; }
+.also b { color: var(--fg); font-weight: 500; }
+
+/* ── Footer ───────────────────────────────── */
+footer { margin-top: 160px; border-top: 1px solid var(--line); background: var(--bg-2); }
+.foot { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1.2fr; gap: 40px; padding: 48px 0 28px; font-size: 14.5px; color: var(--dim); }
+.foot h4 { font: 600 11px var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--fg); margin: 0 0 12px; }
+.foot ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.sig { font: 800 clamp(40px, 7vw, 92px)/.9 var(--mono); letter-spacing: -.06em; padding: 0 0 36px; color: var(--panel-2); -webkit-text-stroke: 1px var(--line); white-space: nowrap; overflow: hidden; }
+.weight { font: 12px var(--mono); margin-top: 14px; color: var(--faint); }
+.weight b { color: var(--ok); font-weight: 500; }
+
+/* reveal */
+.rv { opacity: 0; transform: translateY(18px); transition: opacity .7s, transform .7s cubic-bezier(.2,.7,.2,1); }
+.rv.in { opacity: 1; transform: none; }
+
+@media (max-width: 1020px) {
+  .transport nav { display: none; }
+  .hero-low, .sec-hd, .g2, .par { grid-template-columns: 1fr; gap: 28px; }
+  .strip { grid-template-columns: repeat(2, 1fr); }
+  .ch { border-bottom: 1px solid var(--line); }
+  .dev, .dev.w6, .dev.w8 { grid-column: span 6; }
+  .steps, .clips { grid-template-columns: 1fr 1fr; }
+  .teams { grid-template-columns: 1fr; }
+  .team.wide { grid-template-columns: 1fr; gap: 0; }
+  .foot { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 640px) {
+  body { font-size: 16px; }
+  .wrap { padding: 0 18px; }
+  .pos { display: none; }
+  .hero { min-height: 0; padding-top: 110px; }
+  .hero::after { background: repeating-linear-gradient(0deg, #0000 0 3px, #00000038 3px 4px); }
+  .strip { grid-template-columns: 1fr; }
+  .ch { border-right: 0; }
+  .dev, .dev.w6, .dev.w8 { grid-column: 1 / -1; }
+  .steps, .clips, .counters, .foot { grid-template-columns: 1fr; }
+  .pills button { padding: 15px 2px; font-size: 11px; }
+  .team { padding: 22px; } .team h3 { font-size: 28px; }
+  section { padding-top: 100px; }
+  .scroller { height: 120px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .flow .pulse, .flow .mpulse { display: none; }
+  .rv { opacity: 1; transform: none; transition: none; }
+  .nt { transform: none; transition: none; }
+  .caret { animation: none; }
+}
+
+/* open: DAW + repo */
+.tlinks { display: flex; gap: 6px; align-items: center; margin-right: 12px; }
+.tlinks a { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--fg); text-decoration: none; padding: 5px 10px; border-radius: 5px; border: 1px solid var(--line); }
+.tlinks a:hover { background: var(--sel); }
+.tlinks .daw b { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+.cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+.btn { display: inline-flex; align-items: center; gap: 9px; font: 500 15px/1 system-ui, sans-serif; text-decoration: none; padding: 13px 18px; border-radius: 8px; border: 1px solid var(--line); color: var(--fg); background: #0b0c0fb0; }
+.btn:hover { border-color: var(--dim); }
+.btn.pri { background: var(--ok); border-color: var(--ok); color: #0b0c0f; }
+.btn.pri:hover { filter: brightness(1.08); }
+.btn:focus-visible, .tlinks a:focus-visible, .shot:focus-visible, .repo:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.open { display: grid; grid-template-columns: 1.7fr 1fr; gap: 22px; align-items: stretch; }
+.shot { position: relative; display: block; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #0b0c0f; text-decoration: none; color: var(--fg); }
+.shot .chrome { display: flex; align-items: center; gap: 7px; padding: 10px 14px; border-bottom: 1px solid var(--line); font: 12px var(--mono); color: var(--dim); }
+.shot .chrome i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+.shot .chrome span { margin-left: 10px; }
+.shot img { display: block; width: 100%; height: auto; transition: transform .6s ease; }
+.shot:hover img { transform: scale(1.015); }
+.shot .go { position: absolute; right: 16px; bottom: 16px; font: 500 14px system-ui, sans-serif; background: var(--ok); color: #0b0c0f; padding: 10px 14px; border-radius: 8px; }
+.side { display: grid; gap: 22px; grid-template-rows: auto 1fr; }
+.repo { display: block; border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; background: var(--panel); text-decoration: none; color: var(--fg); }
+.repo:hover { border-color: var(--dim); }
+.repo .rn { display: flex; align-items: center; gap: 10px; font: 600 17px var(--mono); }
+.repo .rn span { color: var(--dim); font-weight: 400; }
+.repo p { color: var(--dim); margin: 10px 0 14px; font-size: 14.5px; line-height: 1.55; }
+.repo .meta { display: flex; flex-wrap: wrap; gap: 8px 16px; font: 12px var(--mono); color: var(--dim); }
+.repo .meta i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+.facts { list-style: none; margin: 0; padding: 20px 22px; border: 1px solid var(--line); border-radius: 12px; display: grid; gap: 12px; align-content: start; font-size: 14px; color: var(--dim); }
+.facts b { color: var(--fg); font-weight: 500; }
+.facts li { padding-left: 16px; position: relative; } .facts li::before { content: ""; position: absolute; left: 0; top: .55em; width: 7px; height: 2px; background: var(--acc); }
+.foot a { color: var(--fg); }
+@media (max-width: 980px) { .open { grid-template-columns: 1fr; } .tlinks .lbl { display: none; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="transport" id="transport">
+  <div class="wrap">
+    <a class="logo" href="#top" aria-label="unisynth, back to top"><span class="bars3" aria-hidden="true"><b></b><b></b><b></b></span>unisynth</a>
+    <nav aria-label="Sections">
+      <a href="#voice">Voice</a><a href="#rack">Rack</a><a href="#fx">Effects</a><a href="#size">Size</a><a href="#parity">Parity</a><a href="#process">Process</a><a href="#open">Open</a><a href="#thanks">Thanks</a>
+    </nav>
+    <span class="sp"></span>
+    <div class="tlinks"><a class="daw" href="daw/"><b aria-hidden="true"></b>DAW</a><a href="https://github.com/unisynth/unisynth" aria-label="unisynth on GitHub"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg><span class="lbl">GitHub</span></a></div>
+    <output class="pos" id="pos" aria-label="Scroll position as bar, beat and tick">001.1.000</output>
+  </div>
+</header>
+
+<main id="main">
+<!-- ═════════ HERO ═════════ -->
+<div class="hero" id="top">
+  <canvas id="phosphor" aria-hidden="true"></canvas>
+  <div class="wrap">
+    <p class="presents"><b>robson</b> / Exceed presents</p>
+    <h1 class="word" aria-label="unisynth"><span class="u">uni</span><span class="s">synth</span></h1>
+    <div class="hero-low">
+      <div><p class="lede">One soft synth for a 64k intro. Four synth families from <span class="o">two decades</span> of the demoscene, rebuilt as settings of the <span class="f">same voice</span>, and checked against the originals <span class="m">until they agree</span>.</p>
+      <div class="cta"><a class="btn pri" href="daw/">Open the DAW <span aria-hidden="true">→</span></a><a class="btn" href="https://github.com/unisynth/unisynth"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg> unisynth/unisynth</a></div></div>
+      <div class="osc-pick">
+        <div class="lbl"><span>osc1 · type</span><b id="osc-name">phase-mod operator</b></div>
+        <div class="pills" role="group" aria-label="Oscillator type drawn in the background">
+          <button aria-pressed="true">pm</button><button aria-pressed="false">blit</button><button aria-pressed="false">wt</button><button aria-pressed="false">sample</button><button aria-pressed="false">naive</button><button aria-pressed="false">cauldron</button>
+        </div>
+        <div class="from" id="osc-from">lineage: WaveSabre · Logicoma</div>
+      </div>
+    </div>
+  </div>
+  <div class="strip" role="list">
+    <div class="ch" role="listitem"><span class="meter"><i></i></span><div class="v">13,312 B</div><div class="l">a WaveSabre reference track, engine and song, packed. The original engine needed 14,336.</div></div>
+    <div class="ch" role="listitem"><span class="meter"><i></i></span><div class="v">43/43</div><div class="l">legacy device tests pass parity against the engines they were written for</div></div>
+    <div class="ch" role="listitem"><span class="meter"><i></i></span><div class="v">9.6×</div><div class="l">real time on one thread for the heaviest reference track. The original: 7.1×.</div></div>
+    <div class="ch" role="listitem"><span class="meter"><i></i></span><div class="v">15 → 9</div><div class="l">legacy effects merged into nine effect kinds, every algorithm kept whole</div></div>
+    <div class="ch" role="listitem"><span class="meter"><i></i></span><div class="v">260</div><div class="l">normalized parameters per instrument</div></div>
+  </div>
+</div>
+
+<!-- ═════════ VOICE ═════════ -->
+<section id="voice" style="--acc: var(--osc)">
+  <div class="wrap">
+    <div class="sec-hd rv">
+      <div><span class="tn" aria-hidden="true">01</span><span class="kicker">the voice</span><h2>Fixed slots. The song decides what fills them.</h2></div>
+      <p>A voice is <strong>3 oscillators</strong>, a noise source, <strong>4 filters</strong>, <strong>4 envelopes</strong>, <strong>2 LFOs</strong> and a <strong>16-slot mod matrix</strong>. A WaveSabre bass and a Tunefish pad are both just values in those slots. Control runs on an absolute 32-frame grid that tightens to 8 frames for 256 frames after every note edge.</p>
+    </div>
+    <div class="flow rv">
+      <svg viewBox="0 0 1180 360" role="img" aria-labelledby="flt">
+        <title id="flt">Signal flow of one unisynth voice. Three oscillators chain by phase modulation and sum with noise, pass four serial filters, the amp envelope and pan, then the nine effect kinds. Envelopes, LFOs and controllers feed the mod matrix, which can target any slot.</title>
+        <defs><marker id="ar" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="#3a414c"/></marker></defs>
+        <!-- wires -->
+        <path class="w" d="M128 70 H168" marker-end="url(#ar)"/><path class="w" d="M288 70 H328" marker-end="url(#ar)"/>
+        <path class="w" d="M74 92 V170 H448" /><path class="w" d="M228 92 V170"/><path class="w" d="M388 92 V170"/><path class="w" d="M74 238 V170"/>
+        <path class="w" d="M448 170 H462" marker-end="url(#ar)"/>
+        <path class="w" d="M508 170 H530" marker-end="url(#ar)"/><path class="w" d="M608 170 H622" marker-end="url(#ar)"/><path class="w" d="M700 170 H714" marker-end="url(#ar)"/><path class="w" d="M792 170 H806" marker-end="url(#ar)"/>
+        <path class="w" d="M884 170 H910" marker-end="url(#ar)"/><path class="w" d="M1030 170 H1052" marker-end="url(#ar)"/>
+        <path class="w" d="M1110 192 V236" marker-end="url(#ar)"/>
+        <path class="mw" d="M250 300 C250 250 100 140 90 94"/><path class="mw" d="M250 300 C250 240 560 250 570 194"/><path class="mw" d="M250 300 C250 240 950 250 970 194"/>
+        <path class="w" d="M418 318 H382" marker-end="url(#ar)"/><path class="w" d="M570 318 H548"/>
+        <!-- pulses -->
+        <path class="pulse" style="stroke:var(--osc);color:var(--osc)" d="M74 70 H448 V170 H1110 V236"/>
+        <path class="pulse p2" style="stroke:var(--filt);color:var(--filt)" d="M74 238 V170 H1110 V236"/>
+        <path class="mpulse" d="M250 300 C250 240 560 250 570 194"/>
+        <path class="mpulse" style="animation-delay:-1.8s" d="M250 300 C250 250 100 140 90 94"/>
+        <!-- blocks -->
+        <g class="blk"><rect x="20" y="48" width="108" height="44" rx="7" fill="#2a2116" stroke="#f0a04b"/><text x="36" y="75">osc1</text><text x="86" y="75" class="d">pm</text></g>
+        <g class="blk"><rect x="172" y="48" width="116" height="44" rx="7" fill="#2a2116" stroke="#f0a04b"/><text x="188" y="75">osc2</text><text x="240" y="75" class="d">wt</text></g>
+        <g class="blk"><rect x="332" y="48" width="112" height="44" rx="7" fill="#2a2116" stroke="#f0a04b"/><text x="348" y="75">osc3</text><text x="400" y="75" class="d">blit</text></g>
+        <text x="132" y="40" class="d">pm-out</text><text x="292" y="40" class="d">pm-out</text>
+        <g class="blk"><rect x="20" y="238" width="108" height="44" rx="7" fill="#1d222a" stroke="#8fa6c4"/><text x="36" y="265">noise</text></g>
+        <g class="blk"><circle cx="485" cy="170" r="22" fill="#1d222a" stroke="#8a94a3" stroke-width="1.5"/><text x="479" y="175">Σ</text></g>
+        <g class="blk"><rect x="532" y="148" width="76" height="44" rx="7" fill="#11272a" stroke="#3fc1c9"/><text x="547" y="175">filt1</text></g>
+        <g class="blk"><rect x="624" y="148" width="76" height="44" rx="7" fill="#11272a" stroke="#3fc1c9"/><text x="639" y="175">filt2</text></g>
+        <g class="blk"><rect x="716" y="148" width="76" height="44" rx="7" fill="#11272a" stroke="#3fc1c9"/><text x="731" y="175">filt3</text></g>
+        <g class="blk"><rect x="808" y="148" width="76" height="44" rx="7" fill="#11272a" stroke="#3fc1c9"/><text x="823" y="175">filt4</text></g>
+        <text x="532" y="132" class="d">SVF · ladder · RBJ · notch · feedback SVF · 4-pole</text>
+        <g class="blk"><rect x="912" y="148" width="118" height="44" rx="7" fill="#152619" stroke="#6fd08c"/><text x="926" y="175">× env1 · pan</text></g>
+        <g class="blk"><rect x="1054" y="148" width="112" height="44" rx="7" fill="#1d222a" stroke="#8fa6c4"/><text x="1070" y="175">main L/R</text></g>
+        <g class="blk"><rect x="1054" y="238" width="112" height="62" rx="7" fill="#1d222a" stroke="#4a525e"/><text x="1070" y="263">fx 65–73</text><text x="1070" y="284" class="d">→ mixer</text></g>
+        <g class="blk"><rect x="170" y="300" width="210" height="38" rx="7" fill="#2a1822" stroke="#ee7aa8"/><text x="186" y="324">matrix · 16 slots</text></g>
+        <g class="blk"><rect x="420" y="300" width="126" height="38" rx="7" fill="#152619" stroke="#6fd08c"/><text x="436" y="324">env1–4</text></g>
+        <g class="blk"><rect x="570" y="300" width="126" height="38" rx="7" fill="#1f1a2e" stroke="#a98bf5"/><text x="586" y="324">lfo1–2</text></g>
+        <text x="714" y="324" class="d">+ wheel · bend · CC2–7 · velocity · key</text>
+      </svg>
+      <div class="legend"><span><i style="background:var(--osc)"></i>oscillator</span><span><i style="background:var(--filt)"></i>filter</span><span><i style="background:var(--env)"></i>envelope</span><span><i style="background:var(--lfo)"></i>LFO</span><span><i style="background:var(--mod)"></i>modulation</span><span><i style="background:var(--voice)"></i>voice</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ RACK ═════════ -->
+<section id="rack" style="--acc: var(--filt)">
+  <div class="wrap">
+    <div class="sec-hd rv">
+      <div><span class="tn" aria-hidden="true">02</span><span class="kicker">device rack</span><h2>What is in the box</h2></div>
+      <p>Every panel is a module a build can include or leave out. The 64k player links only the ones its music touches.</p>
+    </div>
+    <div class="rack">
+      <article class="dev w8 rv" style="--acc: var(--osc)">
+        <div class="devhd"><span class="led"></span>osc · six types</div>
+        <div class="body">
+          <h3>One oscillator slot, six engines</h3>
+          <p>Phase-mod operator, band-limited saw and pulse, spectral wavetable with 1–10 unison layers, a sampler for GSM and GM.DLS, V2's naive oscillator, and the 1997 cauldron waveforms.</p>
+          <canvas class="mini" data-mini="osc" aria-hidden="true"></canvas>
+          <div class="ft"><svg class="knob" viewBox="0 0 52 52" data-v="1" aria-hidden="true"></svg><div><span class="n">3 slots</span><span class="u">chained by phase modulation</span></div></div>
+        </div>
+      </article>
+      <article class="dev rv" style="--acc: var(--filt)">
+        <div class="devhd"><span class="led"></span>filt · four lineages</div>
+        <div class="body">
+          <h3>Filters that sleep when open</h3>
+          <p>State-variable, ladder, RBJ, resonator notch, V2's feedback SVF and 4-pole. Filters 1 and 2 run single, serial or parallel. An open filter is not run at all.</p>
+          <div class="ft"><svg class="knob" viewBox="0 0 52 52" data-v=".18" aria-hidden="true"></svg><div><span class="n">1–6 %</span><span class="u">less time with open filters</span></div></div>
+        </div>
+      </article>
+      <article class="dev rv" style="--acc: var(--mod)">
+        <div class="devhd"><span class="led"></span>mod · matrix</div>
+        <div class="body">
+          <h3>Envelopes, LFOs, 16 routes</h3>
+          <p>Each envelope keeps its original curve law. Matrix routes are source, target, amount and operation: scale, offset or add.</p>
+          <div class="ft"><svg class="knob" viewBox="0 0 52 52" data-v=".62" aria-hidden="true"></svg><div><span class="n">16 slots</span><span class="u">any parameter is a target</span></div></div>
+        </div>
+      </article>
+      <article class="dev rv" style="--acc: var(--voice)">
+        <div class="devhd"><span class="led"></span>convert · four formats</div>
+        <div class="body">
+          <h3>Four families in, one format out</h3>
+          <p>The converter reads WaveSabre, Tunefish 4, Farbrausch V2 and mini-cauldron music. A failed conversion writes nothing at all.</p>
+          <div class="ft"><svg class="knob" viewBox="0 0 52 52" data-v="1" aria-hidden="true"></svg><div><span class="n">359/359</span><span class="u">V2 files loaded byte-identical</span></div></div>
+        </div>
+      </article>
+      <article class="dev rv" style="--acc: var(--env)">
+        <div class="devhd"><span class="led"></span>threads · opt-in</div>
+        <div class="body">
+          <h3>Same bits, any block size</h3>
+          <p>Output does not depend on how a render is split. Threads are opt-in and bit-identical. A build without them has no thread code at all.</p>
+          <div class="ft"><svg class="knob" viewBox="0 0 52 52" data-v=".74" aria-hidden="true"></svg><div><span class="n">1.7–4.5×</span><span class="u">faster at 8 workers</span></div></div>
+        </div>
+      </article>
+      <article class="dev rv" style="--acc: var(--lfo)">
+        <div class="devhd"><span class="led"></span>speech · channel strip</div>
+        <div class="body">
+          <h3>It talks</h3>
+          <p>V2's formant speech synth with 69 phonemes, and its channel strip: DC filter, look-ahead compressor, 150 Hz bass boost, drive, chorus.</p>
+          <div class="ft"><svg class="knob" viewBox="0 0 52 52" data-v=".5" aria-hidden="true"></svg><div><span class="n">69</span><span class="u">phonemes</span></div></div>
+        </div>
+      </article>
+      <article class="dev w8 rv" style="--acc: var(--filt)">
+        <div class="devhd"><span class="led"></span>daw · in the browser</div>
+        <div class="body">
+          <h3>A DAW that runs the intro's own code</h3>
+          <p>Arrangement, piano roll, generated device panels, mixer and bounce, compiled from the same Rust to WebAssembly. Live playback is bit-identical from frame 0. A live view draws each voice on its envelope, the LFO phases and the filter spectra.</p>
+          <canvas class="mini" data-mini="env" aria-hidden="true"></canvas>
+          <div class="ft"><svg class="knob" viewBox="0 0 52 52" data-v=".24" aria-hidden="true"></svg><div><span class="n">0.1 ms</span><span class="u">per 128 frames, 24 % of budget worst case</span></div></div>
+        </div>
+      </article>
+      <article class="dev rv" style="--acc: var(--osc)">
+        <div class="devhd"><span class="led"></span>memory</div>
+        <div class="body">
+          <h3>Small voices</h3>
+          <p>About 2.3 kB per voice. Sixteen phase-mod voices fit in 37 kB.</p>
+          <div class="ft"><svg class="knob" viewBox="0 0 52 52" data-v=".15" aria-hidden="true"></svg><div><span class="n">≈ 2.3 kB</span><span class="u">per voice</span></div></div>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ EFFECTS ═════════ -->
+<section id="fx" style="--acc: var(--lfo)">
+  <div class="wrap">
+    <div class="sec-hd rv">
+      <div><span class="tn" aria-hidden="true">03</span><span class="kicker">fx 65–73</span><h2>Fifteen effects in, nine kinds out</h2></div>
+      <p>Nothing was rewritten to sound "close enough". Each legacy algorithm survives whole as a <strong>mode</strong> of its kind, with its own parameters in their original order. At 44.1 kHz and tempo 120 every mode renders <strong>bit-identically</strong> to the effect it came from.</p>
+    </div>
+    <div class="merge rv" id="merge"><svg viewBox="0 0 1180 420" id="merge-svg" role="img" aria-label="Diagram: sixteen legacy effects from WaveSabre, Tunefish 4 and the Screwdriver fork, each joined by a line to one of nine unified effect kinds."></svg></div>
+    <p class="note">Left: WaveSabre in orange, Tunefish 4 in cyan, Screwdriver from the qm210 WaveSabre fork in green. Right: V2 and cauldron modes joined the same kinds later.</p>
+  </div>
+</section>
+
+<!-- ═════════ SIZE ═════════ -->
+<section id="size" style="--acc: var(--warn)">
+  <div class="wrap">
+    <div class="sec-hd rv">
+      <div><span class="tn" aria-hidden="true">04</span><span class="kicker">size budget</span><h2>Pay only for what the music plays</h2></div>
+      <p>Every module is a cargo feature. The converter reads the music and prints the features it needs. Leave a module out and anything that uses it fails at load with <code>UnsupportedModule</code>, never silently.</p>
+    </div>
+    <div class="g2">
+      <pre class="term rv" aria-label="Terminal example"><span class="bar"><i></i><i></i><i></i></span><code id="term"></code></pre>
+      <div class="sizes rv" id="sizes">
+        <div class="sz"><div class="row"><span>every module linked</span><b>34,304 B</b></div><div class="tr"><i data-w="100" style="--c:#4a525e"></i></div></div>
+        <div class="sz"><div class="row"><span>WaveSabre track · original engine</span><b>14,336 B</b></div><div class="tr"><i data-w="41.8" style="--c:var(--dim)"></i></div></div>
+        <div class="sz"><div class="row"><span>WaveSabre track · unisynth</span><b style="color:var(--ok)">13,312 B</b></div><div class="tr"><i data-w="38.8" style="--c:var(--ok)"></i><s style="--x:41.8%"></s></div></div>
+        <div class="sz"><div class="row"><span>Tunefish track · original engine</span><b>17,920 B</b></div><div class="tr"><i data-w="52.2" style="--c:var(--dim)"></i></div></div>
+        <div class="sz"><div class="row"><span>Tunefish track · unisynth</span><b style="color:var(--warn)">22,016 B</b></div><div class="tr"><i data-w="64.2" style="--c:var(--warn)"></i><s style="--x:52.2%"></s></div></div>
+        <p class="caveat"><b>Not solved yet.</b> Tunefish music is still 18–30 % bigger than with its original engine. Sizes are engine plus music, squishy-packed, i686.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ PARITY ═════════ -->
+<section id="parity" style="--acc: var(--ok)">
+  <div class="wrap">
+    <div class="sec-hd rv">
+      <div><span class="tn" aria-hidden="true">05</span><span class="kicker">parity</span><h2>The old engines stayed on as judges</h2></div>
+      <p>Every legacy test is rendered by the engine it was written for and by unisynth. A result counts only when loudness, octave bands and onsets agree <strong>and</strong> a human has listened to both and signed off.</p>
+    </div>
+    <div class="par">
+      <div class="spec rv">
+        <div class="hd"><span>octave bands · 63 Hz – 16 kHz</span><span><i style="background:var(--dim)"></i>original<i style="background:var(--ok)"></i>unisynth</span></div>
+        <canvas id="spec" aria-label="Illustration: octave band levels of an original engine and unisynth, nearly identical"></canvas>
+      </div>
+      <div class="counters">
+        <div class="ctr rv"><div class="v" data-n="43">0<small>/43</small></div><div class="l">WaveSabre and Tunefish device tests</div></div>
+        <div class="ctr rv"><div class="v" data-n="6">0<small>/6</small></div><div class="l">reference tracks, A/B approved</div></div>
+        <div class="ctr rv"><div class="v" data-n="15">0<small>/15</small></div><div class="l">Farbrausch V2 tracks, A/B approved</div></div>
+        <div class="ctr rv"><div class="v" data-n="82">0<small>/85</small></div><div class="l">mini-cauldron phrases</div></div>
+        <p class="crit">Pass: BS.1770 loudness within ±1 dB, every octave band within ±3 dB, onsets aligned. Engines with randomness are judged on 8 seeds.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ PROCESS ═════════ -->
+<section id="process" style="--acc: var(--playhead)">
+  <div class="wrap">
+    <div class="sec-hd rv">
+      <div><span class="tn" aria-hidden="true">06</span><span class="kicker">how it was built</span><h2>One week, as a piano roll</h2></div>
+      <p>Every step was a written change first: proposal, design, task list, then code. Sixteen synth changes landed between 25 and 31 October 2026. Solid notes are done, dashed ones are still open. Scroll to play.</p>
+    </div>
+    <div class="roll rv" id="roll">
+      <div class="rg" id="rg"></div>
+      <div class="notes" id="notes"></div>
+      <div class="ph" id="ph" aria-hidden="true"></div>
+    </div>
+    <ol class="steps">
+      <li class="rv"><h3>Port first, then unify</h3><p>WaveSabre and Tunefish 4 were ported to Rust and checked against upstream before anything was merged. The Tunefish port passed on the first run.</p></li>
+      <li class="rv"><h3>Old engines as oracles</h3><p>The legacy engines stay in the tree as judges until a parity report passes and an A/B listen is signed off.</p></li>
+      <li class="rv"><h3>Measurements redesign it</h3><p>The first full run found mono noise 3–5 dB low, 2 ms envelopes 1.75 dB quiet, voices that would not die and a matrix scan eating a quarter of the time. Each became a fix.</p></li>
+      <li class="rv"><h3>Reverse-engineer what shipped</h3><p>Two 1997 DOS intros by The Black Lotus ran under an x86 emulator until their music started. The rebuilt generator reproduces every sample byte for byte: 32 of 32, 66 of 66.</p></li>
+      <li class="rv"><h3>Measure size, never guess</h3><p>Bare i686 probes, packed with squishy and xz, in six compile configurations. Per-module cost and ablation builds. Ideas that made the player bigger are written down too.</p></li>
+      <li class="rv"><h3>Keep the music private</h3><p>Released tracks are used for testing on the machine and never committed. The repository holds patches and measurements, not other people's music.</p></li>
+    </ol>
+  </div>
+</section>
+
+<!-- ═════════ CLIPS ═════════ -->
+<section id="clips" style="--acc: var(--focus)">
+  <div class="wrap">
+    <div class="sec-hd rv">
+      <div><span class="tn" aria-hidden="true">07</span><span class="kicker">clips</span><h2>Watch it work</h2></div>
+      <p>Short films rendered with HyperFrames from plain HTML, each built from real parameter names and measurements. The cards loop while they are on screen.</p>
+    </div>
+    <figure class="reel rv">
+      <video id="reel" src="media/reel.mp4" poster="media/reel.jpg" controls muted playsinline preload="metadata" aria-label="unisynth reel, 85 seconds, no sound"></video>
+      <figcaption><span>the whole reel · 85 s · rendered with HyperFrames</span><span>no sound yet</span></figcaption>
+    </figure>
+    <div class="clips">
+      <div class="clipc rv"><div class="clip"><video data-clip src="media/voice.mp4" poster="media/voice.jpg" muted loop playsinline preload="none" aria-label="One voice, six engines"></video><span class="tag">01 · 14 s</span></div><h3>One voice, six engines</h3><p>The voice diagram assembles while osc1 cycles through its six types.</p></div>
+      <div class="clipc rv"><div class="clip"><video data-clip src="media/fx.mp4" poster="media/fx.jpg" muted loop playsinline preload="none" aria-label="Fifteen into nine"></video><span class="tag">02 · 12 s</span></div><h3>Fifteen into nine</h3><p>Sixteen legacy effect names wire into nine kinds and become modes.</p></div>
+      <div class="clipc rv"><div class="clip"><video data-clip src="media/size.mp4" poster="media/size.jpg" muted loop playsinline preload="none" aria-label="The build shrinks"></video><span class="tag">03 · 10 s</span></div><h3>The build shrinks</h3><p>The converter prints the features, and the size bar drops past the original engine.</p></div>
+      <div class="clipc rv"><div class="clip"><video data-clip src="media/parity.mp4" poster="media/parity.jpg" muted loop playsinline preload="none" aria-label="Until both engines agree"></video><span class="tag">04 · 12 s</span></div><h3>Until both engines agree</h3><p>Octave bands lock inside the tolerance, then the parity counters run up.</p></div>
+      <div class="clipc rv"><div class="clip"><video data-clip src="media/grid.mp4" poster="media/grid.jpg" muted loop playsinline preload="none" aria-label="The 32-frame grid"></video><span class="tag">05 · 10 s</span></div><h3>The 32-frame grid</h3><p>Why a 2 ms hit read quiet, and how the grid tightens to 8 frames around it.</p></div>
+      <div class="clipc rv"><div class="clip"><video data-clip src="media/dos.mp4" poster="media/dos.jpg" muted loop playsinline preload="none" aria-label="From 1997 to now"></video><span class="tag">06 · 16 s</span></div><h3>From 1997 to now</h3><p>A DOS intro runs in an emulator until its music starts, and becomes an oscillator.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ OPEN ═════════ -->
+<section id="open" style="--acc: var(--ok)">
+  <div class="wrap">
+    <div class="sec-hd rv">
+      <div><span class="tn" aria-hidden="true">08</span><span class="kicker">open it</span><h2>Play it in your browser</h2></div>
+      <p>The DAW the songs were checked in runs right here: the same synth compiled to WebAssembly, with the piano roll, every device panel and the mixer. Nothing to install, and nothing you do leaves your machine.</p>
+    </div>
+    <div class="open rv">
+      <a class="shot" href="daw/" aria-label="Open the unisynth DAW">
+        <div class="chrome" aria-hidden="true"><i></i><i></i><i></i><span>unisynth.exceed.hu/daw/</span></div>
+        <img src="media/daw.jpg" width="1400" height="940" loading="lazy" alt="The unisynth DAW: arrangement with clips and automation lanes on top, the unisynth device panel with voice, filter and envelope blocks below.">
+        <span class="go" aria-hidden="true">Open the DAW →</span>
+      </a>
+      <div class="side">
+        <a class="repo" href="https://github.com/unisynth/unisynth">
+          <div class="rn"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg><span>unisynth /</span>unisynth</div>
+          <p>Home of this page and the DAW build. The synth, the player and the converter move here next, out of the intro's working tree.</p>
+          <div class="meta"><span><i style="background:var(--osc)"></i>Rust</span><span><i style="background:var(--filt)"></i>TypeScript</span><span>GPL-3.0-or-later</span></div>
+        </a>
+        <ul class="facts">
+          <li><b>Read-only.</b> Edit freely; Save downloads the song as a file, Import loads a packed song blob.</li>
+          <li><b>Bounce</b> renders a song to WAV in the browser.</li>
+          <li><b>No GM bank.</b> Instruments that use the Windows GM.DLS sampler play silent here.</li>
+          <li><b>Desktop browser</b> with a keyboard works best.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ THANKS ═════════ -->
+<section id="thanks" class="thanks" style="--acc: var(--mod)">
+  <canvas class="scroller" id="scroller" aria-hidden="true"></canvas>
+  <div class="wrap"><div class="logos-row" aria-label="Teams thanked"><svg role="img" aria-label="Logicoma logo" xmlns="http://www.w3.org/2000/svg" viewBox="-108 -108 216 216" fill="none" stroke="currentColor"><circle r="100" stroke-width="7"/><g stroke-width="5"><circle cx="-50.7" cy="-39" r="8.5"/><circle cx="50.7" cy="-39" r="8.5"/><circle cy="64.3" r="8.5"/></g></svg><svg role="img" aria-label="Brain Control logo" xmlns="http://www.w3.org/2000/svg" viewBox="-284 -305 632 496"><g fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="40"><path d="M80.68-37.972 119.573.92l38.89-38.89-77.781-77.782L2.899-37.972 119.572 78.701 236.244-37.972 80.681-193.535-74.883-37.972l194.455 194.455L314.026-37.972 80.681-271.317-162.422-28.214"/><path d="m-205.202-70.994 128.34 128.34-173.1 44.69Z"/></g></svg><span class="mono" aria-label="Farbrausch">fr</span><svg  role="img" aria-label="The Black Lotus logo" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="86 42 278 318"><path d="M300.9 47.6c-7.2 3.6-15.4 11.6-19 18.7-1.6 3.1-3.9 9.7-5 14.5-3.2 13.6-2.5 12.8-6.9 8.8-4.1-3.7-12-6.6-17.8-6.6-1.8 0-6.2.8-9.7 1.7l-6.4 1.7-4.9-2.7c-6-3.3-17.1-5.7-26-5.7-17.9.1-33.2 8.8-33.2 18.9 0 4.1 3.2 5.4 19.1 7.5 23.6 3.1 32.2 7.6 38.3 20.5 3.8 7.8 5.8 8 11.6 1.3l4.2-4.7-.7 3.9c-.9 5.2-6.1 15.6-13 25.7-3 4.5-5.5 8.7-5.5 9.4 0 .6 1 1.6 2.1 2.2 2 .8 1.8 1.2-3.1 4.4-2.9 1.8-12.1 6.8-20.4 10.9s-15.2 8.2-15.3 9q-.6 3.6 4.8 5.1c2.6.7 2 .8-2.9.4-6.1-.5-11.9-2.8-20.4-8.1-2.1-1.3-4.4-2.4-5.1-2.4-2.5 0-4.9 3.8-5.5 8.5-.2 2.5-.8 4.8-1.3 5-2.4 1.6-2-17.1.7-29.7.5-2.2.2-2.9-1.5-3.6-2-.7-1.6-1.4 5.4-10.2 4.1-5.2 7.5-9.8 7.5-10.2 0-1.2-5.7 1.9-11.5 6.2-15.2 11.4-29.3 33.3-38.6 60-4.2 11.9-4.4 13-4.4 24 0 12.7.8 15.5 6.3 23.2 2.3 3.3 5 5.6 9 7.5 5.2 2.5 6.6 2.8 16.2 2.7 9.1 0 11.4-.4 17.3-2.9 12.1-4.9 28.5-17.6 33.7-26.1l2-3.1 8.2 1.8c10.8 2.4 43.1 2.6 57.6.4 42.6-6.5 75-22.3 84.7-41.5 10.3-20.3-2.9-44-24.7-44-7.2 0-19.3 3.8-27.6 8.6-33.4 19.5-64.1 32.1-84 34.4-5.7.7-10.6 1-10.8.7-.3-.3 1.6-.8 4.3-1.2 20.6-2.6 49.2-19.3 73.4-42.6 32.2-31.3 53.1-73.8 46.7-95.1-2.8-9.4-16.2-12.8-27.9-7.2"/><path d="M198 111.5c-7.1 1.8-17.7 5.8-22.1 8.3-1.8 1.1-6.5 3-10.4 4.1-12.6 3.7-31.9 13.1-46 22.5-15.9 10.5-23.6 22.6-17.3 27 1.2.9 3.4 1.6 4.8 1.6 4.9 0 18.4-7.6 36.5-20.5 13.3-9.5 21.5-14.5 34.1-20.6 10-4.9 14.4-7.6 15.2-9.3 1.1-2.4 4.1-3.1 22.2-5 2.5-.3 4.6-.5 4.8-.5.1-.1.2-1.2.2-2.5 0-5.3-11.2-7.9-22-5.1"/><path fill="#e8732a" d="M203.5 128c-18.5 3.3-36.6 21.1-36.5 35.9 0 3.6.7 5.4 3 8.1l2.9 3.5h8.8c8.3 0 9.2-.3 16.3-4 8.5-4.4 19.5-14.6 22.9-21.2 1.4-2.9 2.1-6.1 2.1-10.1 0-5.1-.4-6.2-2.7-8.4-4.8-4.5-8.3-5.4-16.8-3.8"/><circle cx="135.5" cy="284.5" r="13"/><circle cx="196.5" cy="284.5" r="13"/><circle cx="287.5" cy="284.5" r="13"/><circle cx="105" cy="314.5" r="13"/><circle cx="135.5" cy="314.5" r="13" fill="#e8732a"/><circle cx="166" cy="314.5" r="13"/><circle cx="196.5" cy="314.5" r="13"/><circle cx="227" cy="314.5" r="13"/><circle cx="257" cy="314.5" r="13"/><circle cx="287.5" cy="314.5" r="13"/><circle cx="135.5" cy="345" r="13"/><circle cx="196.5" cy="345" r="13"/><circle cx="227" cy="345" r="13"/><circle cx="257" cy="345" r="13"/><circle cx="287.5" cy="345" r="13"/><circle cx="318" cy="345" r="13"/><circle cx="348.5" cy="345" r="13" fill="#29b6e8"/></svg><span class="mono" aria-label="Team210">210</span></div></div>
+  <div class="wrap">
+    <div class="sec-hd rv">
+      <div><span class="tn" aria-hidden="true">09</span><span class="kicker">greetings</span><h2>Built on your shoulders</h2></div>
+      <p>unisynth is a unification, not an invention. Every sound it makes was first made by someone else. These are the teams whose work it learned from, and a word to the coders and musicians in them.</p>
+    </div>
+    <div class="teams">
+      <article class="team rv" style="--acc: var(--osc)" data-mark="">
+        <div class="lmark"><svg class="logo" role="img" aria-label="Logicoma logo" xmlns="http://www.w3.org/2000/svg" viewBox="-108 -108 216 216" fill="none" stroke="currentColor"><circle r="100" stroke-width="7"/><g stroke-width="5"><circle cx="-50.7" cy="-39" r="8.5"/><circle cx="50.7" cy="-39" r="8.5"/><circle cy="64.3" r="8.5"/></g></svg></div>
+        <div class="who">WaveSabre</div>
+        <h3>Logicoma</h3>
+        <p class="made">MIT · github.com/logicomacorp/WaveSabre</p>
+        <p class="took">The phase-mod and subtractive voices, the GSM and GM.DLS samplers, eight effects, and the track, receive and sidechain model the whole player still uses.</p>
+        <div class="to">
+          <p><b>to the coders</b>You open-sourced a full 64k synth with its tooling. We ported it line by line before touching anything, and your algorithms are still inside, bit for bit, as modes.</p>
+          <p><b>to the musicians</b>The tracks written on WaveSabre were our test suite. Every parity number on this page was earned against your patches.</p>
+        </div>
+      </article>
+      <article class="team rv" style="--acc: var(--filt)" data-mark="">
+        <div class="lmark"><svg class="logo" role="img" aria-label="Brain Control logo" xmlns="http://www.w3.org/2000/svg" viewBox="-284 -305 632 496"><g fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="40"><path d="M80.68-37.972 119.573.92l38.89-38.89-77.781-77.782L2.899-37.972 119.572 78.701 236.244-37.972 80.681-193.535-74.883-37.972l194.455 194.455L314.026-37.972 80.681-271.317-162.422-28.214"/><path d="m-205.202-70.994 128.34 128.34-173.1 44.69Z"/></g></svg></div>
+        <div class="who">Tunefish 4</div>
+        <h3>Brain Control</h3>
+        <p class="made">GPL-3.0 upstream · github.com/paynebc/tunefish</p>
+        <p class="took">The spectral wavetable oscillator with unison layers, the rate envelopes, seven effect modes and the <code>.tfm</code> format.</p>
+        <div class="to">
+          <p><b>to the coders</b>The wavetable oscillator is the most musical slot in the voice, and it is yours. Your engine was clear enough that our port matched on the first run.</p>
+          <p><b>to the musicians</b>Your patches are the reason the size table still has a yellow row. We are not done making your music smaller.</p>
+        </div>
+      </article>
+      <article class="team rv" style="--acc: var(--lfo)" data-mark="FR">
+        <div class="who">V2</div>
+        <h3>Farbrausch</h3>
+        <p class="made">github.com/farbrausch/fr_public · v2redux as reference</p>
+        <p class="took">The naive oscillator, feedback SVF and 4-pole filters, drive, frame envelopes and LFOs, the channel strip, the comb reverb, the look-ahead compressor, and Ronan, the speech synth.</p>
+        <div class="to">
+          <p><b>to the coders</b>V2 set the standard a generation of 64k synths measured itself against. Releasing the source let us learn it properly instead of guessing.</p>
+          <p><b>to the musicians</b>Fifteen of your tracks pass parity. Ronan still talks.</p>
+        </div>
+      </article>
+      <article class="team rv" style="--acc: var(--mod)" data-mark="">
+        <div class="lmark"><svg class="logo" role="img" aria-label="The Black Lotus logo" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="86 42 278 318"><path d="M300.9 47.6c-7.2 3.6-15.4 11.6-19 18.7-1.6 3.1-3.9 9.7-5 14.5-3.2 13.6-2.5 12.8-6.9 8.8-4.1-3.7-12-6.6-17.8-6.6-1.8 0-6.2.8-9.7 1.7l-6.4 1.7-4.9-2.7c-6-3.3-17.1-5.7-26-5.7-17.9.1-33.2 8.8-33.2 18.9 0 4.1 3.2 5.4 19.1 7.5 23.6 3.1 32.2 7.6 38.3 20.5 3.8 7.8 5.8 8 11.6 1.3l4.2-4.7-.7 3.9c-.9 5.2-6.1 15.6-13 25.7-3 4.5-5.5 8.7-5.5 9.4 0 .6 1 1.6 2.1 2.2 2 .8 1.8 1.2-3.1 4.4-2.9 1.8-12.1 6.8-20.4 10.9s-15.2 8.2-15.3 9q-.6 3.6 4.8 5.1c2.6.7 2 .8-2.9.4-6.1-.5-11.9-2.8-20.4-8.1-2.1-1.3-4.4-2.4-5.1-2.4-2.5 0-4.9 3.8-5.5 8.5-.2 2.5-.8 4.8-1.3 5-2.4 1.6-2-17.1.7-29.7.5-2.2.2-2.9-1.5-3.6-2-.7-1.6-1.4 5.4-10.2 4.1-5.2 7.5-9.8 7.5-10.2 0-1.2-5.7 1.9-11.5 6.2-15.2 11.4-29.3 33.3-38.6 60-4.2 11.9-4.4 13-4.4 24 0 12.7.8 15.5 6.3 23.2 2.3 3.3 5 5.6 9 7.5 5.2 2.5 6.6 2.8 16.2 2.7 9.1 0 11.4-.4 17.3-2.9 12.1-4.9 28.5-17.6 33.7-26.1l2-3.1 8.2 1.8c10.8 2.4 43.1 2.6 57.6.4 42.6-6.5 75-22.3 84.7-41.5 10.3-20.3-2.9-44-24.7-44-7.2 0-19.3 3.8-27.6 8.6-33.4 19.5-64.1 32.1-84 34.4-5.7.7-10.6 1-10.8.7-.3-.3 1.6-.8 4.3-1.2 20.6-2.6 49.2-19.3 73.4-42.6 32.2-31.3 53.1-73.8 46.7-95.1-2.8-9.4-16.2-12.8-27.9-7.2"/><path d="M198 111.5c-7.1 1.8-17.7 5.8-22.1 8.3-1.8 1.1-6.5 3-10.4 4.1-12.6 3.7-31.9 13.1-46 22.5-15.9 10.5-23.6 22.6-17.3 27 1.2.9 3.4 1.6 4.8 1.6 4.9 0 18.4-7.6 36.5-20.5 13.3-9.5 21.5-14.5 34.1-20.6 10-4.9 14.4-7.6 15.2-9.3 1.1-2.4 4.1-3.1 22.2-5 2.5-.3 4.6-.5 4.8-.5.1-.1.2-1.2.2-2.5 0-5.3-11.2-7.9-22-5.1"/><path fill="#e8732a" d="M203.5 128c-18.5 3.3-36.6 21.1-36.5 35.9 0 3.6.7 5.4 3 8.1l2.9 3.5h8.8c8.3 0 9.2-.3 16.3-4 8.5-4.4 19.5-14.6 22.9-21.2 1.4-2.9 2.1-6.1 2.1-10.1 0-5.1-.4-6.2-2.7-8.4-4.8-4.5-8.3-5.4-16.8-3.8"/><circle cx="135.5" cy="284.5" r="13"/><circle cx="196.5" cy="284.5" r="13"/><circle cx="287.5" cy="284.5" r="13"/><circle cx="105" cy="314.5" r="13"/><circle cx="135.5" cy="314.5" r="13" fill="#e8732a"/><circle cx="166" cy="314.5" r="13"/><circle cx="196.5" cy="314.5" r="13"/><circle cx="227" cy="314.5" r="13"/><circle cx="257" cy="314.5" r="13"/><circle cx="287.5" cy="314.5" r="13"/><circle cx="135.5" cy="345" r="13"/><circle cx="196.5" cy="345" r="13"/><circle cx="227" cy="345" r="13"/><circle cx="257" cy="345" r="13"/><circle cx="287.5" cy="345" r="13"/><circle cx="318" cy="345" r="13"/><circle cx="348.5" cy="345" r="13" fill="#29b6e8"/></svg></div>
+        <div class="who">mini-cauldron · 1997</div>
+        <h3>The Black Lotus</h3>
+        <p class="made">analysis only · no source was available</p>
+        <p class="took">The cauldron oscillator, the flanger comb and the wrap distortion, recovered from two DOS intros by running them in an emulator until the music started.</p>
+        <div class="to">
+          <p><b>to the coders</b>About 1.4 KB of x87 code made a whole soundtrack. We needed an emulator, a disassembler and a week to read it. Respect.</p>
+          <p><b>to the musicians</b>Your phrases are now playable instruments in a browser DAW, nearly thirty years later.</p>
+        </div>
+      </article>
+      <article class="team wide rv" style="--acc: var(--env)" data-mark="210">
+        <div><div class="who">Screwdriver</div><h3>Team210 / QM</h3><p class="made">qm210's WaveSabre fork</p></div>
+        <div>
+          <p class="took">The curve distortion, now mode 1 of distortion.</p>
+          <div class="to"><p><b>to qm</b>A fork that adds one good device is how a scene tool grows. It is in.</p></div>
+        </div>
+      </article>
+    </div>
+    <p class="also"><b>Also studied:</b> 64klang (Alcatraz), Sointu, 4klang, Oidos and Clinkster, compared from source while choosing the base. <b>Tools:</b> libopenmpt, the unicorn emulator, capstone, Wine, libgsm, squishy and xz.</p>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <h4>unisynth</h4>
+        <p style="margin:0;max-width:46ch">A synth for a 64k intro by <b style="color:var(--fg)">robson / Exceed</b>, written in Rust. Status: in progress. The parity gate has passed for the engines it replaces.</p>
+        <p class="weight">this page: <b id="weight">…</b> · no web fonts · no frameworks</p>
+      </div>
+      <div><h4>Inside</h4><ul><li>unisynth · the instrument</li><li>synth-core · the player</li><li>synth-convert · the converter</li><li><a href="daw/">daw</a> · the browser editor</li></ul></div>
+      <div><h4>Source</h4><ul><li><a href="https://github.com/unisynth/unisynth">github.com/unisynth/unisynth</a></li><li>code: GPL-3.0-or-later</li><li>page, films, words: © robson / Exceed</li></ul></div>
+      <div><h4>Greetings</h4><ul><li>Logicoma</li><li>Brain Control</li><li>Farbrausch</li><li>The Black Lotus</li><li>Team210</li></ul></div>
+    </div>
+    <div class="sig" aria-hidden="true">exceed · 2026</div>
+  </div>
+</footer>
+
+<script>
+(() => {
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const NS = 'http://www.w3.org/2000/svg';
+const el = (n, a = {}, p) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); p && p.appendChild(e); return e; };
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const COL = { osc: css('--osc'), filt: css('--filt'), env: css('--env'), lfo: css('--lfo'), mod: css('--mod'), voice: css('--voice'), ok: css('--ok'), dim: css('--dim'), fg: css('--fg'), line: css('--line') };
+const fit = c => { const d = devicePixelRatio || 1, w = c.clientWidth, h = c.clientHeight; if (c.width !== Math.round(w * d)) { c.width = Math.round(w * d); c.height = Math.round(h * d); } const x = c.getContext('2d'); x.setTransform(d, 0, 0, d, 0, 0); return [x, w, h]; };
+
+/* ── Oscillator shapes (illustrations of each slot type, not synth output) ── */
+const saw = (p, n) => { let s = 0; for (let k = 1; k <= n; k++) s += Math.sin(k * p) / k; return s * .55; };
+const SHAPES = [
+  (p, t) => Math.sin(p + (1.6 + 1.3 * Math.sin(t * .7)) * Math.sin(2 * p)),
+  (p, t) => { const w = .5 + .35 * Math.sin(t * .5); return (saw(p, 16) - saw(p - w * 6.283, 16)) * .95; },
+  (p, t) => { let s = 0; for (let u = 0; u < 5; u++) { const d = 1 + (u - 2) * .007 * (1 + Math.sin(t)); s += Math.sin(p * d + u) * .5 + Math.sin(3 * p * d) * .18; } return s / 3.1; },
+  (p, t) => Math.sin(p + Math.sin(p * 3.7) * 1.4) * Math.exp(-((p % 25.1) / 9)) * (.6 + .4 * Math.sin(p * .21 + t)),
+  p => (((p / 6.283) % 1) * 2 - 1) * .9,
+  (p, t) => { const ph = (p / 6.283) % 1, q = Math.round(Math.sin(p) * 6 + Math.sin(p * 2.01 + t) * 3) / 9; return ph < .5 ? q : q * -.6 + .2 * Math.sign(Math.sin(p * 8)); },
+];
+const NAMES = ['phase-mod operator', 'band-limited saw/pulse', 'spectral wavetable', 'sampler · GSM / GM.DLS', 'naive oscillator', 'cauldron'];
+const FROM = ['WaveSabre · Logicoma', 'WaveSabre · Logicoma', 'Tunefish 4 · Brain Control', 'WaveSabre · Logicoma', 'V2 · Farbrausch', 'mini-cauldron · The Black Lotus, 1997'];
+let type = 0, auto = true;
+const pills = [...document.querySelectorAll('.pills button')];
+const setType = (i, user) => { type = i; if (user) auto = false; pills.forEach((b, j) => b.setAttribute('aria-pressed', j === i)); document.getElementById('osc-name').textContent = NAMES[i]; document.getElementById('osc-from').textContent = 'lineage: ' + FROM[i]; };
+pills.forEach((b, i) => b.addEventListener('click', () => setType(i, true)));
+
+/* ── Hero: phosphor scope with persistence ── */
+const ph = document.getElementById('phosphor'), word = document.querySelector('.word'); const t0 = performance.now();
+const meters = [...document.querySelectorAll('.ch .meter i')];
+function hero(now) {
+  const [x, w, h] = fit(ph), t = (now - t0) / 1000;
+  if (auto && !reduce) { const i = Math.floor(t / 3.5) % 6; if (i !== type) setType(i); }
+  x.globalCompositeOperation = 'destination-out'; x.fillStyle = 'rgba(0,0,0,0.2)'; x.fillRect(0, 0, w, h); x.globalCompositeOperation = 'source-over';
+  const f = SHAPES[type], wr = word.getBoundingClientRect(), cy = wr.top - ph.getBoundingClientRect().top + wr.height * .5, amp = Math.min(h * .2, wr.height * .55), cyc = w < 700 ? 2 : 3.5;
+  [[COL.osc, 1, 2.2, 0], [COL.filt, .35, 1.2, .9], [COL.lfo, .25, 1, 1.8]].forEach(([c, a, lw, off]) => {
+    x.globalAlpha = a; x.strokeStyle = c; x.lineWidth = lw; x.shadowColor = c; x.shadowBlur = a > .5 ? 14 : 0; x.beginPath();
+    for (let px = 0; px <= w; px += 2) { const p = px / w * cyc * 6.283 + t * 1.4 + off; const y = cy - f(p, t + off) * amp * (1 - off * .25); px ? x.lineTo(px, y) : x.moveTo(px, y); }
+    x.stroke();
+  });
+  x.globalAlpha = 1; x.shadowBlur = 0;
+  meters.forEach((m, i) => m.style.height = (55 + 35 * Math.abs(Math.sin(t * (1.3 + i * .37) + i))) + '%');
+  if (!reduce) requestAnimationFrame(hero);
+}
+requestAnimationFrame(hero);
+
+/* ── Knobs ── */
+document.querySelectorAll('.knob').forEach(k => {
+  const C = 2 * Math.PI * 20, A = C * .75, v = +k.dataset.v;
+  el('circle', { class: 'bg', cx: 26, cy: 26, r: 20, fill: 'none', 'stroke-width': 4, 'stroke-linecap': 'round', 'stroke-dasharray': `${A} ${C}`, transform: 'rotate(135 26 26)' }, k);
+  const fg = el('circle', { class: 'fg', cx: 26, cy: 26, r: 20, fill: 'none', 'stroke-width': 4, 'stroke-linecap': 'round', 'stroke-dasharray': `0 ${C}`, transform: 'rotate(135 26 26)' }, k);
+  el('circle', { class: 'cap', cx: 26, cy: 26, r: 13 }, k);
+  const p = el('line', { class: 'ptr', x1: 26, y1: 26, x2: 26, y2: 15 }, k); p.style.transform = 'rotate(-135deg)';
+  k._set = () => { fg.setAttribute('stroke-dasharray', `${A * v} ${C}`); p.style.transform = `rotate(${-135 + 270 * v}deg)`; };
+});
+
+/* ── Mini canvases in the rack ── */
+const minis = [...document.querySelectorAll('canvas.mini')];
+function drawMinis(now) {
+  const t = (now - t0) / 1000;
+  minis.forEach(c => {
+    const [x, w, h] = fit(c); x.clearRect(0, 0, w, h);
+    if (c.dataset.mini === 'osc') {
+      [COL.osc, COL.filt, COL.lfo].forEach((col, j) => {
+        const f = SHAPES[(type + j * 2) % 6]; x.strokeStyle = col; x.globalAlpha = j ? .45 : 1; x.lineWidth = j ? 1 : 1.8; x.beginPath();
+        for (let px = 0; px <= w; px += 2) { const y = h / 2 - f(px / w * 4 * 6.283 + t * 2, t) * h * .34; px ? x.lineTo(px, y) : x.moveTo(px, y); } x.stroke();
+      }); x.globalAlpha = 1;
+    } else {
+      const env = u => u < .08 ? u / .08 : u < .3 ? 1 - (u - .08) / .22 * .4 : u < .75 ? .6 : .6 * (1 - (u - .75) / .25);
+      x.strokeStyle = COL.env; x.lineWidth = 1.6; x.beginPath();
+      for (let px = 0; px <= w; px++) { const y = h - 8 - env(px / w) * (h - 16); px ? x.lineTo(px, y) : x.moveTo(px, y); } x.stroke();
+      for (let v = 0; v < 6; v++) { const u = ((t * .18 + v * .17) % 1); x.fillStyle = COL.fg; x.beginPath(); x.arc(u * w, h - 8 - env(u) * (h - 16), 3.2, 0, 7); x.fill(); }
+    }
+  });
+  if (!reduce) requestAnimationFrame(drawMinis);
+}
+requestAnimationFrame(drawMinis);
+
+/* ── Effects merge ── */
+const LEG = [['Scissor','osc',0],['Screwdriver','env',0],['TF distortion','filt',0],['Crusher','osc',1],['Leveller','osc',2],['TF EQ','filt',2],['Echo','osc',3],['TF delay','filt',3],['TF chorus','filt',4],['Twister','osc',5],['TF flanger','filt',5],['Cathedral','osc',6],['TF reverb','filt',6],['Chamber','osc',6],['Smasher','osc',7],['TF formant','filt',8]];
+const KINDS = [['65','distortion','shaper · curve · power · wrap'],['66','crusher','crusher'],['67','EQ','parametric · 3band · cut'],['68','delay','tempo · ms · modulated'],['69','chorus','chorus'],['70','flanger','phaser · ring · comb'],['71','reverb','freeverb · compact · rooms · comb'],['72','compressor','compressor · look-ahead'],['73','formant','formant']];
+const ms = document.getElementById('merge-svg'); const mpaths = [];
+const ky = i => 30 + i * 44, ly = i => 22 + i * 24.5;
+LEG.forEach(([n, c, k], i) => {
+  const y = ly(i), y2 = ky(k) + 4;
+  const p = el('path', { d: `M210 ${y} C440 ${y} 460 ${y2} 640 ${y2}`, stroke: COL[c], 'stroke-width': 1.6, fill: 'none', opacity: .8 }, ms);
+  p.style.strokeDasharray = 700; p.style.strokeDashoffset = reduce ? 0 : 700; mpaths.push(p);
+  el('text', { x: 196, y: y + 4.5, 'text-anchor': 'end', fill: COL.dim, 'font-size': 13 }, ms).textContent = n;
+  el('circle', { cx: 206, cy: y, r: 3.5, fill: COL[c] }, ms);
+});
+KINDS.forEach(([n, k, m], i) => {
+  const y = ky(i) + 4;
+  el('rect', { x: 644, y: y - 17, width: 510, height: 34, rx: 7, fill: '#1b1e23', stroke: COL.line }, ms);
+  el('text', { x: 660, y: y + 5, fill: COL.lfo, 'font-size': 13, 'font-weight': 700 }, ms).textContent = n;
+  el('text', { x: 692, y: y + 5, fill: COL.fg, 'font-size': 14, 'font-weight': 600 }, ms).textContent = k;
+  el('text', { x: 820, y: y + 5, fill: COL.dim, 'font-size': 12 }, ms).textContent = m;
+});
+
+/* ── Terminal typing ── */
+const TERM = [['c', '# which modules does this music use?'], ['p', 'synth-convert features track.song'], ['o', 'us-osc-blit,us-noise,us-flt-svf,us-env-seconds'], ['', ''], ['c', '# what does each one cost?'], ['p', 'synth-convert features --explain --cost track.song'], ['', ''], ['c', '# bake the music into the player as Rust'], ['p', 'synth-convert rust track.song > song.rs'], ['c', '  compile-time assert: features match the music']];
+const term = document.getElementById('term');
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const line = ([k, s]) => k === 'p' ? `<span class="t-p">$</span> ${esc(s)}` : k ? `<span class="t-${k}">${esc(s)}</span>` : '';
+function typeTerm() {
+  if (reduce) { term.innerHTML = TERM.map(line).join('\n'); return; }
+  let li = 0, ci = 0;
+  const step = () => {
+    const done = TERM.slice(0, li).map(line), [k, s] = TERM[li] || ['', ''];
+    const cur = k === 'p' ? `<span class="t-p">$</span> ${esc(s.slice(0, ci))}` : line([k, s]);
+    term.innerHTML = done.concat(li < TERM.length ? [cur + '<span class="caret"></span>'] : []).join('\n');
+    if (li >= TERM.length) { term.innerHTML += '\n<span class="t-p">$</span> <span class="caret"></span>'; return; }
+    if (k === 'p' && ci < s.length) { ci++; setTimeout(step, 28); } else { li++; ci = 0; setTimeout(step, k === 'p' ? 420 : 90); }
+  };
+  step();
+}
+
+/* ── Spectrum (illustrative) ── */
+const sc = document.getElementById('spec'); let specK = 0;
+const BANDS = ['63', '125', '250', '500', '1k', '2k', '4k', '8k', '16k'], LV = [.62, .8, .74, .58, .66, .52, .44, .36, .22];
+function drawSpec() {
+  const [x, w, h] = fit(sc); x.clearRect(0, 0, w, h);
+  const bw = w / BANDS.length, base = h - 22;
+  BANDS.forEach((b, i) => {
+    const v = LV[i] * specK, d = (Math.sin(i * 2.3) * .015) * specK;
+    x.fillStyle = COL.dim; x.globalAlpha = .55; x.fillRect(i * bw + bw * .18, base - v * (base - 8), bw * .3, v * (base - 8));
+    x.fillStyle = COL.ok; x.globalAlpha = 1; x.fillRect(i * bw + bw * .5, base - (v + d) * (base - 8), bw * .3, (v + d) * (base - 8));
+    x.fillStyle = COL.dim; x.font = '11px ui-monospace,Menlo,monospace'; x.textAlign = 'center'; x.fillText(b, i * bw + bw / 2, h - 4);
+  });
+}
+
+/* ── Piano roll ── */
+const DAYS = [25, 26, 27, 28, 29, 30, 31], DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const LANES = [['ports', 'osc'], ['unify', 'filt'], ['size · speed', 'voice'], ['imports', 'lfo'], ['daw', 'env'], ['cauldron', 'mod']];
+const NOTES = [[0,0,1,'add-wavesabre-rs','Rust port'],[0,1,1,'add-tf-synth','Tunefish 4 engine'],[1,1,1,'add-unified-synth','unisynth, A/B ok'],[2,1,1,'add-synth-threads','bit-identical'],[2,2,1,'shrink-unified-synth','music as Rust'],[2,3,1,'add-wasm-threads','browser bounce'],[3,3,2,'add-v2-import','V2, Ronan, channel strip'],[4,5,1,'add-synth-daw','DAW + live view'],[3,5,1,'add-cauldron-xm-import','1997 intros'],[5,6,1,'cauldron ×5','rate, lanes, latch, slim'],[3,6,1,'add-tbl-demo-songs','three TBL tracks'],[1,6,1,'unify-v2-algorithms','open',1],[4,6,1,'daw-solid-ts','open',1]];
+const rg = document.getElementById('rg'), notesEl = document.getElementById('notes');
+rg.insertAdjacentHTML('beforeend', '<div class="hd" style="border-left:0">2026<br>October</div>' + DAYS.map((d, i) => `<div class="hd"><b>${d}</b>${DOW[i]}</div>`).join(''));
+LANES.forEach(([n, c]) => rg.insertAdjacentHTML('beforeend', `<div class="lane"><i style="background:var(--${c})"></i>${n}</div>` + '<div class="cell"></div>'.repeat(7)));
+const nts = NOTES.map(([l, d, s, t, sub, open]) => {
+  const n = document.createElement('div'); n.className = 'nt' + (open ? ' open' : '');
+  n.style.cssText = `--c:var(--${LANES[l][1]});left:calc(${d / 7 * 100}% + 4px);width:calc(${s / 7 * 100}% - 8px);top:${l * 56 + 8}px`;
+  n.title = `${t}: ${sub}`; n.innerHTML = `${t}<span>${sub}</span>`; n._s = d / 7; n._e = (d + s) / 7; notesEl.appendChild(n); return n;
+});
+if (reduce) nts.forEach(n => n.classList.add('on'));
+
+/* ── Clips: play while visible ── */
+const vids = [...document.querySelectorAll('video[data-clip]')];
+if (!reduce) { const vio = new IntersectionObserver(es => es.forEach(e => { const v = e.target; if (e.isIntersecting) { v.preload = 'auto'; v.play().catch(() => {}); } else v.pause(); }), { threshold: .5 }); vids.forEach(v => vio.observe(v)); }
+else vids.forEach(v => v.controls = true);
+
+/* ── Greetings sine scroller ── */
+const scr = document.getElementById('scroller');
+const MSG = 'greetings to   LOGICOMA   ·   BRAIN CONTROL   ·   FARBRAUSCH   ·   THE BLACK LOTUS   ·   TEAM210   ·   to every coder who released a synth and every musician who wrote on one   ·   robson / exceed   ·   ';
+const SC = [COL.osc, COL.filt, COL.env, COL.lfo, COL.mod];
+let scrOn = false;
+function scroll(now) {
+  const [x, w, h] = fit(scr), t = (now - t0) / 1000, fs = h > 140 ? 54 : 36, cw = fs * .62, total = MSG.length * cw;
+  x.clearRect(0, 0, w, h); x.font = `800 ${fs}px ui-monospace,Menlo,monospace`; x.textBaseline = 'middle';
+  const off = reduce ? 0 : (t * 150) % total;
+  for (let i = 0; i < MSG.length; i++) {
+    let px = i * cw - off; if (px < -cw) px += total; if (px > w) continue;
+    const y = h / 2 + Math.sin(px * .012 + t * 2.4) * h * .26;
+    x.fillStyle = SC[Math.floor((px + t * 80) / 160 % 5 + 5) % 5]; x.globalAlpha = .15; x.fillText(MSG[i], px + 3, y + 5);
+    x.globalAlpha = 1; x.fillText(MSG[i], px, y);
+  }
+  if (scrOn && !reduce) requestAnimationFrame(scroll);
+}
+
+/* ── Reveal + one-shot triggers ── */
+const once = new Map([
+  ['merge', () => mpaths.forEach((p, i) => { p.style.transition = `stroke-dashoffset 1.3s ${i * 60}ms cubic-bezier(.3,.6,.2,1)`; p.style.strokeDashoffset = 0; })],
+  ['sizes', s => s.querySelectorAll('.tr i').forEach((b, i) => setTimeout(() => b.style.width = b.dataset.w + '%', reduce ? 0 : i * 140))],
+  ['term', typeTerm],
+]);
+const io = new IntersectionObserver(es => es.forEach(e => {
+  if (!e.isIntersecting) return; const t = e.target; t.classList.add('in');
+  t.querySelectorAll('.knob').forEach(k => k._set());
+  if (t.classList.contains('spec')) { const s0 = performance.now(); const a = n => { specK = Math.min(1, (n - s0) / 1200); specK = 1 - (1 - specK) ** 3; drawSpec(); if (specK < 1) requestAnimationFrame(a); }; reduce ? (specK = 1, drawSpec()) : requestAnimationFrame(a); }
+  t.querySelectorAll('.ctr .v[data-n]').forEach(v => { const n = +v.dataset.n, sm = v.querySelector('small').outerHTML, s0 = performance.now(); const a = m => { const k = Math.min(1, (m - s0) / 1100); v.innerHTML = Math.round(n * (1 - (1 - k) ** 3)) + sm; if (k < 1) requestAnimationFrame(a); }; reduce ? v.innerHTML = n + sm : requestAnimationFrame(a); });
+  for (const [id, fn] of once) if (t.id === id || t.querySelector('#' + id)) { fn(t.id === id ? t : t.querySelector('#' + id)); once.delete(id); }
+  io.unobserve(t);
+}), { threshold: .2 });
+document.querySelectorAll('.rv, #merge').forEach(n => io.observe(n));
+new IntersectionObserver(es => es.forEach(e => { scrOn = e.isIntersecting; if (scrOn) requestAnimationFrame(scroll); })).observe(scr);
+if (reduce) requestAnimationFrame(scroll);
+
+/* ── Transport: scroll position, nav state, roll playhead ── */
+const pos = document.getElementById('pos'), tr = document.getElementById('transport');
+const links = [...document.querySelectorAll('.transport nav a')], secs = links.map(a => document.querySelector(a.getAttribute('href')));
+const roll = document.getElementById('roll'), phd = document.getElementById('ph');
+function onScroll() {
+  const max = document.documentElement.scrollHeight - innerHeight, f = max > 0 ? scrollY / max : 0, b = f * 256;
+  pos.textContent = `${String(Math.floor(b / 4) + 1).padStart(3, '0')}.${Math.floor(b % 4) + 1}.${String(Math.floor(b % 1 * 960)).padStart(3, '0')}`;
+  tr.classList.toggle('solid', scrollY > 40);
+  let cur = -1; secs.forEach((s, i) => { if (s.getBoundingClientRect().top < innerHeight * .4) cur = i; }); links.forEach((a, i) => a.setAttribute('aria-current', i === cur));
+  const r = roll.getBoundingClientRect(), k = Math.min(1, Math.max(0, (innerHeight * .8 - r.top) / (r.height + innerHeight * .35)));
+  const inner = roll.scrollWidth - 150; phd.style.left = (150 + inner * k) + 'px';
+  if (!reduce) nts.forEach(n => { n.classList.toggle('on', k >= n._s); n.classList.toggle('hit', k >= n._s && k < n._e); });
+}
+addEventListener('scroll', onScroll, { passive: true }); addEventListener('resize', () => { onScroll(); drawSpec(); }); onScroll();
+
+addEventListener('load', () => { const n = performance.getEntriesByType('navigation')[0], b = n && (n.encodedBodySize || n.transferSize); document.getElementById('weight').textContent = b ? `${(b / 1024).toFixed(1)} KB` : 'n/a'; });
+})();
+</script>
+</body>
+</html>

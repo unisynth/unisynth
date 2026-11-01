@@ -1,0 +1,13 @@
+{
+ "format": "us-patch/1",
+ "name": "Glass Pad",
+ "kind": 64,
+ "values": {
+  "osc1.type": 0.75,
+  "env1.attack": 0.5,
+  "env1.decay": 0.4,
+  "env1.sustain": 0.8,
+  "env1.release": 0.55,
+  "master": 0.15
+ }
+}

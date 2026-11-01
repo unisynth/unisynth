@@ -1,0 +1,255 @@
+{
+  "format": "song/1",
+  "meta": {
+    "title": "crystal gate-loader",
+    "author": "Pista",
+    "description": "crystal gate-loader by Pista, a Farbrausch V2 song (.v2m format version 5) taken from the V2M collection of jgilje/v2m-player (`v2m/Pista--crystal_gate-loader.v2mz`; its README points to modland). 120 BPM, 1:26, 3 tracks. This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. This song was not parity-checked on its own; the V2 import passes on the 18 songs that were (within 0.9 dB loudness and 1.8 dB per octave band of the v2redux reference). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
+    "copyright": "© Pista",
+    "url": "https://github.com/jgilje/v2m-player/blob/master/v2m/Pista--crystal_gate-loader.v2mz",
+    "adapted_from": "crystal gate-loader (V2M, format version 5), https://github.com/jgilje/v2m-player/blob/master/v2m/Pista--crystal_gate-loader.v2mz"
+  },
+  "rate": 44100,
+  "tempo": 120.0,
+  "signature": [4, 4],
+  "ticks_per_beat": 960,
+  "length": 166314,
+  "clips": [
+    {
+      "id": "t1/A",
+      "length": 184320,
+      "notes": [
+        [6, 3661, 60, 127],
+        [3667, 3656, 60, 127],
+        [7323, 3655, 60, 127],
+        [10978, 3656, 60, 127],
+        [14634, 16000, 60, 127],
+        [30634, 18290, 60, 127],
+        [48924, 18284, 60, 127],
+        [67208, 18284, 60, 127],
+        [85492, 18284, 60, 127],
+        [103776, 18290, 60, 127],
+        [122066, 18285, 60, 127],
+        [140351, 18284, 60, 127],
+        [158635, 7679, 60, 127]
+      ]
+    }
+  ],
+  "tracks": [
+    {
+      "id": "t1",
+      "name": "Track 1",
+      "volume": 1.0,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "capacity": 0.0,
+            "velocity": 0.0,
+            "osc1.type": 0.125,
+            "osc1.coarse": 0.3671875,
+            "osc1.gain": 0.796875,
+            "osc1.s0": 0.03125,
+            "osc1.s1": 0.3359375,
+            "osc2.coarse": 0.7734375,
+            "osc2.fine": 0.9609375,
+            "osc2.gain": 0.0,
+            "osc2.s1": 0.0,
+            "osc3.coarse": 0.4140625,
+            "osc3.gain": 0.0078125,
+            "osc3.s1": 0.25,
+            "filt1.type": 0.0625,
+            "filt1.cutoff": 0.625,
+            "filt1.resonance": 0.109375,
+            "filt2.type": 0.0625,
+            "filt2.cutoff": 0.265625,
+            "filt2.resonance": 0.078125,
+            "env1.law": 0.5,
+            "env1.decay": 0.75,
+            "env1.sustain": 0.9921875,
+            "env1.release": 0.8671875,
+            "env2.law": 0.5,
+            "env2.decay": 0.5,
+            "env2.sustain": 0.5,
+            "env2.release": 0.75,
+            "lfo1.shape": 0.0078125,
+            "lfo1.rate": 0.265625,
+            "lfo1.depth": 0.0,
+            "lfo1.sync": 0.0078125,
+            "lfo2.shape": 0.0078125,
+            "lfo2.rate": 0.1171875,
+            "lfo2.depth": 0.671875,
+            "lfo2.sync": 0.0,
+            "mod1.source": 0.8888888955116272,
+            "mod1.target": 0.4117647111415863,
+            "mod1.amount": 0.9375,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.7777777910232544,
+            "mod2.target": 0.4470588266849518,
+            "mod2.amount": 0.9921875,
+            "mod2.operation": 0.5,
+            "mod3.source": 0.5555555820465088,
+            "mod3.target": 0.3137255012989044,
+            "mod3.amount": 0.5078125,
+            "mod3.operation": 0.5,
+            "mod4.source": 0.6111111044883728,
+            "mod4.target": 0.4627451002597809,
+            "mod4.amount": 0.65625,
+            "mod4.operation": 0.5,
+            "mod5.source": 0.7222222089767456,
+            "mod5.target": 0.3686274588108063,
+            "mod5.amount": 0.671875,
+            "mod5.operation": 0.5,
+            "mod6.source": 0.5555555820465088,
+            "mod6.target": 0.45098039507865906,
+            "mod6.amount": 0.9921875,
+            "mod6.operation": 0.5,
+            "mod7.source": 0.6666666865348816,
+            "mod7.target": 0.32549020648002625,
+            "mod7.amount": 0.0703125,
+            "mod7.operation": 0.5,
+            "voice.stage": 1.0,
+            "voice.era": 0.8333333134651184,
+            "voice.routing": 0.0078125,
+            "drive.mode": 0.0078125,
+            "drive.gain": 0.859375,
+            "drive.p1": 0.984375,
+            "drive.p2": 0.5390625,
+            "env1.amplify": 0.96875,
+            "env2.amplify": 0.5,
+            "lfo1.law": 1.0,
+            "lfo2.law": 1.0,
+            "lfo2.phase": 0.3203125,
+            "strip.on": 1.0,
+            "strip.volume": 0.0,
+            "strip.boost": 0.71875,
+            "strip.send_reverb": 0.5859375,
+            "strip.drive_p1": 0.0,
+            "strip.drive_p2": 0.0
+          }
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t1/A",
+          "start": 0,
+          "length": 166314,
+          "loop": false
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "id": "t2",
+      "name": "Track 2",
+      "volume": 1.0,
+      "mute": false,
+      "receives": [
+        {
+          "from": "t1",
+          "channel": "main",
+          "volume": 1.0
+        }
+      ],
+      "devices": [
+        {
+          "kind": 71,
+          "values": {
+            "mode": 0.25,
+            "time": 0.328125,
+            "high_cut": 0.875,
+            "low_cut": 0.25,
+            "volume": 0.4921875,
+            "era": 0.8333333134651184
+          }
+        }
+      ],
+      "placements": [],
+      "lanes": []
+    },
+    {
+      "id": "t3",
+      "name": "Track 3",
+      "volume": 1.0,
+      "mute": false,
+      "receives": [
+        {
+          "from": "t1",
+          "channel": "main",
+          "volume": 1.0
+        }
+      ],
+      "devices": [
+        {
+          "kind": 68,
+          "values": {
+            "mode": 0.5,
+            "volume": 0.78125,
+            "feedback": 0.625,
+            "delay_l": 0.484375,
+            "delay_r": 0.515625,
+            "mod_rate": 0.0,
+            "mod_depth": 0.0,
+            "mod_phase": 0.5,
+            "era": 0.8333333134651184
+          }
+        }
+      ],
+      "placements": [],
+      "lanes": []
+    }
+  ],
+  "master": {
+    "id": "master",
+    "name": "Master",
+    "volume": 1.0,
+    "mute": false,
+    "receives": [
+      {
+        "from": "t1",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "t2",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "t3",
+        "channel": "main",
+        "volume": 1.0
+      }
+    ],
+    "devices": [
+      {
+        "kind": 67,
+        "values": {
+          "mode": 0.5,
+          "low_cut": 0.0,
+          "high_cut": 0.9453125,
+          "era": 0.8333333134651184
+        }
+      },
+      {
+        "kind": 72,
+        "values": {
+          "mode": 1.0,
+          "detect": 0.0,
+          "couple": 0.0,
+          "auto_gain": 0.0078125,
+          "lookahead": 0.015625,
+          "threshold": 0.703125,
+          "ratio": 0.25,
+          "attack": 0.15625,
+          "release": 0.5,
+          "out_gain": 0.5,
+          "era": 0.8333333134651184
+        }
+      }
+    ],
+    "placements": [],
+    "lanes": []
+  }
+}
