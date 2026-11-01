@@ -91,15 +91,14 @@ function Strip(p: { t: UITrack; a: MixerActions }): JSX.Element {
       </div>
     </Show>
     <div class="fm">
-      {/* volume edits go through app.js's document-level " volume" handler (keeps the header fader in sync) */}
-      <input class="fader" type="range" min="-60" max="6" step="0.1" value={t.vol} aria-label={`${t.name} volume`} aria-valuetext={`${dB(t.vol)} dB`} />
+      <input class="fader" type="range" min="-60" max="6" step="0.1" value={t.vol} aria-label={`${t.name} volume`} aria-valuetext={`${dB(t.vol)} dB`}
+        onInput={(e) => a.volume(t.id, +e.currentTarget.value, false)} onChange={(e) => a.volume(t.id, +e.currentTarget.value, true)} />
       <Meter id={t.id} name={t.name} c={0} />
       <Meter id={t.id} name={t.name} c={1} />
     </div>
     <div class="db num">{dB(t.vol)} dB</div>
     <Show when={!t.master} fallback={<div class="dim" style={{ "font-size": "10px" }}>→ song output</div>}>
-      {/* mute/solo go through app.js's document-level handler (one state for header + strip) */}
-      <div class="ms"><button aria-pressed={!!t.mute} aria-label={`Mute ${t.name}`}>M</button><button aria-pressed={!!t.solo} aria-label={`Solo ${t.name}`}>S</button></div>
+      <div class="ms"><button aria-pressed={!!t.mute} aria-label={`Mute ${t.name}`} onClick={() => a.mute(t.id)}>M</button><button aria-pressed={!!t.solo} aria-label={`Solo ${t.name}`} onClick={() => a.solo(t.id)}>S</button></div>
     </Show>
   </div>;
 }

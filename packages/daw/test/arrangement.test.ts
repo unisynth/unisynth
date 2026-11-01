@@ -272,6 +272,27 @@ test("50 tracks: every header and lane in order; Arrow Down walks to the last tr
   expect(vis).toEqual({ hdr: true, aligned: true });
 }, 60_000);
 
+test("header controls drive the mixer strip (store): fader keys are one undo step each, mute is one", async () => {
+  await open();
+  await page.locator("#tab-mix").click();
+  const strip = page.locator('[role="group"][aria-label="Lead channel strip"]');
+  const hf = hdr("lead").locator('input[aria-label="Lead volume"]');
+  const d0 = await depth();
+  await hf.focus(); await page.keyboard.press("ArrowLeft"); await page.keyboard.press("ArrowLeft");
+  const v = track(await song(), "lead").volume;
+  expect(await strip.locator(".fader").getAttribute("aria-valuetext")).toBe(await hf.getAttribute("aria-valuetext"));
+  expect(await hdr("lead").locator(".vol .num").textContent()).toMatch(/ dB$/);
+  expect(await depth()).toBe(d0 + 2);
+  await hdr("lead").locator('[aria-label="Mute Lead"]').click();
+  expect(await strip.locator('[aria-label="Mute Lead"]').getAttribute("aria-pressed")).toBe("true");
+  await page.waitForTimeout(50);  // the mute commit runs after the click
+  expect(await depth()).toBe(d0 + 3);
+  await page.locator('[aria-label="Undo"]').click();
+  expect(await strip.locator('[aria-label="Mute Lead"]').getAttribute("aria-pressed")).toBe("false");
+  expect(track(await song(), "lead").volume).toBe(v);
+  await page.locator("#tab-dev").click();
+}, 30_000);
+
 // spec synth-daw "Off-screen arrangement content" (daw-solid-ts 5.2): windowed rows
 test("50 tracks: fewer than 50 lanes exist and the scroll height covers all 50 (spec: Large song)", async () => {
   await open("big");

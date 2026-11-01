@@ -146,8 +146,14 @@ before → `AGENTS.md` rows → land on `main`.
   right after Cancel still found them). 115/115 twice. Bench (5.2 → 5.3): trashpanda undo 63 → 56, select-mix
   14 → 12, scroll p95 18.2 → 18.6 (1 → 2 > 20 ms); tbl-stash-over2 undo 226 → 217, scroll p95 25.5 → 23.1
   (8 → 9), play frames unchanged.
-- [ ] 5.4 Move the volume, mute/solo and arm delegates into the header and strip components (D7). Track and clip
+- [x] 5.4 Move the volume, mute/solo and arm delegates into the header and strip components (D7). Track and clip
   commands go through actions. Verify: mixer and header stay in sync (mixer test), undo steps unchanged.
+  Done: no document-level delegates left for mute/solo, arm, volume or the headers; header and strip controls call
+  `TrackActions` / `MixerActions` (`toggleMuteSolo`, `toggleArm`, `setVolume`, `headerClick`/`headerKey`/`headerMenu`).
+  New contract test: header fader keys and mute drive the mixer strip, one undo step per key and per mute. Clip
+  pointer gestures stay as the lanes-container listeners in app.js (they already call `arrCmd`/`place`); global keys
+  move to `ui/keys.ts` in group 8. 117/117 twice; ratchet 98; bench within noise (fader 0.12 → 0.04 ms: no
+  `querySelectorAll` sync of the other fader).
 
 ## 6. Device panel and live view (D4, D5)
 

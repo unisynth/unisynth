@@ -3,7 +3,7 @@
 // offsets and the scroll extent. Same classes, ids, data-track and ARIA as the old rows. Headers are reactive on the
 // song store (name, mute/solo, volume, lanes, open) and the view state (selected, armed, renaming). Clips and
 // automation lanes are still filled imperatively when a row mounts (`mountLane`, `mountAuto`; refilled on `rev`);
-// they move to components in 5.3. The volume, mute/solo and arm clicks are still document delegates in app.js (5.4).
+// Controls and header events call TrackActions (design D7; no document delegates).
 import { batch, createEffect, createMemo, createRoot, For, mapArray, on, onCleanup, onMount, Show, untrack, type JSX } from "solid-js";
 import { insert, render } from "solid-js/web";
 import { laneEl, selectedId } from "../state/view.ts";
@@ -22,6 +22,16 @@ export interface TrackActions {
   autoLane(t: Track, ln: unknown): { ah: HTMLElement; al: HTMLElement; dispose(): void };
   /** "+ lane": adds the next free parameter's lane to the track. */
   addAutoLane(t: Track): void;
+  mute(t: Track): void;
+  solo(t: Track): void;
+  arm(t: Track): void;
+  /** Live while the fader moves; `done` at the end of the gesture (one undo step). */
+  volume(t: Track, db: number, done: boolean): void;
+  /** Header events (selection, keys, menu); the header passes itself for keys aimed at it. */
+  click(t: Track, e: MouseEvent): void;
+  key(t: Track, e: KeyboardEvent, header: HTMLElement): void;
+  menu(t: Track, e: MouseEvent): void;
+  startRename(t: Track): void;
 }
 interface Row { t: Track; box: { h: HTMLDivElement; l: HTMLDivElement }; inView: () => boolean }
 
@@ -95,25 +105,28 @@ function HeaderRow(p: { r: Row; a: TrackActions; tracks: Track[] }): JSX.Element
   // names must be unique and non-empty (song validation): the header shows the problem at once
   const bad = createMemo(() => !t.name ? "name is empty" : p.tracks.filter((x) => x.name === t.name).length > 1 ? `name "${t.name}" is used twice` : "");
   const label = createMemo(() => { labelRev(); return a.devLabel(t); });
+  let h!: HTMLDivElement;
   return <>
-    <div class="thdr track" classList={{ sel: sel(), bus: !!t.bus, err: !!bad() }} data-track={t.id} tabIndex={0} role="group" aria-label={`${t.name} track`}
+    <div ref={h} class="thdr track" classList={{ sel: sel(), bus: !!t.bus, err: !!bad() }}
+      on:click={(e) => a.click(t, e)} on:keydown={(e) => a.key(t, e, h)} on:contextmenu={(e) => a.menu(t, e)} data-track={t.id} tabIndex={0} role="group" aria-label={`${t.name} track`}
       aria-current={sel() ? "true" : undefined} title="Double-click the name to rename · right-click (or Shift+F10) for the track menu">
       <span class="col" style={{ background: `var(${t.col})` }} />
       <div>
-        <div class="name" title={bad() || a.about(t) || undefined}>
+        <div class="name" title={bad() || a.about(t) || undefined} onDblClick={() => a.startRename(t)}>
           <Show when={renamingId() === t.id} fallback={t.name}><Rename t={t} a={a} /></Show>
         </div>
         <div class="dev">{label()}</div>
       </div>
       <div class="btns">
-        <button aria-pressed={!!t.mute} aria-label={`Mute ${t.name}`}>M</button>
-        <button aria-pressed={!!t.solo} aria-label={`Solo ${t.name}`}>S</button>
-        <Show when={!t.bus}><button class="arm" aria-pressed={armedId() === t.id} aria-label={`Arm ${t.name} for audition`} title="Arm: computer keyboard and MIDI play this track">●</button></Show>
+        <button aria-pressed={!!t.mute} aria-label={`Mute ${t.name}`} onClick={() => a.mute(t)}>M</button>
+        <button aria-pressed={!!t.solo} aria-label={`Solo ${t.name}`} onClick={() => a.solo(t)}>S</button>
+        <Show when={!t.bus}><button class="arm" aria-pressed={armedId() === t.id} aria-label={`Arm ${t.name} for audition`} title="Arm: computer keyboard and MIDI play this track" onClick={() => a.arm(t)}>●</button></Show>
         <button class="autobtn" aria-expanded={isOpen(t)} title="Automation lanes" onClick={() => { t.open = !isOpen(t); }}
           aria-label={n() ? `A${n()}: show ${n()} automation lanes of ${t.name}` : `A: add an automation lane to ${t.name}`}>A{n() || ""}</button>
       </div>
       <div class="vol">
-        <input type="range" min="-60" max="6" step="0.1" value={t.vol} aria-label={`${t.name} volume`} aria-valuetext={`${t.vol} dB`} />
+        <input type="range" min="-60" max="6" step="0.1" value={t.vol} aria-label={`${t.name} volume`} aria-valuetext={`${t.vol.toFixed(1)} dB`}
+          onInput={(e) => a.volume(t, +e.currentTarget.value, false)} onChange={(e) => a.volume(t, +e.currentTarget.value, true)} />
         <span class="num">{t.vol.toFixed(1)} dB</span>
       </div>
     </div>

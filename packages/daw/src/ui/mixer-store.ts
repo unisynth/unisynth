@@ -7,6 +7,10 @@ import type { Device } from "../model.ts";
 /** Edits, implemented in app.js on the song store (each one commits its own undo step). */
 export interface MixerActions {
   select(id: string): void;
+  mute(id: string): void;
+  solo(id: string): void;
+  /** Live while the fader moves; `done` at the end of the gesture (one undo step). */
+  volume(id: string, db: number, done: boolean): void;
   openInsert(id: string): void;
   bypass(id: string, i: number): void;
   effects(): string[];

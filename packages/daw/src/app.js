@@ -323,6 +323,8 @@ arrange.setArmedId(armed?.id ?? null); setSelectedId(selected.id); arrange.setBw
 mountTracks(hdrs, lanes, lw, tracks, {
   devLabel: t => devLabel(t), about: t => t.about ? aboutText(t.about) : "", rename: (t, v) => renameTo(t, v),
   pattern: (t, name) => raw(t).pats?.[name] ?? null, autoLane: (t, ln) => addLane(t, ln), addAutoLane: t => addAutoLane(t),
+  mute: t => toggleMuteSolo(t, false), solo: t => toggleMuteSolo(t, true), arm: t => toggleArm(t), volume: (t, v, done) => setVolume(t, v, done),
+  click: (t, e) => headerClick(t, e), key: (t, e, h) => headerKey(t, e, h), menu: (t, e) => headerMenu(t, e), startRename: t => renameTrack(t),
 });
 lw.addEventListener("scroll", () => { ruler.style.transform = `translateX(${-lw.scrollLeft}px)`; hdrs.scrollTop = lw.scrollTop; });
 // One scroller: the lanes. Headers only mirror lw.scrollTop (they never write back, which made momentum scrolling
@@ -1203,6 +1205,8 @@ const trackById = id => id === master.id ? master : tracks.find(x => x.id === id
 let sendBefore = null;  // undo snapshot of a send-level gesture
 mountMixer(mixer, song, {
   select: id => selectTrack(trackById(id)),
+  mute: id => toggleMuteSolo(trackById(id), false), solo: id => toggleMuteSolo(trackById(id), true),
+  volume: (id, v, done) => setVolume(trackById(id), v, done),
   openInsert: id => { selectTrack(trackById(id)); show(tabs[1]); },
   bypass: (id, i) => devBypass(trackById(id), i),
   effects: FX,
@@ -1234,22 +1238,6 @@ function selectTrack(t) {
   genRoll(t); renderAll();
   if (!document.getElementById("p-roll").hidden) drawRoll();
 }
-document.getElementById("hdrs").addEventListener("click", e => {
-  if (e.target.closest("button, input, select")) return;
-  const h = e.target.closest(".thdr.track"); if (!h) return; const t = tracks.find(x => x.id === h.dataset.track);
-  if (e.shiftKey || e.ctrlKey || e.metaKey) {  // Shift/Ctrl-click a header: add (or remove) all of its clips
-    const all = t.clips.length && t.clips.every(c => c.sel); if (!e.shiftKey && !e.ctrlKey && !e.metaKey) clearClipSel();
-    t.clips.forEach(c => c.sel = !all); tracks.forEach(renderLane); say(`${selClips().length} clips selected`);
-  }
-  selectTrack(t); focusArea = "arr";
-});
-document.getElementById("hdrs").addEventListener("keydown", e => {
-  const h = e.target.closest(".thdr.track"); if (!h || e.target !== h) return;
-  const i = tracks.findIndex(t => t.id === h.dataset.track);
-  if (e.ctrlKey || e.metaKey || e.key === "Delete" || e.key === "Backspace" || e.key === "Escape") return arrKeys(e, tracks[i]);
-  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectTrack(tracks[i]); }
-  if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); const n = tracks[Math.max(0, Math.min(tracks.length - 1, i + (e.key === "ArrowDown" ? 1 : -1)))]; selectTrack(n); document.querySelector(`.thdr.track[data-track="${n.id}"]`).focus(); }
-});
 
 
 // ===== Editing: selection, cut/copy/paste/duplicate/delete, move/transpose, quantize/align, undo =====
@@ -1659,14 +1647,13 @@ for (const el of [lw, grid, vel, keys, hdrs, ruler]) {
 // Dragging a scrollbar: the press lands on the scroll container itself, not on its content.
 for (const el of [lw, grid]) el.addEventListener("pointerdown", e => { if (e.target === el) holdFollow(); });
 
-// Mute / solo on headers and strips (one state per track, both views in sync).
-document.addEventListener("click", e => {
-  const b = e.target.closest('button[aria-label^="Mute "], button[aria-label^="Solo "]'); if (!b) return;
-  const solo = b.getAttribute("aria-label").startsWith("Solo"), name = b.getAttribute("aria-label").slice(5), t = tracks.find(x => x.name === name); if (!t) return;
-  const before = snap(); t[solo ? "solo" : "mute"] = !t[solo ? "solo" : "mute"]; if (!solo) setTimeout(() => commit(before, `${name} ${t.mute ? "muted" : "unmuted"}`));
-  document.querySelectorAll(`button[aria-label="${solo ? "Solo" : "Mute"} ${name}"]`).forEach(x => x.setAttribute("aria-pressed", !!t[solo ? "solo" : "mute"]));
+// Mute / solo (header and mixer strip buttons, design D7): one state per track, both views follow the store. Mute is
+// one undo step (committed after the click); solo is not undoable.
+function toggleMuteSolo(t, solo) {
+  const name = t.name, before = snap(); t[solo ? "solo" : "mute"] = !t[solo ? "solo" : "mute"];
+  if (!solo) setTimeout(() => commit(before, `${name} ${t.mute ? "muted" : "unmuted"}`));
   say(`${name} ${solo ? (t.solo ? "soloed" : "unsoloed") : (t.mute ? "muted" : "unmuted")}`); livePush();
-});
+}
 // Audible = not muted, and soloed, a send source of a soloed track, or a bus it sends to when any solo is on (model.ts).
 const audible = t => M.audible(tracks, t);
 
@@ -2044,6 +2031,29 @@ function renameTo(t, v) {
   const old = t.name;
   trackCmd(`${old} renamed to ${v || "(empty)"}`, () => { t.name = v; for (const x of [...tracks, master]) x.sends.forEach(s1 => { if (s1[0] === old) s1[0] = v; }); });
 }
+// Track header events (the header component calls these, design D7). Clicks on its buttons and fields are theirs.
+function headerClick(t, e) {
+  if (e.target.closest("button, input, select")) return;
+  if (e.shiftKey || e.ctrlKey || e.metaKey) {  // Shift/Ctrl-click a header: add (or remove) all of its clips
+    const all = t.clips.length && t.clips.every(c => c.sel); if (!e.shiftKey && !e.ctrlKey && !e.metaKey) clearClipSel();
+    t.clips.forEach(c => c.sel = !all); tracks.forEach(renderLane); say(`${selClips().length} clips selected`);
+  }
+  selectTrack(t); focusArea = "arr";
+}
+// Keys on the focused header itself: F2 rename, Alt+↑/↓ reorder, Ctrl+Delete delete, menu key; then the clip
+// commands (Ctrl/Delete/Escape), Enter/Space select, ↑/↓ move focus and selection between tracks.
+function headerKey(t, e, h) {
+  if (e.target !== h) return;
+  if (e.key === "F2") { e.preventDefault(); renameTrack(t); }
+  else if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) { e.preventDefault(); e.stopPropagation(); return moveTrack(t, e.key === "ArrowUp" ? -1 : 1); }
+  else if ((e.ctrlKey || e.metaKey) && (e.key === "Delete" || e.key === "Backspace")) { e.preventDefault(); e.stopPropagation(); return deleteTrack(t); }
+  else if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) { e.preventDefault(); const r = h.getBoundingClientRect(); trackMenu(t, r.left + 40, r.top + 20); }
+  const i = tracks.indexOf(t);
+  if (e.ctrlKey || e.metaKey || e.key === "Delete" || e.key === "Backspace" || e.key === "Escape") return arrKeys(e, t);
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectTrack(t); }
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); const n = tracks[Math.max(0, Math.min(tracks.length - 1, i + (e.key === "ArrowDown" ? 1 : -1)))]; selectTrack(n); document.querySelector(`.thdr.track[data-track="${n.id}"]`).focus(); }
+}
+function headerMenu(t, e) { e.preventDefault(); selectTrack(t); trackMenu(t, e.clientX, e.clientY); }
 function trackMenu(t, x, y) {
   const i = tracks.indexOf(t);
   popMenu(x, y, [["Rename", "F2 / double-click", () => renameTrack(t)], ["Duplicate track", "", () => duplicateTrack(t)],
@@ -2051,15 +2061,6 @@ function trackMenu(t, x, y) {
     ["Add instrument track", "", () => addTrack(false)], ["Add bus track", "", () => addTrack(true)], "-",
     ["Delete track", "Ctrl+Delete", () => deleteTrack(t)]], `${t.name} track menu`);
 }
-hdrs.addEventListener("contextmenu", e => { const h = e.target.closest(".thdr.track"); if (!h) return; e.preventDefault(); const t = tracks.find(x => x.id === h.dataset.track); selectTrack(t); trackMenu(t, e.clientX, e.clientY); });
-hdrs.addEventListener("dblclick", e => { const nm = e.target.closest(".thdr.track .name"); if (nm) renameTrack(tracks.find(x => x.id === nm.closest(".thdr").dataset.track)); });
-hdrs.addEventListener("keydown", e => {
-  const h = e.target.closest(".thdr.track"); if (!h || e.target !== h) return; const t = tracks.find(x => x.id === h.dataset.track);
-  if (e.key === "F2") { e.preventDefault(); renameTrack(t); }
-  else if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) { e.preventDefault(); e.stopImmediatePropagation(); moveTrack(t, e.key === "ArrowUp" ? -1 : 1); }
-  else if ((e.ctrlKey || e.metaKey) && (e.key === "Delete" || e.key === "Backspace")) { e.preventDefault(); e.stopImmediatePropagation(); deleteTrack(t); }
-  else if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) { e.preventDefault(); const r = h.getBoundingClientRect(); trackMenu(t, r.left + 40, r.top + 20); }
-}, true);
 document.querySelector('#arr-corner button[aria-label="Add track"]').onclick = () => addTrack(false);
 // ===== Clips: create, make unique, loop =====
 let clipN = 1;
@@ -2109,18 +2110,17 @@ function updateArmed() {
   document.getElementById("armed-info").innerHTML = `Armed: <b>${armed ? armed.name : "none"}</b> · octave C${kbOct - 1} · vel ${kbVel}`;
   arrange.setArmedId(armed?.id ?? null);
 }
-document.addEventListener("click", e => {
-  const b = e.target.closest(".thdr .arm"); if (!b) return; const t = tracks.find(x => x.id === b.closest(".thdr").dataset.track);
+function toggleArm(t) {
   armed = armed === t ? null : t; updateArmed(); say(armed ? `${t.name} armed: the computer keyboard (Z–M, Q–P) and MIDI play it` : "no track armed");
-});
-document.addEventListener("input", e => {
-  const el = e.target; if (!(el instanceof HTMLInputElement) || el.type !== "range" || !/ volume$/.test(el.getAttribute("aria-label") || "")) return;
-  const name = el.getAttribute("aria-label").slice(0, -7), t = [...tracks, master].find(x => x.name === name); if (!t) return;
-  el._before ??= snap(); t.vol = +el.value;
-  document.querySelectorAll(`input[aria-label="${CSS.escape(name)} volume"]`).forEach(x => { if (x !== el) x.value = t.vol; x.setAttribute("aria-valuetext", `${t.vol.toFixed(1)} dB`); });
-});
-document.addEventListener("change", e => { const el = e.target; if (el._before) { commit(el._before, `${el.getAttribute("aria-label")} ${(+el.value).toFixed(1)} dB`); el._before = null; } });
-document.addEventListener("input", e => { const el = e.target; if (el instanceof HTMLInputElement && el.type === "range" && /( volume| level)$/.test(el.getAttribute("aria-label") || "")) livePush(); });
+}
+// Volume (header and mixer faders, design D7): live while the slider moves, one undo step per gesture (`done` on
+// change; a key press is a whole gesture). The other fader follows the store.
+const volBefore = new Map();
+function setVolume(t, v, done) {
+  if (done) { const b = volBefore.get(t.id); volBefore.delete(t.id); if (b) commit(b, `${t.name} volume ${v.toFixed(1)} dB`); return; }
+  if (!volBefore.has(t.id)) volBefore.set(t.id, snap());
+  t.vol = v; livePush();
+}
 // ===== Zoom: arrangement (px per bar) and piano roll (px per 1/16, px per key), anchored at the pointer =====
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const wheelF = e => Math.exp(-clamp(e.deltaY * (e.deltaMode === 1 ? 33 : 1), -60, 60) * .008);  // pinch ≈ small deltas, mouse notch ≈ ±100
