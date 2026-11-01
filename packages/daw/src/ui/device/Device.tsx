@@ -1,12 +1,13 @@
 // Device panel (change daw-solid-ts 6.2): the selected track's instrument and effect chain as components over the
 // song store. Knobs, selects and slot state follow the store, so an edit or an automation step updates only what
 // reads it; nothing rebuilds the panel except a track change. Drawing stays imperative (design D4): each slot screen
-// is the element app.js builds, redrawn by an effect from the values its `_draw` reads; the sampler block (6.3) is
-// an island rebuilt on `devRev` (renderDevice()). Markup, classes and labels are the pre-port ones (contract tests).
+// is the element app.js builds, redrawn by an effect from the values its `_draw` reads; the sampler block is
+// ui/device/Sampler.tsx. Markup, classes and labels are the pre-port ones (contract tests).
 import { createEffect, createMemo, createSignal, For, Index, type JSX, on, Show, untrack } from "solid-js";
 import { render } from "solid-js/web";
 import { Knob } from "../common/Knob.tsx";
-import { autoOverridden, autoValue, blockClosed, deviceShown, devRev, setBlockClosed, setSlotOpen, shownTrack, slotOpenOf } from "../state/device.ts";
+import { Sampler, type SamplerActions } from "./Sampler.tsx";
+import { autoOverridden, autoValue, blockClosed, deviceShown, setBlockClosed, setSlotOpen, shownTrack, slotOpenOf } from "../state/device.ts";
 
 export interface Param { name: string; default: number; law: string; options: string[]; raw?: boolean; structural?: boolean; index: number }
 export interface Table { kind: number; mode: number; label: string; params: Param[] }
@@ -14,7 +15,7 @@ export interface Device { kind: number; preset?: string; values: Record<string, 
 export interface Track { id: string; name: string; master?: boolean; bus?: boolean; devices: Device[]; lanes: { dev: number; param: string }[] }
 type G = "osc" | "filt" | "env" | "lfo";
 
-export interface DeviceActions {
+export interface DeviceActions extends SamplerActions {
   ip(name: string): Param;
   tableOf(d: Device): Table | undefined;
   nModes(kind: number): number;
@@ -55,8 +56,6 @@ export interface DeviceActions {
   toggleLive(): void;
   /** Slot screen element with `_draw` (osc/filter/LFO/envelope), or null. */
   screen(t: Track, d: Device, g: G, i: number): (Element & { _draw?: () => void }) | null;
-  /** Sampler block of oscillator slot i (island). */
-  samplerPre(t: Track, d: Device, i: number): HTMLElement & { _draw?: () => void };
   /** The panel's status line (aria-live), shown under the mod matrix. */
   status: HTMLElement;
 }
@@ -186,8 +185,8 @@ function Instrument(p: { t: Track; d: Device }): JSX.Element {
       const sh = OSC_SHAPES[ty()] || [], ks = ty() === 4 ? A.smpShapes(d, i) : sh.map((_, k) => k);
       return [A.ip(`osc${i}.type`), ...OSC_COMMON.map((f) => A.ip(`osc${i}.${f}`)), ...ks.map((k) => A.ip(`osc${i}.s${k}`)), ...(ty() === 4 ? [A.ip(`osc${i}.sample`)] : [])];
     }));
-    // the screen: a waveform, or the sampler island (rebuilt by renderDevice → devRev)
-    const pre = createMemo(() => { const k = ty(); if (k === 4) { devRev(); return untrack(() => A.samplerPre(t, d, i)); } return k ? untrack(() => A.screen(t, d, "osc", i)) : null; });
+    // the screen: a waveform drawing, or the sampler block (6.3)
+    const pre = createMemo(() => { const k = ty(); return k === 4 ? untrack(() => <Sampler t={t} d={d} i={i} a={A} /> as HTMLElement) : k ? untrack(() => A.screen(t, d, "osc", i)) : null; });
     return <Show when={ty() + 1} keyed>{(_k) => <PGroup t={t} d={d} title={`Osc ${i}`} ps={ps} o={{ cols: 6, get labels() { return labels(); }, pre, slot: { g: "osc", i } }} />}</Show>;
   };
   const card = (g: "filt" | "env" | "lfo", i: number, names: string[], cols: number) => {

@@ -214,6 +214,51 @@ test("mod matrix: a row lights up with its source kind; target and amount are on
   expect(await page.locator("table.mm tbody tr").first().getAttribute("class")).toBe("off");
 }, 30_000);
 
+/** A 0.5 s mono 44.1 kHz sine WAV in the temp root. */
+function toneWav(hz = 220): string {
+  const n = 22050, wav = Buffer.alloc(44 + n * 2);
+  wav.write("RIFF", 0); wav.writeUInt32LE(36 + n * 2, 4); wav.write("WAVEfmt ", 8); wav.writeUInt32LE(16, 16);
+  wav.writeUInt16LE(1, 20); wav.writeUInt16LE(1, 22); wav.writeUInt32LE(44100, 24); wav.writeUInt32LE(88200, 28); wav.writeUInt16LE(2, 32); wav.writeUInt16LE(16, 34);
+  wav.write("data", 36); wav.writeUInt32LE(n * 2, 40);
+  for (let i = 0; i < n; i++) wav.writeInt16LE(Math.round(9000 * Math.sin((i * 2 * Math.PI * hz) / 44100)), 44 + i * 2);
+  const file = join(root, `tone${hz}.wav`); writeFileSync(file, wav); return file;
+}
+
+test("sampler block: description, Play, Choose, source select (one undo step), Remove unused count", async () => {
+  await open("lead");
+  const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.locator("#device .impsmp").click()]);
+  await chooser.setFiles(toneWav());
+  await page.waitForFunction(() => document.querySelector("#device .sampler") !== null);
+  const d = (await track("lead")).devices[0], i = [1, 2, 3].find((k) => d.values[`osc${k}.type`] === 1)!;
+  const box = page.locator(`#device .grp[aria-label="Osc ${i}"] .sampler`);
+  expect(await box.locator(".srow .dim").first().textContent()).toMatch(/^GSM sample 1 of 1 in this instrument · [\d.]+ KB$/);
+  expect(await box.locator("button").allTextContents()).toEqual(["▶ Play", "Choose GSM sample…", "Import WAV…"]);  // nothing unused
+  expect(await box.locator(".gsmplay").getAttribute("aria-label")).toBe("Play GSM sample 1");
+  await box.locator(".gsmplay").click();
+  await page.waitForFunction(() => /^playing the sample \(0\.50 s\)/.test(document.getElementById("live")!.textContent!));
+  await box.locator(".gsmpick").click();  // opens the library on its GSM group (none in this project: no error)
+  // a second import onto the same slot leaves sample 1 unused
+  const [ch2] = await Promise.all([page.waitForEvent("filechooser"), box.locator(".gsmimport").click()]);
+  await ch2.setFiles(toneWav(330));
+  await page.waitForTimeout(600);
+  expect((await track("lead")).devices[0].samples).toHaveLength(2);
+  expect(await box.locator(".srow .dim").first().textContent()).toMatch(/^GSM sample 2 of 2 /);
+  expect(await box.locator(".gsmclean").textContent()).toBe("Remove unused (1)");
+  // source → GM instrument: one step; GM controls replace the GSM buttons; undo returns
+  const d0 = await depth();
+  await box.locator(`select[aria-label="Osc ${i} sample source"]`).selectOption("1");
+  expect(await depth()).toBe(d0 + 1);
+  expect((await track("lead")).devices[0].values[`osc${i}.s7`]).toBe(0.5);
+  const b2 = page.locator(`#device .grp[aria-label="Osc ${i}"] .sampler`);
+  expect(await b2.locator(".srow .dim").first().textContent()).toMatch(/^GM\.DLS instrument /);  // index 1: bank 0 program 0
+  expect(await b2.locator("button").allTextContents()).toEqual(["Choose GM instrument…"]);
+  expect(await b2.locator(".warn-note, .info-note").count()).toBe(1);
+  expect(await b2.locator(".smpwave").count()).toBe(1);  // settings for a bank sample (waveform not shown)
+  await undo();
+  expect((await track("lead")).devices[0].values[`osc${i}.s7`]).toBe(0);
+  expect(await page.locator(`#device .grp[aria-label="Osc ${i}"] .sampler .gsmplay`).count()).toBe(1);
+}, 30_000);
+
 test("playback: automation changes only the automated knob and the screen drawn from it", async () => {
   await open();
   await page.evaluate(() => localStorage.setItem("daw.live", "0"));  // no live overlays: only automation moves things

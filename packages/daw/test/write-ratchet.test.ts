@@ -6,6 +6,7 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
 const BASELINE = 97;
+const BASELINE = 96;
 
 /** Assignment targets that are DOM, canvas, engine, view or local state, not the song model (`store[…]` in the knob
  * is `d.values`: counted). */

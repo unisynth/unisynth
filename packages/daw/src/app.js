@@ -564,96 +564,18 @@ function envView(d, i) {
 // instrument (0.5; a region per note: index = 1 + drums·16384 + bank·128 + program) or one GM.DLS wave (1.0; index =
 // wave + 1) — and `osc<i>.sample` holds the raw index (0 = none). Both are structural (the engine rebuilds the device).
 const NOBANK = new URLSearchParams(location.search).has("nobank");
-const SMP_SOURCES = ["GSM sample", "GM instrument (per-note regions)", "GM wave"];
 const gmInstrument = idx => { if (idx < 1) return null; const n = idx - 1, drums = n >= 16384, r = n % 16384; return { drums, bank: Math.floor(r / 128), prog: r % 128 }; };
-function samplerPre(t, d, i) {
-  const box = document.createElement("div"); box.className = "sampler";
-  const src = choice(vget(d, ip(`osc${i}.s7`)), 3), idx = Math.round(vget(d, ip(`osc${i}.sample`))), nGsm = d.samples?.length ?? 0;
-  let what;
+/** What a sampler slot plays (ui/device/Sampler.tsx shows it); store and catalog reads, so the line follows them. */
+function smpWhat(d, i) {
+  const src = choice(vget(d, ip(`osc${i}.s7`)), 3), idx = Math.round(vget(d, ip(`osc${i}.sample`))), nGsm = d.samples?.length ?? 0, gm = lib.catalog()?.gm;
   if (src === 0) { const kb = idx && idx <= nGsm ? ` · ${(d.samples[idx - 1].length * 3 / 4 / 1024).toFixed(1)} KB` : "";
-    what = idx ? `GSM sample ${idx} of ${nGsm} in this instrument${idx > nGsm ? " (missing: plays silence)" : kb}` : `no GSM sample chosen (${nGsm} in this instrument)`; }
-  else if (src === 1) { const k = gmInstrument(idx), g = k && CAT?.gm?.instruments.find(x => !!x.drums === k.drums && x.bank === k.bank && x.prog === k.prog);
-    what = k ? `GM.DLS ${k.drums ? "drum kit" : "instrument"} ${g ? `“${g.name}”` : ""} bank ${k.bank} program ${k.prog}${g ? ` · ${g.regions.length} regions` : CAT?.gm ? " (not in this bank)" : ""}` : "no GM instrument chosen"; }
-  else { const g = CAT?.gm?.instruments.find(x => x.regions.some(r => r[2] === idx - 1)); what = idx ? `GM.DLS wave ${idx - 1}${g ? ` · from ${g.name}` : ""}` : "no wave chosen"; }
-  box.innerHTML = `<div class="srow"><label class="pchoice"><span>source</span><select aria-label="Osc ${i} sample source">${SMP_SOURCES.map((x, k) => `<option value="${k}"${k === src ? " selected" : ""}>${x}</option>`).join("")}</select></label>
-    <span class="dim">${what}</span>${src !== 0 ? `<button class="gmpick">Choose GM instrument…</button>` : `${idx && idx <= nGsm ? `<button class="gsmplay" aria-label="Play GSM sample ${idx}">▶ Play</button>` : ""}<button class="gsmpick">Choose GSM sample…</button><button class="gsmimport">Import WAV…</button>${nGsm > gsmUsed(d).size ? `<button class="gsmclean" title="Samples no slot plays still cost bytes in the intro">Remove unused (${nGsm - [...gsmUsed(d)].filter(k => k >= 1 && k <= nGsm).length})</button>` : ""}`}</div>
-    ${src !== 0 ? (!CAT?.gm || NOBANK ? `<div class="warn-note" role="alert">GM bank not found: set GM_DLS or install the OS bank. The song keeps the index and plays once a bank is present.</div>`
-      : `<div class="info-note">Uses the OS bank at run time (Windows gm.dls, macOS gs_instruments.dls): sounds differ per platform.${src === 2 ? " One wave plays over all keys; the GM instrument source picks a region per note." : ""}</div>`) : ""}`;
-  box.querySelector("select").addEventListener("change", e => {
-    const before = snap(), k = +e.target.value; d.values[`osc${i}.s7`] = k / 2;
-    liveParam(t, d, ip(`osc${i}.s7`), k / 2); renderDevice(); commit(before, `${t.name}: osc ${i} source ${SMP_SOURCES[k]}`);
-  });
-  box.querySelector(".gmpick")?.addEventListener("click", () => openLibrary("gm"));
-  box.querySelector(".gsmpick")?.addEventListener("click", () => openLibrary("gsm"));
-  box.querySelector(".gsmimport")?.addEventListener("click", () => importWav(t, d, i));
-  box.querySelector(".gsmplay")?.addEventListener("click", () => playSample(d.samples[idx - 1]));
-  box.querySelector(".gsmclean")?.addEventListener("click", () => removeUnusedGsm(t, d));
-  if (src === 0 ? idx >= 1 && idx <= nGsm : idx >= 1) samplerSettings(t, d, i, box, src === 0 ? d.samples[idx - 1] : null);
-  return box;
+    return idx ? `GSM sample ${idx} of ${nGsm} in this instrument${idx > nGsm ? " (missing: plays silence)" : kb}` : `no GSM sample chosen (${nGsm} in this instrument)`; }
+  if (src === 1) { const k = gmInstrument(idx), g = k && gm?.instruments.find(x => !!x.drums === k.drums && x.bank === k.bank && x.prog === k.prog);
+    return k ? `GM.DLS ${k.drums ? "drum kit" : "instrument"} ${g ? `“${g.name}”` : ""} bank ${k.bank} program ${k.prog}${g ? ` · ${g.regions.length} regions` : gm ? " (not in this bank)" : ""}` : "no GM instrument chosen"; }
+  const g = gm?.instruments.find(x => x.regions.some(r => r[2] === idx - 1)); return idx ? `GM.DLS wave ${idx - 1}${g ? ` · from ${g.name}` : ""}` : "no wave chosen";
 }
-// Playback settings of a sampler slot (shape values s0–s6, crates/unisynth/src/smp.rs) as named controls, plus the
-// sample's waveform with its start and loop: drag the start line, the loop edges, or the loop body to move it.
-const LOOP_MODES = ["Off", "Repeat", "Ping-pong"], LOOP_REGIONS = ["Sample's own loop", "Custom"], INTERPS = ["Nearest", "Linear"];
 const pcmCache = new Map();
 const pcmOf = b64 => { if (!pcmCache.has(b64)) pcmCache.set(b64, E.gsmDecode(b64ToBytes(b64))); return pcmCache.get(b64); };
-function samplerSettings(t, d, i, box, b64) {
-  const S = k => `osc${i}.s${k}`, cv = k => curVal(d, S(k));
-  const sel3 = (label, k, opts) => `<label class="pchoice"><span>${label}</span><select data-s="${k}" aria-label="Osc ${i} ${label}">${opts.map((o, j) => `<option value="${j}"${j === choice(vget(d, ip(S(k))), opts.length) ? " selected" : ""}>${o}</option>`).join("")}</select></label>`;
-  const row = document.createElement("div"); row.className = "srow smpset";
-  row.innerHTML = sel3("loop", 1, LOOP_MODES) + (choice(vget(d, ip(S(1))), 3) ? sel3("region", 2, LOOP_REGIONS) : "") + sel3("interp", 6, INTERPS) +
-    `<label class="pchoice"><input type="checkbox" data-s="5"${choice(vget(d, ip(S(5))), 2) ? " checked" : ""} aria-label="Osc ${i} reverse"><span>reverse</span></label>`;
-  row.querySelectorAll("[data-s]").forEach(el => el.addEventListener("change", () => {
-    const k = +el.dataset.s, n = k === 1 ? 3 : 2, j = el.type === "checkbox" ? +el.checked : +el.value, before = snap();
-    d.values[S(k)] = j / (n - 1); liveParam(t, d, ip(S(k)), j / (n - 1)); renderDevice();
-    commit(before, `${t.name}: osc ${i} ${["", "loop", "loop region", "", "", "reverse", "interpolation"][k]} ${el.type === "checkbox" ? (j ? "on" : "off") : el.selectedOptions[0].text}`);
-  }));
-  const pcm = b64 ? pcmOf(b64) : null, W = 360, H = 52;
-  const cv2 = document.createElement("canvas"); cv2.className = "smpwave"; cv2.width = W * devicePixelRatio; cv2.height = H * devicePixelRatio; cv2.style.width = W + "px"; cv2.style.height = H + "px";
-  cv2.setAttribute("role", "img");
-  const peaks = new Float32Array(W * 2);
-  if (pcm?.length) for (let x = 0; x < W; x++) { let lo = 0, hi = 0; const a = Math.floor(x * pcm.length / W), b = Math.max(a + 1, Math.floor((x + 1) * pcm.length / W)); for (let k = a; k < b; k++) { lo = Math.min(lo, pcm[k]); hi = Math.max(hi, pcm[k]); } peaks[2 * x] = lo; peaks[2 * x + 1] = hi; }
-  let pk = 0; for (const x of peaks) pk = Math.max(pk, Math.abs(x)); const gainV = pk > 1e-4 ? 0.95 / pk : 1;  // drawn normalised
-  const loopOf = () => { const on = choice(cv(1), 3), custom = choice(cv(2), 2); if (!on) return null; if (!custom) return pcm ? [0, 1] : null; const s0 = cv(3); return [s0, Math.min(1, s0 + cv(4))]; };
-  const draw = () => {
-    const g = cv2.getContext("2d"); g.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); g.clearRect(0, 0, W, H);
-    g.fillStyle = css("--bg"); g.fillRect(0, 0, W, H);
-    const lp = loopOf(), rev = choice(cv(5), 2), st = cv(0), sx = (rev ? 1 - st : st) * W;
-    if (lp) { g.fillStyle = css("--focus") + "33"; g.fillRect(lp[0] * W, 0, (lp[1] - lp[0]) * W, H); g.fillStyle = css("--focus"); g.fillRect(lp[0] * W, 0, 2, H); g.fillRect(lp[1] * W - 2, 0, 2, H); }
-    g.fillStyle = css("--fg") + "aa";
-    if (pcm?.length) for (let x = 0; x < W; x++) { const a = H / 2 - peaks[2 * x + 1] * gainV * H / 2, b = H / 2 - peaks[2 * x] * gainV * H / 2; g.fillRect(x, a, 1, Math.max(1, b - a)); }
-    else { g.fillStyle = css("--dim"); g.font = "10px sans-serif"; g.fillText("GM bank sample: waveform not shown; positions are fractions of it", 6, H / 2 + 3); }
-    g.strokeStyle = css("--ok") || "#4c4"; g.lineWidth = 2; g.beginPath(); g.moveTo(sx, 0); g.lineTo(sx, H); g.stroke();
-    g.fillStyle = css("--ok") || "#4c4"; g.beginPath(); g.moveTo(sx, 0); g.lineTo(sx + (rev ? -7 : 7), 0); g.lineTo(sx, 7); g.fill();
-    const secs = pcm ? pcm.length / 44100 : 0;
-    cv2.setAttribute("aria-label", `Osc ${i} sample${secs ? ` ${secs.toFixed(2)} s` : ""}: start ${(st * 100).toFixed(1)} %${rev ? " (reverse)" : ""}${lp ? `, loop ${(lp[0] * 100).toFixed(1)}–${(lp[1] * 100).toFixed(1)} %` : ", no loop"}`);
-    cv2.title = cv2.getAttribute("aria-label") + " · drag the start line or the loop";
-  };
-  // writes a shape value: song, engine, the knob showing it (if any)
-  const put = (k, v) => { v = Math.min(1, Math.max(0, v)); d.values[S(k)] = v; liveParam(t, d, ip(S(k)), v); };  // the knob follows the store
-  cv2.addEventListener("pointerdown", e => {
-    const r = cv2.getBoundingClientRect(), f = x => (x - r.left) / r.width, f0 = f(e.clientX), near = (a, px = 5) => Math.abs((f0 - a) * r.width) <= px;
-    const lp = loopOf(), rev = choice(cv(5), 2), st = cv(0), sPos = rev ? 1 - st : st, custom = choice(cv(2), 2);
-    let what = near(sPos) ? "start" : lp && near(lp[0]) ? "ls" : lp && near(lp[1]) ? "le" : lp && custom && f0 > lp[0] && f0 < lp[1] ? "move" : "start";
-    if (!custom && what !== "start") { put(2, 1); put(3, lp[0]); put(4, lp[1] - lp[0]); }   // dragging the sample's own loop makes it custom
-    const before = snap(), l0 = cv(3), len0 = cv(4); cv2.setPointerCapture(e.pointerId);
-    const mv = ev => {
-      const x = Math.min(1, Math.max(0, f(ev.clientX)));
-      if (what === "start") put(0, rev ? 1 - x : x);
-      else if (what === "ls") { const end = l0 + len0; put(3, Math.min(x, end - 0.001)); put(4, end - cv(3)); }
-      else if (what === "le") put(4, Math.max(0.001, x - l0));
-      else { const nl = Math.min(1 - len0, Math.max(0, l0 + x - f0)); put(3, nl); }
-      draw();
-    };
-    mv(e); cv2.addEventListener("pointermove", mv);
-    cv2.addEventListener("pointerup", () => { cv2.removeEventListener("pointermove", mv); const lbl = { start: "start", ls: "loop start", le: "loop end", move: "loop" }[what];
-      d._edited = true; commit(before, `${t.name}: osc ${i} sample ${lbl} moved`); if (!custom && what !== "start") renderDevice(); }, { once: true });
-  });
-  const wrap = document.createElement("div"); wrap.className = "smpwrap";
-  const ov = document.createElementNS(SVGNS, "svg"); ov.setAttribute("class", "smplive"); ov.setAttribute("viewBox", "0 0 100 40");
-  ov.setAttribute("preserveAspectRatio", "none"); ov.setAttribute("aria-hidden", "true"); ov.dataset.live = `smp${i}`;
-  wrap.append(cv2, ov);
-  box.append(row, wrap); box._draw = draw; draw();
-}
 // ---- GSM samples: stored (base64) in the instrument's `samples`; a sampler slot plays one by 1-based number. From the
 // library (samples in project songs), or imported from an audio file: decoded and resampled to 44.1 kHz by the
 // browser, mixed to mono, encoded to GSM 06.10 by the engine (bit-exact libgsm port, about 9 KB per second). ----
@@ -751,7 +673,7 @@ let devMounted = false;
 function renderDevice() {
   const t = selected;
   if (!devMounted) { devMounted = true; mountDevice(device, deviceActions()); }
-  devst.setShownTrack(t); devst.bumpDevice();
+  devst.setShownTrack(t);
   const clip = t.clips?.find(c => c.sel) || t.clips?.[0];
   document.getElementById("ctx").innerHTML = `<span class="dim">Track</span> <b style="color:var(${t.col})">${t.name}</b>` +
     (clip ? ` <span class="dim">· clip</span> <b>${clip.name}</b>${links(t, clip.name) > 1 ? ` <span class="badge">⧉ ${links(t, clip.name)} linked</span>` : ""}` : "") +
@@ -792,7 +714,13 @@ function deviceActions() {
     browse: () => openLibrary(), importSample: (t, d) => importWav(t, d, gsmSlot(d)), savePreset: (t, d, btn) => savePreset(t, d, btn),
     liveOn, toggleLive: () => { store.set("daw.live", liveOn() ? "0" : "1"); updateWatch(); },
     screen: (t, d, g, i) => g === "env" ? envView(d, i) : g === "filt" ? filtView(t, d, i) : scr[g](d, i),
-    samplerPre: (t, d, i) => samplerPre(t, d, i),
+    // sampler block (ui/device/Sampler.tsx)
+    curVal, smpWhat, gmMissing: () => !lib.catalog()?.gm || NOBANK,
+    gsmUnused: d => { const n = d.samples?.length ?? 0, used = gsmUsed(d); return n > used.size ? n - [...used].filter(k => k >= 1 && k <= n).length : 0; },
+    playSample: b64 => playSample(b64), openLibrary: src => openLibrary(src), importWav: (t, d, i) => importWav(t, d, i),
+    removeUnusedGsm: (t, d) => removeUnusedGsm(t, d), pcm: pcmOf,
+    put: (t, d, p, v) => { d.values[p.name] = v; liveParam(t, d, p, v); },
+    dragEnd: (t, d, before, msg) => { d._edited = true; commit(before, msg); },
     status,
   };
 }

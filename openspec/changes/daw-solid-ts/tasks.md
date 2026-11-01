@@ -178,8 +178,13 @@ before → `AGENTS.md` rows → land on `main`.
   select-mix 13.2 → 0.7 / 16.4 → 1.4 ms, select-dev 32 / 32 ms (unchanged), knob 1.2 / 30.6 ms (over2: the two
   4 MB undo snapshots per step, as before the port; not a panel cost), playback p95 ≤ 18.5 ms. Screenshots of the
   Bass and Lead panels match the old build.
-- [ ] 6.3 Port GSM/sampler editing (import WAV, choose/play/remove unused, waveform drag). Verify: editing tests for
+- [x] 6.3 Port GSM/sampler editing (import WAV, choose/play/remove unused, waveform drag). Verify: editing tests for
   samples.
+  Done: `ui/device/Sampler.tsx` (source, description, GSM buttons, settings, canvas waveform drawn by an effect).
+  New contract test in device.test.ts (passed on the old code first). The device panel has no imperative islands
+  left (`devRev` gone). One deliberate change: a drag that turns the sample's own loop into a custom one is now
+  inside the drag's undo step (the old code snapshotted after that conversion, so undo kept it). Screenshot of a
+  Pad sampler slot matches the old build. 125/125, ratchet 98 → 96, bench unchanged.
 - [ ] 6.4 Live per-voice view as a component owning its SVG (`drawLive` kept, D4), active only while the Device tab
   shows and Live is on. Verify: browser live-display tests, `DAW.debug.live()` cost not higher than baseline.
 - [ ] 6.5 Measure the Device tab remount on a 50-track song with a full instrument. If over one frame, keep a cached

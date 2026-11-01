@@ -2,7 +2,6 @@
 // - auto values: the value of each automated parameter at the playhead, per device `values` object. Written by
 //   app.js's applyAutomation (only on change; it runs every frame while playing), read by the knobs, so playback
 //   moves just the automated knobs. Whether a lane exists comes from the song store; the override flag from here.
-// - devRev: bumped by renderDevice(); the imperative islands (sampler block, 6.3) rebuild on it.
 // - slot and block collapse (block collapse persists in the browser through the `persist` hooks).
 import { batch, createSignal } from "solid-js";
 import { createStore, type SetStoreFunction } from "solid-js/store";
@@ -24,9 +23,6 @@ export function setAuto(values: object, field: string, v: number | undefined, ov
 }
 export const autoValue = (values: object, field: string): number | undefined => autoOf(values)[0].v[field];
 export const autoOverridden = (values: object, field: string): boolean => !!autoOf(values)[0].ovr[field];
-
-export const [devRev, setDevRev] = createSignal(0);
-export const bumpDevice = (): void => { setDevRev((n) => n + 1); };
 
 /** Slot collapse for the session, per track + slot (`<track id>:<g><i>`); unset = open when the slot is used. */
 const [slotOpen, setSlotOpenStore] = createStore<Record<string, boolean | undefined>>({});
