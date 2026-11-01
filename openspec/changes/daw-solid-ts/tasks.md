@@ -121,7 +121,7 @@ before → `AGENTS.md` rows → land on `main`.
   point edit/remove by keyboard, follow paging; plus a generated 50-track song.
   Done: `test/arrangement.test.ts`, 10 tests, stable over 2 runs; `bigSong()` builds the 50-track song from the demo
   (bass track × 50). Clipboard paste stays in editing.test.ts (5.4a). Found: Q (align) is a note key while the
-  computer keyboard is on (the default), so align by key needs the keyboard off (kept as is).
+  computer keyboard is on (the default), so plain Q aligns only with the keyboard off; Ctrl+Q (the footer's documented key) always aligns.
 - [ ] 5.2 Port track headers and lanes with windowing (rows in view plus one screen; focused and selected rows always
   mounted; spacer height = whole song; `aria-setsize` / `aria-posinset`). Verify: spec "Off-screen arrangement
   content" scenarios as tests, existing editing tests, axe.
