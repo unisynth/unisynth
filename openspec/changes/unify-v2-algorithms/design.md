@@ -372,6 +372,28 @@ each stage with HEAD.
 - *Gate 7 (speed against stage 4, median of 3):* −2.3 % to +1.6 %, except no-remorse at +4.3 %. On no-remorse, 5
   interleaved rounds against HEAD: stage 4 +3.0 %, stage 5 +3.4 %.
 
+### Song inventory (decision 2026-11-01)
+
+The player may reject chunk versions 1 and 2, but no song we hold may be left on them: each is migrated (host
+migration, task 6.2) or re-converted from its source (task 6.3). Counts as of 2026-11-01.
+
+| Location | Songs | Kind | Brought over by |
+|---|---|---|---|
+| `project/music/*.song.json` | 8 (demo + 7 reference) | tracked song/1 | migration, resaved |
+| `project/music/patches/*.patch.json` | 2 | tracked patches | migration, resaved |
+| DAW templates and fixtures (`packages/daw/src/app.js`, `main.ts`, `test/library.test.ts`, `test/editing.test.ts`, `bench/dense.ts`) | embedded | code | edited to the new names and values |
+| `research/us-size-probe/out/songs/*.song`, `legacy/` | 28 + 16 | git-ignored binaries | re-converted (`measure.sh`, `songs-size.sh`) |
+| `project/music/.library.json` | 1 | git-ignored, generated | regenerated (`synth-convert` library example) |
+| `research/tbl-mini-cauldron/out` | 3 XM songs + phrases | generated | re-converted (`synth-convert xm`, `xm-phrase`) |
+| `synth-lab/ws` | 108 WaveSabre `.bin` | external source | re-converted per parity run |
+| `synth-lab/tunefish/media/tf4modules` | 2 `.tfm` | external source | re-converted per parity run |
+| `synth-lab/v2songs` `acceptance`, `fr_public`, `modland`, `carved` | 15 + 20 + 325 + 1 `.v2m` | external source | re-converted |
+| `synth-lab/v2songs/parity/*.song` | 70 | cached conversions | regenerated (stale caches deleted first) |
+| DAW browser storage, user files outside the repo | unknown | user-held | migration on import (6.2) |
+
+The load-all check (task 6.3) walks every location in the table except the last row and fails when a song does not
+load in the new player, is skipped, or a location holds fewer songs than recorded.
+
 ## Risks / Trade-offs
 
 - [Drift accumulates across stages until a song leaves tolerance] → D7.3 records drift per stage. A song near the

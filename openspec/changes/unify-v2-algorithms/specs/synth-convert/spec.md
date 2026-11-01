@@ -16,6 +16,11 @@ re-authoring.
 - **WHEN** a song file from `project/music/` written before this change is imported
 - **THEN** it loads, re-exports in the new layout, and its render passes the parity tolerances against its render before this change
 
+#### Scenario: No song left behind
+- **WHEN** the format switch is complete
+- **THEN** every song in the inventory (design, "Song inventory") is in the new layout, migrated or re-converted, and loads in the new player
+- **AND** the load-all check fails if any song fails to load, is skipped, or if an inventory location holds fewer songs than recorded
+
 ### Requirement: Fidelity across the merge
 After each merge of a source module into a shared algorithm, every song the converters produce SHALL still pass its
 parity report within tolerance (1 dB loudness, 3 dB per octave band, onsets): the WaveSabre and Tunefish device items

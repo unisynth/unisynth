@@ -36,7 +36,7 @@ combination scenarios are engine tests until 6.1 and patch tests there.
 
 - [ ] 6.1 Switch the player to chunk versions 3/4 in the new layout and reject versions 1/2. Verify: the "Device kind and chunk" scenarios, including "Old layout rejected by the player", and truncation at every byte without a panic
 - [ ] 6.2 Add the host migration in `crates/song` (old chunk versions and old song-file names → new settings) and apply it on import. Verify: "Old patch sounds the same" and "Old song file" for every song in `project/music/` and `project/music/patches/`, and for the V2 acceptance songs written as old-layout chunks (`--drift` within the D7.3 thresholds against the baseline renders)
-- [ ] 6.3 Re-convert or migrate the repo songs (`project/music/*.song.json`, `research/us-size-probe/out/songs/*.song`) and regenerate size and speed tables. Verify: bake check ok; `check-song-features.sh --minimal` passes; size and speed recorded in `tools/unisynth-parity/size.md` and design.md
+- [ ] 6.3 Re-convert or migrate every song in the design's "Song inventory" (none left behind or skipped) and regenerate size and speed tables. Add a load-all check over the inventory that fails on a song that does not load, a skipped song, or a location holding fewer songs than recorded. Verify: load-all check ok; scenario "No song left behind"; bake check ok; `check-song-features.sh --minimal` passes; size and speed recorded in `tools/unisynth-parity/size.md` and design.md
 
 ## 7. Quirk documentation
 
