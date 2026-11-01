@@ -1,6 +1,6 @@
 // Arrangement windowing (change daw-solid-ts 5.2, design D6): which rows exist for a scroll position.
 import { expect, test } from "bun:test";
-import { rowHeight, segments, windowRows } from "./arrange.ts";
+import { barWindow, rowHeight, segments, windowRows } from "./arrange.ts";
 
 const H = Array.from({ length: 50 }, () => 56);  // 50 closed tracks
 
@@ -29,4 +29,10 @@ test("segments: gaps keep every row at its offset and the total height", () => {
   const total = (s: ReturnType<typeof segments>) => s.reduce((n: number, x) => n + (typeof x === "number" ? H[x] : x.gap), 0);
   expect(total(segments(H, rows))).toBe(50 * 56);
   expect(segments(H, [0, 1])).toEqual([0, 1, { gap: 48 * 56 }]);
+});
+
+test("bar window: pages of the view width around the view, stable within a page", () => {
+  expect(barWindow(0, 1000, 100)).toEqual([-9, 31]);
+  expect(barWindow(999, 1000, 100)).toEqual(barWindow(0, 1000, 100));
+  expect(barWindow(1000, 1000, 100)).toEqual([1, 41]);
 });

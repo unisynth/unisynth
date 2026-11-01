@@ -87,21 +87,7 @@ const lp = document.createElement("div"); lp.className = "loop"; lp.style.left =
 // Headers + lanes
 const hdrs = document.getElementById("hdrs"), lanes = document.getElementById("lanes");
 lanes.style.width = BARS * BW + "px";
-function makeClip(t, c) {
-  const el = document.createElement("div"), n = links(t, c.name);
-  el.className = "clip" + (n > 1 ? " linked" : "") + (c.sel ? " sel" : ""); el.dataset.track = t.id; el._clip = c;
-  el.style.left = (c.start - 1) * BW + "px"; el.style.width = c.len * BW - 1 + "px"; el.style.background = `var(${t.col})`;
-  el.tabIndex = -1; el.setAttribute("role", "button"); el.setAttribute("aria-label", `Clip ${c.name}, bar ${+c.start.toFixed(2)}, ${+c.len.toFixed(2)} bars${c.loop ? ", looping" : ""}${n > 1 ? ", linked" : ""}${c.sel ? ", selected" : ""}`);
-  el.innerHTML = `<div class="lbl">${c.name}</div><div class="notes"></div><div class="rz" title="Drag: crop or extend · Alt+drag: loop the clip"></div>`;
-  const nb = el.querySelector(".notes"), pt = t.bus ? null : patOf(t, c.name), ns = pt ? raw(pt.notes) : [],  // read-only: raw (no proxy per note)
-    steps = c.len * 16, per = c.loop ? pt.len * 16 : Infinity;
-  if (c.loop) { el.querySelector(".lbl").append(" ⟳"); for (let x = per; x < steps; x += per) { const m = document.createElement("b"); m.className = "lpm"; m.style.left = (x / steps) * 100 + "%"; nb.append(m); } }
-  if (ns.length) { const lo = Math.min(...ns.map(n => n.n)), hi = Math.max(...ns.map(n => n.n)), span = Math.max(1, hi - lo);
-    for (let k = 0; k === 0 || (c.loop && k * per < steps); k++) for (const n of ns) { const s0 = n.s + k * (c.loop ? per : 0); if (s0 >= steps || (c.loop && n.s >= per)) continue;
-      const i = document.createElement("i"); i.style.left = (s0 / steps) * 100 + "%"; i.style.width = Math.max(1.5, (Math.min(n.l, steps - s0) / steps) * (c.len * BW - 4)) + "px";
-      i.style.top = ((hi - n.n) / span) * 88 + "%"; nb.append(i); } }
-  return el;
-}
+// Clips: ui/arrange/Clip.tsx (reactive; canvas thumbnail redrawn when renderLane bumps the lane version).
 // Every note occurrence of a placement: [note, step in the clip, audible length]. A looping clip repeats its
 // pattern (pattern length = pt.len bars); a cropped clip plays the pattern's start.
 function* clipNotes(t, c) {
@@ -110,11 +96,8 @@ function* clipNotes(t, c) {
     if (c.loop && n.s >= per) continue; const s0 = n.s + k * (c.loop ? per : 0); if (s0 < steps) yield [n, s0, Math.min(n.l, steps - s0)];
   }
 }
-function renderLane(t) {
-  const lane = laneEl.get(t.id); if (!lane || t.bus) return;
-  lane.querySelectorAll(".clip").forEach(e => e.remove());
-  for (const c of t.clips) lane.append(makeClip(t, c));
-}
+// The lane's content changed (notes, patterns): its clip thumbnails redraw. Position, size and state are reactive.
+function renderLane(t) { arrange.bumpLane(t.id); }
 // Laws from docs/synth/unisynth.md
 const L = {
   cutoff: p => { const v = 20 + 19980 * p * p; return v >= 1000 ? (v / 1000).toFixed(2) + "k" : v.toFixed(0) + " Hz"; },
@@ -311,13 +294,10 @@ function addLane(t, ln, box, beforeH, beforeL) {
   });
   if (beforeH) { box.h.insertBefore(ah, beforeH); box.l.insertBefore(al, beforeL); } else { box.h.append(ah); box.l.append(al); }
 }
-// Track rows: ui/arrange/Tracks.tsx (windowed, design D6). A mounted row asks for its clips (mountLane) and, while
+// Track rows: ui/arrange/Tracks.tsx (windowed, design D6). A mounted row in the view window renders its clips and, while
 // open, its automation lanes (mountAuto); rebuildTracks() bumps arrange.rev so mounted rows refill after
-// add/delete/reorder/undo. Rows off screen hold nothing (laneEl / laneVals only list mounted rows).
-function mountLane(t, el) {
-  laneEl.set(t.id, el); renderLane(t);
-  return () => { if (laneEl.get(t.id) === el) laneEl.delete(t.id); el.querySelectorAll(".clip").forEach(e => e.remove()); };
-}
+// add/delete/reorder/undo. Rows off screen hold nothing (laneEl / laneVals only list mounted rows). Clips render
+// reactively in the lane (Clip.tsx), culled to the bars around the view.
 function mountAuto(t, box) {
   for (const ln of t.lanes) addLane(t, ln, box);
   const addH = document.createElement("div"); addH.className = "thdr addlane";
@@ -343,10 +323,10 @@ const shade = document.createElement("div"); shade.className = "loopshade"; shad
 const ph = document.createElement("div"); ph.className = "playhead"; ph.style.transform = `translateX(${(11 + 2.5 / 4) * BW}px)`; lanes.append(ph);
 const ph2 = ph.cloneNode(); ruler.append(ph2);
 const lw = document.getElementById("lanes-wrap");
-arrange.setArmedId(armed?.id ?? null); setSelectedId(selected.id);  // the rows mark and pin them from the start
+arrange.setArmedId(armed?.id ?? null); setSelectedId(selected.id); arrange.setBw(BW);  // the rows mark and pin them from the start
 mountTracks(hdrs, lanes, lw, tracks, {
   devLabel: t => devLabel(t), about: t => t.about ? aboutText(t.about) : "", rename: (t, v) => renameTo(t, v),
-  mountLane: (t, el) => mountLane(t, el), mountAuto: (t, box) => mountAuto(t, box),
+  pattern: (t, name) => raw(t).pats?.[name] ?? null, mountAuto: (t, box) => mountAuto(t, box),
 });
 lw.addEventListener("scroll", () => { ruler.style.transform = `translateX(${-lw.scrollLeft}px)`; hdrs.scrollTop = lw.scrollTop; });
 // One scroller: the lanes. Headers only mirror lw.scrollTop (they never write back, which made momentum scrolling
@@ -2151,7 +2131,7 @@ const wheelF = e => Math.exp(-clamp(e.deltaY * (e.deltaMode === 1 ? 33 : 1), -60
 function zoomArr(f, clientX, quiet) {
   const r = lw.getBoundingClientRect(), ax = (clientX ?? r.left + lw.clientWidth / 2) - r.left, bar = 1 + (lw.scrollLeft + ax) / BW;
   const nb = clamp(BW * f, 6, 400); if (Math.abs(nb - BW) < .01) return;
-  BW = nb; document.documentElement.style.setProperty("--bar-w", BW + "px");
+  BW = nb; arrange.setBw(BW); document.documentElement.style.setProperty("--bar-w", BW + "px");
   relayout(); tracks.forEach(renderLane); updateLoop(); drawCursor(); showPos();
   lw.scrollLeft = (bar - 1) * BW - ax; if (!quiet) say(`arrangement zoom ${Math.round(BW / 44 * 100)}%`);
 }

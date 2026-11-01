@@ -4,19 +4,20 @@
 // song store (name, mute/solo, volume, lanes, open) and the view state (selected, armed, renaming). Clips and
 // automation lanes are still filled imperatively when a row mounts (`mountLane`, `mountAuto`; refilled on `rev`);
 // they move to components in 5.3. The volume, mute/solo and arm clicks are still document delegates in app.js (5.4).
-import { createEffect, createMemo, For, mapArray, on, onCleanup, onMount, Show, untrack, type JSX } from "solid-js";
+import { batch, createEffect, createMemo, For, mapArray, on, onCleanup, onMount, Show, untrack, type JSX } from "solid-js";
 import { insert, render } from "solid-js/web";
-import { selectedId } from "../state/view.ts";
-import { armedId, focusedId, labelRev, renamingId, rev, rowHeight, scrollTop, segments, setFocusedId, setRenamingId, setScrollTop, setViewH, viewH, windowRows } from "../state/arrange.ts";
+import { laneEl, selectedId } from "../state/view.ts";
+import { Clip, type PatternOf } from "./Clip.tsx";
+import { armedId, barWindow, bw, focusedId, labelRev, renamingId, rev, rowHeight, scrollLeft, scrollTop, segments, setFocusedId, setRenamingId, setScrollLeft, setScrollTop, setViewH, setViewW, viewH, viewW, windowRows } from "../state/arrange.ts";
 
 /** The parts of a track the rows read (a song store proxy). */
-export interface Track { id: string; name: string; col: string; vol: number; mute?: boolean; solo?: boolean; bus?: boolean; open?: boolean; lanes: unknown[]; about?: unknown }
+export interface Track { id: string; name: string; col: string; vol: number; mute?: boolean; solo?: boolean; bus?: boolean; open?: boolean; lanes: unknown[]; about?: unknown; clips: { name: string; start: number; len: number; loop?: boolean; sel?: boolean }[] }
 export interface TrackActions {
   devLabel(t: Track): string;
   about(t: Track): string;
   rename(t: Track, name: string): void;
-  /** The lane element exists: register it and draw its clips; returns the cleanup. */
-  mountLane(t: Track, el: HTMLElement): () => void;
+  /** A clip's pattern for its thumbnail (read only). */
+  pattern: PatternOf;
   /** The open automation group exists: fill both columns' boxes; returns the cleanup. */
   mountAuto(t: Track, box: { h: HTMLElement; l: HTMLElement }): () => void;
 }
@@ -36,6 +37,8 @@ function drain() {
   for (const fn of queue) { queue.delete(fn); fn(); if (performance.now() - t0 > 6) break; }
   if (queue.size) raf = requestAnimationFrame(drain);
 }
+/** Runs `draw` now, or from the queue while scrolling; returns a cancel. */
+const later = (draw: () => void): (() => void) => { if (deferring) return fillLater(draw); draw(); return () => {}; };
 /** Runs `fill` (returns its cleanup) now, or from the queue while scrolling; cleans up with the owner. */
 function fillRow(fill: () => () => void): void {
   let stop: (() => void) | undefined;
@@ -49,9 +52,10 @@ export function mountTracks(hdrs: HTMLElement, lanes: HTMLElement, scroller: HTM
   const lanesRows = document.createElement("div"); lanesRows.className = "rows"; lanes.prepend(lanesRows);
   hdrs.replaceChildren();
   setScrollTop(scroller.scrollTop); setViewH(scroller.clientHeight);
-  const onScroll = () => { deferring = true; try { setScrollTop(scroller.scrollTop); } finally { deferring = false; } };
+  const onScroll = () => { deferring = true; try { batchScroll(scroller); } finally { deferring = false; } };
   scroller.addEventListener("scroll", onScroll, { passive: true });
-  const ro = new ResizeObserver(() => setViewH(scroller.clientHeight)); ro.observe(scroller);
+  setScrollLeft(scroller.scrollLeft); setViewW(scroller.clientWidth);
+  const ro = new ResizeObserver(() => { setViewH(scroller.clientHeight); setViewW(scroller.clientWidth); }); ro.observe(scroller);
   const focusIn = (e: FocusEvent) => { const h = (e.target as HTMLElement).closest?.<HTMLElement>(".thdr.track"); if (h) setFocusedId(h.dataset.track!); };
   const focusOut = (e: FocusEvent) => { if (!(e.relatedTarget as HTMLElement | null)?.closest?.(".thdr.track")) setFocusedId(null); };
   hdrs.addEventListener("focusin", focusIn); hdrs.addEventListener("focusout", focusOut);
@@ -79,6 +83,8 @@ export function mountTracks(hdrs: HTMLElement, lanes: HTMLElement, scroller: HTM
   }, hdrs);
   return () => { dispose(); ro.disconnect(); scroller.removeEventListener("scroll", onScroll); lanesRows.remove(); hdrs.removeEventListener("focusin", focusIn); hdrs.removeEventListener("focusout", focusOut); };
 }
+
+function batchScroll(el: HTMLElement) { batch(() => { setScrollTop(el.scrollTop); setScrollLeft(el.scrollLeft); }); }
 
 function HeaderRow(p: { r: Row; a: TrackActions; tracks: Track[] }): JSX.Element {
   const t = p.r.t, a = p.a;
@@ -138,13 +144,16 @@ function AutoGroup(p: { r: Row; a: TrackActions; side: "h" | "l" }): JSX.Element
 
 function LaneRow(p: { r: Row; a: TrackActions }): JSX.Element {
   const t = p.r.t;
-  const bus = untrack(() => !!t.bus);  // static: the lane's other children are clips drawn imperatively
-  let el!: HTMLDivElement;
-  createEffect(on([rev, p.r.inView], ([, v]) => { if (v) fillRow(() => p.a.mountLane(t, el)); }));
+  const bus = untrack(() => !!t.bus);
+  // clips in the bars around the view, only while the row is in the view window (a pinned-only row is empty)
+  const win = createMemo(() => barWindow(scrollLeft(), viewW(), bw()), undefined, { equals: (x, y) => x[0] === y[0] && x[1] === y[1] });
+  const clips = createMemo(() => { if (!p.r.inView()) return []; const [b0, b1] = win(); return t.clips.filter((c) => c.start + c.len > b0 && c.start < b1); });
+  const reg = (el: HTMLDivElement) => { laneEl.set(t.id, el); onCleanup(() => { if (laneEl.get(t.id) === el) laneEl.delete(t.id); }); };
   return <>
-    <div ref={el} class="lane track" classList={{ sel: selectedId() === t.id, buslane: bus }} data-track={t.id} aria-label={`${t.name} clips`}
+    <div ref={reg} class="lane track" classList={{ sel: selectedId() === t.id, buslane: bus }} data-track={t.id} aria-label={`${t.name} clips`}
       style={{ opacity: t.mute ? 0.45 : undefined }}>
       {bus ? <span class="busnote">bus track · no clips · audio from sends</span> : null}
+      <For each={clips()}>{(c) => <Clip t={t} c={c} pattern={p.a.pattern} later={later} />}</For>
     </div>
     <Show when={isOpen(t)}><AutoGroup r={p.r} a={p.a} side="l" /></Show>
   </>;
