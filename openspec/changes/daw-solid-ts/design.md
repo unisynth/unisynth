@@ -96,6 +96,13 @@ Collapsed device blocks and slots render only their header. The cost: remounting
 mixer remounts 51 strips well within one frame. The device panel is measured in its task, and if it is too slow, a
 cached panel per tab (`display: none` with display signals suspended) is the fallback.
 
+Measured (task 6.5, production solid-js runtime; bench `tab-dev`, Mixer → Device with the fullest instrument
+selected, handler / until the next frame): trashpanda 17 / 54 ms, tbl-stash-over2 19 / 84 ms. A panel kept mounted
+while hidden switches in 1.3 / 34 and 1.3 / 55 ms (layout and paint of the large panel dominate either way) but
+rebuilds on every track selection from the mixer (select-mix 0.7 → 19 ms, 1.3 → 25 ms). Decision: keep the remount
+(hidden panels hold no content, as specified); a tab switch is a single user action, a selection happens often.
+Collapsed slots and blocks render only their header.
+
 ### D6. Arrangement windowing without a library
 Track heights are known from the model: header height plus open automation lanes times the lane height. So the
 arrangement computes row offsets from the store, renders rows whose range meets the scroll view plus one screen of

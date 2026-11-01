@@ -192,14 +192,14 @@ before → `AGENTS.md` rows → land on `main`.
   loop runs only while the Device tab shows (the watch was already off otherwise). `DAW.debug.live()` with a 6-note
   chord on the Lead, 2 runs each, old → new: probe 0.23 → 0.23 ms, draw 0.25 → 0.25 ms. New test: the hidden Device
   tab holds no content and comes back with edits made meanwhile. 126/126 twice.
-- [ ] 6.5 Measure the Device tab remount on a 50-track song with a full instrument. If over one frame, keep a cached
+- [x] 6.5 Measure the Device tab remount on a 50-track song with a full instrument. If over one frame, keep a cached
   panel with display effects suspended (D5 fallback). Record the result in design.md.
   Measured (bench `tab-dev`: Mixer → Device with the fullest instrument selected; handler ms / ms to the frame after):
   trashpanda (Lead (Falcon) 1, 50 values) 17.2 / 54 ms, tbl-stash-over2 (29 values) 18.9 / 84 ms, after: collapsed
   slots and blocks render only their header (D5 text), `ip()` indexed by name, and the production build fix below.
   Always-mounted experiment (the D5 fallback without suspension): 1.3 / 34 ms and 1.3 / 55 ms, but select-mix
   0.7 → 19 ms and 1.3 → 25 ms (the hidden panel rebuilds on every selection). Neither stays within one frame;
-  decision pending (fallback conflicts with the spec "Hidden panels hold no content").
+  decision (user): keep the remount, spec unchanged; recorded in design.md D5.
   Found: `vite build` shipped solid-js's development runtime (Vite's `development|production` condition followed
   NODE_ENV: unset in Bun scripts, "test" under bun test). vite.config.ts now pins production for `build`. All
   earlier bench numbers of this change measured the Solid parts on the dev runtime (the imperative baselines were
