@@ -1471,36 +1471,43 @@
         {
           "from": "t1",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t2",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t3",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t4",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t5",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t6",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t7",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         }
       ],
@@ -1529,36 +1536,43 @@
         {
           "from": "t1",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t2",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t3",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t4",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t5",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t6",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t7",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         }
       ],
