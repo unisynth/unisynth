@@ -122,6 +122,9 @@ pub fn validate(s: &Song) -> Vec<Issue> {
                 Some(&m) if m == k => cx.err(format!("{rp}/from"), "a track cannot receive from itself"),
                 _ => {}
             }
+            if r.send as usize > synth_core::device::OUT_PAIRS {
+                cx.err(format!("{rp}/send"), format!("send {} out of range (0 main output, 1–{} an extra output pair)", r.send, synth_core::device::OUT_PAIRS));
+            }
             if !r.volume.is_finite() || r.volume < 0.0 {
                 cx.err(format!("{rp}/volume"), format!("send volume {} must be a finite number ≥ 0", r.volume));
             }

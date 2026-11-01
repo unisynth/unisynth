@@ -9,7 +9,7 @@ use crate::blob::BlobM;
 use crate::export::sample_to_tick;
 use crate::model::*;
 use crate::tables;
-use synth_core::device::EventKind;
+use synth_core::device::{recv, EventKind};
 use unisynth::{chunk::Chunk, fx, kind, params};
 
 /// A value a float rounding put just outside `0..=1` (converters write e.g. −1.5e-8): snapped to the edge, which
@@ -171,7 +171,12 @@ pub fn import_one_clip(b: &[u8]) -> Result<Song, String> {
             receives: t
                 .receives
                 .iter()
-                .map(|&(from, ch, v)| Receive { from: ids[from].clone(), channel: if ch == 2 { Channel::Side } else { Channel::Main }, volume: v })
+                .map(|&(from, ch, v)| Receive {
+                    from: ids[from].clone(),
+                    channel: Channel::of(recv::to(ch)).unwrap_or(Channel::Main),
+                    send: recv::from(ch) as u8,
+                    volume: v,
+                })
                 .collect(),
             devices: vec![],
             placements: vec![],

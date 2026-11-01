@@ -6,6 +6,7 @@ use crate::blob::{AutoM, BlobM, TrackM};
 use crate::model::*;
 use crate::tables;
 use crate::Issue;
+use synth_core::device::recv;
 use synth_core::device::EventKind;
 use unisynth::{chunk, fx, kind, params};
 
@@ -206,7 +207,7 @@ pub fn export_model(s: &Song) -> Result<BlobM, Vec<Issue>> {
             receives: t
                 .receives
                 .iter()
-                .map(|r| (index(&r.from), if r.channel == Channel::Side { 2 } else { 0 }, r.volume))
+                .map(|r| (index(&r.from), recv::encode(r.send as usize, r.channel.to()), r.volume))
                 .collect(),
             devices: devs,
             lane: ti,

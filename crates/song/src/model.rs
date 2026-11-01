@@ -163,15 +163,48 @@ pub struct Track {
 pub enum Channel {
     Main,
     Side,
+    /// The receiving track's extra input pair 1 (an instrument's aux input).
+    In1,
+    /// The receiving track's extra input pair 2.
+    In2,
 }
 
-/// A post-fader send from track `from` into this track (main input or sidechain).
+impl Channel {
+    /// The receiving buffer of the blob's channel field ([`synth_core::device::recv`]).
+    pub fn to(self) -> usize {
+        match self {
+            Channel::Main => 0,
+            Channel::Side => 2,
+            Channel::In1 => 4,
+            Channel::In2 => 6,
+        }
+    }
+
+    pub fn of(to: usize) -> Option<Channel> {
+        Some(match to {
+            0 => Channel::Main,
+            2 => Channel::Side,
+            4 => Channel::In1,
+            6 => Channel::In2,
+            _ => return None,
+        })
+    }
+}
+
+/// A post-fader send from track `from` into this track (main input, sidechain or an extra input pair). `send` picks
+/// the sending track's output: 0 (omitted) its main output, 1–4 one of its extra output pairs (a reverb or delay send).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Receive {
     pub from: String,
     pub channel: Channel,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub send: u8,
     pub volume: f32,
+}
+
+fn is_zero(x: &u8) -> bool {
+    *x == 0
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

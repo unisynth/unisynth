@@ -92,7 +92,8 @@
       "required": ["from", "channel", "volume"],
       "properties": {
         "from": { "$ref": "#/$defs/id" },
-        "channel": { "enum": ["main", "side"] },
+        "channel": { "enum": ["main", "side", "in1", "in2"] },
+        "send": { "type": "integer", "minimum": 0, "maximum": 4 },
         "volume": { "type": "number", "minimum": 0 }
       }
     },

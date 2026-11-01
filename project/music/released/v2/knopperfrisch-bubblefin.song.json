@@ -462,6 +462,7 @@
         {
           "from": "t1",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         }
       ],
@@ -490,6 +491,7 @@
         {
           "from": "t1",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         }
       ],

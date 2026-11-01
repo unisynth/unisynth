@@ -710,3 +710,36 @@ fn old_parameter_names_load_under_the_new_ones() {
     let l: song::model::Lane = serde_json::from_str(r#"{"device": 0, "param": "env2.slope", "points": []}"#).unwrap();
     assert_eq!(l.param, "env2.curve_slope");
 }
+
+/// Receives on the extra pairs (V2 reverb/delay sends, aux inputs): `send` names the sending track's output pair (1–4),
+/// `channel` `in1`/`in2` the receiving track's extra input pair. They reach the blob as `recv::encode(send, to)` and
+/// come back from `import` unchanged.
+#[test]
+fn receives_on_extra_pairs_round_trip() {
+    let mut v = base();
+    v["tracks"].as_array_mut().unwrap().push(serde_json::json!({
+        "id": "verb", "name": "Verb", "volume": 1.0, "mute": false,
+        "receives": [ { "from": "lead", "channel": "main", "send": 1, "volume": 1.0 } ],
+        "devices": [ { "kind": 70, "values": {} } ], "placements": [], "lanes": [] }));
+    v["tracks"].as_array_mut().unwrap().push(serde_json::json!({
+        "id": "aux", "name": "Aux", "volume": 1.0, "mute": false,
+        "receives": [ { "from": "lead", "channel": "in1", "send": 3, "volume": 0.5 } ],
+        "devices": [ { "kind": 64, "values": {} } ], "placements": [], "lanes": [] }));
+    let blob = exported(&v);
+    let m = song::blob::BlobM::read(&blob).unwrap();
+    assert_eq!(m.tracks[1].receives, vec![(0, synth_core::device::recv::encode(1, 0), 1.0)]);
+    assert_eq!(m.tracks[2].receives, vec![(0, synth_core::device::recv::encode(3, 4), 0.5)]);
+    let back: serde_json::Value = serde_json::from_str(&to_json(&import(&blob).unwrap())).unwrap();
+    let recv = |t: usize| back["tracks"][t]["receives"][0].clone();
+    assert_eq!((recv(1)["channel"].clone(), recv(1)["send"].clone()), (serde_json::json!("main"), serde_json::json!(1)));
+    assert_eq!((recv(2)["channel"].clone(), recv(2)["send"].clone()), (serde_json::json!("in1"), serde_json::json!(3)));
+    assert!(back["master"]["receives"][0].get("send").is_none(), "a main-output receive writes no send");
+}
+
+#[test]
+fn a_send_past_the_extra_pairs_is_an_error() {
+    let mut v = base();
+    v["master"]["receives"][0]["send"] = serde_json::json!(5);
+    let e = validate(&song_of(&v));
+    assert!(e.iter().any(|i| i.path == "/master/receives/0/send"), "{e:?}");
+}

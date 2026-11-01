@@ -34,7 +34,9 @@ export type SongTrack = {
   color?: string;
   volume: number;
   mute: boolean;
-  receives: { from: string; channel: "main" | "side"; volume: number }[];
+  /** `channel`: the receiving input (main, sidechain, extra input pair 1/2); `send`: the sender's output pair (omitted =
+   * main, 1–4 an extra output pair such as a reverb send). */
+  receives: { from: string; channel: "main" | "side" | "in1" | "in2"; send?: number; volume: number }[];
   devices: Device[];
   placements: { clip: string; start: number; length: number | null; loop: boolean }[];
   lanes: { device: number; param: string; points: Point[] }[];
@@ -61,8 +63,9 @@ export type UITrack = {
   clips: UIClip[];
   pats?: Record<string, UIPattern>;
   devices: Device[];
-  /** [target track name, "main" | "side", dB, linear gain as loaded (kept while dB is unchanged)] */
-  sends: [string, string, number, number?][];
+  /** [target track name, "main" | "side" | "in1" | "in2", dB, linear gain as loaded (kept while dB is unchanged),
+   * the sending output pair (absent = main output, 1–4 an extra pair)] */
+  sends: [string, string, number, number?, number?][];
   /** Linear volume as loaded, kept while `vol` (dB) is unchanged, so an unedited save is exact. */
   gain0?: [number, number];
   /** Sending track ids in the order this track received them when loaded (summing order). */
@@ -179,9 +182,9 @@ export function toSong(ui: UIState, audible?: (t: UITrack) => boolean): Song {
   const master = songTrack(ui.master);
   // sends → receives on the target, in the order the target received them when loaded (summing order)
   for (const t of ui.tracks) {
-    for (const [to, ch, db, g] of t.sends) {
+    for (const [to, ch, db, g, send] of t.sends) {
       const dst = tracks.find((x) => x.name === to);
-      if (dst) dst.receives.push({ from: t.id, channel: ch === "side" ? "side" : "main", volume: g !== undefined && Math.abs(gainToDb(g) - db) < 1e-9 ? g : dbToGain(db) });
+      if (dst) dst.receives.push({ from: t.id, channel: ch === "side" || ch === "in1" || ch === "in2" ? ch : "main", ...(send ? { send } : {}), volume: g !== undefined && Math.abs(gainToDb(g) - db) < 1e-9 ? g : dbToGain(db) });
     }
   }
   ui.tracks.forEach((t, i) => {
@@ -238,7 +241,7 @@ export function fromSong(s: Song): UIState {
   for (const t of s.tracks) {
     for (const r of t.receives) {
       const src = tracks.find((x) => x.id === r.from);
-      if (src) src.sends.push([t.name, r.channel, gainToDb(r.volume), r.volume]);
+      if (src) src.sends.push(r.send ? [t.name, r.channel, gainToDb(r.volume), r.volume, r.send] : [t.name, r.channel, gainToDb(r.volume), r.volume]);
     }
   }
   const bars = Math.max(1, Math.ceil(s.length / bar));

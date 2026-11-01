@@ -7892,171 +7892,205 @@
         {
           "from": "t1",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t2",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t3",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t4",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t5",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t6",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t7",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t8",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t9",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t10",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t11",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t12",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t13",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t14",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t15",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t16",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t17",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t18",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t19",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t20",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t21",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t22",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t23",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t24",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t25",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t26",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t27",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t28",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t29",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t30",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t31",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t32",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t33",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         },
         {
           "from": "t34",
           "channel": "main",
+          "send": 1,
           "volume": 1.0
         }
       ],
@@ -8085,171 +8119,205 @@
         {
           "from": "t1",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t2",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t3",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t4",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t5",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t6",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t7",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t8",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t9",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t10",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t11",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t12",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t13",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t14",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t15",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t16",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t17",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t18",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t19",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t20",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t21",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t22",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t23",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t24",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t25",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t26",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t27",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t28",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t29",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t30",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t31",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t32",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t33",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         },
         {
           "from": "t34",
           "channel": "main",
+          "send": 2,
           "volume": 1.0
         }
       ],

@@ -80,6 +80,16 @@ test("song meta survives a load and save; flat controller envelopes are not writ
   expect(toSong(ui).clips.find((c) => c.id === "bass-a")!.wheel).toEqual([[0, 0], [1920, 0.7]]);
 });
 
+test("receives on extra pairs (send, in1/in2) survive a load and save", () => {
+  const s = demo();
+  const [a, b] = s.tracks;
+  a.receives.push({ from: b.id, channel: "in1", send: 3, volume: 0.5 } as never);
+  s.master.receives = s.master.receives.map((r) => (r.from === b.id ? { ...r, send: 1 } : r)) as never;
+  const back = toSong(fromSong(s));
+  expect(back.tracks[0].receives).toEqual(a.receives);
+  expect(back.master.receives).toEqual(s.master.receives);
+});
+
 test("speech texts survive a load and save", () => {
   const s = demo();
   const dev = s.tracks.flatMap((t) => t.devices).find((d) => d.kind === 64)!;
