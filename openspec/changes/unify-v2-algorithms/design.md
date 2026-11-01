@@ -382,6 +382,7 @@ migration, task 6.2) or re-converted from its source (task 6.3). Counts as of 20
 | `project/music/*.song.json` | 8 (demo + 7 reference) | tracked song/1 | migration, resaved |
 | `project/music/patches/*.patch.json` | 2 | tracked patches | migration, resaved |
 | `project/music/released/*.song.json` | 28 (25 WaveSabre intros, 3 TBL) | tracked song/1 (main `cf1c106`) | migration, resaved |
+| `project/music/released/v2/*.song.json` | 347 V2 songs | tracked song/1 (main `a721861`) | re-converted (`tools/v2-extract/make-demos.py`) |
 | DAW templates and fixtures (`packages/daw/src/app.js`, `main.ts`, `test/library.test.ts`, `test/editing.test.ts`, `bench/dense.ts`) | embedded | code | edited to the new names and values |
 | `research/us-size-probe/out/songs/*.song`, `legacy/` | 28 + 16 | git-ignored binaries | re-converted (`measure.sh`, `songs-size.sh`) |
 | `project/music/.library.json` | 1 | git-ignored, generated | regenerated (`synth-convert` library example) |
