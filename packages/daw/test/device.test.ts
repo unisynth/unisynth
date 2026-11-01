@@ -155,7 +155,7 @@ test("instrument bypass and preset save: written to project/music/patches, liste
   await dlg.locator(".ok").click();
   await page.waitForFunction((d) => (window as any).DAW.debug.undoDepth() === d + 1, d0);
   expect(await dlg.count()).toBe(0);
-  // (old code: the panel rebuild after saving drops focus to <body>; the port keeps it on Save preset, 6.2)
+  expect(await page.evaluate(() => document.activeElement?.className)).toBe("savepre");  // (lost to <body> before 6.2)
   const file = join(root, "project/music/patches/test-patch-1.patch.json");
   expect(existsSync(file)).toBe(true);
   const patch = JSON.parse(readFileSync(file, "utf8")), bassVals = (await track("bass")).devices[0].values;
@@ -190,6 +190,7 @@ test("mod matrix: a row lights up with its source kind; target and amount are on
   await open();
   const row = page.locator("table.mm tbody tr").first(), opts = (await page.evaluate(() => (window as any).DAW.tables[0].params.find((p: any) => p.name === "mod1.source").options)) as string[];
   expect(await page.locator("table.mm tbody tr").count()).toBeGreaterThanOrEqual(4);
+  expect(await row.locator('[role="slider"]').getAttribute("aria-label")).toBe("mod1 amount");  // (empty before 6.2)
   expect(await row.getAttribute("class")).toBe("off");
   const d0 = await depth();
   const env = opts.findIndex((o) => /^Env/.test(o)), lfo = opts.findIndex((o) => /^LFO/.test(o));
@@ -211,6 +212,28 @@ test("mod matrix: a row lights up with its source kind; target and amount are on
   v = (await track("bass")).devices[0].values;
   expect(v["mod1.source"] ?? 0).toBe(0);
   expect(await page.locator("table.mm tbody tr").first().getAttribute("class")).toBe("off");
+}, 30_000);
+
+test("playback: automation changes only the automated knob and the screen drawn from it", async () => {
+  await open();
+  await page.evaluate(() => localStorage.setItem("daw.live", "0"));  // no live overlays: only automation moves things
+  await open();
+  const k = page.locator('#device [data-param="filt1.cutoff"]');
+  expect(await k.getAttribute("class")).toContain("auto");
+  const v0 = await k.getAttribute("aria-valuenow");
+  await page.evaluate(() => {
+    const w = window as any; w.__mut = [];
+    new MutationObserver((ms) => { for (const m of ms) { const n = m.target as Element, el = n.nodeType === 1 ? n : n.parentElement!;
+      w.__mut.push(el.closest('[data-param], svg[data-live]')?.getAttribute("data-param") ?? el.closest("svg[data-live]")?.getAttribute("data-live") ?? el.outerHTML.slice(0, 80)); } })
+      .observe(document.getElementById("device")!, { subtree: true, childList: true, attributes: true, characterData: true });
+  });
+  await page.keyboard.press("Space");
+  await page.waitForTimeout(1500);
+  await page.keyboard.press("Space");
+  const touched: string[] = await page.evaluate(() => [...new Set((window as any).__mut as string[])]);
+  expect(await k.getAttribute("aria-valuenow")).not.toBe(v0);
+  expect(touched.sort()).toEqual(["dry_wet", "filt1", "filt1.cutoff"]);  // both lanes of the fixture
+  await page.evaluate(() => localStorage.removeItem("daw.live"));
 }, 30_000);
 
 test("no page errors", () => expect(errors).toEqual([]));

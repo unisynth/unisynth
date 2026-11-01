@@ -164,9 +164,20 @@ before → `AGENTS.md` rows → land on `main`.
   (browser), block collapse, slot cards, screens, sampler settings + waveform drag, GSM import (editing). Found on
   the old code, for 6.2: knobs have no wheel handler (not added: not asked); focus falls to `<body>` after a
   successful preset save (panel rebuild); the mod-matrix amount knob has an empty `aria-label`.
-- [ ] 6.2 `ui/common/Knob.tsx` bound to `devices[i].values[name]` (automation writes update only that knob), then slot
+- [x] 6.2 `ui/common/Knob.tsx` bound to `devices[i].values[name]` (automation writes update only that knob), then slot
   racks, mod matrix, screens (osc/filter/LFO/envelope) and effect boxes. Verify: contract, editing tests (5.6a/c
   slot tests), bench knob ≤ 1 frame.
+  Done: `ui/common/Knob.tsx`, `ui/device/Device.tsx`, `ui/state/device.ts`. Automation writes a per-device store
+  (only on change), so playback mutates just the automated knobs and the screens drawn from them (new test).
+  Screens keep their `_draw` (D4), redrawn by an effect from the store values they read. The sampler block stays an
+  island rebuilt on `renderDevice()` until 6.3. The panel mounts only while the Device tab shows (D5, done here: on
+  the mixer the hidden panel rebuilt on every track select). Fixes on the way: effect names follow their mode
+  (`devName` read the mode raw); the menu's outside-click listener raced Chrome's input-before-timers priority
+  (attached in a `setTimeout`) and left menus open; focus stays on Save preset after saving; the mod amount knob
+  is named. 124/124 twice, ratchet 98. Bench (5.4 → 6.2), trashpanda / tbl-stash-over2: undo 55 → 15 / 217 → 182 ms,
+  select-mix 13.2 → 0.7 / 16.4 → 1.4 ms, select-dev 32 / 32 ms (unchanged), knob 1.2 / 30.6 ms (over2: the two
+  4 MB undo snapshots per step, as before the port; not a panel cost), playback p95 ≤ 18.5 ms. Screenshots of the
+  Bass and Lead panels match the old build.
 - [ ] 6.3 Port GSM/sampler editing (import WAV, choose/play/remove unused, waveform drag). Verify: editing tests for
   samples.
 - [ ] 6.4 Live per-voice view as a component owning its SVG (`drawLive` kept, D4), active only while the Device tab

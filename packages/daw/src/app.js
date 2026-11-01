@@ -15,6 +15,9 @@ import { mountTracks } from "./ui/arrange/Tracks.tsx";  // not `live`: that is t
 import { laneEl, overrides, overrideSet, rollClips, selectedId, setSelectedId } from "./ui/state/view.ts";
 import { mountMixer, setMixerShown } from "./ui/mixer.tsx";
 // DAW UI (change add-synth-daw): the reviewed mockup's views and interactions on the real song/2 model,
+import * as devst from "./ui/state/device.ts";
+import { mountDevice, SLOTS } from "./ui/device/Device.tsx";
+// DAW UI (change add-synth-daw): the reviewed mockup's views and interactions on the real song/1 model,
 // engine (AudioWorklet + synth-wasm live host), device panels generated from the engine's parameter tables and
 // /api/music. Started by main.ts with { engine, model, api, tables, initial, files, library }.
 export function start(DAW) {
@@ -145,20 +148,20 @@ function laneValue(pts, bar) {
   for (let i = 1; i < pts.length; i++) if (bar <= pts[i][0]) { const [b0, v0] = pts[i - 1], [b1, v1] = pts[i]; return v0 + (v1 - v0) * (bar - b0) / (b1 - b0); }
   return pts[pts.length - 1][1];
 }
-// Knob values live in stores on the track (slot items, t.vals.voice/noise, t.fxv[i]); knobReg finds the knob
-// element of a store field so automation can move it. An automated knob turned by hand is "overridden" and
-// stops following its lane until re-enabled (Ableton's rule).
-const knobReg = new WeakMap(), autoVal = new WeakMap();  // autoVal: store → { field: value at the playhead } (view state, not saved)
+// Automated knobs show their lane's value at the playhead (ui/state/device.ts, view state, not saved). An automated
+// knob turned by hand is "overridden" and stops following its lane until re-enabled (Ableton's rule).
+let autoSeen = new Map();  // "track:dev:param" → the target written by the last pass (cleared once its lane is gone)
 function paramTarget(t, ln) { const d = t.devices[ln.dev]; return d && paramOf(d, ln.param) ? { store: d.values, field: ln.param } : null; }
 function applyAutomation() {
+  const seen = new Map();
   for (const t of tracks) for (const ln of t.lanes || []) {
     const tg = paramTarget(t, ln); if (!tg) continue;
-    const key = ln.dev + ":" + ln.param, ovr = !!overrides.get(t.id)?.has(key), el = knobReg.get(tg.store)?.get(tg.field);
-    const av = autoVal.get(tg.store) || autoVal.set(tg.store, {}).get(tg.store);
-    // write a knob only when its value or override state changed (this runs every frame while playing)
-    if (!ovr) { const nv = laneValue(ln.pts, SONG_POS), moved = av[tg.field] !== nv; av[tg.field] = nv; if (moved && el?.isConnected) el._set(nv); } else delete av[tg.field];
-    if (el?.isConnected && (el._lane?.key !== key || el._ovr !== ovr)) { el._lane = { t, key }; el._ovr = ovr; el.classList.add("auto"); el.classList.toggle("ovr", ovr); el.title = ovr ? "Automation overridden by hand · Re-enable automation to follow the lane again" : "Automated: follows its lane"; }
+    const key = ln.dev + ":" + ln.param, ovr = !!overrides.get(t.id)?.has(key);
+    // a store write only when the value or override state changed (this runs every frame while playing)
+    devst.setAuto(tg.store, tg.field, ovr ? undefined : laneValue(ln.pts, SONG_POS), ovr); seen.set(t.id + ":" + key, tg);
   }
+  for (const [k, tg] of autoSeen) if (!seen.has(k)) devst.setAuto(tg.store, tg.field, undefined, false);
+  autoSeen = seen;
   for (const l of laneVals) l.ah.classList.toggle("ovr", !!overrides.get(l.t.id)?.has(l.ln.dev + ":" + l.ln.param));
 }
 function updateReauto(t = selected) {
@@ -193,12 +196,10 @@ function recordPoint(t, d, p, v) {
   return true;
 }
 // A hand edit: overrides automation on that knob, marks the preset edited (*).
-function knobEdited(t, el) {
-  if (el._lane) { overrideSet(el._lane.t.id).add(el._lane.key); el.classList.add("ovr"); applyAutomation(); updateReauto(el._lane.t); }
-  const d = el._dev; if (d && d.kind === 64 && !d._edited) {
-    d._edited = true; const k = el.closest(".devbox")?.querySelector("h3 .kind"); if (k) k.textContent = k.textContent.replace(/(preset [^·]*?)(\s*·|$)/, (m0, n, rest) => `${n.replace(/\*$/, "")}*${rest}`);
-    arrange.setLabelRev(n => n + 1);  // the header shows the * on the edited preset
-  }
+function knobEdited(t, d, p) {
+  const di = t.devices.indexOf(d), key = `${di}:${p.name}`;
+  if (t.lanes.some(l => l.dev === di && l.param === p.name)) { overrideSet(t.id).add(key); applyAutomation(); updateReauto(t); }
+  if (d.kind === 64 && !d._edited) { d._edited = true; arrange.setLabelRev(n => n + 1); }  // the panel and the header show the * on the edited preset
 }
 /** One line from a song/2 about: type · style · tempo · engine · like … — description. */
 const aboutText = a => [a.type, a.style, a.tempo, a.engine, a.similar_to?.length ? "like " + a.similar_to.join(", ") : ""].filter(Boolean).join(" · ") + " — " + a.description;
@@ -339,53 +340,6 @@ hdrs.addEventListener("focusin", e => {
 });
 
 // Knob factory: SVG arc, role=slider, keyboard + drag.
-function knob(name, p, text, opts = {}) {
-  const store = opts.store, field = opts.field ?? name;
-  if (store && typeof store[field] === "number") p = store[field];
-  if (store && typeof autoVal.get(store)?.[field] === "number") p = autoVal.get(store)[field];  // automated: show the lane value
-  const el = document.createElement("div"); el.className = "knob" + (opts.mod ? " mod" : "");
-  el.tabIndex = 0; el.setAttribute("role", "slider"); el.setAttribute("aria-label", name);
-  el.setAttribute("aria-valuemin", "0"); el.setAttribute("aria-valuemax", "1");
-  const draw = () => {
-    const a0 = -135, a = a0 + 270 * p, r = 12, c = 15;
-    const pt = d => [c + r * Math.sin(d * Math.PI / 180), c - r * Math.cos(d * Math.PI / 180)];
-    const [x0, y0] = pt(a0), [x1, y1] = pt(a), [x2, y2] = pt(135);
-    el.setAttribute("aria-valuenow", p.toFixed(3)); el.setAttribute("aria-valuetext", text(p));
-    el.innerHTML = `<svg viewBox="0 0 30 30" aria-hidden="true">
-      <path d="M${x0} ${y0} A${r} ${r} 0 1 1 ${x2} ${y2}" fill="none" stroke="${css("--line")}" stroke-width="3" stroke-linecap="round"/>
-      <path class="arc" d="M${x0} ${y0} A${r} ${r} 0 ${a - a0 > 180 ? 1 : 0} 1 ${x1} ${y1}" fill="none" stroke="${css("--focus")}" stroke-width="3" stroke-linecap="round"/>
-      <line x1="${c}" y1="${c}" x2="${x1}" y2="${y1}" stroke="${css("--fg")}" stroke-width="1.5"/></svg>
-      <span class="v num">${text(p)}</span><span class="n">${name}</span>`;
-  };
-  const def = opts.def ?? p;
-  const changed = () => { draw(); if (store) store[field] = p; opts.onChange?.(p, el); redrawGroup(el); };
-  el._value = () => p;
-  el._redrawText = () => draw();
-  el._set = v => { p = v; draw(); opts.onSet?.(p, el); redrawGroup(el); };
-  if (store) (knobReg.get(store) || knobReg.set(store, new Map()).get(store)).set(field, el);
-  el.addEventListener("keydown", e => {
-    const st = e.shiftKey ? 0.002 : 0.01, before = snap();
-    queueMicrotask(() => commit(before, `${name} ${text(p)}`));
-    if (e.key === "ArrowUp" || e.key === "ArrowRight") p = Math.min(1, p + st);
-    else if (e.key === "ArrowDown" || e.key === "ArrowLeft") p = Math.max(0, p - st);
-    else if (e.key === "Home") p = 0; else if (e.key === "End") p = 1; else return;
-    e.preventDefault(); changed();
-  });
-  el.addEventListener("dblclick", () => { const before = snap(); p = def; changed(); commit(before, `${name} reset to ${text(p)}`); });
-  el.addEventListener("pointerdown", e => {
-    el.setPointerCapture(e.pointerId); const y0 = e.clientY, p0 = p, before = snap(); opts.onGrab?.(el);
-    const mv = ev => { p = Math.min(1, Math.max(0, p0 + (y0 - ev.clientY) / (ev.shiftKey ? 800 : 160))); changed(); };
-    el.addEventListener("pointermove", mv); el.addEventListener("pointerup", () => { el.removeEventListener("pointermove", mv); opts.onRelease?.(el); commit(before, `${name} ${text(p)}`); }, { once: true });
-  });
-  draw(); return el;
-}
-// A group's graphic (envelope curve, sample view) follows its knobs: dragging, keys, undo-free automation playback.
-const redrawQ = new Set();
-function redrawGroup(el) {
-  const g = el.closest?.(".grp"); if (!g?._redraw) return;
-  if (!redrawQ.size) requestAnimationFrame(() => { const q = [...redrawQ]; redrawQ.clear(); q.forEach(x => x._redraw()); });
-  redrawQ.add(g);
-}
 // The value a control shows now (the knob's, which follows automation while playing), else the stored one.
 const curVal = (d, name) => { const k = knobReg.get(d.values)?.get(name); return k?.isConnected ? k._value() : vget(d, ip(name)); };
 function group(title, knobs, opts = {}) {
@@ -399,6 +353,8 @@ function group(title, knobs, opts = {}) {
 const sel = (label, opts, i = 0) => `<select aria-label="${label}">${opts.map((o, j) => `<option${j === i ? " selected" : ""}>${o}</option>`).join("")}</select>`;
 const col = (...els) => { const d = document.createElement("div"); d.className = "dcol"; els.forEach(e => d.append(e)); return d; };
 // ---- Device panels generated from the engine's parameter tables (design D8). Values live in the song/2 device
+const curVal = (d, name) => devst.autoValue(d.values, name) ?? vget(d, ip(name));  // store reads: screens redraw from them
+// ---- Device panels generated from the engine's parameter tables (design D8). Values live in the song/1 device
 // (`d.values`, by parameter name); a knob or select writes there, sets the live parameter at once and queues an
 // engine update (structural parameters rebuild the device there). ----
 const status = document.createElement("div"); status.className = "rack-status"; status.setAttribute("aria-live", "polite");
@@ -456,8 +412,6 @@ const OSC_SHAPES = { 1: ["waveform"], 2: ["waveform", "pulse width"], 3: ["bandw
   12: ["wave", "voices", "version", "clock", "retrigger", "filter base", "filter amount", "filter decay", "filter damp"] };  // s1 loop mode, s2 boundary, s5 reverse, s6 interp, s7 source: samplerPre; index: osc<i>.sample
 // Sampler shape knobs shown for the current settings: the loop start/length only for a custom loop that plays.
 const smpShapes = (d, i) => [0, ...(choice(vget(d, ip(`osc${i}.s1`)), 3) && choice(vget(d, ip(`osc${i}.s2`)), 2) ? [3, 4] : [])];
-const OSC_COMMON = ["tracking", "coarse", "fine", "octave", "ratio", "ratio_fine", "fixed_hz", "gain", "mix", "pan", "pm_out", "feedback"];
-const SLOTS = { osc: 3, filt: 4, env: 4, lfo: 2, mod: 12 };
 const slotKeys = (g, i) => INST().params.filter(p => p.name.startsWith(`${g}${i}.`)).map(p => p.name);
 /** A choice parameter's option name. */
 function optName(d, name) { const p = ip(name), o = p.options || []; return o[choice(vget(d, p), o.length)]; }
@@ -499,9 +453,6 @@ function remapSlots(t, d, g, map) {
 // Fixed slot blocks (change add-device-live-view D1): every slot at its own position; a slot not set starts collapsed
 // to its header (type control); ✕ clears in place; only filters swap (serial order). Slot collapse overrides live
 // for the session (per track), block collapse in `store` (editor state, never in the song).
-const SLOT_NOUN = { osc: "Osc", filt: "Filter", env: "Env", lfo: "LFO" };
-const slotOpen = new Map();
-const blkClosed = k => store.get(`daw.blk.${k}`) === "1";
 // a mod row's source name ("None", "Env 1", "LFO 2", "Velocity", V2 CCs …) from the parameter table
 function modSrcName(d, m) { const p = ip(`mod${m}.source`); return p.options[choice(vget(d, p), p.options.length)] || "None"; }
 // mod targets an envelope or LFO slot routes to (by its mod rows)
@@ -511,69 +462,6 @@ function routesOf(d, g, i) {
   return out;
 }
 function slotCmd(t, msg, fn) { const before = snap(); fn(); rebuildTracks(); renderDevice(); status.textContent = msg; commit(before, msg); }
-function slotCard(t, d, g, i, el) {
-  const noun = SLOT_NOUN[g], title = `${noun} ${i}`, used = slotUsed(d, g, i), key = `${t.id}:${g}${i}`, closed = !(slotOpen.get(key) ?? used);
-  el.classList.add("slot"); el.classList.toggle("off", !used); el.classList.toggle("closed", closed);
-  const gh = el.querySelector(".gh"), tw = document.createElement("button");
-  tw.className = "tw"; tw.textContent = closed ? "▸" : "▾"; tw.setAttribute("aria-expanded", !closed); tw.setAttribute("aria-label", `${closed ? "Expand" : "Collapse"} ${title}`);
-  tw.onclick = () => { slotOpen.set(key, closed); renderDevice(); };
-  gh.prepend(tw);
-  const sp = document.createElement("span"); sp.className = "sp"; gh.append(sp);
-  if (g === "env" && i === 1) gh.insertAdjacentHTML("beforeend", `<span class="dim" title="Envelope 1 shapes the amplitude and ends the voice">fixed</span>`);
-  else if (used) {
-    const x = document.createElement("button"); x.className = "clr"; x.textContent = "✕"; x.title = `Reset ${title} (later slots stay where they are)`; x.setAttribute("aria-label", `Clear ${title}`);
-    x.onclick = () => slotCmd(t, `${title} cleared; mod rows that targeted it are off, its lanes removed`, () => { remapSlots(t, d, g, y => y === i ? 0 : y); slotOpen.delete(key); });
-    gh.append(x);
-  }
-  el.querySelector("svg.scr, svg.env")?.setAttribute("data-live", `${g}${i}`);
-  if (g === "env" || g === "lfo") {
-    const r = g === "env" && i === 1 ? ["amplitude"] : routesOf(d, g, i), rt = document.createElement("div"); rt.className = "rt";
-    rt.textContent = r.length ? `→ ${r.join(", ")}` : "unrouted · knobs inactive"; el.classList.toggle("unrouted", !r.length);
-    gh.after(rt);
-  }
-  return el;
-}
-function slotBlock(k, label, n, items) {
-  const closed = blkClosed(k), b = document.createElement("div"); b.className = "blk" + (closed ? " closed" : ""); b.dataset.k = k;
-  b.setAttribute("role", "group"); b.setAttribute("aria-label", label);
-  b.innerHTML = `<div class="blk-h"><button class="tw" aria-expanded="${!closed}" aria-label="${closed ? "Expand" : "Collapse"} ${label}">${closed ? "▸" : "▾"}</button><span>${label}</span><span class="cnt num">${n}</span></div>`;
-  b.querySelector(".tw").onclick = () => { store.set(`daw.blk.${k}`, closed ? "0" : "1"); renderDevice(); };
-  const list = document.createElement("div"); list.className = "blk-list"; list.append(...items); b.append(list); return b;
-}
-const usedCount = (d, g) => `${[...Array(SLOTS[g])].filter((_, i) => slotUsed(d, g, i + 1)).length}/${SLOTS[g]}`;
-// filters: a ⇅ handle between neighbours swaps them (mod targets and lanes follow)
-function filterItems(t, d, card) {
-  const out = [];
-  for (let i = 1; i <= SLOTS.filt; i++) {
-    if (i > 1) {
-      const sw = document.createElement("button"); sw.className = "swap"; sw.textContent = "⇅";
-      sw.title = `Swap filter ${i - 1} and ${i} (serial order; mod targets and lanes follow)`; sw.setAttribute("aria-label", `Swap Filter ${i - 1} and Filter ${i}`);
-      sw.onclick = () => slotCmd(t, `Filter ${i - 1} ↔ ${i}: mod targets and automation lanes follow`, () => {
-        remapSlots(t, d, "filt", x => x === i ? i - 1 : x === i - 1 ? i : x);
-        const a = slotOpen.get(`${t.id}:filt${i - 1}`), b = slotOpen.get(`${t.id}:filt${i}`);
-        [[i - 1, b], [i, a]].forEach(([j, v]) => v === undefined ? slotOpen.delete(`${t.id}:filt${j}`) : slotOpen.set(`${t.id}:filt${j}`, v)); });
-      out.push(sw);
-    }
-    out.push(card(i));
-  }
-  return out;
-}
-// mod matrix: one table row per slot (source, target, operation, amount); rows with source None dimmed
-function modTable(t, d) {
-  const tb = document.createElement("table"); tb.className = "mm";
-  tb.innerHTML = `<thead><tr><th></th><th>source</th><th>target</th><th>op</th><th>amount</th></tr></thead><tbody></tbody>`;
-  for (let m = 1; m <= SLOTS.mod; m++) {
-    const src = modSrcName(d, m), tr = document.createElement("tr"); tr.className = src === "None" ? "off" : "";
-    tr.dataset.src = src === "None" ? "" : /^Env/.test(src) ? "env" : /^LFO/.test(src) ? "lfo" : "voice";
-    tr.innerHTML = `<td class="n num">${m}</td>`;
-    for (const f of ["source", "target", "operation", "amount"]) { const td = document.createElement("td"); td.append(pctl(t, d, ip(`mod${m}.${f}`), "")); tr.append(td); }
-    // a source change re-routes: rebuild for the row dimming and the env/LFO routing hints
-    tr.querySelector(`select[aria-label$=" mod${m}.source"]`)?.addEventListener("change", () => renderDevice());
-    tr.querySelector(`select[aria-label$=" mod${m}.target"]`)?.addEventListener("change", () => renderDevice());
-    tb.tBodies[0].append(tr);
-  }
-  return tb;
-}
 // Slot screens (D4): an SVG in a 100×40 box (stretched), redrawn from the current values through the group's
 // `_redraw` (knobs, automation, selects). Drawings, not measurements: shapes follow the parameters' meaning.
 const SVGNS = "http://www.w3.org/2000/svg";
@@ -668,6 +556,7 @@ function envView(d, i) {
       <text x="${x(off) > W - 40 ? x(off) - 2 : x(off) + 2}" y="9" font-size="8" text-anchor="${x(off) > W - 40 ? "end" : "start"}" fill="${css("--dim")}">note off</text>
       <text x="${W - 4}" y="${H - 1}" font-size="8" text-anchor="end" fill="${css("--dim")}">${fmt(tot)}${tf ? " · rate law" : ""}</text>`;
     svg.closest(".grp")?.querySelectorAll(".knob").forEach(k => k._redrawText?.());
+      <text x="${W - 4}" y="${H - 1}" font-size="8" text-anchor="end" fill="${css("--dim")}">${fmt(tot)}${tf ? " · Tunefish" : ""}</text>`;
   };
   return svg;
 }
@@ -740,7 +629,7 @@ function samplerSettings(t, d, i, box, b64) {
     cv2.title = cv2.getAttribute("aria-label") + " · drag the start line or the loop";
   };
   // writes a shape value: song, engine, the knob showing it (if any)
-  const put = (k, v) => { v = Math.min(1, Math.max(0, v)); d.values[S(k)] = v; liveParam(t, d, ip(S(k)), v); const el = knobReg.get(d.values)?.get(S(k)); if (el?.isConnected) el._set(v); };
+  const put = (k, v) => { v = Math.min(1, Math.max(0, v)); d.values[S(k)] = v; liveParam(t, d, ip(S(k)), v); };  // the knob follows the store
   cv2.addEventListener("pointerdown", e => {
     const r = cv2.getBoundingClientRect(), f = x => (x - r.left) / r.width, f0 = f(e.clientX), near = (a, px = 5) => Math.abs((f0 - a) * r.width) <= px;
     const lp = loopOf(), rev = choice(cv(5), 2), st = cv(0), sPos = rev ? 1 - st : st, custom = choice(cv(2), 2);
@@ -819,42 +708,6 @@ async function importAudio(file, tg) {
   } catch (e) { say(`${file.name}: cannot read this audio file (${e?.message || e})`); }
 }
 wavIn.onchange = () => { const f = wavIn.files?.[0]; if (f && wavTarget) importAudio(f, wavTarget); };
-function instrumentBox(t, d) {
-  const box = document.createElement("div"); box.className = "devbox"; box.setAttribute("aria-label", "Instrument");
-  box.innerHTML = `<h3>Unisynth <span class="kind">kind 64 · preset ${d.preset || "init"}${d._edited ? "*" : ""}</span><span class="vox" role="group" aria-label="Sounding voices"></span>
-    <span class="acts"><button class="livev" aria-pressed="${liveOn()}" title="Live view: show the sounding voices on the screens (costs some engine time while on)">Live</button><button class="browse">Browse…</button><button class="impsmp" title="Encode an audio file (WAV, AIFF, MP3…) as a GSM sample and play it on a sampler slot (a free oscillator if there is no GSM sampler)">Import sample…</button><button class="savepre">Save preset</button><button class="bypass" aria-pressed="${!!d.bypass}" title="Bypass the instrument" aria-label="Bypass instrument">⏻</button></span></h3>`;
-  box.classList.toggle("byp", !!d.bypass);
-  box.querySelector(".browse").onclick = () => openLibrary();
-  box.querySelector(".impsmp").onclick = () => importWav(t, d, gsmSlot(d));
-  box.querySelector(".bypass").onclick = () => devBypass(t, t.devices.indexOf(d));
-  box.querySelector(".savepre").onclick = e => savePreset(t, d, e.currentTarget);
-  box.querySelector(".livev").onclick = e => { store.set("daw.live", liveOn() ? "0" : "1"); e.currentTarget.setAttribute("aria-pressed", String(liveOn())); updateWatch(); };
-  const body = document.createElement("div"); body.className = "devbody";
-  const P = names => names.map(ip);
-  const oscCard = i => {
-    const ty = oscType(d, i), shapes = OSC_SHAPES[ty] || [];
-    const labels = Object.fromEntries(shapes.map((nm, k) => [`osc${i}.s${k}`, nm]));
-    const ks = ty === 4 ? smpShapes(d, i) : shapes.map((_, k) => k);
-    const ps = [ip(`osc${i}.type`), ...OSC_COMMON.map(f => ip(`osc${i}.${f}`)), ...ks.map(k => ip(`osc${i}.s${k}`)), ...(ty === 4 ? [ip(`osc${i}.sample`)] : [])];
-    if (ty === 4) labels[`osc${i}.sample`] = "sample #";
-    return slotCard(t, d, "osc", i, pgroup(t, d, `Osc ${i}`, ps, { cols: 6, labels, pre: ty === 4 ? samplerPre(t, d, i) : ty ? oscView(d, i) : null }));
-  };
-  const range = n => [...Array(n)].map((_, k) => k + 1);
-  const vc = col(
-    pgroup(t, d, "Voice", P(["mode", "steal", "one_shot", "env1_at_output", "master", "pan", "capacity", "unison", "uni_detune", "uni_spread", "slide", "glide", "transpose", "velocity", "start_spread", "noise_level"]), { cols: 4 }),
-    pgroup(t, d, "Noise", P(["noise.band_on", "noise.hp", "noise.lp"]), { cols: 2 }));
-  vc.dataset.k = "voice"; vc.classList.add("c-voice"); body.append(vc);
-  body.append(col(slotBlock("osc", "Oscillators", usedCount(d, "osc"), range(3).map(oscCard))));
-  body.append(col(slotBlock("filt", "Filters · serial", usedCount(d, "filt"),
-    filterItems(t, d, i => slotCard(t, d, "filt", i, pgroup(t, d, `Filter ${i}`, P([`filt${i}.type`, `filt${i}.cutoff`, `filt${i}.resonance`]), { cols: 2, pre: filtView(t, d, i) }))))));
-  body.append(col(slotBlock("env", "Envelopes", usedCount(d, "env"), range(4).map(i =>
-    slotCard(t, d, "env", i, pgroup(t, d, `Env ${i}`, P([`env${i}.law`, `env${i}.attack`, `env${i}.decay`, `env${i}.sustain`, `env${i}.release`, `env${i}.curve_slope`]), { cols: 3, pre: envView(d, i) }))))));
-  body.append(col(
-    slotBlock("lfo", "LFOs", usedCount(d, "lfo"), range(2).map(i => slotCard(t, d, "lfo", i, pgroup(t, d, `LFO ${i}`, P([`lfo${i}.shape`, `lfo${i}.sync`, `lfo${i}.rate`, `lfo${i}.depth`]), { cols: 2, pre: lfoView(d, i) })))),
-    slotBlock("mod", "Mod matrix", usedCount(d, "mod"), [modTable(t, d)]),
-    status));
-  box.append(body); return box;
-}
 // Effect chain edits keep automation lanes (device index) in step with t.devices.
 function devBypass(t, i) { const d = t.devices[i], before = snap(); d.bypass = !d.bypass; renderAll(); rebuildTracks(); commit(before, `${t.name}: ${devName(d)} ${d.bypass ? "bypassed" : "on"}`); }
 function moveDev(t, i, dir) {
@@ -888,42 +741,17 @@ function savePreset(t, d, btn) {
     const { _edited, ...dev } = d; const text = E.presetSave({ ...dev, values: { ...d.values } }, nm);
     const res = await api.write(path, text);
     if (!res.ok) { pop.querySelector(".perr").textContent = res.errors?.map(e => `${e.path}: ${e.message}`).join("; ") || res.error; return; }
-    const before = snap(); d.preset = nm; d._edited = false; close(); CAT = await api.library() || CAT; lib.setCatalog(CAT); renderAll(); commit(before, `saved preset ${nm} → ${path}`);
+    const before = snap(); d.preset = nm; d._edited = false; close(); CAT = await api.library() || CAT; lib.setCatalog(CAT); renderAll(); btn.focus(); commit(before, `saved preset ${nm} → ${path}`);
   };
   pop.addEventListener("keydown", e => { if (e.key === "Escape") close(); if (e.key === "Enter") pop.querySelector(".ok").click(); });
 }
-function fxBox(t, d, i) {
-  const tb = tableOf(d), name = devName(d), box = document.createElement("div"); box.className = "devbox"; box.setAttribute("aria-label", `Effect ${name}`);
-  const fx = t.devices.map((x, k) => [x, k]).filter(([x]) => x.kind !== 64).map(e => e[1]), pos = fx.indexOf(i);
-  const side = tracks.filter(x => x.sends.some(s1 => s1[0] === t.name && s1[1] === "side"));
-  box.innerHTML = `<h3>${tableOf(d) ? (d.kind === 64 ? name : (tb.label.split(" · ")[0])) : name} <span class="kind">kind ${d.kind}${side.length && d.kind === 72 ? " · sidechain ← " + side.map(x => x.name).join(", ") : ""}</span><span class="acts"><button class="mvl" title="Move earlier in the chain" aria-label="Move ${name} earlier" ${pos <= 0 ? "disabled" : ""}>◀</button><button class="mvr" title="Move later in the chain" aria-label="Move ${name} later" ${pos === fx.length - 1 ? "disabled" : ""}>▶</button><button class="bypass" aria-pressed="${!!d.bypass}" title="Bypass" aria-label="Bypass ${name}">⏻</button><button title="Remove" aria-label="Remove ${name}">✕</button></span></h3>`;
-  box.classList.toggle("byp", !!d.bypass);
-  box.querySelector(".bypass").onclick = () => devBypass(t, i);
-  box.querySelector(".mvl").onclick = () => moveDev(t, i, -1); box.querySelector(".mvr").onclick = () => moveDev(t, i, 1);
-  box.querySelector('[title="Remove"]').onclick = () => removeDev(t, i);
-  const body = document.createElement("div"); body.className = "devbody";
-  if (tb) {
-    const ps = tb.params.filter(p => p.name !== "mode" || nModes(d.kind) > 1);
-    const g = pgroup(t, d, tb.label, ps, { cols: Math.min(3, ps.length) });
-    // a mode change selects another parameter set: keep only the mode
-    g.querySelector(`select[aria-label$=" mode"]`)?.addEventListener("change", () => { for (const k of Object.keys(d.values)) if (k !== "mode") delete d.values[k]; renderDevice(); livePush(); });
-    body.append(g);
-  } else body.append(Object.assign(document.createElement("div"), { className: "warn-note", textContent: `kind ${d.kind}: no parameter table` }));
-  box.append(body); return box;
-}
 const device = document.getElementById("device");
+devst.setPersist(store);  // block collapse is remembered in the browser
+let devMounted = false;
 function renderDevice() {
-  const t = selected, chain = document.createElement("div"); chain.className = "chain";
-  const inst = instOf(t);
-  if (inst) chain.append(instrumentBox(t, inst));
-  else chain.append(Object.assign(document.createElement("div"), { className: "noinst", innerHTML: `<b>${t.master ? "Master" : "Bus"}</b><span class="dim">${t.master ? "end of the graph → song output" : "no instrument · fed by sends from " + (senders(t).map(x => x.name).join(", ") || "nothing")}</span>` }));
-  t.devices.forEach((d, i) => { if (d.kind !== 64) chain.append(fxBox(t, d, i)); });
-  const add = document.createElement("button"); add.className = "addfx"; add.textContent = "+ Effect";
-  add.onclick = () => { const pick = document.createElement("select"); pick.setAttribute("aria-label", `Effect to add to ${t.name}`);
-    pick.innerHTML = `<option value="">choose effect…</option>` + effectChoices().map(tb => `<option>${tb.label}</option>`).join(""); add.replaceWith(pick); pick.focus();
-    pick.onchange = () => { if (pick.value) addEffect(t, pick.value); }; pick.onblur = () => { if (!pick.value) pick.replaceWith(add); }; };
-  chain.append(add);
-  device.replaceChildren(chain);
+  const t = selected;
+  if (!devMounted) { devMounted = true; mountDevice(device, deviceActions()); }
+  devst.setShownTrack(t); devst.bumpDevice();
   const clip = t.clips?.find(c => c.sel) || t.clips?.[0];
   document.getElementById("ctx").innerHTML = `<span class="dim">Track</span> <b style="color:var(${t.col})">${t.name}</b>` +
     (clip ? ` <span class="dim">· clip</span> <b>${clip.name}</b>${links(t, clip.name) > 1 ? ` <span class="badge">⧉ ${links(t, clip.name)} linked</span>` : ""}` : "") +
@@ -942,7 +770,33 @@ const MAX_DRAWN = 16, VREC = 22;
 const vcol = new Map();  // voice id → palette index
 const relAt = new Map(); // voice id → age at which it was first seen released
 let liveP = null;         // { voices, taps, at } from the last probe
-function liveOn() { return store.get("daw.live") !== "0"; }  // live view on/off, remembered in the browser
+function liveOn() { return store.get("daw.live") !== "0"; }
+// The device panel's actions (ui/device/Device.tsx; called once, at the first renderDevice).
+function deviceActions() {
+  const scr = { osc: oscView, filt: filtView, lfo: lfoView };
+  return {
+    ip, tableOf, nModes, devName, fmtVal, vget, choice, oscType, smpShapes, slotUsed, routesOf, modSrcName,
+    senders: t => senders(t).map(x => x.name),
+    sideSenders: t => tracks.filter(x => x.sends.some(s1 => s1[0] === t.name && s1[1] === "side")).map(x => x.name),
+    setParam: (t, d, p, v, msg) => { const before = snap(); d.values[p.name] = v; liveParam(t, d, p, v); if (p.structural || p.name.endsWith(".type") || p.name === "mode") renderDevice(); commit(before, msg); },
+    knobInput: (t, d, p, v) => { d.values[p.name] = v; if (!(recOn && playing && recordPoint(t, d, p, v))) knobEdited(t, d, p); liveParam(t, d, p, v); },
+    grab: (t, d, p) => { if (recOn) recHold = { t, d, p }; },
+    release: (t, d, p) => { if (recHold) recLast.delete(`${t.id}:${t.devices.indexOf(d)}:${p.name}`); recHold = null; },
+    begin: () => snap(), end: (before, msg) => commit(before, msg),
+    // a mode change selects another parameter set: keep only the mode
+    modeChanged: (t, d) => { for (const k of Object.keys(d.values)) if (k !== "mode") delete d.values[k]; renderDevice(); livePush(); },
+    clearSlot: (t, d, g, i) => slotCmd(t, `${SLOT_TITLE(g, i)} cleared; mod rows that targeted it are off, its lanes removed`, () => remapSlots(t, d, g, y => y === i ? 0 : y)),
+    swapFilters: (t, d, i) => slotCmd(t, `Filter ${i - 1} ↔ ${i}: mod targets and automation lanes follow`, () => remapSlots(t, d, "filt", x => x === i ? i - 1 : x === i - 1 ? i : x)),
+    bypass: (t, i) => devBypass(t, i), move: (t, i, dir) => moveDev(t, i, dir), remove: (t, i) => removeDev(t, i),
+    effects: () => effectChoices().map(tb => tb.label), addEffect: (t, label) => addEffect(t, label),
+    browse: () => openLibrary(), importSample: (t, d) => importWav(t, d, gsmSlot(d)), savePreset: (t, d, btn) => savePreset(t, d, btn),
+    liveOn, toggleLive: () => { store.set("daw.live", liveOn() ? "0" : "1"); updateWatch(); },
+    screen: (t, d, g, i) => g === "env" ? envView(d, i) : g === "filt" ? filtView(t, d, i) : scr[g](d, i),
+    samplerPre: (t, d, i) => samplerPre(t, d, i),
+    status,
+  };
+}
+const SLOT_TITLE = (g, i) => `${{ osc: "Osc", filt: "Filter", env: "Env", lfo: "LFO" }[g]} ${i}`;  // live view on/off, remembered in the browser
 function updateWatch() {
   const t = selected, on = liveOn() && !document.getElementById("p-dev").hidden && t && !t.bus && !t.master && instOf(t);
   E.watch(on ? trackIndex(t) : -1);
@@ -1521,6 +1375,7 @@ function show(t) {
   for (const x of tabs) { const on = x === t; x.setAttribute("aria-selected", on); x.tabIndex = on ? 0 : -1; document.getElementById(x.getAttribute("aria-controls")).hidden = !on; }
   if (t.id === "tab-roll") { drawRoll(); centreRoll(); }
   setMixerShown(t.id === "tab-mix");  // the mixer is mounted only while its tab shows
+  devst.setDeviceShown(t.id === "tab-dev");  // so is the device panel
   updateWatch();
 }
 tabs.forEach((t, i) => { t.addEventListener("click", () => show(t)); t.addEventListener("keydown", e => {
@@ -1776,7 +1631,7 @@ function tick(now) {
   let b = barOf(f);
   if (loopOn && b >= LOOP[1] && barOf(st.position) < LOOP[1]) b = LOOP[0] + (b - LOOP[1]);
   if (!loopOn && b >= BARS + 1) { SONG_POS = BARS + 1; showPos(); setPlay(false); return; }
-  SONG_POS = b; if (recOn && recHold) recordPoint(recHold.t, recHold.d, recHold.p, recHold.el._value()); showPos(); applyAutomation(); laneTick(now);
+  SONG_POS = b; if (recOn && recHold) recordPoint(recHold.t, recHold.d, recHold.p, curVal(recHold.d, recHold.p.name)); showPos(); applyAutomation(); laneTick(now);
   raf = requestAnimationFrame(tick);
 }
 let lastLane = 0;

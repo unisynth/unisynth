@@ -43,5 +43,7 @@ export function popMenu(x: number, y: number, items: MenuItem[], label: string, 
     );
   }, host);
   closeNow = close;
-  setTimeout(() => { if (closeNow === close) document.addEventListener("pointerdown", out, true); });
+  // at once: menus open from keydown/contextmenu, after their own pointerdown. (A timer lost the race: Chrome runs
+  // input before timers, so a quick click outside on a busy page reached no listener and left the menu open.)
+  document.addEventListener("pointerdown", out, true);
 }
