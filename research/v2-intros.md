@@ -2,8 +2,10 @@
 
 The 15 songs that `tools/unisynth-parity` checks. The 13 demo songs were carved by v2redux from the release
 executables at their own format version (`corpus/embedded/PROVENANCE.md`). pzero and v2_zeitmaschine are the two
-version 6 files in fr_public `v2/v2m/`. The songs are © their authors (Farbrausch / .theprodukkt). They and their
-renders stay in `$V2_SONGS` (default `~/Downloads/64k-tools/synth-lab/v2songs`) and are never committed.
+version 6 files in fr_public `v2/v2m/`. The songs are © their authors (Farbrausch / .theprodukkt). The `.v2m`
+files and their renders stay in `$V2_SONGS` (default `~/Downloads/64k-tools/synth-lab/v2songs`). Their conversions are
+committed as DAW songs in `project/music/released/v2/` (`tools/v2-extract/make-demos.py`) while the authors are asked
+for permission.
 
 Reproduce:
 

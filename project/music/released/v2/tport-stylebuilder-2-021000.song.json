@@ -1,0 +1,711 @@
+{
+  "format": "song/1",
+  "meta": {
+    "title": "tPORt-StyleBuilder 2.021000",
+    "author": "not named",
+    "description": "tPORt-StyleBuilder 2.021000, a Farbrausch V2 song (.v2m format version 5) taken from the V2M collection of jgilje/v2m-player (`v2m/tPORt-StyleBuilder_2.021000.v2mz`; its README points to modland). The source does not name the author. 120 BPM, 3:03, 5 tracks. The V2 file's last tick is at 202:57; the song here ends 4 s after the last note (a note held more than 16 s past the last note-on is cut there). This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. This song was not parity-checked on its own; the V2 import passes on the 18 songs that were (within 0.9 dB loudness and 1.8 dB per octave band of the v2redux reference). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
+    "copyright": "© its authors",
+    "url": "https://github.com/jgilje/v2m-player/blob/master/v2m/tPORt-StyleBuilder_2.021000.v2mz",
+    "adapted_from": "tPORt-StyleBuilder 2.021000 (V2M, format version 5), https://github.com/jgilje/v2m-player/blob/master/v2m/tPORt-StyleBuilder_2.021000.v2mz"
+  },
+  "rate": 44100,
+  "tempo": 120.0,
+  "signature": [4, 4],
+  "ticks_per_beat": 960,
+  "length": 352320,
+  "clips": [
+    {
+      "id": "t1/A",
+      "length": 307200,
+      "notes": [
+        [6, 4558, 61, 99],
+        [4614, 1728, 73, 99],
+        [4637, 14528, 61, 99],
+        [6169, 1912, 75, 99],
+        [7780, 7150, 76, 99],
+        [14918, 2196, 75, 99],
+        [16958, 2329, 71, 99],
+        [19081, 8716, 57, 99],
+        [19109, 7763, 64, 99],
+        [27975, 10934, 61, 99],
+        [28109, 1198, 73, 99],
+        [29213, 1465, 75, 99],
+        [30544, 5172, 76, 99],
+        [35632, 1906, 75, 99],
+        [37421, 1416, 71, 99],
+        [38870, 5127, 80, 99],
+        [38898, 9691, 59, 99],
+        [43791, 4837, 78, 99],
+        [48494, 10934, 57, 99],
+        [48545, 1365, 73, 99],
+        [49804, 1343, 75, 99],
+        [51052, 4955, 76, 99],
+        [55890, 1844, 75, 99],
+        [57606, 1833, 71, 99],
+        [59233, 8532, 66, 99],
+        [59283, 8449, 59, 99],
+        [67598, 9084, 57, 99],
+        [67637, 6024, 64, 99],
+        [73466, 1828, 61, 99],
+        [75244, 1226, 64, 99],
+        [76659, 4921, 64, 99],
+        [76709, 9937, 59, 99],
+        [81385, 5367, 63, 99],
+        [86668, 10070, 61, 99],
+        [99937, 1733, 73, 99],
+        [99965, 14528, 61, 99],
+        [101497, 1912, 75, 99],
+        [103108, 7150, 76, 99],
+        [110246, 2196, 75, 99],
+        [112286, 2330, 71, 99],
+        [114409, 8716, 57, 99],
+        [114437, 7763, 64, 99],
+        [123304, 10933, 61, 99],
+        [123437, 1198, 73, 99],
+        [124541, 1465, 75, 99],
+        [125873, 5171, 76, 99],
+        [130961, 1905, 75, 99],
+        [132749, 1416, 71, 99],
+        [134198, 5127, 80, 99],
+        [134226, 9691, 59, 99],
+        [139119, 4837, 78, 99],
+        [143823, 10928, 57, 99],
+        [143873, 1365, 73, 99],
+        [145132, 1343, 75, 99],
+        [146380, 4949, 76, 99],
+        [151212, 1845, 75, 99],
+        [152928, 1834, 71, 99],
+        [154556, 8532, 66, 99],
+        [154606, 8448, 59, 99],
+        [162920, 9084, 57, 99],
+        [162959, 6025, 64, 99],
+        [168789, 1828, 61, 99],
+        [170566, 1226, 64, 99],
+        [171982, 4921, 64, 99],
+        [172032, 9936, 59, 99],
+        [176708, 5366, 63, 99],
+        [181991, 9529, 61, 99],
+        [191520, 541, 61, 99],
+        [191542, 23713, 73, 99],
+        [199160, 8008, 59, 99],
+        [207358, 7295, 57, 99],
+        [214591, 5969, 59, 99],
+        [214714, 6325, 75, 99],
+        [220844, 6024, 61, 99],
+        [220894, 11291, 76, 99],
+        [226907, 7618, 59, 99],
+        [232018, 2652, 78, 99],
+        [234564, 10761, 76, 99],
+        [234609, 6096, 57, 99],
+        [240622, 6782, 59, 99],
+        [245125, 2011, 78, 99],
+        [247449, 5773, 61, 99],
+        [247510, 11301, 80, 99],
+        [253272, 7668, 59, 99],
+        [258683, 2447, 83, 99],
+        [261130, 5567, 57, 99],
+        [261191, 9011, 76, 99],
+        [266580, 5974, 59, 99],
+        [270080, 2546, 75, 99],
+        [272521, 10488, 76, 99],
+        [272604, 5651, 61, 99],
+        [278099, 7261, 59, 99],
+        [282875, 2602, 75, 99],
+        [285215, 18262, 73, 99],
+        [285260, 5679, 57, 99],
+        [290855, 5785, 59, 99],
+        [296662, 6754, 61, 99]
+      ]
+    },
+    {
+      "id": "t1/B",
+      "length": 61440,
+      "notes": [
+        [6141, 38979, 61, 99]
+      ]
+    },
+    {
+      "id": "t2/A",
+      "length": 215040,
+      "notes": [
+        [7777, 1733, 73, 99],
+        [7805, 14528, 61, 99],
+        [9337, 1912, 75, 99],
+        [10948, 7150, 76, 99],
+        [18086, 2196, 75, 99],
+        [20126, 2330, 71, 99],
+        [22249, 8716, 57, 99],
+        [22277, 7763, 64, 99],
+        [31144, 10933, 61, 99],
+        [31277, 1198, 73, 99],
+        [32381, 1465, 75, 99],
+        [33713, 5171, 76, 99],
+        [38801, 1905, 75, 99],
+        [40589, 1416, 71, 99],
+        [42038, 5127, 80, 99],
+        [42066, 9691, 59, 99],
+        [46959, 4837, 78, 99],
+        [51663, 10928, 57, 99],
+        [51713, 1365, 73, 99],
+        [52972, 1343, 75, 99],
+        [54220, 4949, 76, 99],
+        [59052, 1845, 75, 99],
+        [60768, 1834, 71, 99],
+        [62396, 8532, 66, 99],
+        [62446, 8448, 59, 99],
+        [70760, 9084, 57, 99],
+        [70799, 6025, 64, 99],
+        [76629, 1828, 61, 99],
+        [78406, 1226, 64, 99],
+        [79822, 4921, 64, 99],
+        [79872, 9936, 59, 99],
+        [84548, 5366, 63, 99],
+        [89831, 9529, 61, 99],
+        [99360, 541, 61, 99],
+        [99382, 23713, 73, 99],
+        [107000, 8008, 59, 99],
+        [115198, 7295, 57, 99],
+        [122431, 5969, 59, 99],
+        [122554, 6325, 75, 99],
+        [128684, 6024, 61, 99],
+        [128734, 11291, 76, 99],
+        [134747, 7618, 59, 99],
+        [139858, 2652, 78, 99],
+        [142404, 10761, 76, 99],
+        [142449, 6096, 57, 99],
+        [148462, 6782, 59, 99],
+        [152965, 2591, 78, 99],
+        [155289, 5773, 61, 99],
+        [155350, 11301, 80, 99],
+        [161112, 7668, 59, 99],
+        [166523, 2447, 83, 99],
+        [168970, 5567, 57, 99],
+        [169031, 9011, 76, 99],
+        [174420, 5974, 59, 99],
+        [177920, 2546, 75, 99],
+        [180361, 10488, 76, 99],
+        [180444, 5651, 61, 99],
+        [185939, 7261, 59, 99],
+        [190715, 2602, 75, 99],
+        [193055, 18262, 73, 99],
+        [193100, 5679, 57, 99],
+        [198695, 5785, 59, 99],
+        [204502, 6754, 61, 99]
+      ]
+    },
+    {
+      "id": "t3/A",
+      "length": 122880,
+      "notes": [
+        [7777, 9507, 80, 99],
+        [7777, 9507, 85, 99],
+        [7777, 9507, 88, 99],
+        [16994, 5428, 87, 99],
+        [22177, 3461, 81, 99],
+        [22177, 5188, 85, 99],
+        [22177, 5472, 88, 99],
+        [27365, 2541, 81, 99],
+        [27365, 284, 85, 99],
+        [27365, 3695, 87, 99],
+        [31155, 10320, 80, 99],
+        [31155, 10995, 85, 99],
+        [31155, 10320, 88, 99],
+        [42005, 4319, 83, 99],
+        [42005, 4319, 88, 99],
+        [42005, 5472, 92, 99],
+        [46803, 9552, 83, 99],
+        [47043, 4319, 90, 99],
+        [51796, 5924, 81, 99],
+        [51796, 5712, 88, 99],
+        [57837, 4849, 87, 99],
+        [57859, 3171, 83, 99],
+        [62446, 5277, 85, 99],
+        [62591, 10270, 78, 99],
+        [67679, 8114, 83, 99],
+        [74060, 3700, 85, 99],
+        [78284, 3577, 85, 99],
+        [82341, 3577, 85, 99],
+        [84548, 5232, 90, 99],
+        [89708, 4564, 85, 99]
+      ]
+    }
+  ],
+  "tracks": [
+    {
+      "id": "t1",
+      "name": "Track 1",
+      "volume": 1.0,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "capacity": 0.1111111119389534,
+            "velocity": 0.0,
+            "osc1.type": 0.125,
+            "osc1.gain": 0.984375,
+            "osc1.s0": 0.0078125,
+            "osc1.s1": 0.0,
+            "osc2.type": 0.125,
+            "osc2.fine": 0.4140625,
+            "osc2.gain": 0.984375,
+            "osc2.s0": 0.0078125,
+            "osc2.s1": 0.0,
+            "osc3.type": 0.125,
+            "osc3.fine": 0.59375,
+            "osc3.gain": 0.984375,
+            "osc3.s0": 0.0078125,
+            "osc3.s1": 0.0,
+            "filt1.type": 0.1875,
+            "filt1.cutoff": 0.671875,
+            "filt1.resonance": 0.546875,
+            "filt2.cutoff": 0.5,
+            "env1.law": 0.5,
+            "env1.attack": 0.671875,
+            "env1.decay": 0.890625,
+            "env1.sustain": 0.8515625,
+            "env1.release": 0.6796875,
+            "env2.law": 0.5,
+            "env2.decay": 0.5,
+            "env2.sustain": 0.5,
+            "env2.release": 0.5,
+            "lfo1.shape": 0.0078125,
+            "lfo1.rate": 0.578125,
+            "lfo1.depth": 0.1796875,
+            "lfo1.sync": 0.0078125,
+            "lfo2.shape": 0.0078125,
+            "lfo2.rate": 0.5,
+            "lfo2.depth": 0.984375,
+            "lfo2.sync": 0.0078125,
+            "mod1.source": 0.8888888955116272,
+            "mod1.target": 0.4117647111415863,
+            "mod1.amount": 0.9921875,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.5555555820465088,
+            "mod2.target": 0.30980393290519714,
+            "mod2.amount": 0.5078125,
+            "mod2.operation": 0.5,
+            "mod3.source": 0.6111111044883728,
+            "mod3.target": 0.4627451002597809,
+            "mod3.amount": 0.9921875,
+            "mod3.operation": 0.5,
+            "voice.stage": 1.0,
+            "voice.era": 0.8333333134651184,
+            "drive.p2": 0.0,
+            "env1.amplify": 0.0,
+            "env2.amplify": 0.5,
+            "lfo1.law": 1.0,
+            "lfo2.law": 1.0,
+            "strip.on": 1.0,
+            "strip.volume": 0.0,
+            "strip.send_reverb": 0.109375,
+            "strip.send_delay": 0.4921875,
+            "strip.drive_p1": 0.0,
+            "strip.drive_p2": 0.0,
+            "strip.chorus_amount": 0.6875,
+            "strip.chorus_feedback": 0.15625,
+            "strip.chorus_delay_l": 0.0078125,
+            "strip.chorus_delay_r": 0.0078125,
+            "strip.chorus_rate": 0.234375,
+            "strip.chorus_depth": 0.0390625,
+            "strip.chorus_phase": 0.75
+          }
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t1/A",
+          "start": 0,
+          "length": 307200,
+          "loop": false
+        },
+        {
+          "clip": "t1/B",
+          "start": 307200,
+          "length": 45120,
+          "loop": false
+        }
+      ],
+      "lanes": [
+        {
+          "device": 0,
+          "param": "ctl.cc6",
+          "points": [
+            [0, 0.0],
+            [5.572789115646258, 0.0],
+            [5.572789115646258, 0.0941176488995552]
+          ]
+        },
+        {
+          "device": 0,
+          "param": "ctl.cc7",
+          "points": [
+            [0, 0.9921568632125854],
+            [5.572789115646258, 0.9921568632125854],
+            [5.572789115646258, 0.7803921699523926]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "t2",
+      "name": "Track 2",
+      "volume": 1.0,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "velocity": 0.0,
+            "osc1.type": 0.125,
+            "osc1.fine": 0.59375,
+            "osc1.gain": 0.953125,
+            "osc1.s0": 0.0078125,
+            "osc1.s1": 0.0078125,
+            "osc2.type": 0.125,
+            "osc2.gain": 0.265625,
+            "osc2.s0": 0.015625,
+            "osc2.s1": 0.4765625,
+            "osc3.gain": 0.953125,
+            "osc3.s1": 0.25,
+            "filt1.type": 0.5625,
+            "filt1.cutoff": 0.578125,
+            "filt1.resonance": 0.328125,
+            "filt2.cutoff": 0.5,
+            "env1.law": 0.5,
+            "env1.attack": 0.4140625,
+            "env1.decay": 0.0625,
+            "env1.sustain": 0.5,
+            "env1.release": 0.75,
+            "env2.law": 0.5,
+            "env2.attack": 0.40625,
+            "env2.decay": 0.2421875,
+            "env2.sustain": 0.5,
+            "env2.release": 0.6875,
+            "lfo1.shape": 0.0234375,
+            "lfo1.rate": 0.609375,
+            "lfo1.depth": 0.015625,
+            "lfo1.sync": 0.0078125,
+            "lfo2.shape": 0.0078125,
+            "lfo2.rate": 0.5,
+            "lfo2.depth": 0.953125,
+            "lfo2.sync": 0.0078125,
+            "mod1.source": 0.8888888955116272,
+            "mod1.target": 0.4117647111415863,
+            "mod1.amount": 0.9921875,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.5555555820465088,
+            "mod2.target": 0.3137255012989044,
+            "mod2.amount": 0.5625,
+            "mod2.operation": 0.5,
+            "mod3.source": 0.6111111044883728,
+            "mod3.target": 0.4627451002597809,
+            "mod3.amount": 0.7421875,
+            "mod3.operation": 0.5,
+            "voice.stage": 1.0,
+            "voice.era": 0.8333333134651184,
+            "drive.p2": 0.0,
+            "env1.amplify": 0.0,
+            "env2.amplify": 0.5,
+            "lfo1.law": 1.0,
+            "lfo2.law": 1.0,
+            "strip.on": 1.0,
+            "strip.volume": 0.0,
+            "strip.boost": 0.734375,
+            "strip.send_reverb": 0.5,
+            "strip.send_delay": 0.890625,
+            "strip.drive_p1": 0.0,
+            "strip.drive_p2": 0.0,
+            "strip.chorus_amount": 0.9453125,
+            "strip.chorus_feedback": 0.7421875,
+            "strip.chorus_delay_l": 0.890625,
+            "strip.chorus_delay_r": 0.90625,
+            "strip.chorus_rate": 0.265625,
+            "strip.chorus_depth": 0.625,
+            "strip.chorus_phase": 0.984375
+          }
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t2/A",
+          "start": 92160,
+          "length": 215040,
+          "loop": false
+        }
+      ],
+      "lanes": [
+        {
+          "device": 0,
+          "param": "ctl.cc6",
+          "points": [
+            [0, 0.0],
+            [5.572789115646258, 0.0],
+            [5.572789115646258, 0.0941176488995552]
+          ]
+        },
+        {
+          "device": 0,
+          "param": "ctl.cc7",
+          "points": [
+            [0, 0.9921568632125854],
+            [5.572789115646258, 0.9921568632125854],
+            [5.572789115646258, 0.7019608020782471]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "t3",
+      "name": "Track 3",
+      "volume": 1.0,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "velocity": 0.0,
+            "osc1.type": 0.125,
+            "osc1.fine": 0.59375,
+            "osc1.gain": 0.953125,
+            "osc1.s0": 0.0078125,
+            "osc1.s1": 0.0078125,
+            "osc2.type": 0.125,
+            "osc2.gain": 0.265625,
+            "osc2.s0": 0.015625,
+            "osc2.s1": 0.4765625,
+            "osc3.gain": 0.953125,
+            "osc3.s1": 0.25,
+            "filt1.type": 0.5625,
+            "filt1.cutoff": 0.578125,
+            "filt1.resonance": 0.328125,
+            "filt2.cutoff": 0.5,
+            "env1.law": 0.5,
+            "env1.attack": 0.4140625,
+            "env1.decay": 0.0625,
+            "env1.sustain": 0.5,
+            "env1.release": 0.75,
+            "env2.law": 0.5,
+            "env2.attack": 0.40625,
+            "env2.decay": 0.2421875,
+            "env2.sustain": 0.5,
+            "env2.release": 0.6875,
+            "lfo1.shape": 0.0234375,
+            "lfo1.rate": 0.609375,
+            "lfo1.depth": 0.015625,
+            "lfo1.sync": 0.0078125,
+            "lfo2.shape": 0.0078125,
+            "lfo2.rate": 0.5,
+            "lfo2.depth": 0.953125,
+            "lfo2.sync": 0.0078125,
+            "mod1.source": 0.8888888955116272,
+            "mod1.target": 0.4117647111415863,
+            "mod1.amount": 0.9921875,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.5555555820465088,
+            "mod2.target": 0.3137255012989044,
+            "mod2.amount": 0.5625,
+            "mod2.operation": 0.5,
+            "mod3.source": 0.6111111044883728,
+            "mod3.target": 0.4627451002597809,
+            "mod3.amount": 0.7421875,
+            "mod3.operation": 0.5,
+            "voice.stage": 1.0,
+            "voice.era": 0.8333333134651184,
+            "drive.p2": 0.0,
+            "env1.amplify": 0.0,
+            "env2.amplify": 0.5,
+            "lfo1.law": 1.0,
+            "lfo2.law": 1.0,
+            "strip.on": 1.0,
+            "strip.volume": 0.0,
+            "strip.boost": 0.734375,
+            "strip.send_reverb": 0.5,
+            "strip.send_delay": 0.890625,
+            "strip.drive_p1": 0.0,
+            "strip.drive_p2": 0.0,
+            "strip.chorus_amount": 0.9453125,
+            "strip.chorus_feedback": 0.7421875,
+            "strip.chorus_delay_l": 0.890625,
+            "strip.chorus_delay_r": 0.90625,
+            "strip.chorus_rate": 0.265625,
+            "strip.chorus_depth": 0.625,
+            "strip.chorus_phase": 0.984375
+          }
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t3/A",
+          "start": 92160,
+          "length": 122880,
+          "loop": false
+        }
+      ],
+      "lanes": [
+        {
+          "device": 0,
+          "param": "ctl.cc6",
+          "points": [
+            [0, 0.0],
+            [5.572789115646258, 0.0],
+            [5.572789115646258, 0.0941176488995552]
+          ]
+        },
+        {
+          "device": 0,
+          "param": "ctl.cc7",
+          "points": [
+            [0, 0.9921568632125854],
+            [5.572789115646258, 0.9921568632125854],
+            [5.572789115646258, 0.24313725531101227]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "t4",
+      "name": "Track 4",
+      "volume": 1.0,
+      "mute": false,
+      "receives": [
+        {
+          "from": "t1",
+          "channel": "main",
+          "volume": 1.0
+        },
+        {
+          "from": "t2",
+          "channel": "main",
+          "volume": 1.0
+        },
+        {
+          "from": "t3",
+          "channel": "main",
+          "volume": 1.0
+        }
+      ],
+      "devices": [
+        {
+          "kind": 71,
+          "values": {
+            "mode": 0.25,
+            "time": 0.328125,
+            "high_cut": 0.875,
+            "low_cut": 0.25,
+            "volume": 0.4921875,
+            "era": 0.8333333134651184
+          }
+        }
+      ],
+      "placements": [],
+      "lanes": []
+    },
+    {
+      "id": "t5",
+      "name": "Track 5",
+      "volume": 1.0,
+      "mute": false,
+      "receives": [
+        {
+          "from": "t1",
+          "channel": "main",
+          "volume": 1.0
+        },
+        {
+          "from": "t2",
+          "channel": "main",
+          "volume": 1.0
+        },
+        {
+          "from": "t3",
+          "channel": "main",
+          "volume": 1.0
+        }
+      ],
+      "devices": [
+        {
+          "kind": 68,
+          "values": {
+            "mode": 0.5,
+            "volume": 0.78125,
+            "feedback": 0.625,
+            "delay_l": 0.484375,
+            "delay_r": 0.515625,
+            "mod_rate": 0.0,
+            "mod_depth": 0.0,
+            "mod_phase": 0.5,
+            "era": 0.8333333134651184
+          }
+        }
+      ],
+      "placements": [],
+      "lanes": []
+    }
+  ],
+  "master": {
+    "id": "master",
+    "name": "Master",
+    "volume": 1.0,
+    "mute": false,
+    "receives": [
+      {
+        "from": "t1",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "t2",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "t3",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "t4",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "t5",
+        "channel": "main",
+        "volume": 1.0
+      }
+    ],
+    "devices": [
+      {
+        "kind": 67,
+        "values": {
+          "mode": 0.5,
+          "low_cut": 0.0,
+          "high_cut": 0.9453125,
+          "era": 0.8333333134651184
+        }
+      },
+      {
+        "kind": 72,
+        "values": {
+          "mode": 1.0,
+          "detect": 0.0,
+          "couple": 0.0,
+          "auto_gain": 0.0078125,
+          "lookahead": 0.015625,
+          "threshold": 0.703125,
+          "ratio": 0.25,
+          "attack": 0.15625,
+          "release": 0.5,
+          "out_gain": 0.5,
+          "era": 0.8333333134651184
+        }
+      }
+    ],
+    "placements": [],
+    "lanes": []
+  }
+}

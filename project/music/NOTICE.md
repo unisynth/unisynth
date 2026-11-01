@@ -39,6 +39,18 @@ and "over2" and "bluish" (Stash, 1st at The Party 1997), titles from Demozoo, `t
 from the intros' XMs with their synthesized samples played by the unified synth's cauldron oscillator
 (`research/tbl-mini-cauldron/tools/make_demos.py`); same rules: no licence, published pending permission, adapted version.
 
+`released/v2/` holds 347 Farbrausch V2 songs, every `.v2m` of the local corpus that parses, once per checksum, written
+by `tools/v2-extract/make-demos.py`:
+- 13 carved by v2redux from farbrausch / .theprodukkt release executables
+- 14 from farbrausch's fr_public repository, including the two version-6 acceptance songs
+- 320 from the V2M collection of jgilje/v2m-player, which points to modland
+
+Credits come only from where each file was found: the demo for carved songs, the repository path, or modland's
+`Author--title` file name. Composers the source does not name are not guessed (7 songs say "not named"). 18 songs are
+parity-checked against the v2redux reference; the others say they were not. Songs whose V2 file runs far past the
+music end 4 s after the last note, as their description says. Same rules: no licence, published pending permission,
+adapted version. `modland/KB--fr-013_flybye-loader.v2m` does not parse and is not included.
+
 ## MIT (WaveSabre)
 
 Copyright 2012-2021 WaveSabre Team

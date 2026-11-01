@@ -80,6 +80,14 @@ test("song meta survives a load and save; flat controller envelopes are not writ
   expect(toSong(ui).clips.find((c) => c.id === "bass-a")!.wheel).toEqual([[0, 0], [1920, 0.7]]);
 });
 
+test("speech texts survive a load and save", () => {
+  const s = demo();
+  const dev = s.tracks.flatMap((t) => t.devices).find((d) => d.kind === 64)!;
+  (dev as { speech?: string[] }).speech = ["AH27OH40", "IH22UH11"];
+  const back = toSong(fromSong(s));
+  expect(back.tracks.flatMap((t) => t.devices).find((d) => d.kind === 64)).toEqual(dev);
+});
+
 test("converted reference songs in project/music load and save through the adapter unchanged", () => {
   const dir = join(ROOT, "project/music") + "/";
   for (const f of readdirSync(dir).filter((x: string) => x.endsWith(".song.json"))) {

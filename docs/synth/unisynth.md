@@ -1146,8 +1146,9 @@ sequencer is event-identical on the 15 acceptance songs. V2 reads bend values at
 bends decode correctly only when a channel has as many program changes as bends. The timeline keeps this, because
 it is what the songs play.
 
-Songs, references and oracles live outside the repo: `tools/v2-extract` and `research/v2-intros.md`. The songs are
-© their authors and never committed.
+The `.v2m` files, references and oracles live outside the repo: `tools/v2-extract` and `research/v2-intros.md`. The
+songs are © their authors. Their conversions are committed as DAW songs in `project/music/released/v2/`
+(`tools/v2-extract/make-demos.py`) while the authors are asked for permission; see `project/music/NOTICE.md`.
 
 ### Mini-cauldron XMs (change add-cauldron-xm-import)
 

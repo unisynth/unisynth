@@ -5,7 +5,7 @@
 
 export const TPB = 960;
 
-export type Device = { kind: number; values: Record<string, number>; samples?: string[]; bypass?: boolean; preset?: string; trailer?: number };
+export type Device = { kind: number; values: Record<string, number>; samples?: string[]; speech?: string[]; bypass?: boolean; preset?: string; trailer?: number };
 export type SongNote = [number, number, number, number];
 export type Point = [number, number];
 /** An editor lane point: [bar, value] and, while unmoved, the tick it was loaded from. */
@@ -82,6 +82,7 @@ export type UIState = { tracks: UITrack[]; master: UITrack; tempo: number; sig: 
 export function cleanDevice(d: Device): Device {
   const out: Device = { kind: d.kind, values: { ...d.values } };
   if (d.samples?.length) out.samples = [...d.samples];
+  if (d.speech?.length) out.speech = [...d.speech];
   if (d.bypass) out.bypass = true;
   if (d.preset) out.preset = d.preset;
   if (d.trailer !== undefined) out.trailer = d.trailer;
