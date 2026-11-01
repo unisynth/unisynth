@@ -207,8 +207,10 @@ before → `AGENTS.md` rows → land on `main`.
 
 ## 7. Piano roll and controller lanes (D4)
 
-- [ ] 7.1 Contract test on the old code for anything existing tests do not cover: note draw/select/move/resize,
+- [x] 7.1 Contract test on the old code for anything existing tests do not cover: note draw/select/move/resize,
   velocity paint, quantize/legato, zoom anchor, scroll-to-notes, 118-bar 950-note clip opens fast.
+  Done: `test/roll.test.ts` (7 tests, 2/2 runs on the old code). The long clip opens in 23-37 ms (last pointerdown
+  to two frames after the roll shows), well under the 0.3 s noted in the design.
 - [ ] 7.2 Port the roll, keys and CC lanes as components owning their canvases (visible window, `unwrap` reads).
   Verify: contract, editing and controllers tests, open time of the large clip ≤ the baseline (about 0.3 s).
 
