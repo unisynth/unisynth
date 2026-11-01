@@ -37,7 +37,7 @@ combination scenarios are engine tests until 6.1 and patch tests there.
 Revised after the doubt-driven review of 2026-11-01, cycles 1 and 2 (design "Format-switch review"). 6.1–6.4 are
 separate commits; 6.5–6.8 are checkpoints of one switch commit (each needs a player that reads v3); 6.9 follows.
 
-- [ ] 6.1 Merge `main` into this branch (the 28 + 347 released songs, `tools/v2-extract/make-demos.py`, the DAW
+- [x] 6.1 Merge `main` into this branch (the 28 + 347 released songs, `tools/v2-extract/make-demos.py`, the DAW
   rewrite, converter changes), applying the 1.3 and clocked renames to main's new code; re-run the corpus lane and route check over every tracked
   song. Verify: workspace tests and
   both parity reports pass; the source-name check (parameter table and the DAW's user-facing strings) passes;
