@@ -12,7 +12,8 @@ import { mountLibrary, openLibrary } from "./ui/library/Library.tsx";
 import { popMenu } from "./ui/common/Menu.tsx";
 import * as arrange from "./ui/state/arrange.ts";
 import { mountTracks } from "./ui/arrange/Tracks.tsx";
-import { mountRoll } from "./ui/roll/Roll.tsx";  // not `live`: that is the aria-live status element below
+import { mountRoll } from "./ui/roll/Roll.tsx";
+import { installKeys } from "./ui/keys.ts";  // not `live`: that is the aria-live status element below
 import { laneEl, overrides, overrideSet, rollClips, selectedId, setRollShown, setSelectedId } from "./ui/state/view.ts";
 import { mountMixer, setMixerShown } from "./ui/mixer.tsx";
 // DAW UI (change add-synth-daw): the reviewed mockup's views and interactions on the real song/2 model,
@@ -1449,21 +1450,6 @@ async function setPlay(on) {
 }
 // Stop: first press stops (tails ring), a second one silences and goes back to the loop or song start.
 function stopPressed() { if (playing) setPlay(false); else { if (E.node) { E.stop(); E.seek(frameOf(loopOn ? LOOP[0] : 1)); } SONG_POS = loopOn ? LOOP[0] : 1; showPos(); say(`back to ${fmtPos(SONG_POS)}`); } }
-document.addEventListener("keydown", e => {
-  // undo/redo anywhere outside text fields (the arrangement and piano roll handle theirs and prevent the default)
-  if ((e.ctrlKey || e.metaKey) && !e.defaultPrevented && !(e.target instanceof HTMLInputElement && e.target.type !== "checkbox") && !(e.target instanceof HTMLTextAreaElement)) {
-    const k = e.key.toLowerCase();
-    if (k === "z") { e.preventDefault(); return e.shiftKey ? redo() : undo(); }
-    if (k === "y") { e.preventDefault(); return redo(); }
-  }
-  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target.getAttribute?.("role") === "slider") return;
-  if (e.code === "Space") { e.preventDefault(); setPlay(!playing); }
-  else if (e.key.toLowerCase() === "l" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); loopSelection(); }
-  else if (e.key.toLowerCase() === "l" && !e.altKey) toggleLoop();
-  else if (e.key.toLowerCase() === "f" && !e.ctrlKey && !e.metaKey) toggleFollow();
-  else if (e.key === "R" && e.shiftKey && !e.ctrlKey && !e.metaKey) setRec(!recOn);
-  else if (e.key === "Home") { seek(loopOn ? LOOP[0] : 1); }
-});
 E.onStatus = st => { statusAt = performance.now(); meters(st); dropsCheck(); live1.liveProbe(st.probe); loadAvg += (st.load - loadAvg) * .06; setLoad(Math.round(Math.min(1, st.load ? loadAvg : (loadAvg = 0)) * 100)); if (!st.playing && playing && st.gen === E.gen) setPlay(false); };
 function tick(now) {
   const st = E.status;
@@ -1544,24 +1530,8 @@ function auditionEntry(src, it, done) {
 // other layouts play the same): Z S X D C V G B H N J M = one octave from C, Q 2 W 3 E R 5 T 6 Y 7 U I 9 O 0 P = the
 // next octave and a half. It plays the selected track (arming follows selection). Octave [ ] (PageDown/PageUp,
 // numpad / *), velocity ; ' (numpad − +), ` or the ⌨ button toggles; Shift/Ctrl/Alt combinations stay shortcuts.
-const KB_LO = ["KeyZ", "KeyS", "KeyX", "KeyD", "KeyC", "KeyV", "KeyG", "KeyB", "KeyH", "KeyN", "KeyJ", "KeyM"];
-const KB_HI = ["KeyQ", "Digit2", "KeyW", "Digit3", "KeyE", "KeyR", "Digit5", "KeyT", "Digit6", "KeyY", "Digit7", "KeyU", "KeyI", "Digit9", "KeyO", "Digit0", "KeyP"];
-const kbNote = code => { const i = KB_LO.indexOf(code); if (i >= 0) return i; const j = KB_HI.indexOf(code); return j >= 0 ? 12 + j : -1; };
-const OCT_DN = ["BracketLeft", "PageDown", "NumpadDivide"], OCT_UP = ["BracketRight", "PageUp", "NumpadMultiply"];
-const VEL_DN = ["Semicolon", "NumpadSubtract"], VEL_UP = ["Quote", "NumpadAdd"];
-const typing = e => e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement || e.target.isContentEditable;
-const kbActive = e => kbOn && armed && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && !typing(e) && !e.target.closest?.(".menu");
+// The keys are read by ui/keys.ts (installKeys, below); this holds the state and the actions.
 function toggleKb() { kbOn = !kbOn; document.getElementById("kb-btn").setAttribute("aria-pressed", kbOn); say(kbOn ? "computer keyboard plays the selected track (Z–M, Q–P)" : "computer keyboard off: letters are shortcuts again"); }
-window.addEventListener("keydown", e => {
-  if (e.code === "Backquote" && !e.ctrlKey && !e.metaKey && !typing(e)) { e.preventDefault(); toggleKb(); return; }
-  if (!kbActive(e)) return;
-  const i = kbNote(e.code), stop = () => { e.preventDefault(); e.stopImmediatePropagation(); };
-  if (i >= 0) { stop(); if (!e.repeat) noteOn(armed, 12 * kbOct + i, kbVel, "k" + e.code); return; }
-  if (OCT_DN.includes(e.code) || OCT_UP.includes(e.code)) { stop(); kbOct = Math.max(0, Math.min(8, kbOct + (OCT_UP.includes(e.code) ? 1 : -1))); updateArmed(); return; }
-  if (VEL_DN.includes(e.code) || VEL_UP.includes(e.code)) { stop(); kbVel = Math.max(1, Math.min(127, kbVel + (VEL_UP.includes(e.code) ? 16 : -16))); updateArmed(); return; }
-}, true);
-window.addEventListener("keyup", e => { if (kbNote(e.code) >= 0) noteOff("k" + e.code); }, true);
-window.addEventListener("blur", () => [...heldV.keys()].forEach(noteOff));
 // Piano-roll keys: press = audition on the selected track
 onRollMount(() => {
 keys.addEventListener("pointerdown", e => { const b = e.target.closest("button"); if (!b) return; e.preventDefault(); keys.setPointerCapture(e.pointerId); noteOn(selected, HI - [...keys.children].indexOf(b), kbVel, "mouse"); });
@@ -1645,7 +1615,6 @@ async function save() {
   markSaved(); savedDepth = H.depth; savedAt = new Date(); files.addSong(songFile);
   dirtyUpd(); say(`${api.static ? "downloaded (read-only preview)" : "saved"} ${songFile} (song/2, ${(json.length / 1024).toFixed(1)} kB)`); return true;
 }
-window.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); e.stopImmediatePropagation(); save(); } }, true);
 window.addEventListener("beforeunload", e => { if (isDirty()) { e.preventDefault(); e.returnValue = ""; } });
 const emptySong = () => ({ format: "song/2", rate: 44100, tempo: 120, signature: [4, 4], ticks_per_beat: 960, length: 8 * 3840, clips: [],
   tracks: [{ id: "t1", name: "Track 1", color: "--t-lead", volume: 0.5, mute: false, receives: [], devices: [initInstrument()], placements: [], lanes: [] }],
@@ -1867,13 +1836,16 @@ pinch(lw, (sc, e) => zoomArr(g0 * sc / BW, e.clientX, true));
 onRollMount(() => pinch(grid, (sc, e) => zoomRoll(g0 * sc / STEP, 1, e.clientX, e.clientY, true)));
 
 onRollMount(() => rollEls.tools.querySelectorAll("[data-zoom]").forEach(b => b.onclick = () => ({ "t+": () => zoomRoll(1.5, 1), "t-": () => zoomRoll(1 / 1.5, 1), "p+": () => zoomRoll(1, 1.25), "p-": () => zoomRoll(1, .8), fit: fitRoll })[b.dataset.zoom]()));
-// Keys: + / − zoom (time) and Shift+Z fits, in the area that has focus.
-document.addEventListener("keydown", e => {
-  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.ctrlKey || e.metaKey || e.altKey) return;
-  const inRoll = e.target === gridc || e.target === velc || (focusArea === "roll" && !document.getElementById("p-roll").hidden && !e.target.closest?.("#arr, #hdrs"));
-  const f = e.key === "+" || e.key === "=" ? 1.5 : e.key === "-" || e.key === "_" ? 1 / 1.5 : 0;
-  if (f) { e.preventDefault(); inRoll ? zoomRoll(f, 1) : zoomArr(f); }
-  else if (e.key === "Z" && e.shiftKey) { e.preventDefault(); inRoll ? fitRoll() : fitArr(); }
+// Global shortcuts (ui/keys.ts): Ctrl/⌘+S and the computer keyboard before the focused editor, the rest after it.
+installKeys({
+  save, undo, redo, toggleKb, kbPlays: () => !!(kbOn && armed),
+  kbNoteOn: (i, code) => noteOn(armed, 12 * kbOct + i, kbVel, "k" + code), kbNoteOff: code => noteOff("k" + code),
+  octave: d => { kbOct = Math.max(0, Math.min(8, kbOct + d)); updateArmed(); },
+  velocity: d => { kbVel = Math.max(1, Math.min(127, kbVel + 16 * d)); updateArmed(); },
+  allNotesOff: () => [...heldV.keys()].forEach(noteOff),
+  playPause: () => setPlay(!playing), toHome: () => seek(loopOn ? LOOP[0] : 1), toggleLoop, loopSelection, toggleFollow, toggleRec: () => setRec(!recOn),
+  inRoll: e => e.target === gridc || e.target === velc || (focusArea === "roll" && !!rollEls && !e.target.closest?.("#arr, #hdrs")),
+  zoomRoll: f => zoomRoll(f, 1), zoomArr: f => zoomArr(f), fitRoll, fitArr,
 });
 mountRoll(document.getElementById("p-roll"), { attach: attachRoll, detach: detachRoll });  // after every onRollMount setup
 }

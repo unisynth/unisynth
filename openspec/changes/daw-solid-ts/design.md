@@ -118,7 +118,10 @@ the view window, from a per-frame queue when they enter by scrolling. Row positi
 ### D7. Event handling in components; global keys in one module
 The document-level delegates in `app.js` (volume, mute/solo, arm, undo keys, transport keys, tracker keyboard) move
 into the components that own the controls. The remaining global shortcuts go into `ui/keys.ts`, one `keydown`
-listener with the current precedence (text fields first, then the focused area). The spike's mixer still depends on
+listener with the current precedence (text fields first, then the focused area). Done in 8.1 as one module and one table with two
+listeners: the precedence needs a phase before the focused editor (window capture: Ctrl/⌘+S, the computer
+keyboard's note keys) and one after it (document bubble: undo/redo unless the editor took the key, transport letters,
+zoom), which a single listener cannot give. The spike's mixer still depends on
 the volume and mute/solo delegates; they move when the arrangement headers are ported.
 
 ### D8. Compatibility surface and test gates

@@ -221,9 +221,12 @@ before → `AGENTS.md` rows → land on `main`.
 
 ## 8. Audition, keyboard, MIDI, zoom, splitters
 
-- [ ] 8.1 `ui/keys.ts`: a single global `keydown` with the current precedence (text fields, focused area, transport,
+- [x] 8.1 `ui/keys.ts`: a single global `keydown` with the current precedence (text fields, focused area, transport,
   tracker keyboard by `e.code`, undo/redo). Verify: existing keyboard tests plus a test of each shortcut in
   `docs/synth/daw.md`.
+  Done: `test/keys.test.ts` (7 tests, written and passing on the old code) covers each global row of the key table
+  and the precedence; editor-local rows stay covered by the arrangement, roll and files tests. `ui/keys.ts` replaces
+  the four window/document listeners of app.js (one table, capture + bubble phases, see D7). 141/141 twice.
 - [ ] 8.2 Port audition (armed track, MW/PB sliders, Web MIDI), zoom (anchored) and splitters (persisted sizes).
   Verify: controllers test, editing zoom test.
 
