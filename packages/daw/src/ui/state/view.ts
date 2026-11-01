@@ -19,3 +19,6 @@ export function overrideSet(id: string): Set<string> {
   if (!s) overrides.set(id, (s = new Set()));
   return s;
 }
+
+/** The Piano roll tab shows: its panel is mounted only then (ui/roll/Roll.tsx, design D5). */
+export const [rollShown, setRollShown] = createSignal(false);

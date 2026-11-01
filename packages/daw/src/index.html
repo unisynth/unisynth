@@ -35,31 +35,7 @@
         <div class="ctx" id="ctx"></div>
       </div>
 
-      <div class="tabpanel" id="p-roll" role="tabpanel" aria-labelledby="tab-roll" hidden>
-        <div id="roll-tools" role="toolbar" aria-label="Note editing">
-          <button data-roll="cut" title="Cut (Ctrl+X)">Cut</button><button data-roll="copy" title="Copy (Ctrl+C)">Copy</button><button data-roll="paste" title="Paste at the cursor (Ctrl+V)">Paste</button><button data-roll="dup" title="Duplicate after the selection (Ctrl+D)">Duplicate</button><button data-roll="del" title="Delete (Del)">Delete</button>
-          <span class="sep"></span>
-          <span class="dim">Transpose</span><button data-roll="t-12" title="Octave down (Shift+↓)">−12</button><button data-roll="t-1" title="Semitone down (↓)">−1</button><button data-roll="t+1" title="Semitone up (↑)">+1</button><button data-roll="t+12" title="Octave up (Shift+↑)">+12</button>
-          <span class="sep"></span>
-          <button data-roll="quant" title="Quantize starts to the snap (Q)">Quantize</button><button data-roll="quantlen" title="Quantize starts and lengths (Shift+Q)">+ lengths</button>
-          <label class="dim">Strength <select id="qstr" aria-label="Quantize strength"><option value="1">100%</option><option value=".75">75%</option><option value=".5">50%</option></select></label>
-          <button data-roll="legato" title="Extend each note to the next one">Legato</button>
-          <span class="sep"></span>
-          <label class="dim">Vel <input id="vel-set" type="number" min="1" max="127" step="1" disabled aria-label="Velocity of the selected notes" title="Set the velocity of every selected note"></label>
-          <span class="sep"></span>
-          <button data-roll="all" title="Select all (Ctrl+A)">Select all</button>
-          <span class="sep"></span>
-          <span class="dim">Zoom</span><button data-zoom="t-" aria-label="Zoom out in time" title="Time zoom out (−; Ctrl/⌘+wheel or pinch)">−</button><button data-zoom="t+" aria-label="Zoom in in time" title="Time zoom in (+)">+</button><button data-zoom="p-" aria-label="Smaller key rows" title="Pitch zoom out (Alt+wheel)">↕−</button><button data-zoom="p+" aria-label="Taller key rows" title="Pitch zoom in (Alt+wheel)">↕+</button><button data-zoom="fit" aria-label="Fit clip" title="Fit the clip and its notes (Shift+Z)">⤢</button>
-          <span id="roll-info" class="dim num" aria-live="polite"></span>
-          <span id="roll-clip" class="num" style="margin-left:auto"></span>
-        </div>
-        <div id="roll">
-          <div id="keys" aria-label="Keyboard, click to audition"></div>
-          <div id="grid"><div id="roll-ph" class="playhead" hidden></div><canvas id="gridc" tabindex="0" aria-label="Notes. Click selects, drag moves, edge resizes, double-click adds or deletes, drag on empty space selects a range. Arrows move and transpose."></canvas></div>
-          <div id="vel-lbl"><select id="cc-kind" aria-label="Controller lane"><option value="vel">Velocity</option><option value="wheel">Mod wheel</option><option value="bend">Pitch bend</option></select><span id="cc-val" class="num" aria-live="polite"></span></div>
-          <div id="vel"><canvas id="velc" tabindex="0" aria-label="Controller lane: velocity. Drag a stem to set that note; on a selected note it sets the selection (Ctrl or Cmd: that note only, Alt: all equal). Drag from an empty spot to paint. Mouse wheel nudges."></canvas></div>
-        </div>
-      </div>
+      <div class="tabpanel" id="p-roll" role="tabpanel" aria-labelledby="tab-roll" hidden><!-- ui/roll/Roll.tsx, mounted while shown --></div>
 
       <div class="tabpanel" id="p-dev" role="tabpanel" aria-labelledby="tab-dev">
         <div id="device"></div>

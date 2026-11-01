@@ -203,4 +203,19 @@ test("a 118-bar clip with 950 notes opens in the roll fast and draws only the vi
   expect(ms).toBeLessThan(1000);  // about 0.3 s before the port (design: open time ≤ baseline)
 }, 60_000);
 
+test("hidden roll holds no content; shown again it reflects an undo made meanwhile (D5)", async () => {
+  const at = await fresh();
+  await page.mouse.dblclick(...at(2.5, 60)); await page.waitForTimeout(450);
+  expect(await page.locator("#roll-info").textContent()).toMatch(/^1 selected/);
+  await page.locator("#tab-dev").click();
+  expect(await page.locator("#p-roll *").count()).toBe(0);
+  await page.locator('[aria-label="Undo"]').click();  // removes the note while the roll is hidden
+  await page.locator("#tab-roll").click();
+  expect(await page.locator("#keys button").count()).toBe(96 - 24 + 1);
+  expect(await page.locator("#roll-info").textContent()).toBe("0 notes");
+  expect(await page.locator("#vel-set").isDisabled()).toBe(true);
+  await page.mouse.dblclick(...at(4.5, 62)); await page.waitForTimeout(450);  // the remounted grid edits
+  expect((await notes()).map((n) => [n[0], n[2]])).toEqual([[960, 62]]);
+}, 60_000);
+
 test("no page errors", () => expect(errors).toEqual([]));

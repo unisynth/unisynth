@@ -211,8 +211,13 @@ before → `AGENTS.md` rows → land on `main`.
   velocity paint, quantize/legato, zoom anchor, scroll-to-notes, 118-bar 950-note clip opens fast.
   Done: `test/roll.test.ts` (7 tests, 2/2 runs on the old code). The long clip opens in 23-37 ms (last pointerdown
   to two frames after the roll shows), well under the 0.3 s noted in the design.
-- [ ] 7.2 Port the roll, keys and CC lanes as components owning their canvases (visible window, `unwrap` reads).
+- [x] 7.2 Port the roll, keys and CC lanes as components owning their canvases (visible window, `unwrap` reads).
   Verify: contract, editing and controllers tests, open time of the large clip ≤ the baseline (about 0.3 s).
+  Done: `ui/roll/Roll.tsx` renders the roll panel only while its tab shows (the hidden panel held 73 keys, two
+  canvases and the toolbar); the canvases stay imperative (D4): app.js binds its existing handlers to each mount
+  (`onRollMount` wraps them in place) and keeps the grid's scroll position across remounts. New contract scenario:
+  hidden roll empty, an undo made meanwhile shows on return. Long clip opens in 24-41 ms (7.1: 23-37 ms); roll tab
+  ~30 ms and boot (6 alternating runs, median 1302 vs 1312 ms) unchanged against the 7.1 build. 134/134.
 
 ## 8. Audition, keyboard, MIDI, zoom, splitters
 

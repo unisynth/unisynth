@@ -11,8 +11,9 @@ import * as dialogs from "./ui/files/dialogs.tsx";
 import { mountLibrary, openLibrary } from "./ui/library/Library.tsx";
 import { popMenu } from "./ui/common/Menu.tsx";
 import * as arrange from "./ui/state/arrange.ts";
-import { mountTracks } from "./ui/arrange/Tracks.tsx";  // not `live`: that is the aria-live status element below
-import { laneEl, overrides, overrideSet, rollClips, selectedId, setSelectedId } from "./ui/state/view.ts";
+import { mountTracks } from "./ui/arrange/Tracks.tsx";
+import { mountRoll } from "./ui/roll/Roll.tsx";  // not `live`: that is the aria-live status element below
+import { laneEl, overrides, overrideSet, rollClips, selectedId, setRollShown, setSelectedId } from "./ui/state/view.ts";
 import { mountMixer, setMixerShown } from "./ui/mixer.tsx";
 // DAW UI (change add-synth-daw): the reviewed mockup's views and interactions on the real song/2 model,
 import * as devst from "./ui/state/device.ts";
@@ -725,14 +726,21 @@ function updateWatch() {
   if (!on) live1.liveClear();
 }
 // Piano roll
-const keys = document.getElementById("keys"), gridc = document.getElementById("gridc"), velc = document.getElementById("velc");
+// The roll's elements exist only while the Piano roll tab shows (ui/roll/Roll.tsx, design D5): null otherwise. On each
+// mount `attachRoll` takes them and runs the listener setups registered with `onRollMount` (in place, below).
+let keys = null, gridc = null, velc = null, grid = null, vel = null, ccKind = null, ccVal = null, velSet = null, rollEls = null;
+let rollScroll = [0, 0];  // the grid's scroll position across remounts (as when the panel only hid)
+const rollBinds = [];
+const onRollMount = f => { rollBinds.push(f); };
+function attachRoll(els) {
+  rollEls = els; ({ keys, gridc, velc, grid, vel, ccKind, ccVal, velSet } = els); gridSize = velSize = null;
+  keys.style.fontSize = KH < 10 ? "0" : "";
+  for (const f of rollBinds) f();
+  genRoll(selected); drawRoll(); [grid.scrollLeft, grid.scrollTop] = rollScroll; centreRoll();
+}
+function detachRoll() { if (grid) rollScroll = [grid.scrollLeft, grid.scrollTop]; rollEls = keys = gridc = velc = grid = vel = ccKind = ccVal = velSet = null; gridSize = velSize = null; }
 const NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
 const LO = 24, HI = 96; let KH = 12, STEP = 22;  // zoomable: KH = key row height, STEP = px per 1/16
-for (let n = HI; n >= LO; n--) {
-  const b = document.createElement("button"); const nm = NAMES[n % 12];
-  b.className = nm.includes("♯") ? "blk" : ""; b.textContent = nm === "C" ? "C" + (Math.floor(n / 12) - 1) : "";
-  b.setAttribute("aria-label", `Audition ${nm}${Math.floor(n / 12) - 1}`); keys.append(b);
-}
 let rollNotes = [], rollClip = null, rollLen = 64;
 let rollCC = { wheel: [], bend: [] };
 function rollClipOf(t) {
@@ -743,7 +751,7 @@ function genRoll(t) {
   rollClip = t.bus || t.master ? null : rollClipOf(t);
   if (!rollClip) { rollNotes = []; rollCC = { wheel: [], bend: [] }; return; }
   const p = patOf(t, rollClip.name); rollNotes = p.notes; rollCC = p.cc; rollLen = Math.max(1, Math.round((rollClip.loop ? p.len : rollClip.len) * 16));
-  const hdr = document.getElementById("roll-clip"); if (hdr) hdr.textContent = `${rollClip.name} · bar ${+rollClip.start.toFixed(2)} · ${+rollClip.len.toFixed(2)} bars${rollClip.loop ? ` · ⟳ ${p.len}-bar loop ×${+(rollClip.len / p.len).toFixed(2)}` : ""}${links(t, rollClip.name) > 1 ? ` · ⧉ ${links(t, rollClip.name)} linked` : ""}`;
+  const hdr = rollEls?.rollClip; if (hdr) hdr.textContent = `${rollClip.name} · bar ${+rollClip.start.toFixed(2)} · ${+rollClip.len.toFixed(2)} bars${rollClip.loop ? ` · ⟳ ${p.len}-bar loop ×${+(rollClip.len / p.len).toFixed(2)}` : ""}${links(t, rollClip.name) > 1 ? ` · ⧉ ${links(t, rollClip.name)} linked` : ""}`;
 }
 const songStep = bar => (bar - rollClip.start) * 16;  // song bar -> step inside the open clip
 // The roll and controller canvases cover only the visible part of the clip (a whole-song clip at full zoom would be
@@ -760,6 +768,7 @@ function rollView(W) {
 let rollRedraw = 0;
 const redrawRollSoon = () => { if (!rollRedraw) rollRedraw = requestAnimationFrame(() => { rollRedraw = 0; drawRoll(); }); };
 function drawRoll() {
+  if (!gridc) return;  // not mounted
   if (!rollClip) { gridc.width = gridc.height = 0; velc.width = velc.height = 0; if (gridSize) gridSize.style.width = velSize.style.width = "0"; return; }
   const W = rollLen * STEP, H = (HI - LO + 1) * KH, dpr = devicePixelRatio || 1;
   const vw = rollView(W); gridSize.style.width = W + "px"; gridSize.style.height = H + "px";
@@ -773,24 +782,25 @@ function drawRoll() {
     g.fillStyle = css(selected.col); g.globalAlpha = .45 + .55 * n.v; g.fillRect(x, y, n.l * STEP - 2, KH - 2); g.globalAlpha = 1;
     if (n.sel || n === velHover) { g.strokeStyle = n === velHover ? css("--focus") : css("--fg"); g.lineWidth = n === velHover ? 2 : 1.5; g.strokeRect(x + .5, y + .5, n.l * STEP - 3, KH - 3); }
   }
-  document.getElementById("roll-ph").style.height = H + "px"; moveRollPh();
+  rollEls.rollPh.style.height = H + "px"; moveRollPh();
   g.strokeStyle = css("--fg"); g.setLineDash([3, 3]); g.beginPath(); g.moveTo(rCursor * STEP + .5, 0); g.lineTo(rCursor * STEP + .5, H); g.stroke(); g.setLineDash([]);
   if (rDrag?.mode === "marquee" && rDrag.moved) { const [a1, b1] = [Math.min(rDrag.st0, rDrag.st1), Math.max(rDrag.st0, rDrag.st1)], [k1, k2] = [Math.min(rDrag.key0, rDrag.key1), Math.max(rDrag.key0, rDrag.key1)];
     g.fillStyle = "#6aa7ff22"; g.strokeStyle = css("--focus"); g.fillRect(a1 * STEP, (HI - k2) * KH, (b1 - a1) * STEP, (k2 - k1 + 1) * KH); g.strokeRect(a1 * STEP + .5, (HI - k2) * KH + .5, (b1 - a1) * STEP, (k2 - k1 + 1) * KH); }
   const ns = rollNotes.filter(n => n.sel), vs = ns.map(n => Math.max(1, Math.round(n.v * 127))), vmin = Math.min(...vs), vmax = Math.max(...vs);
-  document.getElementById("roll-info").textContent = ns.length ? `${ns.length} selected · ${NAMES[ns[0].n % 12]}${Math.floor(ns[0].n / 12) - 1} · vel ${vmin === vmax ? vmin : vmin + "–" + vmax}` : `${rollNotes.filter(n => n.s < rollLen).length} notes`;
-  const vf = document.getElementById("vel-set"); if (document.activeElement !== vf) { vf.disabled = !ns.length; vf.value = ns.length && vmin === vmax ? vmin : ""; vf.placeholder = ns.length ? "mixed" : ""; }
+  rollEls.rollInfo.textContent = ns.length ? `${ns.length} selected · ${NAMES[ns[0].n % 12]}${Math.floor(ns[0].n / 12) - 1} · vel ${vmin === vmax ? vmin : vmin + "–" + vmax}` : `${rollNotes.filter(n => n.s < rollLen).length} notes`;
+  const vf = velSet; if (document.activeElement !== vf) { vf.disabled = !ns.length; vf.value = ns.length && vmin === vmax ? vmin : ""; vf.placeholder = ns.length ? "mixed" : ""; }
   drawCC();
 }
 // Controller lane under the notes: velocity (per note, 1–127), mod wheel (0–127) and pitch bend (±range) as clip
 // envelopes. Velocity: drag over stems paints, mouse wheel nudges (Shift ×8), selected notes move together.
 // Wheel/bend: click adds, drag moves, double-click deletes (like automation lanes).
-const VH = 84, ccKind = document.getElementById("cc-kind"), ccVal = document.getElementById("cc-val");
+const VH = 84;
 let ccTip = null, ccDrag = null, ccLast = null;
 // the selected track's instrument bend range (unisynth ctl.bend_range, 0..24 semitones, default 2)
 const bendRange = () => { const d = instOf(selected); return d ? +(vget(d, paramOf(d, "ctl.bend_range")) * 24).toFixed(2) : 2; };
 const ccText = (k, v) => k === "vel" ? `vel ${Math.max(1, Math.round(v * 127))}` : k === "wheel" ? `MW ${Math.round(v * 127)}` : `PB ${((v - .5) * 2 * bendRange()).toFixed(2)} st`;
 function drawCC() {
+  if (!velc) return;
   const W = rollLen * STEP, dpr = devicePixelRatio || 1, k = ccKind.value, y = v => VH - 4 - v * (VH - 10);
   const vw = rollView(W); velSize.style.width = W + "px"; velSize.style.height = VH + "px";
   velc.width = vw * dpr; velc.height = VH * dpr; velc.style.width = vw + "px"; velc.style.height = VH + "px"; velc.style.transform = `translateX(${rollX0}px)`;
@@ -830,6 +840,7 @@ function paintSpan(px0, v0, px1, v1) {
 }
 const clampV = v => Math.min(1, Math.max(1 / 127, v));
 const velTip = (e, ns) => { ccTip = { x: e.offsetX + rollX0, t: ccText("vel", ns[0].v) + (ns.length > 1 ? ` · ${ns.length} notes` : "") }; ccVal.textContent = ccTip.t; };
+onRollMount(() => {
 velc.addEventListener("pointerdown", e => {
   velc.setPointerCapture(e.pointerId); const [st, val] = ccPos(e), k = ccKind.value;
   if (k === "vel") {
@@ -871,13 +882,13 @@ velc.addEventListener("wheel", e => {
   commit(before, `velocity ${step > 0 ? "+" : "−"}${e.shiftKey ? 8 : 1} on ${ns.length} note${ns.length > 1 ? "s" : ""}`); ccVal.textContent = ccText("vel", ns[0].v); drawRoll();
 }, { passive: false });
 ccKind.addEventListener("change", () => { velc.setAttribute("aria-label", `Controller lane: ${ccKind.selectedOptions[0].text}`); ccVal.textContent = ""; drawCC(); });
+});
 // Audition controllers: MW holds, PB springs back to centre on release (live only, never recorded).
 const pb = document.getElementById("pb"); pb.addEventListener("pointerup", () => { pb.value = 0; pb.dispatchEvent(new Event("input")); });
 pb.addEventListener("keyup", () => { pb.value = 0; pb.dispatchEvent(new Event("input")); });
-const grid = document.getElementById("grid"), vel = document.getElementById("vel");
-grid.addEventListener("scroll", () => { keys.scrollTop = grid.scrollTop; vel.scrollLeft = grid.scrollLeft; if (Math.floor(grid.scrollLeft) !== rollX0 && rollClip) redrawRollSoon(); });
+onRollMount(() => { grid.addEventListener("scroll", () => { keys.scrollTop = grid.scrollTop; vel.scrollLeft = grid.scrollLeft; if (Math.floor(grid.scrollLeft) !== rollX0 && rollClip) redrawRollSoon(); });
 new ResizeObserver(redrawRollSoon).observe(grid);
-vel.addEventListener("wheel", e => { if (!e.ctrlKey && !e.metaKey && !e.altKey && Math.abs(e.deltaX) > Math.abs(e.deltaY)) { e.preventDefault(); grid.scrollLeft += e.deltaX; } }, { passive: false });
+vel.addEventListener("wheel", e => { if (!e.ctrlKey && !e.metaKey && !e.altKey && Math.abs(e.deltaX) > Math.abs(e.deltaY)) { e.preventDefault(); grid.scrollLeft += e.deltaX; } }, { passive: false }); });
 
 // Mixer: each strip = inserts (the track's effect chain), sends (stored as receives on the target track,
 // post-fader), fader, meters. Bus tracks have no instrument; the master is the last track and can hold effects.
@@ -971,21 +982,22 @@ const roll = {
     ns.forEach(n => n.n += d); say(`transposed ${d > 0 ? "+" : ""}${d}`); scrollToNotes(ns); },
   move(d) { const ns = selNotes(); if (!ns.length) return; if (ns.some(n => n.s + d < 0 || n.s + n.l + d > rollLen)) return say("clip edge"); ns.forEach(n => n.s += d); say(`moved ${d > 0 ? "+" : ""}${d} steps`); },
   resize(d) { selNotes().forEach(n => n.l = Math.max(rollSnap() || .25, Math.min(rollLen - n.s, n.l + d))); say("length changed"); },
-  quant(lengths) { const q = rollSnap() || 1, str = +document.getElementById("qstr").value, ns = selNotes().length ? selNotes() : rollNotes;
+  quant(lengths) { const q = rollSnap() || 1, str = +(rollEls?.qstr.value ?? 1), ns = selNotes().length ? selNotes() : rollNotes;
     for (const n of ns) { n.s += (Math.round(n.s / q) * q - n.s) * str; if (lengths) n.l = Math.max(q, n.l + (Math.round(n.l / q) * q - n.l) * str); n.s = Math.max(0, n.s); }
     say(`quantized ${ns.length} notes to ${tr.snap()} at ${Math.round(str * 100)}%`); },
   legato() { const ns = (selNotes().length ? selNotes() : rollNotes).slice().sort((a, b) => a.s - b.s);
     ns.forEach((n, i) => { const nx = ns.slice(i + 1).find(m => m.s > n.s); n.l = (nx ? nx.s : rollLen) - n.s; }); say("legato"); },
 };
 const barStr = st => `${1 + Math.floor(st / 16)}.${1 + Math.floor((st % 16) / 4)}.${Math.round((st % 4) * 240)}`;
-function scrollToNotes(ns) { const top = (HI - Math.max(...ns.map(n => n.n))) * KH, bot = (HI - Math.min(...ns.map(n => n.n)) + 1) * KH;
+function scrollToNotes(ns) { if (!grid) return; const top = (HI - Math.max(...ns.map(n => n.n))) * KH, bot = (HI - Math.min(...ns.map(n => n.n)) + 1) * KH;
   if (top < grid.scrollTop || bot > grid.scrollTop + grid.clientHeight) grid.scrollTop = Math.max(0, top - 40); }
 function rollCmd(name, arg) { const before = snap(); roll[name](arg); commit(before, editStatus.textContent); drawRoll(); renderLane(selected); }
-document.querySelectorAll("#roll-tools [data-roll]").forEach(b => b.onclick = () => {
+onRollMount(() => rollEls.tools.querySelectorAll("[data-roll]").forEach(b => b.onclick = () => {
   const a = b.dataset.roll; focusArea = "roll";
   if (a.startsWith("t")) rollCmd("transpose", +a.slice(1)); else if (a === "quantlen") rollCmd("quant", true); else rollCmd(a);
   gridc.focus();
-});
+}));
+onRollMount(() => {
 gridc.addEventListener("pointerdown", e => {
   focusArea = "roll"; gridc.focus(); gridc.setPointerCapture(e.pointerId);
   const [st, key] = rpos(e), n = noteHit(st, key), now = performance.now();
@@ -1041,12 +1053,12 @@ gridc.addEventListener("keydown", e => {
   else if (k === "escape") { rollNotes.forEach(n => n.sel = false); drawRoll(); return; }
   if (!cmd) return; e.preventDefault(); rollCmd(cmd, arg);
 });
+});
 // Roll up/down: mouse wheel scrolls pitch (native), keys column follows; start centred on the clip's notes.
-function centreRoll() { if (rollNotes.length) { const mid = rollNotes.reduce((a, n) => a + n.n, 0) / rollNotes.length; grid.scrollTop = Math.max(0, (HI - mid) * KH - grid.clientHeight / 2); } }
+function centreRoll() { if (grid && rollNotes.length) { const mid = rollNotes.reduce((a, n) => a + n.n, 0) / rollNotes.length; grid.scrollTop = Math.max(0, (HI - mid) * KH - grid.clientHeight / 2); } }
 
-const velSet = document.getElementById("vel-set");
-velSet.addEventListener("change", () => { const v = Math.max(1, Math.min(127, Math.round(+velSet.value || 0))); if (!v || !selNotes().length) return;
-  const before = snap(), ns = selNotes(); ns.forEach(n => n.v = v / 127); lastVel = v / 127; commit(before, `velocity ${v} on ${ns.length} notes`); velSet.blur(); drawRoll(); });
+onRollMount(() => velSet.addEventListener("change", () => { const v = Math.max(1, Math.min(127, Math.round(+velSet.value || 0))); if (!v || !selNotes().length) return;
+  const before = snap(), ns = selNotes(); ns.forEach(n => n.v = v / 127); lastVel = v / 127; commit(before, `velocity ${v} on ${ns.length} notes`); velSet.blur(); drawRoll(); }));
 // ---- arrangement ----
 const instrTracks = () => tracks.filter(t => !t.bus);
 const selClips = () => tracks.flatMap(t => t.clips.filter(c => c.sel).map(c => ({ t, c })));
@@ -1200,7 +1212,9 @@ renderAll();
 // Tabs (roving, arrow keys)
 const tabs = [...document.querySelectorAll('[role="tab"]')];
 function show(t) {
+  if (t.id !== "tab-roll") setRollShown(false);  // unmount while still laid out: detachRoll keeps the scroll position
   for (const x of tabs) { const on = x === t; x.setAttribute("aria-selected", on); x.tabIndex = on ? 0 : -1; document.getElementById(x.getAttribute("aria-controls")).hidden = !on; }
+  setRollShown(t.id === "tab-roll");  // the roll panel is mounted only while its tab shows (attachRoll draws it, laid out)
   if (t.id === "tab-roll") { drawRoll(); centreRoll(); }
   setMixerShown(t.id === "tab-mix");  // the mixer is mounted only while its tab shows
   devst.setDeviceShown(t.id === "tab-dev");  // so is the device panel
@@ -1323,12 +1337,11 @@ function toggleFollow() {
   if (followHold) { resumeFollow(); tr.setFollow(true); say("follow resumed"); showPos(); return; }
   tr.setFollow(!tr.follow()); resumeFollow();
 }
-for (const el of [lw, grid, vel, keys, hdrs, ruler]) {
-  el.addEventListener("wheel", holdFollow, { passive: true });
-  el.addEventListener("touchmove", holdFollow, { passive: true });
-}
+const holdOn = els => { for (const el of els) { el.addEventListener("wheel", holdFollow, { passive: true }); el.addEventListener("touchmove", holdFollow, { passive: true }); } };
 // Dragging a scrollbar: the press lands on the scroll container itself, not on its content.
-for (const el of [lw, grid]) el.addEventListener("pointerdown", e => { if (e.target === el) holdFollow(); });
+const holdOnBar = el => el.addEventListener("pointerdown", e => { if (e.target === el) holdFollow(); });
+holdOn([lw, hdrs, ruler]); holdOnBar(lw);
+onRollMount(() => { holdOn([grid, vel, keys]); holdOnBar(grid); });
 
 // Mute / solo (header and mixer strip buttons, design D7): one state per track, both views follow the store. Mute is
 // one undo step (committed after the click); solo is not undoable.
@@ -1344,7 +1357,7 @@ const audible = t => M.audible(tracks, t);
 let playing = false, lastT = 0, raf = 0;
 const barsPerSec = () => (tr.tempo() || 128) / 60 / quartersPerBar();
 function moveRollPh() {
-  const el = document.getElementById("roll-ph"); if (!rollClip) { el.hidden = true; return; }
+  const el = rollEls?.rollPh; if (!el) return; if (!rollClip) { el.hidden = true; return; }
   let x = songStep(SONG_POS); if (rollClip.loop && x >= 0 && x < rollClip.len * 16) x %= rollLen; const hide = x < 0 || x > rollLen; if (el.hidden !== hide) el.hidden = hide; el.style.transform = `translateX(${x * STEP}px)`;
 }
 // Runs every animation frame while playing: reads layout first (still valid from the last frame), then writes
@@ -1357,7 +1370,7 @@ function showPos() {
     // paused by a hand scroll: resumes by itself when the playhead, still in view, reaches the right edge
     if (followHold && x > sl + cw - 40 && x <= sl + cw) resumeFollow();
     if (!followHold && (x < sl || x > sl + cw - 40)) lw.scrollLeft = Math.max(0, x - 40);
-    if (!followHold && !document.getElementById("p-roll").hidden && rollClip) { const rx = songStep(SONG_POS) * STEP, gl = grid.scrollLeft, gw = grid.clientWidth; if (rx >= 0 && rx <= rollLen * STEP && (rx < gl || rx > gl + gw - 30)) grid.scrollLeft = Math.max(0, rx - 30); }
+    if (!followHold && grid && rollClip) { const rx = songStep(SONG_POS) * STEP, gl = grid.scrollLeft, gw = grid.clientWidth; if (rx >= 0 && rx <= rollLen * STEP && (rx < gl || rx > gl + gw - 30)) grid.scrollLeft = Math.max(0, rx - 30); }
   }
   ph.style.transform = ph2.style.transform = `translateX(${x}px)`;
   moveRollPh();
@@ -1520,7 +1533,7 @@ function noteOn(t, note, vel, key) {
   ensureAudio().then(ok => { if (ok && heldV.get(key)?.note === note) E.noteOn(ti, note, vel); });
 }
 function noteOff(key) { const h = heldV.get(key); if (!h) return; if (E.node) E.noteOff(h.ti, h.note); heldV.delete(key); if (![...heldV.values()].some(x => x.note === h.note)) keyLight(h.note, false); }
-function keyLight(note, on) { keys.children[HI - note]?.classList.toggle("on", on); }
+function keyLight(note, on) { keys?.children[HI - note]?.classList.toggle("on", on); }
 // Library: "Audition" plays C3 on the selected track's instrument (load the entry to hear its own sound)
 function auditionEntry(src, it, done) {
   if (src.id === "gsm") { gsmOf(it.gsm).then(b64 => b64 && playSample(b64)); return done(); }
@@ -1550,10 +1563,12 @@ window.addEventListener("keydown", e => {
 window.addEventListener("keyup", e => { if (kbNote(e.code) >= 0) noteOff("k" + e.code); }, true);
 window.addEventListener("blur", () => [...heldV.keys()].forEach(noteOff));
 // Piano-roll keys: press = audition on the selected track
+onRollMount(() => {
 keys.addEventListener("pointerdown", e => { const b = e.target.closest("button"); if (!b) return; e.preventDefault(); keys.setPointerCapture(e.pointerId); noteOn(selected, HI - [...keys.children].indexOf(b), kbVel, "mouse"); });
 for (const ev of ["pointerup", "pointercancel"]) keys.addEventListener(ev, () => noteOff("mouse"));
 keys.addEventListener("keydown", e => { const b = e.target.closest("button"); if (b && (e.key === "Enter" || e.key === " ") && !e.repeat) { e.preventDefault(); noteOn(selected, HI - [...keys.children].indexOf(b), kbVel, "kbkey"); } });
 keys.addEventListener("keyup", () => noteOff("kbkey"));
+});
 // Web MIDI (asks the browser on first use): notes to the armed track, CC1 to MW, pitch bend to PB
 function connectMidi() {
   const info = document.getElementById("midi-info");
@@ -1815,6 +1830,7 @@ function zoomArr(f, clientX, quiet) {
   lw.scrollLeft = (bar - 1) * BW - ax; if (!quiet) say(`arrangement zoom ${Math.round(BW / 44 * 100)}%`);
 }
 function zoomRoll(fx, fy, clientX, clientY, quiet) {
+  if (!grid) return;
   const r = grid.getBoundingClientRect(), ax = (clientX ?? r.left + grid.clientWidth / 2) - r.left, ay = (clientY ?? r.top + grid.clientHeight / 2) - r.top;
   const st = (grid.scrollLeft + ax) / STEP, ky = (grid.scrollTop + ay) / KH;
   STEP = clamp(STEP * fx, 3, 120); KH = clamp(Math.round(KH * fy * 4) / 4, 6, 32);
@@ -1827,7 +1843,7 @@ function fitArr() {
   zoomArr((lw.clientWidth - 8) / (b1 - a) / BW, undefined, true); lw.scrollLeft = (a - 1) * BW; say(cs.length ? `zoomed to ${cs.length} clips` : "zoomed to the song");
 }
 function fitRoll() {
-  if (!rollClip) return; const ns = rollNotes.filter(n => n.s < rollLen);
+  if (!rollClip || !grid) return; const ns = rollNotes.filter(n => n.s < rollLen);
   STEP = clamp((grid.clientWidth - 4) / rollLen, 3, 120);
   if (ns.length) { const lo = Math.min(...ns.map(n => n.n)) - 2, hi = Math.max(...ns.map(n => n.n)) + 2; KH = clamp(Math.floor(grid.clientHeight / (hi - lo + 1)), 6, 32); }
   document.documentElement.style.setProperty("--kh", KH + "px"); keys.style.fontSize = KH < 10 ? "0" : "";
@@ -1840,15 +1856,17 @@ const rollWheel = e => {
   if (e.ctrlKey || e.metaKey) { e.preventDefault(); zoomRoll(wheelF(e), 1, e.clientX, e.clientY, true); }
   else if (e.altKey) { e.preventDefault(); zoomRoll(1, wheelF(e), e.clientX, e.clientY, true); }
 };
-grid.addEventListener("wheel", rollWheel, { passive: false }); vel.addEventListener("wheel", rollWheel, { passive: false });
-keys.addEventListener("wheel", e => { if (e.ctrlKey || e.metaKey || e.altKey) { e.preventDefault(); zoomRoll(1, wheelF(e), undefined, e.clientY, true); } else grid.scrollTop += e.deltaY; }, { passive: false });
+onRollMount(() => { grid.addEventListener("wheel", rollWheel, { passive: false }); vel.addEventListener("wheel", rollWheel, { passive: false });
+keys.addEventListener("wheel", e => { if (e.ctrlKey || e.metaKey || e.altKey) { e.preventDefault(); zoomRoll(1, wheelF(e), undefined, e.clientY, true); } else grid.scrollTop += e.deltaY; }, { passive: false }); });
 let g0 = 1;
-for (const [el, fn] of [[lw, (sc, e) => zoomArr(g0 * sc / BW, e.clientX, true)], [grid, (sc, e) => zoomRoll(g0 * sc / STEP, 1, e.clientX, e.clientY, true)]]) {
+const pinch = (el, fn) => {
   el.addEventListener("gesturestart", e => { e.preventDefault(); g0 = el === lw ? BW : STEP; });
   el.addEventListener("gesturechange", e => { e.preventDefault(); fn(e.scale, e); });
-}
+};
+pinch(lw, (sc, e) => zoomArr(g0 * sc / BW, e.clientX, true));
+onRollMount(() => pinch(grid, (sc, e) => zoomRoll(g0 * sc / STEP, 1, e.clientX, e.clientY, true)));
 
-document.querySelectorAll("#roll-tools [data-zoom]").forEach(b => b.onclick = () => ({ "t+": () => zoomRoll(1.5, 1), "t-": () => zoomRoll(1 / 1.5, 1), "p+": () => zoomRoll(1, 1.25), "p-": () => zoomRoll(1, .8), fit: fitRoll })[b.dataset.zoom]());
+onRollMount(() => rollEls.tools.querySelectorAll("[data-zoom]").forEach(b => b.onclick = () => ({ "t+": () => zoomRoll(1.5, 1), "t-": () => zoomRoll(1 / 1.5, 1), "p+": () => zoomRoll(1, 1.25), "p-": () => zoomRoll(1, .8), fit: fitRoll })[b.dataset.zoom]()));
 // Keys: + / − zoom (time) and Shift+Z fits, in the area that has focus.
 document.addEventListener("keydown", e => {
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -1857,4 +1875,5 @@ document.addEventListener("keydown", e => {
   if (f) { e.preventDefault(); inRoll ? zoomRoll(f, 1) : zoomArr(f); }
   else if (e.key === "Z" && e.shiftKey) { e.preventDefault(); inRoll ? fitRoll() : fitArr(); }
 });
+mountRoll(document.getElementById("p-roll"), { attach: attachRoll, detach: detachRoll });  // after every onRollMount setup
 }

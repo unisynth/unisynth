@@ -292,6 +292,7 @@ test("loop is off by default; the computer keyboard plays the selected track (tr
   expect(await page.locator("#loop-btn").getAttribute("aria-pressed")).toBe("false");
   await page.locator('.thdr.track[data-track="pad"] .name').click(); // selecting a track arms it
   expect(await page.locator("#armed-info").textContent()).toContain("Pad");
+  await page.locator("#tab-roll").click();  // the roll's audition keys light up (the panel exists only while shown)
   await page.locator("#lanes-wrap").focus();
   await page.keyboard.down("q"); // Q = C one octave above Z
   await page.waitForTimeout(600);
