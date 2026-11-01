@@ -203,7 +203,10 @@ function knobEdited(t, el) {
 /** One line from a song/2 about: type · style · tempo · engine · like … — description. */
 const aboutText = a => [a.type, a.style, a.tempo, a.engine, a.similar_to?.length ? "like " + a.similar_to.join(", ") : ""].filter(Boolean).join(" · ") + " — " + a.description;
 const live = document.getElementById("live");
-function addLane(t, ln, box, beforeH, beforeL) {
+// One automation lane: header (.thdr.auto) and lane (.lane.auto) elements for the row (ui/arrange/Tracks.tsx inserts
+// them, one pair per t.lanes entry); the SVG draw and the point editor stay imperative (design D4). Returns the
+// elements and a dispose that unregisters the lane from laneVals.
+function addLane(t, ln) {
   // the target list (every parameter of every device, hundreds of options) is built when the select is first used;
   // until then it holds the current target only (rows mount while scrolling: design D6)
   const names = devicesOf(t), opts = () => { const used = new Set(t.lanes.filter(x => x !== ln).map(x => x.dev + ":" + x.param));
@@ -232,7 +235,7 @@ function addLane(t, ln, box, beforeH, beforeL) {
     ah.querySelector(".val").textContent = cur(); applyAutomation();
     if (focus && selI >= 0) al.querySelector(`.pt[data-i="${selI}"]`)?.focus();
   };
-  laneVals.push({ box, draw, t, ln, ah, val: () => { ah.querySelector(".val").textContent = cur(); } }); draw();
+  const entry = { draw, t, ln, ah, val: () => { ah.querySelector(".val").textContent = cur(); } }; laneVals.push(entry); draw();
   const toBV = (e, free) => {
     const r = al.getBoundingClientRect();
     const raw = 1 + (e.clientX - r.left) / BW, b = free ? raw : 1 + Math.round((raw - 1) * 16) / 16;
@@ -290,30 +293,23 @@ function addLane(t, ln, box, beforeH, beforeL) {
     const [di, p] = e.target.value.split(":"), before = snap(); ln.dev = +di; ln.param = p; draw(); commit(before, `${t.name}: lane now ${devicesOf(t)[ln.dev]} · ${p}`);
   });
   ah.querySelector(".rm").addEventListener("click", () => {
-    const before = snap(); t.lanes.splice(t.lanes.indexOf(ln), 1); rebuildTracks(); commit(before, `${t.name}: lane ${ln.param} removed`);
+    const before = snap(); t.lanes.splice(t.lanes.indexOf(ln), 1); applyAutomation(); commit(before, `${t.name}: lane ${ln.param} removed`);
   });
-  if (beforeH) { box.h.insertBefore(ah, beforeH); box.l.insertBefore(al, beforeL); } else { box.h.append(ah); box.l.append(al); }
+  return { ah, al, dispose: () => { const i = laneVals.indexOf(entry); if (i >= 0) laneVals.splice(i, 1); } };
 }
 // Track rows: ui/arrange/Tracks.tsx (windowed, design D6). A mounted row in the view window renders its clips and, while
-// open, its automation lanes (mountAuto); rebuildTracks() bumps arrange.rev so mounted rows refill after
+// open, its automation lanes (addLane per lane); rebuildTracks() bumps arrange.rev so mounted rows refill after
 // add/delete/reorder/undo. Rows off screen hold nothing (laneEl / laneVals only list mounted rows). Clips render
 // reactively in the lane (Clip.tsx), culled to the bars around the view.
-function mountAuto(t, box) {
-  for (const ln of t.lanes) addLane(t, ln, box);
-  const addH = document.createElement("div"); addH.className = "thdr addlane";
-  addH.innerHTML = `<button aria-label="Add automation lane to ${t.name}">+ lane</button><span class="dim">one lane per parameter</span>`;
-  const addL = document.createElement("div"); addL.className = "lane addlane";
-  addH.querySelector("button").addEventListener("click", () => {
-    const used = new Set(t.lanes.map(x => x.dev + ":" + x.param));
-    const pref = ["filt1.cutoff", "filt1.resonance", "master", "dry_wet", "feedback"];
-    const cand = t.devices.flatMap((dv, di) => autoParams(dv).map(p => [di, p])).filter(([di, p]) => !used.has(di + ":" + p.name));
-    const free = cand.find(([, p]) => pref.includes(p.name)) || cand[0];
-    if (!free) return live.textContent = `${t.name}: ${t.devices.length ? "every automatable parameter already has a lane" : "add a device first"}`;
-    const [di, p] = free, d = t.devices[di], before = snap(), ln = { dev: di, param: p.name, pts: [[1, d.values[p.name] ?? p.default]] };
-    t.lanes.push(ln); addLane(t, ln, box, addH, addL); commit(before, `${t.name}: lane ${devicesOf(t)[di]} · ${p.name} added`);
-  });
-  box.h.append(addH); box.l.append(addL);
-  return () => { for (let i = laneVals.length; i--;) if (laneVals[i].box === box) laneVals.splice(i, 1); };
+// "+ lane": the next free automatable parameter (filter cutoff first), one undo step; the row shows it (store).
+function addAutoLane(t) {
+  const used = new Set(t.lanes.map(x => x.dev + ":" + x.param));
+  const pref = ["filt1.cutoff", "filt1.resonance", "master", "dry_wet", "feedback"];
+  const cand = t.devices.flatMap((dv, di) => autoParams(dv).map(p => [di, p])).filter(([di, p]) => !used.has(di + ":" + p.name));
+  const free = cand.find(([, p]) => pref.includes(p.name)) || cand[0];
+  if (!free) return live.textContent = `${t.name}: ${t.devices.length ? "every automatable parameter already has a lane" : "add a device first"}`;
+  const [di, p] = free, d = t.devices[di], before = snap(), ln = { dev: di, param: p.name, pts: [[1, d.values[p.name] ?? p.default]] };
+  t.lanes.push(ln); commit(before, `${t.name}: lane ${devicesOf(t)[di]} · ${p.name} added`);
 }
 function rebuildTracks() {
   arrange.setRev(v => v + 1);
@@ -326,7 +322,7 @@ const lw = document.getElementById("lanes-wrap");
 arrange.setArmedId(armed?.id ?? null); setSelectedId(selected.id); arrange.setBw(BW);  // the rows mark and pin them from the start
 mountTracks(hdrs, lanes, lw, tracks, {
   devLabel: t => devLabel(t), about: t => t.about ? aboutText(t.about) : "", rename: (t, v) => renameTo(t, v),
-  pattern: (t, name) => raw(t).pats?.[name] ?? null, mountAuto: (t, box) => mountAuto(t, box),
+  pattern: (t, name) => raw(t).pats?.[name] ?? null, autoLane: (t, ln) => addLane(t, ln), addAutoLane: t => addAutoLane(t),
 });
 lw.addEventListener("scroll", () => { ruler.style.transform = `translateX(${-lw.scrollLeft}px)`; hdrs.scrollTop = lw.scrollTop; });
 // One scroller: the lanes. Headers only mirror lw.scrollTop (they never write back, which made momentum scrolling
@@ -1757,7 +1753,7 @@ async function ensureAudio() {
 function seek(b1) {
   resumeFollow(); SONG_POS = Math.max(1, Math.min(BARS + PAD_BARS + 1, b1));
   if (E.node) E.seek(frameOf(SONG_POS));
-  statusAt = performance.now(); showPos(); applyAutomation(); laneVals.forEach(l => { if (!l.box.l.hidden) l.val(); });
+  statusAt = performance.now(); showPos(); applyAutomation(); laneVals.forEach(l => l.val());
 }
 async function setPlay(on) {
   if (on) {
@@ -1797,7 +1793,7 @@ function tick(now) {
   raf = requestAnimationFrame(tick);
 }
 let lastLane = 0;
-function laneTick(now) { if (now - lastLane < 100) return; lastLane = now; laneVals.forEach(l => { if (!l.box.l.hidden) l.val(); });
+function laneTick(now) { if (now - lastLane < 100) return; lastLane = now; laneVals.forEach(l => l.val());
   for (const t of tracks) laneEl.get(t.id)?.querySelectorAll(".clip").forEach(el => el.classList.toggle("playing", SONG_POS >= el._clip.start && SONG_POS < el._clip.start + el._clip.len)); }
 // Meters: per-track peaks from the engine (master last), falling 20 dB/s.
 const lvl = {};

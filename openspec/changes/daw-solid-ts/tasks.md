@@ -135,8 +135,17 @@ before → `AGENTS.md` rows → land on `main`.
   its first point. Bench before → after (same session): trashpanda open 1 582 → 1 151, select-dev 32 → 32,
   undo 436 → 63, select-mix 14 → 14, scroll p95 17.4 → 18.2 (1 → 1 > 20 ms); tbl-stash-over2 open 8 836 → 1 358,
   select-dev 57 → 37, undo 6 148 → 226, select-mix 24 → 15, scroll p95 38.8 → 25.5 (20 → 8).
-- [ ] 5.3 Port clips, clip thumbnails (canvas, D4) and automation lanes with point editing. Verify: contract + editing
+- [x] 5.3 Port clips, clip thumbnails (canvas, D4) and automation lanes with point editing. Verify: contract + editing
   tests, bench scroll and select.
+  Done: `ui/arrange/Clip.tsx` (reactive clip; canvas thumbnail from `thumb.ts`, unit-tested against the old per-note
+  layout; screenshot matches) culled per lane to `barWindow` (view-width pages ± 1); `renderLane` = lane version bump.
+  Automation lanes: `addLane` returns its header/lane elements, the row maps `t.lanes` to them (reactive list, no
+  rebuild on add/remove; SVG + point editor stay imperative, D4). Found and fixed on the way: `Engine.start` had no
+  in-flight guard (each early key press made an AudioContext; orphan statuses blanked the live displays: the
+  long-standing flaky live-chord test, now 6/6), and dialogs were removed only on the async close event (a query
+  right after Cancel still found them). 115/115 twice. Bench (5.2 → 5.3): trashpanda undo 63 → 56, select-mix
+  14 → 12, scroll p95 18.2 → 18.6 (1 → 2 > 20 ms); tbl-stash-over2 undo 226 → 217, scroll p95 25.5 → 23.1
+  (8 → 9), play frames unchanged.
 - [ ] 5.4 Move the volume, mute/solo and arm delegates into the header and strip components (D7). Track and clip
   commands go through actions. Verify: mixer and header stay in sync (mixer test), undo steps unchanged.
 

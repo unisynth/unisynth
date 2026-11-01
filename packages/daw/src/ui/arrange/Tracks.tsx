@@ -4,7 +4,7 @@
 // song store (name, mute/solo, volume, lanes, open) and the view state (selected, armed, renaming). Clips and
 // automation lanes are still filled imperatively when a row mounts (`mountLane`, `mountAuto`; refilled on `rev`);
 // they move to components in 5.3. The volume, mute/solo and arm clicks are still document delegates in app.js (5.4).
-import { batch, createEffect, createMemo, For, mapArray, on, onCleanup, onMount, Show, untrack, type JSX } from "solid-js";
+import { batch, createEffect, createMemo, createRoot, For, mapArray, on, onCleanup, onMount, Show, untrack, type JSX } from "solid-js";
 import { insert, render } from "solid-js/web";
 import { laneEl, selectedId } from "../state/view.ts";
 import { Clip, type PatternOf } from "./Clip.tsx";
@@ -18,8 +18,10 @@ export interface TrackActions {
   rename(t: Track, name: string): void;
   /** A clip's pattern for its thumbnail (read only). */
   pattern: PatternOf;
-  /** The open automation group exists: fill both columns' boxes; returns the cleanup. */
-  mountAuto(t: Track, box: { h: HTMLElement; l: HTMLElement }): () => void;
+  /** One automation lane's header and lane elements (imperative SVG + point editor, D4) and their dispose. */
+  autoLane(t: Track, ln: unknown): { ah: HTMLElement; al: HTMLElement; dispose(): void };
+  /** "+ lane": adds the next free parameter's lane to the track. */
+  addAutoLane(t: Track): void;
 }
 interface Row { t: Track; box: { h: HTMLDivElement; l: HTMLDivElement }; inView: () => boolean }
 
@@ -134,10 +136,23 @@ function Rename(p: { t: Track; a: TrackActions }): JSX.Element {
     onBlur={() => finish(true)} />;
 }
 
-/** One column's half of the open automation group; the lanes side fills both halves (they mount together). */
+/** One column's half of the open automation group. The lanes side fills both halves: one header + lane pair per
+ *  `t.lanes` entry (reactive list: adding or removing a lane needs no rebuild), then the "+ lane" row; refilled on
+ *  `rev` (undo reconciles lanes by position, so their contents change in place). */
 function AutoGroup(p: { r: Row; a: TrackActions; side: "h" | "l" }): JSX.Element {
   if (p.side === "l") {
-    createEffect(on([rev, p.r.inView], ([, v]) => { if (v) fillRow(() => { const stop = p.a.mountAuto(p.r.t, p.r.box); return () => { stop(); p.r.box.h.replaceChildren(); p.r.box.l.replaceChildren(); }; }); }));
+    const { t, box } = p.r, a = p.a;
+    createEffect(on([rev, p.r.inView], ([, v]) => {
+      if (v) fillRow(() => createRoot((dispose) => {
+        const pairs = mapArray(() => t.lanes, (ln) => { const r = a.autoLane(t, ln); onCleanup(r.dispose); return r; });
+        insert(box.h, () => <>
+          <For each={pairs()}>{(r) => r.ah}</For>
+          <div class="thdr addlane"><button aria-label={`Add automation lane to ${t.name}`} onClick={() => a.addAutoLane(t)}>+ lane</button><span class="dim">one lane per parameter</span></div>
+        </>);
+        insert(box.l, () => <><For each={pairs()}>{(r) => r.al}</For><div class="lane addlane" /></>);
+        return () => { dispose(); box.h.replaceChildren(); box.l.replaceChildren(); };
+      }));
+    }));
   }
   return p.r.box[p.side];
 }

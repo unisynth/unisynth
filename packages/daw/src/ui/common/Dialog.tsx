@@ -1,6 +1,7 @@
 // Modal dialog (change daw-solid-ts 4.2): `<dialog class="dlg">` mounted only while open, one at a time (opening one
 // closes the previous). Buttons run their action; an action returning false keeps the dialog open (e.g. Save failed).
-// Escape closes (native cancel). Focus returns to the opener (native showModal/close).
+// Escape closes (native cancel), and the dialog is gone when the click or key event returns. Focus returns to the
+// opener (native showModal/close).
 import { For, type JSX } from "solid-js";
 import { render } from "solid-js/web";
 
@@ -30,8 +31,12 @@ export function openDialog(title: string, body: () => JSX.Element, buttons: Dial
       </div>
     </dialog>
   ), host);
-  const handle: DialogHandle = { el, close: () => { if (el.open) el.close(); } };
-  el.addEventListener("close", () => { dispose(); host.remove(); if (openNow === handle) openNow = null; });
+  // removed at once on close (not on the async close event: a query right after the click would still find it)
+  let gone = false;
+  const remove = () => { if (gone) return; gone = true; dispose(); host.remove(); if (openNow === handle) openNow = null; };
+  const handle: DialogHandle = { el, close: () => { if (el.open) el.close(); remove(); } };
+  el.addEventListener("close", remove);
+  el.addEventListener("cancel", (e) => { e.preventDefault(); handle.close(); });  // Escape: removed in the key event
   openNow = handle;
   el.showModal();
   return handle;
