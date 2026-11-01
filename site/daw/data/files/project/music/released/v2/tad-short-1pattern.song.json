@@ -1,0 +1,313 @@
+{
+  "format": "song/1",
+  "meta": {
+    "title": "short-1pattern",
+    "author": "TAD",
+    "description": "short-1pattern by TAD, a Farbrausch V2 song (.v2m format version 5) taken from the V2M collection of jgilje/v2m-player (`v2m/TAD--short-1pattern.v2mz`; its README points to modland). 120 BPM, 0:09, 3 tracks. This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. This song was not parity-checked on its own; the V2 import passes on the 18 songs that were (within 0.9 dB loudness and 1.8 dB per octave band of the v2redux reference). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
+    "copyright": "© TAD",
+    "url": "https://github.com/jgilje/v2m-player/blob/master/v2m/TAD--short-1pattern.v2mz",
+    "adapted_from": "short-1pattern (V2M, format version 5), https://github.com/jgilje/v2m-player/blob/master/v2m/TAD--short-1pattern.v2mz"
+  },
+  "rate": 44100,
+  "tempo": 120.0,
+  "signature": [4, 4],
+  "ticks_per_beat": 960,
+  "length": 18834,
+  "clips": [
+    {
+      "id": "t1/A",
+      "length": 30720,
+      "notes": [
+        [6, 351, 45, 127],
+        [6, 351, 57, 99],
+        [6, 167, 74, 99],
+        [6, 167, 108, 46],
+        [362, 351, 60, 99],
+        [724, 352, 57, 99],
+        [724, 173, 76, 99],
+        [1081, 357, 60, 99],
+        [1443, 351, 45, 127],
+        [1443, 351, 57, 99],
+        [1443, 173, 76, 99],
+        [1806, 351, 45, 127],
+        [1806, 707, 64, 99],
+        [2162, 173, 76, 99],
+        [2881, 357, 45, 127],
+        [2881, 357, 57, 99],
+        [2881, 173, 76, 99],
+        [2881, 173, 107, 46],
+        [3243, 351, 60, 99],
+        [3243, 173, 74, 99],
+        [3606, 351, 57, 99],
+        [3606, 167, 74, 99],
+        [3962, 351, 60, 99],
+        [4324, 352, 45, 127],
+        [4324, 352, 57, 99],
+        [4324, 173, 74, 99],
+        [4681, 357, 45, 127],
+        [4681, 713, 62, 99],
+        [5043, 173, 72, 99],
+        [5762, 351, 45, 127],
+        [5762, 351, 57, 99],
+        [5762, 173, 76, 99],
+        [5762, 173, 105, 46],
+        [6124, 352, 60, 99],
+        [6481, 357, 57, 99],
+        [6481, 173, 81, 99],
+        [6843, 351, 60, 99],
+        [7200, 357, 45, 127],
+        [7200, 357, 57, 99],
+        [7200, 173, 81, 99],
+        [7562, 351, 45, 127],
+        [7562, 714, 64, 99],
+        [7925, 172, 81, 99],
+        [8643, 351, 45, 127],
+        [8643, 351, 57, 99],
+        [8643, 173, 72, 99],
+        [8643, 173, 112, 46],
+        [9000, 357, 60, 99],
+        [9000, 173, 69, 99],
+        [9362, 351, 57, 99],
+        [9362, 173, 69, 99],
+        [9725, 351, 60, 99],
+        [10081, 357, 45, 127],
+        [10081, 357, 57, 99],
+        [10081, 173, 69, 99],
+        [10443, 351, 45, 127],
+        [10443, 714, 52, 99],
+        [10800, 173, 76, 99]
+      ]
+    }
+  ],
+  "tracks": [
+    {
+      "id": "t1",
+      "name": "Track 1",
+      "volume": 1.0,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "velocity": 0.0,
+            "osc1.type": 0.125,
+            "osc1.fine": 0.4921875,
+            "osc1.gain": 0.1015625,
+            "osc1.s0": 0.0078125,
+            "osc1.s1": 0.0,
+            "osc2.type": 0.125,
+            "osc2.gain": 0.703125,
+            "osc2.s0": 0.0390625,
+            "osc2.s1": 0.0,
+            "osc3.type": 0.125,
+            "osc3.coarse": 0.6484375,
+            "osc3.fine": 0.5078125,
+            "osc3.gain": 0.9921875,
+            "osc3.s0": 0.015625,
+            "osc3.s2": 0.0078125,
+            "filt1.type": 0.0625,
+            "filt1.cutoff": 0.6640625,
+            "filt1.resonance": 0.5,
+            "filt2.type": 0.0625,
+            "filt2.cutoff": 0.421875,
+            "filt2.resonance": 0.625,
+            "env1.law": 0.5,
+            "env1.attack": 0.0078125,
+            "env1.decay": 0.5,
+            "env1.sustain": 0.625,
+            "env1.release": 0.46875,
+            "env1.curve_slope": 0.4921875,
+            "env2.law": 0.5,
+            "env2.attack": 0.0078125,
+            "env2.decay": 0.5,
+            "env2.sustain": 0.9921875,
+            "env2.release": 0.625,
+            "lfo1.rate": 0.15625,
+            "lfo1.depth": 0.9921875,
+            "lfo1.sync": 0.0078125,
+            "lfo2.shape": 0.0078125,
+            "lfo2.rate": 0.5,
+            "lfo2.depth": 0.9921875,
+            "lfo2.sync": 0.0078125,
+            "mod1.source": 0.8888888955116272,
+            "mod1.target": 0.4117647111415863,
+            "mod1.amount": 0.9921875,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.7777777910232544,
+            "mod2.target": 0.4470588266849518,
+            "mod2.amount": 0.9921875,
+            "mod2.operation": 0.5,
+            "mod3.source": 0.5555555820465088,
+            "mod3.target": 0.32156863808631897,
+            "mod3.amount": 0.8125,
+            "mod3.operation": 0.5,
+            "mod4.source": 0.6666666865348816,
+            "mod4.target": 0.3529411852359772,
+            "mod4.amount": 0.75,
+            "mod4.operation": 0.5,
+            "mod5.source": 0.6111111044883728,
+            "mod5.target": 0.4627451002597809,
+            "mod5.amount": 0.9921875,
+            "mod5.operation": 0.5,
+            "mod6.source": 0.0555555559694767,
+            "mod6.target": 0.4588235318660736,
+            "mod6.operation": 0.5,
+            "voice.stage": 1.0,
+            "voice.keysync": 0.0078125,
+            "voice.era": 0.8333333134651184,
+            "voice.routing": 0.015625,
+            "voice.balance": 0.25,
+            "drive.gain": 0.4609375,
+            "drive.p1": 0.7890625,
+            "drive.p2": 0.2265625,
+            "env1.amplify": 0.0,
+            "env2.amplify": 0.5,
+            "lfo1.law": 1.0,
+            "lfo1.one_shot": 0.0078125,
+            "lfo2.law": 1.0,
+            "lfo2.polarity": 0.015625,
+            "strip.on": 1.0,
+            "strip.volume": 0.0,
+            "strip.send_delay": 0.234375,
+            "strip.drive_gain": 0.359375,
+            "strip.drive_p1": 0.75,
+            "strip.drive_p2": 0.3515625,
+            "strip.chorus_feedback": 0.828125,
+            "strip.chorus_delay_l": 0.3984375,
+            "strip.chorus_delay_r": 0.28125,
+            "strip.chorus_rate": 0.3984375,
+            "strip.chorus_depth": 0.03125,
+            "strip.chorus_phase": 0.9921875,
+            "strip.comp_auto_gain": 0.0,
+            "strip.comp_lookahead": 0.0,
+            "strip.comp_threshold": 0.5625,
+            "strip.comp_ratio": 0.9921875,
+            "strip.comp_attack": 0.0,
+            "strip.comp_release": 0.9921875
+          }
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t1/A",
+          "start": 0,
+          "length": 18834,
+          "loop": false
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "id": "t2",
+      "name": "Track 2",
+      "volume": 1.0,
+      "mute": false,
+      "receives": [
+        {
+          "from": "t1",
+          "channel": "main",
+          "volume": 1.0
+        }
+      ],
+      "devices": [
+        {
+          "kind": 71,
+          "values": {
+            "mode": 0.25,
+            "time": 0.328125,
+            "high_cut": 0.875,
+            "low_cut": 0.25,
+            "volume": 0.4921875,
+            "era": 0.8333333134651184
+          }
+        }
+      ],
+      "placements": [],
+      "lanes": []
+    },
+    {
+      "id": "t3",
+      "name": "Track 3",
+      "volume": 1.0,
+      "mute": false,
+      "receives": [
+        {
+          "from": "t1",
+          "channel": "main",
+          "volume": 1.0
+        }
+      ],
+      "devices": [
+        {
+          "kind": 68,
+          "values": {
+            "mode": 0.5,
+            "volume": 0.78125,
+            "feedback": 0.625,
+            "delay_l": 0.484375,
+            "delay_r": 0.515625,
+            "mod_rate": 0.0,
+            "mod_depth": 0.0,
+            "mod_phase": 0.5,
+            "era": 0.8333333134651184
+          }
+        }
+      ],
+      "placements": [],
+      "lanes": []
+    }
+  ],
+  "master": {
+    "id": "master",
+    "name": "Master",
+    "volume": 1.0,
+    "mute": false,
+    "receives": [
+      {
+        "from": "t1",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "t2",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "t3",
+        "channel": "main",
+        "volume": 1.0
+      }
+    ],
+    "devices": [
+      {
+        "kind": 67,
+        "values": {
+          "mode": 0.5,
+          "low_cut": 0.0,
+          "high_cut": 0.9921875,
+          "era": 0.8333333134651184
+        }
+      },
+      {
+        "kind": 72,
+        "values": {
+          "mode": 1.0,
+          "detect": 0.0,
+          "couple": 0.0,
+          "auto_gain": 0.0,
+          "lookahead": 0.015625,
+          "threshold": 0.703125,
+          "ratio": 0.25,
+          "attack": 0.15625,
+          "release": 0.5,
+          "out_gain": 0.5,
+          "era": 0.8333333134651184
+        }
+      }
+    ],
+    "placements": [],
+    "lanes": []
+  }
+}
