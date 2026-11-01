@@ -103,7 +103,10 @@ margin, and sizes a spacer to the full height. That is the same technique as tod
 culled by bar range in each lane. The focused or selected track row is always rendered, so focus and keyboard
 navigation survive scrolling (spec "Keyboard to an off-screen track"). Alternative `@tanstack/solid-virtual`: it
 measures rows it can already compute, and it makes the two synchronized scrollers (headers and lanes) harder.
-Adopt it only if the custom windowing becomes complex.
+Adopt it only if the custom windowing becomes complex. Decided in 5.2: custom windowing (`ui/state/arrange.ts`), no library. A row pinned
+only by selection or focus has its header and an empty lane; rows fill their clips and automation lanes while in
+the view window, from a per-frame queue when they enter by scrolling. Row position is not exposed with
+`aria-posinset` (not allowed on the headers' `role=group`).
 
 ### D7. Event handling in components; global keys in one module
 The document-level delegates in `app.js` (volume, mute/solo, arm, undo keys, transport keys, tracker keyboard) move

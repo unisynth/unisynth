@@ -69,7 +69,11 @@ const r = await p.evaluate(async () => {
   const song = (window as any).DAW.debug.song();
   const notes = (id: string) => song.clips.filter((c: any) => song.tracks.find((t: any) => t.id === id)?.placements?.some((pl: any) => pl.clip === c.id)).reduce((a: number, c: any) => a + (c.notes?.length ?? 0), 0);
   const busiest = song.tracks.map((t: any) => t.id).sort((a: string, b: string) => notes(b) - notes(a))[0];
-  document.querySelector<HTMLElement>(`.thdr.track[data-track="${busiest}"]`)!.click();
+  // rows are windowed (daw-solid-ts 5.2): scroll the busiest track's header into view, as a user would
+  const lw0 = document.getElementById("lanes-wrap")!, frame = () => new Promise((r) => requestAnimationFrame(r));
+  const hdrOf = () => document.querySelector<HTMLElement>(`.thdr.track[data-track="${busiest}"]`);
+  for (let y = 0; !hdrOf() && y <= lw0.scrollHeight; y += lw0.clientHeight) { lw0.scrollTop = y; await frame(); await frame(); }
+  hdrOf()!.click(); lw0.scrollTop = 0; await frame();
   tab("tab-dev");
   out.roll = await time(1, () => tab("tab-roll"));
 

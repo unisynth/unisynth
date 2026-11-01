@@ -9,7 +9,9 @@ import * as lib from "./ui/state/library.ts";
 import { mountFiles } from "./ui/files/Files.tsx";
 import * as dialogs from "./ui/files/dialogs.tsx";
 import { mountLibrary, openLibrary } from "./ui/library/Library.tsx";
-import { popMenu } from "./ui/common/Menu.tsx";  // not `live`: that is the aria-live status element below
+import { popMenu } from "./ui/common/Menu.tsx";
+import * as arrange from "./ui/state/arrange.ts";
+import { mountTracks } from "./ui/arrange/Tracks.tsx";  // not `live`: that is the aria-live status element below
 import { laneEl, overrides, overrideSet, rollClips, selectedId, setSelectedId } from "./ui/state/view.ts";
 import { mountMixer, setMixerShown } from "./ui/mixer.tsx";
 // DAW UI (change add-synth-daw): the reviewed mockup's views and interactions on the real song/1 model,
@@ -197,7 +199,8 @@ function recordPoint(t, d, p, v) {
   if (di < 0 || p.structural || !autoParams(d).some(x => x.name === p.name)) return false;
   const key = `${t.id}:${di}:${p.name}`, b = 1 + Math.round((SONG_POS - 1) * 64) / 64;
   let ln = t.lanes.find(x => x.dev === di && x.param === p.name), fresh = false;
-  if (!ln) { ln = { dev: di, param: p.name, pts: [] }; t.lanes.push(ln); t.open = true; fresh = true; }
+  // a new lane starts with its point: the push mounts the lane at once (store), which draws it
+  if (!ln) { ln = { dev: di, param: p.name, pts: [[b, v]] }; t.lanes.push(ln); t.open = true; fresh = true; }
   const last = recLast.get(key), from = last !== undefined && last <= b ? last : b;
   ln.pts = ln.pts.filter(([x]) => x <= from && x !== b || x > b); ln.pts.push([b, v]); ln.pts.sort((a, c) => a[0] - c[0]);
   if (recHold?.d === d && recHold.p === p) recLast.set(key, b); else recLast.delete(key);  // a pass lasts while the knob is held
@@ -211,20 +214,21 @@ function knobEdited(t, el) {
   if (el._lane) { overrideSet(el._lane.t.id).add(el._lane.key); el.classList.add("ovr"); applyAutomation(); updateReauto(el._lane.t); }
   const d = el._dev; if (d && d.kind === 64 && !d._edited) {
     d._edited = true; const k = el.closest(".devbox")?.querySelector("h3 .kind"); if (k) k.textContent = k.textContent.replace(/(preset [^·]*?)(\s*·|$)/, (m0, n, rest) => `${n.replace(/\*$/, "")}*${rest}`);
-    const h = document.querySelector(`.thdr.track[data-track="${t.id}"] .dev`); if (h) h.textContent = devLabel(t);
+    arrange.setLabelRev(n => n + 1);  // the header shows the * on the edited preset
   }
 }
 /** One line from a song/1 about: type · style · tempo · engine · like … — description. */
 const aboutText = a => [a.type, a.style, a.tempo, a.engine, a.similar_to?.length ? "like " + a.similar_to.join(", ") : ""].filter(Boolean).join(" · ") + " — " + a.description;
-function updateCount(t, h) { const b = h.querySelector(".autobtn"); b.textContent = "A" + t.lanes.length; b.setAttribute("aria-label", `A${t.lanes.length}: show ${t.lanes.length} automation lanes of ${t.name}`); }
 const live = document.getElementById("live");
 function addLane(t, ln, box, beforeH, beforeL) {
-  const used = new Set(t.lanes.filter(x => x !== ln).map(x => x.dev + ":" + x.param));
-  const opts = t.devices.map((dv, di) => `<optgroup label="${devicesOf(t)[di]}">${autoParams(dv).map(p =>
-    `<option value="${di}:${p.name}"${di === ln.dev && p.name === ln.param ? " selected" : ""}${used.has(di + ":" + p.name) ? " disabled" : ""}>${devicesOf(t)[di]} · ${p.name}</option>`).join("")}</optgroup>`).join("");
+  // the target list (every parameter of every device, hundreds of options) is built when the select is first used;
+  // until then it holds the current target only (rows mount while scrolling: design D6)
+  const names = devicesOf(t), opts = () => { const used = new Set(t.lanes.filter(x => x !== ln).map(x => x.dev + ":" + x.param));
+    return t.devices.map((dv, di) => `<optgroup label="${names[di]}">${autoParams(dv).map(p =>
+      `<option value="${di}:${p.name}"${di === ln.dev && p.name === ln.param ? " selected" : ""}${used.has(di + ":" + p.name) ? " disabled" : ""}>${names[di]} · ${p.name}</option>`).join("")}</optgroup>`).join(""); };
   const ah = document.createElement("div"); ah.className = "thdr auto";
   const cur = () => laneText(t, ln, laneValue(ln.pts, SONG_POS));
-  ah.innerHTML = `<label class="tgt"><span aria-hidden="true">↳</span><select aria-label="${t.name} automation target">${opts}</select></label>
+  ah.innerHTML = `<label class="tgt"><span aria-hidden="true">↳</span><select aria-label="${t.name} automation target"><option value="${ln.dev}:${ln.param}" selected>${names[ln.dev]} · ${ln.param}</option></select></label>
     <span class="num val" title="Value at the playhead">${cur()}</span>
     <button class="rm" aria-label="Remove ${devicesOf(t)[ln.dev]} ${ln.param} lane" title="Remove lane">✕</button>`;
   const al = document.createElement("div"); al.className = "lane auto"; al.setAttribute("role", "group"); al.setAttribute("aria-label", `${t.name} ${devicesOf(t)[ln.dev]} ${ln.param} automation`);
@@ -296,6 +300,9 @@ function addLane(t, ln, box, beforeH, beforeL) {
     else return;
     e.preventDefault(); const before = snap(); ln.pts[i] = [b, v]; selI = i; draw(true); commit(before, `${ln.param} point ${fmtBar(b)} · ${laneText(t, ln, v)}`);
   });
+  { const sl = ah.querySelector(".tgt select"); let full = false;
+    const fill = () => { if (full) return; full = true; sl.innerHTML = opts(); };
+    for (const ev of ["pointerdown", "focus", "keydown"]) sl.addEventListener(ev, fill); }
   ah.querySelector(".tgt select").addEventListener("change", e => {
     const [di, p] = e.target.value.split(":"), before = snap(); ln.dev = +di; ln.param = p; draw(); commit(before, `${t.name}: lane now ${devicesOf(t)[ln.dev]} · ${p}`);
   });
@@ -304,26 +311,14 @@ function addLane(t, ln, box, beforeH, beforeL) {
   });
   if (beforeH) { box.h.insertBefore(ah, beforeH); box.l.insertBefore(al, beforeL); } else { box.h.append(ah); box.l.append(al); }
 }
-// Track rows (header + lane + automation group). rebuildTracks() redraws all rows after add/delete/reorder/undo.
-const rowAdd = el => lanes.insertBefore(el, lanes.querySelector(".loopshade"));
-function buildTrack(t) {
-  t.lanes ??= [];
-  if (t.open === undefined) t.open = t.lanes.length > 0;  // automated tracks show their envelopes until collapsed
-  const h = document.createElement("div"); h.className = "thdr track" + (t === selected ? " sel" : "") + (t.bus ? " bus" : ""); h.dataset.track = t.id;
-  h.tabIndex = 0; h.setAttribute("role", "group"); h.setAttribute("aria-label", `${t.name} track`); if (t === selected) h.setAttribute("aria-current", "true");
-  h.title = "Double-click the name to rename · right-click (or Shift+F10) for the track menu";
-  h.innerHTML = `<span class="col" style="background:var(${t.col})"></span>
-    <div><div class="name">${t.name}</div><div class="dev">${devLabel(t)}</div></div>
-    <div class="btns"><button aria-pressed="${!!t.mute}" aria-label="Mute ${t.name}">M</button><button aria-pressed="${!!t.solo}" aria-label="Solo ${t.name}">S</button>${t.bus ? "" : `<button class="arm" aria-pressed="${t === armed}" aria-label="Arm ${t.name} for audition" title="Arm: computer keyboard and MIDI play this track">●</button>`}<button class="autobtn" aria-expanded="${!!t.open}" aria-label="${t.lanes.length ? `A${t.lanes.length}: show ${t.lanes.length} automation lanes of ${t.name}` : `A: add an automation lane to ${t.name}`}" title="Automation lanes">A${t.lanes.length || ""}</button></div>
-    <div class="vol"><input type="range" min="-60" max="6" step="0.1" value="${t.vol}" aria-label="${t.name} volume" aria-valuetext="${t.vol} dB"><span class="num">${t.vol.toFixed(1)} dB</span></div>`;
-  hdrs.append(h);
-  if (t.about) h.querySelector(".name").title = aboutText(t.about);  // the track's description (song/1 about)
-  const lane = document.createElement("div"); lane.className = "lane track" + (t === selected ? " sel" : ""); lane.dataset.track = t.id; lane.setAttribute("aria-label", t.name + " clips");
-  if (t.mute) lane.style.opacity = .45;
-  if (t.bus) { lane.classList.add("buslane"); lane.innerHTML = `<span class="busnote">bus track · no clips · audio from sends</span>`; }
-  laneEl.set(t.id, lane); renderLane(t); rowAdd(lane);
-  const box = { h: document.createElement("div"), l: document.createElement("div") };
-  box.h.className = "lanegrp"; box.l.className = "lanegrp"; box.h.hidden = box.l.hidden = !t.open;
+// Track rows: ui/arrange/Tracks.tsx (windowed, design D6). A mounted row asks for its clips (mountLane) and, while
+// open, its automation lanes (mountAuto); rebuildTracks() bumps arrange.rev so mounted rows refill after
+// add/delete/reorder/undo. Rows off screen hold nothing (laneEl / laneVals only list mounted rows).
+function mountLane(t, el) {
+  laneEl.set(t.id, el); renderLane(t);
+  return () => { if (laneEl.get(t.id) === el) laneEl.delete(t.id); el.querySelectorAll(".clip").forEach(e => e.remove()); };
+}
+function mountAuto(t, box) {
   for (const ln of t.lanes) addLane(t, ln, box);
   const addH = document.createElement("div"); addH.className = "thdr addlane";
   addH.innerHTML = `<button aria-label="Add automation lane to ${t.name}">+ lane</button><span class="dim">one lane per parameter</span>`;
@@ -335,23 +330,24 @@ function buildTrack(t) {
     const free = cand.find(([, p]) => pref.includes(p.name)) || cand[0];
     if (!free) return live.textContent = `${t.name}: ${t.devices.length ? "every automatable parameter already has a lane" : "add a device first"}`;
     const [di, p] = free, d = t.devices[di], before = snap(), ln = { dev: di, param: p.name, pts: [[1, d.values[p.name] ?? p.default]] };
-    t.lanes.push(ln); addLane(t, ln, box, addH, addL); updateCount(t, h); commit(before, `${t.name}: lane ${devicesOf(t)[di]} · ${p.name} added`);
+    t.lanes.push(ln); addLane(t, ln, box, addH, addL); commit(before, `${t.name}: lane ${devicesOf(t)[di]} · ${p.name} added`);
   });
-  box.h.append(addH); box.l.append(addL); hdrs.append(box.h); rowAdd(box.l);
-  h.querySelector(".autobtn").addEventListener("click", e => {
-    const open = box.h.hidden; box.h.hidden = box.l.hidden = !open; t.open = open; e.currentTarget.setAttribute("aria-expanded", open);
-  });
+  box.h.append(addH); box.l.append(addL);
+  return () => { for (let i = laneVals.length; i--;) if (laneVals[i].box === box) laneVals.splice(i, 1); };
 }
 function rebuildTracks() {
-  hdrs.replaceChildren(); lanes.querySelectorAll(":scope > .lane, :scope > .lanegrp").forEach(e => e.remove()); laneVals.length = 0;
-  tracks.forEach(buildTrack);
+  arrange.setRev(v => v + 1);
   if (typeof relayout === "function") { relayout(); applyAutomation(); hdrPad(); hdrs.scrollTop = lw.scrollTop; }
 }
-tracks.forEach(buildTrack);
 const shade = document.createElement("div"); shade.className = "loopshade"; shade.style.left = 8 * BW + "px"; shade.style.width = 8 * BW + "px"; lanes.append(shade);
 const ph = document.createElement("div"); ph.className = "playhead"; ph.style.transform = `translateX(${(11 + 2.5 / 4) * BW}px)`; lanes.append(ph);
 const ph2 = ph.cloneNode(); ruler.append(ph2);
 const lw = document.getElementById("lanes-wrap");
+arrange.setArmedId(armed?.id ?? null); setSelectedId(selected.id);  // the rows mark and pin them from the start
+mountTracks(hdrs, lanes, lw, tracks, {
+  devLabel: t => devLabel(t), about: t => t.about ? aboutText(t.about) : "", rename: (t, v) => renameTo(t, v),
+  mountLane: (t, el) => mountLane(t, el), mountAuto: (t, box) => mountAuto(t, box),
+});
 lw.addEventListener("scroll", () => { ruler.style.transform = `translateX(${-lw.scrollLeft}px)`; hdrs.scrollTop = lw.scrollTop; });
 // One scroller: the lanes. Headers only mirror lw.scrollTop (they never write back, which made momentum scrolling
 // jump back a frame). Wheel over the headers scrolls the lanes; focusing a header scrolls the lanes to it.
@@ -636,7 +632,7 @@ function lfoView(d, i) {
 // Envelope curve as the engine plays it (crates/unisynth/src/env.rs): WaveSabre mode in closed form (linear attack,
 // quadratic decay and release, times `p²·5000 + 1` ms), Tunefish mode integrated per 512-frame block. A note is held
 // for a while after the decay, then released. Redrawn from the knobs (`_draw`), so it follows edits and automation.
-function envMs(p) { return p * p * 5000 + 1; } // hoisted (like ip/vget/INST/oscType): fmtVal runs from the first buildTrack, above
+function envMs(p) { return p * p * 5000 + 1; } // hoisted (like ip/vget/INST/oscType): fmtVal runs from the first mounted row (mountTracks), above
 function envCurve(tf, a, dcy, s, r, slope) {
   const pts = [];
   if (!tf) {
@@ -1245,15 +1241,13 @@ mountMixer(mixer, song, {
   devName,
 });
 function renderAll() {
-  for (const t of tracks) { const d = document.querySelector(`.thdr.track[data-track="${t.id}"] .dev`); if (d) d.textContent = devLabel(t); }
+  arrange.setLabelRev(v => v + 1);  // header device labels (fields like _edited are written outside the store)
   renderDevice();  // the mixer follows the song store by itself
 }
 function selectTrack(t) {
   t = (t.master ? master : tracks.find(x => x.id === t.id)) || t;  // always the store proxy (writes must notify)
   selected = t; setSelectedId(t.id);
   if (!t.bus && !t.master && instOf(t) && armed !== t) { armed = t; updateArmed(); }  // the keyboard plays the selected track
-  document.querySelectorAll(".thdr.track").forEach(h => { const on = h.dataset.track === t.id; h.classList.toggle("sel", on); if (on) h.setAttribute("aria-current", "true"); else h.removeAttribute("aria-current"); });
-  document.querySelectorAll(".lane.track").forEach(l => l.classList.toggle("sel", l.dataset.track === t.id));
   genRoll(t); renderAll();
   if (!document.getElementById("p-roll").hidden) drawRoll();
 }
@@ -1683,7 +1677,6 @@ document.addEventListener("click", e => {
   const solo = b.getAttribute("aria-label").startsWith("Solo"), name = b.getAttribute("aria-label").slice(5), t = tracks.find(x => x.name === name); if (!t) return;
   const before = snap(); t[solo ? "solo" : "mute"] = !t[solo ? "solo" : "mute"]; if (!solo) setTimeout(() => commit(before, `${name} ${t.mute ? "muted" : "unmuted"}`));
   document.querySelectorAll(`button[aria-label="${solo ? "Solo" : "Mute"} ${name}"]`).forEach(x => x.setAttribute("aria-pressed", !!t[solo ? "solo" : "mute"]));
-  if (laneEl.get(t.id)) laneEl.get(t.id).style.opacity = t.mute ? .45 : "";
   say(`${name} ${solo ? (t.solo ? "soloed" : "unsoloed") : (t.mute ? "muted" : "unmuted")}`); livePush();
 });
 // Audible = not muted, and soloed, a send source of a soloed track, or a bus it sends to when any solo is on (model.ts).
@@ -1847,7 +1840,7 @@ function meters(st) {
   });
 }
 relayout(); updateLoop(); showPos();
-queueMicrotask(() => { updateArmed(); validateMarks(); });
+queueMicrotask(() => updateArmed());
 
 // ===== Audition (never recorded): computer keyboard on the armed track, piano-roll keys, library entries, Web MIDI =====
 let kbOn = true;
@@ -2052,21 +2045,10 @@ function duplicateTrack(t) {
   const c = JSON.parse(JSON.stringify(raw(t))); c.id = newId("t"); c.name = t.name + " 2"; c.clips.forEach(x => x.sel = false);
   trackCmd(`${t.name} duplicated`, () => { tracks.splice(tracks.indexOf(t) + 1, 0, c); selected = c; });
 }
-function renameTrack(t) {
-  const nm = document.querySelector(`.thdr.track[data-track="${t.id}"] .name`); if (!nm) return;
-  const inp = Object.assign(document.createElement("input"), { value: t.name }); inp.setAttribute("aria-label", `Rename ${t.name}`);
-  nm.replaceChildren(inp); inp.focus(); inp.select();
-  let done = false; const finish = ok => { if (done) return; done = true; const v = inp.value.trim(), old = t.name;
-    if (!ok || v === old) { nm.textContent = old; return; }
-    trackCmd(`${old} renamed to ${v || "(empty)"}`, () => { t.name = v; for (const x of [...tracks, master]) x.sends.forEach(s1 => { if (s1[0] === old) s1[0] = v; }); }); validateMarks(); };
-  inp.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Enter") finish(true); else if (e.key === "Escape") finish(false); });
-  inp.addEventListener("blur", () => finish(true));
-}
-// Names must be unique and non-empty (song validation); headers show the problem at once.
-function validateMarks() {
-  const seen = new Map(); for (const t of tracks) seen.set(t.name, (seen.get(t.name) || 0) + 1);
-  for (const t of tracks) { const h = document.querySelector(`.thdr.track[data-track="${t.id}"]`); if (!h) continue;
-    const bad = !t.name ? "name is empty" : seen.get(t.name) > 1 ? `name "${t.name}" is used twice` : ""; h.classList.toggle("err", !!bad); h.querySelector(".name").title = bad; }
+function renameTrack(t) { arrange.setRenamingId(t.id); }
+function renameTo(t, v) {
+  const old = t.name;
+  trackCmd(`${old} renamed to ${v || "(empty)"}`, () => { t.name = v; for (const x of [...tracks, master]) x.sends.forEach(s1 => { if (s1[0] === old) s1[0] = v; }); });
 }
 function trackMenu(t, x, y) {
   const i = tracks.indexOf(t);
@@ -2131,7 +2113,7 @@ lanesEl.addEventListener("contextmenu", e => {
 let kbOct = 4, kbVel = 100;  // computer-keyboard audition: octave of the A key (C4 = MIDI 60) and velocity
 function updateArmed() {
   document.getElementById("armed-info").innerHTML = `Armed: <b>${armed ? armed.name : "none"}</b> · octave C${kbOct - 1} · vel ${kbVel}`;
-  document.querySelectorAll(".thdr .arm").forEach(b => b.setAttribute("aria-pressed", b.closest(".thdr").dataset.track === armed?.id));
+  arrange.setArmedId(armed?.id ?? null);
 }
 document.addEventListener("click", e => {
   const b = e.target.closest(".thdr .arm"); if (!b) return; const t = tracks.find(x => x.id === b.closest(".thdr").dataset.track);
@@ -2142,7 +2124,6 @@ document.addEventListener("input", e => {
   const name = el.getAttribute("aria-label").slice(0, -7), t = [...tracks, master].find(x => x.name === name); if (!t) return;
   el._before ??= snap(); t.vol = +el.value;
   document.querySelectorAll(`input[aria-label="${CSS.escape(name)} volume"]`).forEach(x => { if (x !== el) x.value = t.vol; x.setAttribute("aria-valuetext", `${t.vol.toFixed(1)} dB`); });
-  document.querySelectorAll(`.thdr.track[data-track="${t.id}"] .vol .num`).forEach(x => x.textContent = `${t.vol.toFixed(1)} dB`);
 });
 document.addEventListener("change", e => { const el = e.target; if (el._before) { commit(el._before, `${el.getAttribute("aria-label")} ${(+el.value).toFixed(1)} dB`); el._before = null; } });
 document.addEventListener("input", e => { const el = e.target; if (el instanceof HTMLInputElement && el.type === "range" && /( volume| level)$/.test(el.getAttribute("aria-label") || "")) livePush(); });

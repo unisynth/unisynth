@@ -122,9 +122,19 @@ before → `AGENTS.md` rows → land on `main`.
   Done: `test/arrangement.test.ts`, 10 tests, stable over 2 runs; `bigSong()` builds the 50-track song from the demo
   (bass track × 50). Clipboard paste stays in editing.test.ts (5.4a). Found: Q (align) is a note key while the
   computer keyboard is on (the default), so plain Q aligns only with the keyboard off; Ctrl+Q (the footer's documented key) always aligns.
-- [ ] 5.2 Port track headers and lanes with windowing (rows in view plus one screen; focused and selected rows always
+- [x] 5.2 Port track headers and lanes with windowing (rows in view plus one screen; focused and selected rows always
   mounted; spacer height = whole song; `aria-setsize` / `aria-posinset`). Verify: spec "Off-screen arrangement
   content" scenarios as tests, existing editing tests, axe.
+  Done: `ui/state/arrange.ts` (+ unit test), `ui/arrange/Tracks.tsx`; spec scenarios "Large song" and "Keyboard to an
+  off-screen track" as tests (both fail on the old code), axe on the 50-track arrangement; 109/109 twice; ratchet
+  101 → 98. Deviation: no `aria-setsize`/`aria-posinset` (ARIA does not allow them on `role=group`, axe fails).
+  Rows fill (clips, automation lanes) only while in the view window; a row pinned only by selection/focus is empty
+  until scrolled to; rows entering on scroll fill from a 6 ms/frame queue. The automation target `<select>` builds
+  its ~270 options on first use (they were most of the scroll cost). Found: the initial selection was never
+  published (no header marked until a click); fixed. Store writes notify at once: a recorded lane is pushed with
+  its first point. Bench before → after (same session): trashpanda open 1 582 → 1 151, select-dev 32 → 32,
+  undo 436 → 63, select-mix 14 → 14, scroll p95 17.4 → 18.2 (1 → 1 > 20 ms); tbl-stash-over2 open 8 836 → 1 358,
+  select-dev 57 → 37, undo 6 148 → 226, select-mix 24 → 15, scroll p95 38.8 → 25.5 (20 → 8).
 - [ ] 5.3 Port clips, clip thumbnails (canvas, D4) and automation lanes with point editing. Verify: contract + editing
   tests, bench scroll and select.
 - [ ] 5.4 Move the volume, mute/solo and arm delegates into the header and strip components (D7). Track and clip

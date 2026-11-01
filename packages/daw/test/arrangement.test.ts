@@ -218,6 +218,7 @@ test("automation: click adds a point, arrows edit it, Delete removes it, the las
   // the lane header names its target; changing it retargets the lane (one undo)
   const tgt = page.locator(".thdr.auto select").first();
   expect(await tgt.getAttribute("aria-label")).toBe("Bass automation target");
+  await tgt.focus();  // the full target list is built when the select is first used
   const other = await tgt.locator("option:not([disabled]):not(:checked)").first().getAttribute("value");
   await tgt.selectOption(other!);
   expect(track(await song(), "bass").lanes[0].param).toBe(other!.split(":")[1]);
@@ -269,6 +270,58 @@ test("50 tracks: every header and lane in order; Arrow Down walks to the last tr
     return { hdr: h.top >= w.top - 1 && h.bottom <= w.bottom + 1, aligned: Math.abs(h.top - l.top) < 2 };
   }, `t${BIG_TRACKS}`);
   expect(vis).toEqual({ hdr: true, aligned: true });
+}, 60_000);
+
+// spec synth-daw "Off-screen arrangement content" (daw-solid-ts 5.2): windowed rows
+test("50 tracks: fewer than 50 lanes exist and the scroll height covers all 50 (spec: Large song)", async () => {
+  await open("big");
+  expect(await hdr("t1").getAttribute("aria-current")).toBe("true");  // selected at load, marked without a click
+  const lw = page.locator("#lanes-wrap");
+  const st = await lw.evaluate((el) => ({ h: el.clientHeight, sh: el.scrollHeight, lanes: document.querySelectorAll(".lane.track").length, hdrs: document.querySelectorAll(".thdr.track").length }));
+  expect(st.lanes).toBeLessThan(BIG_TRACKS);
+  expect(st.hdrs).toBe(st.lanes);
+  // every track open with its one automation lane: 56 + 40 + 24 px per row
+  expect(st.sh).toBeGreaterThanOrEqual(BIG_TRACKS * 120);
+  // scrolled to the end: the last rows exist, the first ones (except the selected track) do not; headers stay aligned
+  await lw.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+  await page.waitForTimeout(100);
+  const end = await page.evaluate((n) => {
+    const ids = [...document.querySelectorAll<HTMLElement>(".lane.track")].map((l) => l.dataset.track);
+    const w = document.getElementById("lanes-wrap")!.getBoundingClientRect();
+    const h = document.querySelector(`.thdr.track[data-track="t${n}"]`)!.getBoundingClientRect(), l = document.querySelector(`.lane.track[data-track="t${n}"]`)!.getBoundingClientRect();
+    return { ids, inView: l.bottom <= w.bottom + 1 && l.top >= w.top - 200, aligned: Math.abs(h.top - l.top) < 2 };
+  }, BIG_TRACKS);
+  expect(end.ids).toContain(`t${BIG_TRACKS}`);
+  expect(end.ids).toContain("t1");      // selected: always mounted
+  expect(end.ids).not.toContain("t2");  // far above the view
+  expect(end.ids.length).toBeLessThan(BIG_TRACKS);
+  expect(end).toMatchObject({ inView: true, aligned: true });
+  // the rows that left hold nothing; the selected row, mounted off screen, holds no clips until it is in view
+  await page.waitForTimeout(200);  // rows entering while scrolling fill from a per-frame queue
+  expect(await lane(`t${BIG_TRACKS}`).locator(".clip").count()).toBe(1);
+  expect(await lane("t1").locator(".clip").count()).toBe(0);
+  expect(await page.locator(".clip").count()).toBe(end.ids.length - 1);
+}, 60_000);
+
+test("50 tracks: Arrow Down past the view scrolls, and the next header exists, has focus and is selected (spec: Keyboard to an off-screen track)", async () => {
+  await open("big");
+  await hdr("t1").focus();
+  const lw = page.locator("#lanes-wrap");
+  for (let i = 2; i <= 20; i++) {
+    await page.keyboard.press("ArrowDown");
+    expect(await focusedTrack()).toBe(`t${i}`);
+  }
+  expect(await selected()).toBe("t20");
+  expect(await lw.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+  expect(await page.locator(".lane.track").count()).toBeLessThan(BIG_TRACKS);
+}, 60_000);
+
+test("50 tracks: no critical or serious accessibility violations (axe)", async () => {
+  await page.addScriptTag({ path: join(ROOT, "node_modules/axe-core/axe.min.js") });
+  const res: any = await page.evaluate(async () => (window as any).axe.run(document.getElementById("arr"), { resultTypes: ["violations"] }));
+  const bad = res.violations.filter((v: any) => v.impact === "critical" || v.impact === "serious");
+  if (bad.length) console.error(bad.map((v: any) => `${v.id} (${v.impact}): ${v.nodes.length} × ${v.nodes[0]?.target}`).join("\n"));
+  expect(bad.map((v: any) => v.id)).toEqual([]);
 }, 60_000);
 
 test("no page errors", () => expect(errors).toEqual([]));
