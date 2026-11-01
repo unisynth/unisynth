@@ -15,12 +15,27 @@ export interface Drift {
   flagged: boolean;
 }
 
+/** What drift needs of a render: its length, loudness and octave-band levels (a song baseline stores these instead of
+ * the audio). */
+export interface Profile {
+  frames: number;
+  loudness: number;
+  bands: { fc: number; db: number }[];
+}
+
+export function profile(a: Audio): Profile {
+  return { frames: a.ch[0].length, loudness: loudness(a), bands: octaveLtas(a) };
+}
+
 export function drift(ours: Audio, base: Audio): Drift {
   const n = Math.min(ours.ch[0].length, base.ch[0].length);
   const cut = (a: Audio): Audio => ({ rate: a.rate, ch: a.ch.map((c) => c.subarray(0, n)) });
-  const [a, b] = [cut(ours), cut(base)];
-  const la = loudness(a), lb = loudness(b);
-  const ba = octaveLtas(a), bb = octaveLtas(b);
+  return driftOf(profile(cut(ours)), profile(cut(base)));
+}
+
+/** Drift between two profiles of the same length (a length change is reported by the caller). */
+export function driftOf(a: Profile, b: Profile): Drift {
+  const [la, lb, ba, bb] = [a.loudness, b.loudness, a.bands, b.bands];
   const top = Math.max(...bb.map((x) => x.db));
   let band = { fc: 0, diff: 0 };
   bb.forEach((x, i) => {

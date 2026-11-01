@@ -42,7 +42,7 @@ separate commits; 6.5–6.8 are checkpoints of one switch commit (each needs a p
   song. Verify: workspace tests and
   both parity reports pass; the source-name check (parameter table and the DAW's user-facing strings) passes;
   inventory counts match the design's "Song inventory"
-- [ ] 6.2 Baseline renders of every tracked song (`project/music/**`; patches and DAW templates as a one-note phrase)
+- [x] 6.2 Baseline renders of every tracked song (`project/music/**`; patches and DAW templates as a one-note phrase)
   with the current build, stored outside the repo as the drift reference. Verify: one render per inventory song and
   template, listed with its hash
 - [ ] 6.3 Quirk survey before the freeze (was 7.1): split the candidates (`integer_fm` apart from `exact_math`, DC bias

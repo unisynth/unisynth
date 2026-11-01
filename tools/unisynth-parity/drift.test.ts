@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import type { Audio } from "../synth-parity/metrics.ts";
-import { drift, formatDrift } from "./drift.ts";
+import { drift, driftOf, formatDrift, profile } from "./drift.ts";
 
 const RATE = 44100;
 /** Two seconds of a stereo sine at `hz`, amplitude `amp`, plus a quieter `hz2` partial. */
@@ -35,4 +35,11 @@ test("renders of different length compare over the shorter", () => {
   const a = tone(0.5), b = tone(0.5);
   const short: Audio = { rate: RATE, ch: a.ch.map((c) => c.subarray(0, RATE)) };
   expect(drift(short, b).loudness).toBeCloseTo(0, 6);
+});
+
+test("drift from stored profiles equals drift from the renders", () => {
+  const a = tone(0.5, 440, 3000, 0.05), b = tone(0.5);
+  const d = driftOf(profile(a), profile(b));
+  expect(d).toEqual(drift(a, b));
+  expect(profile(a).frames).toBe(2 * RATE);
 });

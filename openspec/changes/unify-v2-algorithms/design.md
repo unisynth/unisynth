@@ -466,6 +466,18 @@ checkpoints), not a player reading both layouts; a quirk is kept when clearing i
 tolerance (the spec's rule; songs that only cross the D7.3 drift thresholds are listed for listening); the baked
 (trusted) path is exempt from the version and truncation checks.
 
+### Task 6.1–6.2 results (2026-11-01)
+
+- *6.1:* `main` merged (`597de57`): only four AGENTS rows conflicted. Workspace and JS tests, feature builds, bake 7/7,
+  parity 49/49 and V2 18/18 with zero drift against stage 5. Inventory 8 + 2 + 28 + 347. No tracked song automates
+  a type, law, shape or voice choice. `main` had fixed song import dropping receive pairs (`dd57b6c`), so the V2
+  songs reach the switch with their reverb, delay and aux routing.
+- *6.2:* `tools/unisynth-parity/songs-drift.ts` renders every tracked song, both patches (one note) and the DAW's two
+  instrument templates (read from their source), and stores a drift profile per item (length, loudness, octave bands;
+  `drift.ts` `profile`) instead of 15 GB of audio. Baseline: 387 profiles in
+  `~/Downloads/64k-tools/synth-lab/unify/songs-base`. Renders are deterministic: a re-run against the baseline shows no
+  drift.
+
 ## Risks / Trade-offs
 
 - [Drift accumulates across stages until a song leaves tolerance] → D7.3 records drift per stage. A song near the
