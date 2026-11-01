@@ -97,9 +97,13 @@ before → `AGENTS.md` rows → land on `main`.
 
 ## 4. Files, dialogs, menus, library
 
-- [ ] 4.1 Contract test on the old code: song list, open (dirty prompt), save success and 422 path list, export,
+- [x] 4.1 Contract test on the old code: song list, open (dirty prompt), save success and 422 path list, export,
   import, new song, bounce dialog (render + cancel), context menus by keyboard (Shift+F10), library tree, search,
   inspect, audition, load into the track.
+  Done: `test/files.test.ts`, 11 tests, stable over 3 runs (the 422 is a routed response; save round-trip, local
+  validation and converted legacy entries stay in browser/library tests). Found and fixed: the focused menu item's
+  shortcut (`kbd`, `--dim` on `--sel`, 4.4:1) failed axe colour contrast; it now uses `--fg`. Import of
+  `<name>.song.bin` opens as `<name>.song.json`, unsaved (kept).
 - [ ] 4.2 `ui/common/Dialog.tsx`, `Menu.tsx` (mounted only while open, focus return to the opener), then port files and
   bounce (`ui/files/`) and library (`ui/library/`). Verify: contract, existing library/threads tests, axe.
 

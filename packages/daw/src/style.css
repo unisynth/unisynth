@@ -84,6 +84,7 @@ main { flex: 1; display: grid; grid-template-columns: var(--browser-w, 200px) 6p
 .menu button:hover, .menu button:focus-visible { background: var(--sel); outline: none; }
 .menu button:disabled { opacity: .4; }
 .menu button kbd { color: var(--dim); font-size: 10px; }
+.menu button:hover kbd, .menu button:focus-visible kbd { color: var(--fg); }  /* --dim on --sel is < 4.5:1 */
 .menu hr { border: 0; border-top: 1px solid var(--line); margin: 3px 0; width: 100%; }
 .thdr .name input { font: inherit; width: 100%; padding: 0 2px; }
 .thdr.err .name { color: var(--err); }
