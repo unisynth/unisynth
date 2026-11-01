@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 const BASELINE = 97;
 const BASELINE = 96;
 /** Modules split out of app.js (daw-solid-ts 9.1), counted with it. */
-const SPLIT = ["ui/model/params.ts", "ui/model/track.ts", "ui/model/bytes.ts"];
+const SPLIT = ["ui/model/params.ts", "ui/model/track.ts", "ui/model/bytes.ts", "ui/app/session.ts", "ui/app/core.ts"];
 
 /** Assignment targets that are DOM, canvas, engine, view or local state, not the song model (`store[…]` in the knob
  * is `d.values`: counted; `ip.map` is a cache on the function). */

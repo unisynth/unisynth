@@ -1,6 +1,7 @@
 // @ts-nocheck
-import { batch, createSong, raw, restoreSong } from "./ui/state/song.ts";
-import { createHistory } from "./ui/state/history.ts";
+import { raw } from "./ui/state/song.ts";
+import { api, armed, E, initSession, master, selected, setArmed, setSelected, song, tracks } from "./ui/app/session.ts";
+import { commit, H, initCore, lastSaid, redo, restore, say, snap, undo } from "./ui/app/core.ts";
 import * as liveState from "./ui/state/live.ts";
 import * as tr from "./ui/state/transport.ts";
 import { mountTransport } from "./ui/transport/TransportBar.tsx";
@@ -35,16 +36,15 @@ export function start(DAW) {
 let BARS = 32, BW = 44; const PAD_BARS = 8;  // song length grows; the view shows 8 bars past the end
 let SONG_POS = 1; const LOOP = [1, 5], laneVals = [];  // transport: playhead (bars, 1-based), loop range
 let CAT = null;  // library catalog (/api/library)
-const E = DAW.engine, M = DAW.model, api = DAW.api, TABLES = DAW.tables;
+initSession(DAW);  // engine, api, song store proxies, selection (ui/app/session.ts)
+const M = DAW.model, TABLES = DAW.tables;
 const st0 = DAW.initial;
-const song = createSong(st0), tracks = song.tracks, master = song.master;  // store proxies (ui/state/song.ts)
 BARS = st0.bars; LOOP[1] = Math.min(BARS, 4) + 1;
 // ---- device tables (design D8): every device's parameters come from the engine module (ui/model/params.ts) ----
 initParams(TABLES, (k, m, i, p) => E.physical(k, m, i, p));
 const senders = t => tracks.filter(x => x.sends.some(s1 => s1[0] === t.name));
 const devLabel = t => t.bus ? `Bus · ← ${senders(t).map(x => x.name).join(", ") || "no sends"}${fxOf(t).length ? " · " + fxOf(t).map(devName).join(" → ") : ""}`
   : t.devices.map(d => devName(d) + (d._edited ? "*" : "") + (d.bypass ? " (off)" : "")).join(" → ") || "no devices";
-let selected = tracks.find(t => !t.bus) || tracks[0] || master, armed = tracks.find(t => instOf(t)) || null;
 let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 tr.setTempo(st0.tempo); tr.ensureSig(st0.sig.join("/"));
 // Transport bar (Solid, ui/transport/TransportBar.tsx): mounted first, the rest of start() finds its ids. Actions are
@@ -818,8 +818,8 @@ function renderAll() {
 }
 function selectTrack(t) {
   t = (t.master ? master : tracks.find(x => x.id === t.id)) || t;  // always the store proxy (writes must notify)
-  selected = t; setSelectedId(t.id);
-  if (!t.bus && !t.master && instOf(t) && armed !== t) { armed = t; updateArmed(); }  // the keyboard plays the selected track
+  setSelected(t); setSelectedId(t.id);
+  if (!t.bus && !t.master && instOf(t) && armed !== t) { setArmed(t); updateArmed(); }  // the keyboard plays the selected track
   genRoll(t); renderAll();
   if (!document.getElementById("p-roll").hidden) drawRoll();
 }
@@ -830,30 +830,13 @@ function selectTrack(t) {
 const rollSnap = () => ({ "1/16": 1, "1/8": 2, "1/4": 4, "Bar": 16, "Off": 0 })[tr.snap()];
 const arrSnap = () => ({ "1/16": 1 / 16, "1/8": 1 / 8, "1/4": 1 / 4, "Bar": 1, "Off": 0 })[tr.snap()];
 const snapTo = (x, q) => q ? Math.round(x / q) * q : Math.round(x * 100) / 100;
-const editStatus = document.getElementById("edit-status");
-const say = m => { editStatus.textContent = m; live.textContent = m; };
 let focusArea = "arr", rCursor = 0, rDrag = null, rLast = null, aCursor = 13, aDrag = null, aLast = null, lastVel = .78;
 const clipboard = { notes: null, clips: null };
-// Undo: one snapshot per gesture/command (clips of every track + notes per track).
-const H = createHistory();  // undo/redo + state ids (ui/state/history.ts)
-// Undo: one whole-song snapshot per gesture or command (tracks, clips, notes, devices, automation, mixer).
-// No replacer: view fields live in ui/state/view.ts, and a replacer function runs per key (212 ms per knob step on a
-// 4 MB song vs ~11 ms native, bench/ui-profile.ts).
-const snap = () => JSON.stringify({ tracks: raw(tracks), master: raw(master), sel: selected.id, armed: armed?.id });
-function restore(js) { batch(() => restore1(js)); }  // one notification pass for the whole restore
-function restore1(js) {
-  const d = JSON.parse(js);
-  overrides.clear();  // as before the view store: restored tracks follow their automation lanes again
-  // the roll's clip by name/start (as before: restored clips merge by position, an object reference could now hold
-  // another clip's values)
-  for (const [id, c] of rollClips) if (c) rollClips.set(id, { name: c.name, start: c.start });
-  restoreSong(song, d);  // tracks by id, then master; unchanged objects keep identity
-  selected = tracks.find(t => t.id === d.sel) || (d.sel === "master" ? master : tracks[0]); armed = tracks.find(t => t.id === d.armed) || null;
-  rebuildTracks(); selectTrack(selected); updateArmed(); if (typeof dirtyUpd === "function") dirtyUpd(); livePush();
-}
-function commit(before, msg) { if (!H.commit(before, snap())) return; say(msg); if (typeof dirtyUpd === "function") dirtyUpd(); livePush(); }
-function undo() { const js = H.undo(snap()); if (js == null) return say("nothing to undo"); restore(js); say("undo"); }
-function redo() { const js = H.redo(snap()); if (js == null) return say("nothing to redo"); restore(js); say("redo"); }
+// Status, undo/redo (ui/app/core.ts): a restore rebuilds the views for the restored song and selection.
+initCore({
+  restored: () => { rebuildTracks(); selectTrack(selected); updateArmed(); },
+  changed: () => { if (typeof dirtyUpd === "function") dirtyUpd(); livePush(); },
+});
 
 
 // ---- piano roll ----
@@ -883,7 +866,7 @@ const roll = {
 const barStr = st => `${1 + Math.floor(st / 16)}.${1 + Math.floor((st % 16) / 4)}.${Math.round((st % 4) * 240)}`;
 function scrollToNotes(ns) { if (!grid) return; const top = (HI - Math.max(...ns.map(n => n.n))) * KH, bot = (HI - Math.min(...ns.map(n => n.n)) + 1) * KH;
   if (top < grid.scrollTop || bot > grid.scrollTop + grid.clientHeight) grid.scrollTop = Math.max(0, top - 40); }
-function rollCmd(name, arg) { const before = snap(); roll[name](arg); commit(before, editStatus.textContent); drawRoll(); renderLane(selected); }
+function rollCmd(name, arg) { const before = snap(); roll[name](arg); commit(before, lastSaid()); drawRoll(); renderLane(selected); }
 onRollMount(() => rollEls.tools.querySelectorAll("[data-roll]").forEach(b => b.onclick = () => {
   const a = b.dataset.roll; focusArea = "roll";
   if (a.startsWith("t")) rollCmd("transpose", +a.slice(1)); else if (a === "quantlen") rollCmd("quant", true); else rollCmd(a);
@@ -979,7 +962,7 @@ const arr = {
       place(t, { start: at + c.ds, len: c.len, name, sel: true }); }
     say(`${clipboard.clips.length} clips pasted${linked ? " (linked)" : ""} at bar ${+at.toFixed(2)}`); },
   dup(linked) { const cs = selClips(); if (!cs.length) return say("no clips selected"); const end = Math.max(...cs.map(x => x.c.start + x.c.len)), keep = clipboard.clips, t0 = selected;
-    selected = instrTracks()[Math.min(...cs.map(x => instrTracks().indexOf(x.t)))]; arr.copy(); arr.paste(linked, end); clipboard.clips = keep; selected = t0;
+    setSelected(instrTracks()[Math.min(...cs.map(x => instrTracks().indexOf(x.t)))]); arr.copy(); arr.paste(linked, end); clipboard.clips = keep; setSelected(t0);
     say(`${cs.length} clips duplicated${linked ? " (linked)" : ""} to bar ${+end.toFixed(2)}`); },
   move(d) { const cs = selClips(); if (!cs.length) return; if (cs.some(x => x.c.start + d < 1)) return say("song start");
     cs.forEach(x => x.c.start += d); cs.forEach(x => place(x.t, x.c)); say(`moved ${d > 0 ? "+" : ""}${d} bar`); },
@@ -988,7 +971,7 @@ const arr = {
   align() { const q = arrSnap() || 1, cs = selClips().length ? selClips() : tracks.flatMap(t => t.clips.map(c => ({ t, c })));
     for (const x of cs) x.c.start = Math.max(1, 1 + Math.round((x.c.start - 1) / q) * q); cs.forEach(x => place(x.t, x.c)); say(`aligned ${cs.length} clips to ${q === 1 ? "bars" : tr.snap()}`); },
 };
-function arrCmd(name, arg) { const before = snap(); arr[name](arg); fitSong(); commit(before, editStatus.textContent); tracks.forEach(renderLane); drawCursor(); renderDevice(); }
+function arrCmd(name, arg) { const before = snap(); arr[name](arg); fitSong(); commit(before, lastSaid()); tracks.forEach(renderLane); drawCursor(); renderDevice(); }
 document.querySelectorAll("#arr-corner [data-arr]").forEach(b => b.onclick = () => { focusArea = "arr"; arrCmd(b.dataset.arr); lw.focus(); });
 const lanesEl = document.getElementById("lanes"), cursorEl = Object.assign(document.createElement("div"), { className: "cursor" }); lanesEl.append(cursorEl);
 function drawCursor() { cursorEl.style.left = (aCursor - 1) * BW + "px"; }
@@ -1047,7 +1030,7 @@ lanesEl.addEventListener("pointerup", () => {
   if (aDrag.mode === "marquee") { aDrag.box.remove(); if (aDrag.moved) say(`${selClips().length} clips selected`);
     else if (aDrag.pend) { const { c, t, shift } = aDrag.pend; if (shift) c.sel = !c.sel; else { clearClipSel(); c.sel = true; }
       rollClips.set(t.id, c); selectTrack(t); if (!document.getElementById("p-roll").hidden) { centreRoll(); } } }
-  if (aDrag.mode === "move" || aDrag.mode === "resize") { fitSong(); if (aDrag.moved && BARS > aDrag.bars0) say(`${editStatus.textContent} · song extended to ${BARS} bars`); }
+  if (aDrag.mode === "move" || aDrag.mode === "resize") { fitSong(); if (aDrag.moved && BARS > aDrag.bars0) say(`${lastSaid()} · song extended to ${BARS} bars`); }
   aDrag = null; tracks.forEach(renderLane); renderDevice();
 });
 lw.addEventListener("keydown", e => { if (e.target === lw) arrKeys(e); });
@@ -1136,7 +1119,7 @@ const afterEl = Object.assign(document.createElement("div"), { className: "after
 // Grow the song to cover the last clip (never shrinks by itself).
 function fitSong(quiet) {
   const end = Math.max(1, ...tracks.flatMap(t => t.clips.map(c => c.start + c.len))), need = Math.ceil(end - 1 - 1e-9);
-  if (need > BARS) { BARS = need; relayout(); if (!quiet) say(`${editStatus.textContent} · song extended to ${BARS} bars`); }
+  if (need > BARS) { BARS = need; relayout(); if (!quiet) say(`${lastSaid()} · song extended to ${BARS} bars`); }
 }
 function relayout() {
   const W = (BARS + PAD_BARS) * BW;
@@ -1545,7 +1528,7 @@ function addTrack(bus) {
   const t = bus ? { id: newId("bus"), name: `Bus ${n}`, col: "--t-bus", vol: -6, bus: true, clips: [], pats: {}, devices: [{ kind: 71, values: { mode: 0, dry_wet: 1 } }], sends: [], lanes: [] }
     : { id: newId("t"), name: `Track ${n}`, col: TCOL[n % TCOL.length], vol: -6, clips: [], pats: {}, lanes: [], sends: [], devices: [initInstrument()] };
   const at = bus ? tracks.length : Math.min(firstBus(), tracks.indexOf(selected) + 1 || firstBus());
-  trackCmd(`${t.name} added`, () => { tracks.splice(at, 0, t); selected = t; if (!bus) armed = t; });
+  trackCmd(`${t.name} added`, () => { tracks.splice(at, 0, t); setSelected(t); if (!bus) setArmed(t); });
   document.querySelector(`.thdr.track[data-track="${t.id}"]`)?.focus();
 }
 function deleteTrack(t) {
@@ -1554,7 +1537,7 @@ function deleteTrack(t) {
   const i = tracks.indexOf(t);
   trackCmd(`${t.name} deleted (Ctrl+Z restores it)`, () => {
     tracks.splice(i, 1); for (const x of tracks) x.sends = x.sends.filter(s1 => s1[0] !== t.name);
-    if (selected === t) selected = tracks[Math.min(i, tracks.length - 1)]; if (armed === t) armed = null;
+    if (selected === t) setSelected(tracks[Math.min(i, tracks.length - 1)]); if (armed === t) setArmed(null);
   });
 }
 function moveTrack(t, d) {
@@ -1564,7 +1547,7 @@ function moveTrack(t, d) {
 }
 function duplicateTrack(t) {
   const c = JSON.parse(JSON.stringify(raw(t))); c.id = newId("t"); c.name = t.name + " 2"; c.clips.forEach(x => x.sel = false);
-  trackCmd(`${t.name} duplicated`, () => { tracks.splice(tracks.indexOf(t) + 1, 0, c); selected = c; });
+  trackCmd(`${t.name} duplicated`, () => { tracks.splice(tracks.indexOf(t) + 1, 0, c); setSelected(c); });
 }
 function renameTrack(t) { arrange.setRenamingId(t.id); }
 function renameTo(t, v) {
@@ -1649,7 +1632,7 @@ function updateArmed() {  // the footer (ui/footer/Audition.tsx) and the headers
   arrange.setArmedId(armed?.id ?? null);
 }
 function toggleArm(t) {
-  armed = armed === t ? null : t; updateArmed(); say(armed ? `${t.name} armed: the computer keyboard (Z–M, Q–P) and MIDI play it` : "no track armed");
+  setArmed(armed === t ? null : t); updateArmed(); say(armed ? `${t.name} armed: the computer keyboard (Z–M, Q–P) and MIDI play it` : "no track armed");
 }
 // Volume (header and mixer faders, design D7): live while the slider moves, one undo step per gesture (`done` on
 // change; a key press is a whole gesture). The other fader follows the store.

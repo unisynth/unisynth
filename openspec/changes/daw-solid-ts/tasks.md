@@ -244,6 +244,9 @@ before → `AGENTS.md` rows → land on `main`.
   ratchet counts app.js plus the split modules (`SPLIT`).
   - [x] step 1: `ui/model/params.ts`, `track.ts`, `bytes.ts` (typed, unit-tested on the real engine tables);
     `SLOTS` moves there (Device.tsx re-exports); dead law table `L` removed. 156/156 twice, bench unchanged.
+  - [x] step 2: `ui/app/session.ts` (engine, api, song store, selection as live bindings + setters) and
+    `ui/app/core.ts` (say, history, snap/commit/undo/redo/restore with hooks). Shared app.js state moves the same way
+    in later steps: an exported `let` plus a setter, so reads stay unchanged. 158/158 twice, bench unchanged.
 - [ ] 9.2 Integration check of the spec budgets on the 50-track song: bench every scenario against the step-3
   baseline, "Edit response budget" and "Playback display budget" as browser tests. Verify: `/daw/` from `serve`,
   `/dsp` static build loads and bounces, hot-reload dev loop works.
