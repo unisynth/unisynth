@@ -362,6 +362,32 @@ pub struct SlotT {
     pub v2: crate::v2::Opt<V2T>,
     /// Clocked: wave, voices, version and phrase clock.
     pub clk: ClockedT,
+    /// How the slot meets the running sum of the earlier slots ([`combine`]).
+    pub combine: u8,
+}
+
+/// How a slot meets the running sum of the earlier slots (change unify-v2-algorithms 5.1): added (panned by the slot
+/// and voice pan), multiplied into it (ring) or replacing it (both on both channels). Until the format switch every
+/// slot adds except the naive generators: ring multiplies, FM and aux in replace (design D4, "Order of work").
+pub mod combine {
+    pub const ADD: u8 = 0;
+    pub const MUL: u8 = 1;
+    pub const SET: u8 = 2;
+}
+
+/// Multiply and replace are built with the naive generators until the format switch.
+pub const COMBINE: bool = cfg!(feature = "us-osc-naive");
+
+/// A slot's output `(a, b)` (before the pan) into the running sum `(left, right, mono)`: added panned by `(pl, pr)`,
+/// multiplied, or replacing it. The mono sum stays unpanned (the FM and ring input of a later naive generator).
+#[inline(always)]
+pub fn mix_in(s: (f32, f32, f32), mode: u8, a: f32, b: f32, pl: f32, pr: f32) -> (f32, f32, f32) {
+    let (bl, br, mono) = s;
+    match mode {
+        combine::MUL if COMBINE => (bl * a, br * b, mono * ((a + b) * 0.5)),
+        combine::SET if COMBINE => (a * pl, b * pr, (a + b) * 0.5),
+        _ => (bl + a * pl, br + b * pr, mono + (a + b) * 0.5),
+    }
 }
 
 /// A V2 slot's settings for a control segment (V2 keeps them for a frame; they are not ramped).
@@ -401,17 +427,7 @@ pub fn v2_aux(p: &[f32; crate::params::COUNT], i: usize) -> bool {
     use crate::params as pm;
     pm::osc_type::decode(p[pm::osc(i, pm::o::TYPE)]) == pm::osc_type::V2
         && (pm::v2_raw(p[pm::osc(i, pm::o::SHAPE + pm::shape::V2_MODE)]) as i32 & 7) as u8 >= v2mode::AUX_A
-        && pm::era(p).0 >= 6
-}
-
-/// What a V2 slot does to the voice's running sum this sample.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum V2Out {
-    Add(f32),
-    /// Ring mode: multiplies the running sum.
-    Mul(f32),
-    /// FM and the aux input replace it.
-    Set(f32),
+        && pm::era_settings(p).aux_osc
 }
 
 /// The ramps that carry a slot's control values across a segment.
@@ -429,6 +445,8 @@ pub struct SlotRamps {
     det: Ramp,
     spread: Ramp,
     drive: Ramp,
+    /// [`combine`], not ramped.
+    pub combine: u8,
     leak: f32,
     layers: usize,
     smp: smp::Cfg,
@@ -437,6 +455,12 @@ pub struct SlotRamps {
 }
 
 impl SlotRamps {
+    /// The pan gains for this sample.
+    #[inline]
+    pub fn pan(&mut self) -> (f32, f32) {
+        (self.pan_l.next(), self.pan_r.next())
+    }
+
     pub fn set(&mut self, t: &SlotT) {
         self.inc.set(t.inc);
         self.gain.set(t.gain);
@@ -456,6 +480,7 @@ impl SlotRamps {
         if cfg!(feature = "us-osc-naive") {
             self.v2 = t.v2;
         }
+        self.combine = t.combine;
         self.clk = t.clk;
     }
 
@@ -478,6 +503,7 @@ impl SlotRamps {
         if cfg!(feature = "us-osc-naive") {
             self.v2 = t.v2;
         }
+        self.combine = t.combine;
         self.clk = t.clk;
     }
 
@@ -500,20 +526,20 @@ impl SlotRamps {
         if cfg!(feature = "us-osc-naive") {
             self.v2 = t.v2;
         }
+        self.combine = t.combine;
         self.clk = t.clk;
     }
 }
 
 const INV_TAU: f32 = 1.0 / (2.0 * core::f32::consts::PI);
 
-/// One sample of a slot: `(left, right, send)` = its output after mix and pan, and the phase-mod send for the next
-/// slot in radians. `pm_in` is the previous slot's send.
+/// One sample of a slot: `(left, right, send)` = its output after mix, before the pan (the voice pans and combines
+/// it), and the phase-mod send for the next slot in radians. `pm_in` is the previous slot's send.
 #[inline]
 pub fn sample(slot: &mut Slot, wt: Option<&mut Wt>, src: &smp::Source, r: &mut SlotRamps, pm_in: f32) -> (f32, f32, f32) {
     let inc = r.inc.next();
     let gain = r.gain.next();
     let mix = r.mix.next();
-    let (pl, pr) = (r.pan_l.next(), r.pan_r.next());
     let send = r.pm_out.next();
     let fb = r.feedback.next();
     let wf = r.wf.next();
@@ -528,21 +554,21 @@ pub fn sample(slot: &mut Slot, wt: Option<&mut Wt>, src: &smp::Source, r: &mut S
             slot.prev = y;
             slot.phase += inc as f64;
             slot.phase -= libm::floor(slot.phase);
-            (y * mix * pl, y * mix * pr, y * send)
+            (y * mix, y * mix, y * send)
         }
         Kind::Sampler if cfg!(feature = "us-osc-sample") => {
             let y = slot.smp.next(src, inc, &r.smp) * gain;
-            (y * mix * pl, y * mix * pr, y * send)
+            (y * mix, y * mix, y * send)
         }
         Kind::Blit if cfg!(feature = "us-osc-blit") => {
             let y = blit(slot, inc as f64, wf as f64, pw as f64, r.leak as f64) * gain;
-            (y * mix * pl, y * mix * pr, y * send)
+            (y * mix, y * mix, y * send)
         }
         Kind::Clocked if cfg!(feature = "us-osc-clocked") => {
             // its `o::PM_OUT` is the second saw's phase byte: no send
             let _ = send;
             let y = clocked(slot, inc as f64, &r.clk) * gain;
-            (y * mix * pl, y * mix * pr, 0.0)
+            (y * mix, y * mix, 0.0)
         }
         #[cfg(feature = "us-osc-wt")]
         Kind::Wt => {
@@ -550,7 +576,7 @@ pub fn sample(slot: &mut Slot, wt: Option<&mut Wt>, src: &smp::Source, r: &mut S
                 Some(wt) => wavetable(wt, inc, det, spread, drive, r.layers),
                 None => (0.0, 0.0),
             };
-            (a * gain * mix * pl, b * gain * mix * pr, (a + b) * 0.5 * gain * send)
+            (a * gain * mix, b * gain * mix, (a + b) * 0.5 * gain * send)
         }
         // a type of a module this build lacks is rejected at load; the guards let the compiler drop its code
         _ => (0.0, 0.0, 0.0),
@@ -563,17 +589,16 @@ const TWO_32: f32 = 4_294_967_296.0;
 /// (the FM modulator), `aux` the aux A and aux B input pairs at this sample (the bus mixes so far in the frame). The counter advances by the ramped increment
 /// as V2's integer `freq`.
 #[inline]
-/// One V2 sample and the slot's pan gains `(left, right)` (1, 1 in the V2 voice).
-pub fn v2_sample(slot: &mut Slot, r: &mut SlotRamps, mono: f32, aux: [(f32, f32); 2]) -> (V2Out, f32, f32) {
+/// One sample of a naive generator, before the pan (its combine is the slot's, [`SlotT::combine`]).
+pub fn v2_sample(slot: &mut Slot, r: &mut SlotRamps, mono: f32, aux: [(f32, f32); 2]) -> f32 {
     let mut st = slot.v2s.get();
-    let (pl, pr) = (r.pan_l.next(), r.pan_r.next());
     let y = v2_step(&mut st, r, mono, aux);
     slot.v2s.set(st);
-    (y, pl, pr)
+    y
 }
 
 #[inline(always)]
-fn v2_step(slot: &mut V2Slot, r: &mut SlotRamps, mono: f32, aux: [(f32, f32); 2]) -> V2Out {
+fn v2_step(slot: &mut V2Slot, r: &mut SlotRamps, mono: f32, aux: [(f32, f32); 2]) -> f32 {
     use crate::v2::{fastsin, fastsinrc, utof23};
     let inc = r.inc.next();
     let gain = r.gain.next() * r.mix.next();
@@ -581,7 +606,6 @@ fn v2_step(slot: &mut V2Slot, r: &mut SlotRamps, mono: f32, aux: [(f32, f32); 2]
     let _ = (r.det.next(), r.spread.next(), r.drive.next());
     let t = &r.v2.get();
     let freq = (inc * TWO_32) as i64 as u32;
-    let out = |y: f32| if t.ring { V2Out::Mul(y) } else { V2Out::Add(y) };
     match t.mode {
         v2mode::TRI_SAW | v2mode::PULSE if t.box4 => {
             // four sub-steps of a quarter increment, averaged
@@ -604,7 +628,7 @@ fn v2_step(slot: &mut V2Slot, r: &mut SlotRamps, mono: f32, aux: [(f32, f32); 2]
                 c = c.wrapping_add(step);
             }
             slot.cnt = c;
-            out(if t.mode == v2mode::TRI_SAW { acc * bg } else { (acc - 4.0) * bg })
+            if t.mode == v2mode::TRI_SAW { acc * bg } else { (acc - 4.0) * bg }
         }
         v2mode::TRI_SAW | v2mode::PULSE => {
             let cnt = slot.cnt;
@@ -638,10 +662,10 @@ fn v2_step(slot: &mut V2Slot, r: &mut SlotRamps, mono: f32, aux: [(f32, f32); 2]
                     4 => -((c2 * (omf * (p + p + omf))) + g) * rcpf,
                     _ => 0.0,
                 };
-                out((y + g) as f32)
+                (y + g) as f32
             } else {
                 let gdf = gain / f;
-                out(match code {
+                match code {
                     3 => gain,
                     0 => -gain,
                     2 => gdf * 2.0 * (col - p) + gain,
@@ -649,21 +673,21 @@ fn v2_step(slot: &mut V2Slot, r: &mut SlotRamps, mono: f32, aux: [(f32, f32); 2]
                     7 => gdf * 2.0 * (col - 1.0) + gain,
                     4 => gdf * 2.0 * col - gain,
                     _ => 0.0,
-                })
+                }
             }
         }
         v2mode::SIN => {
             let cnt = slot.cnt;
             slot.cnt = cnt.wrapping_add(freq);
             if t.native_sin {
-                return out(gain * crate::fm::sinf(utof23(cnt) * core::f32::consts::TAU));
+                return gain * crate::fm::sinf(utof23(cnt) * core::f32::consts::TAU);
             }
             let mut phase = cnt.wrapping_add(0x4000_0000);
             if phase & 0x8000_0000 != 0 {
                 phase = !phase;
             }
             let x = f32::from_bits((phase >> 8) | 0x3f80_0000) * core::f32::consts::PI - 4.712_389;
-            out(gain * fastsin(x))
+            gain * fastsin(x)
         }
         v2mode::NOISE if t.old_noise => {
             slot.nseed = slot.nseed.wrapping_mul(214_013).wrapping_add(2_531_011);
@@ -673,12 +697,12 @@ fn v2_step(slot: &mut V2Slot, r: &mut SlotRamps, mono: f32, aux: [(f32, f32); 2]
             let h = (n - sl) * r - bb;
             let ll = sl + h * f;
             (slot.nf.l, slot.nf.b) = (ll, bb);
-            out(gain * (h + bb + ll))
+            gain * (h + bb + ll)
         }
         v2mode::NOISE => {
             let n = crate::v2::frandom(&mut slot.nseed);
             let h = slot.nf.step(n, t.nffrq, t.nfres);
-            out(gain * (t.nfres * (slot.nf.l + h) + slot.nf.b))
+            gain * (t.nfres * (slot.nf.l + h) + slot.nf.b)
         }
         v2mode::FM => {
             let cnt = slot.cnt;
@@ -692,15 +716,14 @@ fn v2_step(slot: &mut V2Slot, r: &mut SlotRamps, mono: f32, aux: [(f32, f32); 2]
             } else {
                 gain * fastsinrc((mono * 2.0 + f32::from_bits((cnt >> 9) | 0x3f80_0000)) * core::f32::consts::TAU)
             };
-            if t.ring { V2Out::Mul(y) } else { V2Out::Set(y) }
+            y
         }
         v2mode::AUX_A | v2mode::AUX_B => {
             // V2's `renderAux`: the bus's (l + r) · gain · 0.6 (fcgain), replacing the sum or ring-multiplying it
             let (l, r) = aux[(t.mode - v2mode::AUX_A) as usize];
-            let a = (l + r) * gain * 0.6;
-            V2Out::Set(if t.ring { a * mono } else { a })
+            (l + r) * gain * 0.6
         }
-        _ => V2Out::Add(0.0),
+        _ => 0.0,
     }
 }
 
@@ -905,6 +928,52 @@ fn blit(slot: &mut Slot, inc: f64, wf: f64, pw: f64, leak: f64) -> f32 {
 
 #[cfg(test)]
 mod tests {
+
+    /// Ring on a band-limited slot (change unify-v2-algorithms 5.1): a phase-mod sine at 440 Hz times a band-limited
+    /// saw at 110 Hz holds the products (440 ± 110 Hz), and neither input passes on its own. The saw's third and fifth
+    /// harmonics times the carrier also land on 110 Hz, below the saw added instead.
+    #[test]
+    #[cfg(all(feature = "us-osc-naive", feature = "us-osc-pm", feature = "us-osc-blit"))]
+    fn ring_on_a_band_limited_slot() {
+        crate::tables::init();
+        let rate = 44_100.0;
+        let render = |second: u8| {
+            let slot_t = |hz: f32, combine: u8| SlotT { inc: hz / rate, gain: 1.0, mix: 1.0, pan_l: 1.0, pan_r: 1.0, leak: 0.998, combine, ..SlotT::default() };
+            let (mut s1, mut s2) = (Slot::new(Kind::Pm, 0.0), Slot::new(Kind::Blit, 0.0));
+            let (mut r1, mut r2) = (SlotRamps::default(), SlotRamps::default());
+            r1.set(&slot_t(440.0, combine::ADD));
+            r2.set(&slot_t(110.0, second));
+            let src = smp::Source::None;
+            (0..44_100)
+                .map(|_| {
+                    let mut s = (0.0, 0.0, 0.0);
+                    for (slot, r) in [(&mut s1, &mut r1), (&mut s2, &mut r2)] {
+                        let (a, b, _) = sample(slot, None, &src, r, 0.0);
+                        let (pl, pr) = r.pan();
+                        s = mix_in(s, r.combine, a, b, pl, pr);
+                    }
+                    s.0
+                })
+                .collect::<std::vec::Vec<f32>>()
+        };
+        let mag = |out: &[f32], hz: f64| {
+            let (mut re, mut im) = (0.0, 0.0);
+            for (i, x) in out[4410..].iter().enumerate() {
+                let a = core::f64::consts::TAU * hz * i as f64 / rate as f64;
+                re += *x as f64 * a.cos();
+                im += *x as f64 * a.sin();
+            }
+            (re * re + im * im).sqrt() / (out.len() - 4410) as f64
+        };
+        let (ring, add) = (render(combine::MUL), render(combine::ADD));
+        let (lo, hi) = (mag(&ring, 330.0), mag(&ring, 550.0));
+        assert!(lo > 0.05 && hi > 0.05, "products: {lo} {hi}");
+        // 110 Hz holds only the saw's third and fifth harmonics times the carrier (440 − 330, 550 − 440): at most
+        // 1/3 + 1/5 of the 330 Hz product; the saw added on its own would put more there than the product itself
+        let f = mag(&ring, 110.0);
+        assert!(f < 0.6 * lo && mag(&add, 110.0) > lo, "the saw does not pass: {f} against the product {lo}");
+        assert!(mag(&ring, 440.0) < 0.25 * mag(&add, 440.0), "the carrier does not pass: {} vs {}", mag(&ring, 440.0), mag(&add, 440.0));
+    }
     #[test]
     fn an_unstable_rising_filter_saturates_instead_of_running_off() {
         // Stash song0 record 4 held for minutes: the cutoff rises without end (decay 1.00003 per frame)

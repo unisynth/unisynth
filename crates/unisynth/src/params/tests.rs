@@ -481,3 +481,35 @@ pub(crate) fn has_source_name(s: &str) -> bool {
     ["tunefish", "wavesabre", "ronan", "moog", "slaughter", "falcon", "cauldron"].iter().any(|x| l.contains(x))
         || l.split(|c: char| !c.is_ascii_alphanumeric()).any(|t| t == "tf" || t == "ws" || t.starts_with("v2"))
 }
+
+/// The player reads the format version (`voice.era`) only through `era_settings` (change unify-v2-algorithms 5.2):
+/// every era branch is a setting the converter will write, or a quirk candidate. The effect modes keep their own
+/// `era` field (`fx/v2.rs`) until the format switch turns it into their `dc_bias` field (design D4).
+#[test]
+fn the_format_version_is_read_in_one_place() {
+    fn walk(dir: &std::path::Path, out: &mut std::vec::Vec<(std::string::String, std::string::String)>) {
+        for e in std::fs::read_dir(dir).unwrap() {
+            let p = e.unwrap().path();
+            if p.is_dir() {
+                walk(&p, out);
+            } else if p.extension().is_some_and(|x| x == "rs") {
+                out.push((p.display().to_string(), std::fs::read_to_string(&p).unwrap()));
+            }
+        }
+    }
+    let mut files = std::vec::Vec::new();
+    walk(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src"), &mut files);
+    let mut bad = std::vec::Vec::new();
+    for (path, text) in &files {
+        if path.ends_with("params.rs") || path.ends_with("fx/v2.rs") || path.contains("/tests") || path.ends_with("tests.rs") {
+            continue;
+        }
+        for (n, line) in text.lines().enumerate() {
+            let code = line.split("//").next().unwrap_or("");
+            if code.contains("era(") && !code.contains("era_settings(") {
+                bad.push(std::format!("{path}:{}: {}", n + 1, line.trim()));
+            }
+        }
+    }
+    assert!(bad.is_empty(), "format-version reads outside era_settings:\n{}", bad.join("\n"));
+}

@@ -41,10 +41,10 @@ pub struct ChanP {
 impl ChanP {
     /// From the parameters (channel Adds already applied).
     pub fn new(p: &[f32; pm::COUNT], rate: f32) -> Self {
-        let (era, new_math) = pm::era(p);
+        let era = pm::era_settings(p);
         let r = |i: usize| v2_raw(p[i]);
         let chgain = GAIN * (r(ch::VOL) / 128.0);
-        let v6 = era >= 6;
+        let v6 = era.dc_filters;
         let d = ch::DIST;
         let c = ch::CHORUS;
         let k = ch::COMP;
@@ -58,7 +58,7 @@ impl ChanP {
             ],
             recv: [r(ch::RECV_AUXA) / 128.0, r(ch::RECV_AUXB) / 128.0],
             chorus_first: r(ch::FXROUTE) as i32 != 0,
-            dist: DistP::new(r(d), r(d + dist::GAIN), r(d + dist::P1), r(d + dist::P2), rate).native_atan(!new_math),
+            dist: DistP::new(r(d), r(d + dist::GAIN), r(d + dist::P1), r(d + dist::P2), rate).native_atan(era.exact_math),
             chorus: ModDelP::new(r(c), r(c + 1), r(c + 2), r(c + 3), r(c + 4), r(c + 5), r(c + 6), CHORUS_LEN, rate),
             comp: CompP::new(r(k), r(k + 1), r(k + 2), r(k + 3), r(k + 4), r(k + 5), r(k + 6), r(k + 7), r(k + 8), rate),
             boost: BoostP::new(r(ch::BOOST), rate),

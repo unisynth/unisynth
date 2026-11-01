@@ -361,12 +361,59 @@ pub mod v2 {
     pub const LEN: usize = 5;
 }
 
-/// The V2 era of a patch: `(format version, version 6 sine/FM/arctangent)`.
+/// The format version of a converted song (`voice.era`): `(format version, version 6 sine/FM/arctangent)`. Read only
+/// by [`era_settings`].
 #[inline]
 pub fn era(p: &[f32; COUNT]) -> (u32, bool) {
     match kinds::decode(p[v2::ERA], 7, 1, 6) {
         v2::ERA_V5_2004 => (5, true),
         v => (v as u32, v >= 6),
+    }
+}
+
+/// What the format version decides, until the format switch (change unify-v2-algorithms, design D3 and D4): the
+/// settings the converter will write, and the quirk candidates (design D2). The player's only reader of `voice.era`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct EraSettings {
+    /// The FM generator exists (version 4 on); an earlier FM slot is off.
+    pub fm_osc: bool,
+    /// The aux-in generators exist (version 6); an earlier aux slot is off.
+    pub aux_osc: bool,
+    /// The 2× 4-pole filter exists (version 6); an earlier one is off.
+    pub four_pole: bool,
+    /// Key sync 2 resets the voice (version 6); earlier it acts as 1.
+    pub full_keysync: bool,
+    /// The voice output and channel strip DC filters, and the strip's denormal bias (version 6).
+    pub dc_filters: bool,
+    /// Channel routes read the voice sources (version 5 on); earlier only velocity and the controllers.
+    pub chan_voice_sources: bool,
+    /// Quirk `boxed_osc`: the 4× box-averaged naive saw and pulse (before version 3).
+    pub boxed_osc: bool,
+    /// Quirk `lcg_noise`: the old LCG noise (before version 5).
+    pub lcg_noise: bool,
+    /// Quirks `exact_math` and `integer_fm`: exact sine and arctangent, integer FM phase (before version 6, except
+    /// the 2004 build of version 5).
+    pub exact_math: bool,
+    /// Quirk `fixed_seed`: noise seeds 0 (before version 6).
+    pub fixed_seed: bool,
+    /// Quirk `coarse_env`: 256-sample frames and the year-2000 envelope laws (before version 2).
+    pub coarse_env: bool,
+}
+
+pub fn era_settings(p: &[f32; COUNT]) -> EraSettings {
+    let (v, new_math) = era(p);
+    EraSettings {
+        fm_osc: v >= 4,
+        aux_osc: v >= 6,
+        four_pole: v >= 6,
+        full_keysync: v >= 6,
+        dc_filters: v >= 6,
+        chan_voice_sources: v >= 5,
+        boxed_osc: v < 3,
+        lcg_noise: v < 5,
+        exact_math: !new_math,
+        fixed_seed: v < 6,
+        coarse_env: v < 2,
     }
 }
 

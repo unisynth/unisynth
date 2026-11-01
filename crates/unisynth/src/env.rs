@@ -149,7 +149,7 @@ impl EnvP {
             curve_slope: slope,
             sustain_slope: if frame { slope } else { 0.5 },
             amp: if FRAME { p[pm::env_amp(i)] } else { 1.0 },
-            coarse: frame && pm::era(p).0 < 2,
+            coarse: frame && pm::era_settings(p).coarse_env,
             instant: false,
         }
     }

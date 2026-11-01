@@ -343,6 +343,35 @@ each stage with HEAD.
   −0.3 %, kkrieger +0.6 %, brullwurfel +1.7 %. Cumulative against HEAD: about +3.6 % on the rate-law songs (stage 3
   +3.3 %). Single interleaved runs against HEAD scatter ±6 % on this machine.
 
+**Stage 5 (combine and voice settings, tasks 5.1–5.3).**
+- *Code:*
+  - Every slot meets the running sum through one step, `osc::mix_in`: add (panned), multiply (ring) or replace (both
+    channels).
+  - `osc::sample` returns unpanned output, and the voice pans. The naive generators return a plain value; their
+    Add/Mul/Set is the slot's `combine`, set at control rate (`V2Out` removed).
+  - One `slot_targets` for every kind, with the 7-bit oscillator law for the naive generators (`v2_slot_targets`
+    removed).
+  - `VoiceSet` (amplitude source, pan stage, DC filter, transpose law) replaces the scattered `v2.voice` reads.
+  - `params::era_settings` is the only reader of `voice.era`: settings the converter will write, and the quirk
+    candidates. `the_format_version_is_read_in_one_place` walks `src/` and fails on any other read (checked to fail
+    closed).
+  - The running mono sum is unpanned for every slot; before, an unisynth slot added its panned mean. That only matters
+    for a naive generator after a unisynth slot.
+- *Deferred to the format switch (decision C):* the `oscN.combine` parameter and the quirk parameters with their
+  features. The "Quirk disabled" scenario comes with them (6.1, 7.1).
+- *Spec correction:* "Ring on a band-limited slot". The saw's third and fifth harmonics times the carrier land on
+  110 Hz, so "no 110 Hz" cannot hold. The scenario now asks that the carrier not pass on its own, and that 110 Hz
+  hold only those products.
+- *Gate 1:* workspace tests and feature builds pass.
+- *Gate 2:* parity 49/49, V2 18/18.
+- *Gate 3:* no item drifts.
+- *Gate 4:* goldens unchanged.
+- *Gate 5:* bake check 7/7.
+- *Gate 6 (size against stage 4):* squishy is unchanged on all 13 songs. xz moves −120 to +108 B on the reference
+  songs and −92 to +196 B on the V2 songs.
+- *Gate 7 (speed against stage 4, median of 3):* −2.3 % to +1.6 %, except no-remorse at +4.3 %. On no-remorse, 5
+  interleaved rounds against HEAD: stage 4 +3.0 %, stage 5 +3.4 %.
+
 ## Risks / Trade-offs
 
 - [Drift accumulates across stages until a song leaves tolerance] → D7.3 records drift per stage. A song near the

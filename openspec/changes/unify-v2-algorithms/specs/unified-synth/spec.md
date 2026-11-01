@@ -70,7 +70,9 @@ both channels of the sum.
 
 #### Scenario: Ring on a band-limited slot
 - **WHEN** slot 1 is a PM sine at 440 Hz and slot 2 a band-limited saw at 110 Hz set to multiply
-- **THEN** the output holds the products of the two (energy at 440 ± 110 Hz) and no 110 Hz fundamental
+- **THEN** the output holds the products of the two (energy at 440 ± 110 Hz); the carrier does not pass on its own (at
+  least 12 dB below the same slots added), and 110 Hz holds only the products of the saw's third and fifth harmonics
+  with the carrier
 
 ### Requirement: Voice output settings
 The voice output stage SHALL be set by these parameters:

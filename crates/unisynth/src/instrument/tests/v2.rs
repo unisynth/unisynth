@@ -109,6 +109,17 @@ fn the_voice_distortion_drives_and_off_changes_nothing() {
     assert!(db(mag(y, 1320.0), mag(y, 440.0)) > -45.0, "{}", db(mag(y, 1320.0), mag(y, 440.0)));
 }
 
+/// Pan after distortion (change unify-v2-algorithms 5.2): with the pan stage after the voice drive and the voice pan
+/// hard left, the right channel is silent and the left carries the driven mono sum.
+#[test]
+fn pan_after_distortion() {
+    let od = [(pm::VDIST, 1.0 / 128.0), (pm::VDIST + pm::dist::GAIN, 40.0 / 128.0), (pm::VDIST + pm::dist::P1, 1.0), (pm::VDIST + pm::dist::P2, 0.5), (v::PAN, 0.0)];
+    let (l, r) = play(&v2patch(&[(3, 0, 64, 64)], &od), A440, 20000);
+    assert!(r.iter().all(|x| x.abs() < 1e-6), "right is silent");
+    let y = &l[2000..20000];
+    assert!(mag(y, 440.0) > 0.05 && db(mag(y, 1320.0), mag(y, 440.0)) > -45.0, "left: the driven sine");
+}
+
 #[test]
 fn the_v2_sustain_time_slopes_the_held_level() {
     let lvl = |slope: u8| {

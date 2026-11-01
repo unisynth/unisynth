@@ -697,10 +697,25 @@ to `0..19 980` Hz after the sum, as Slaughter does. All coefficients are compute
 
 ## Mono-sum voice, drive, channel strip and speech (change add-v2-import; names: unify-v2-algorithms)
 
-`voice.stage` on switches a kind-64 instrument to the mono-sum voice output: envelope 1 is the amplitude, a 128-frame
-control frame, and mono-then-pan output. Its parameters use 7-bit step laws (stored value = step / 128). `voice.era`
-holds the format version of a converted song (0–6, 7 = a 2004 build). It chooses the version-dependent behaviour until
-change unify-v2-algorithms turns those into settings and quirk flags (see Provenance).
+`voice.stage` on sets the voice output settings (change unify-v2-algorithms 5.2):
+- amplitude: envelope 1 alone (not master × velocity × envelope 1)
+- pan stage: once, after the drive, on the mono sum (not per slot)
+- output DC filter: from format version 6
+- transpose law: 7-bit steps
+
+Its parameters use 7-bit step laws (stored value = step / 128).
+
+`voice.era` holds the format version of a converted song (0–6, 7 = a 2004 build). Only `params::era_settings` reads
+it. That function derives the settings the converter will write at the format switch (FM and aux-in generators, the
+2× 4-pole filter, key sync 2, the DC filters, the channel routes' voice sources) and the quirk candidates
+(`boxed_osc`, `lcg_noise`, `exact_math`/`integer_fm`, `fixed_seed`, `coarse_env`). A test fails on any other read.
+
+**Combine.** Every slot meets the running sum of the earlier slots through one step (`osc::mix_in`): add (panned by
+the slot and the voice pan), multiply (ring) or replace (both on both channels of the sum). The running mono sum
+(the FM and ring input of a later naive generator) is unpanned. Until the format switch every slot adds, except the
+naive generators: ring multiplies, FM and aux in replace. The naive generators share the slot path: one
+`slot_targets` with the 7-bit oscillator law (transpose `step − 64`, detune `(step − 64)/128`, volume `step/128`,
+note 60 = 130.8 Hz) next to the semitone and Hz laws.
 
 ```mermaid
 flowchart LR

@@ -28,9 +28,9 @@ combination scenarios are engine tests until 6.1 and patch tests there.
 
 ## 5. Oscillator combine and voice settings
 
-- [ ] 5.1 Add the combine op (add, multiply, replace) to every oscillator slot kind, and move the V2 generators onto the shared slot path with the oscillator law (transpose, detune, colour, volume). Verify: "Ring on a band-limited slot" and the V2 oscillator tests pass; the `mix_*` tests pass
-- [ ] 5.2 Replace `v2.voice` with voice settings (amplitude source, pan stage, output DC filter, voice law; keysync is `voice.keysync`), and remove the `era` parameter from the player. The remaining era behaviour becomes quirk candidates (`boxed_osc`, `lcg_noise`, `integer_fm`, `exact_math`, `fixed_seed`; design D2) or converter writes (design D3). Verify: no `era(` reads remain in `crates/unisynth/src` (a test script greps for them); "Pan after distortion" and "Quirk disabled" tests
-- [ ] 5.3 Update `needs`, features (quirk features), converters, song tables and the voice / V2 sections of `docs/synth/unisynth.md`. Verify: D7 gates 1–7, results recorded in design.md
+- [x] 5.1 Add the combine op (add, multiply, replace) to every oscillator slot kind, and move the V2 generators onto the shared slot path with the oscillator law (transpose, detune, colour, volume). Verify: "Ring on a band-limited slot" and the V2 oscillator tests pass; the `mix_*` tests pass
+- [x] 5.2 Replace `v2.voice` with voice settings (amplitude source, pan stage, output DC filter, voice law; keysync is `voice.keysync`), and remove the `era` parameter from the player. The remaining era behaviour becomes quirk candidates (`boxed_osc`, `lcg_noise`, `integer_fm`, `exact_math`, `fixed_seed`; design D2) or converter writes (design D3). Verify: no `era(` reads remain in `crates/unisynth/src` outside `era_settings` (a test greps for them); "Pan after distortion" test. ("Quirk disabled" moves to 6.1/7.1 with the quirk parameters, decision C)
+- [x] 5.3 Update `needs`, features (quirk features: with the quirk parameters at 6.1, decision C), converters, song tables and the voice / V2 sections of `docs/synth/unisynth.md`. Verify: D7 gates 1–7, results recorded in design.md
 
 ## 6. Format and migration
 
