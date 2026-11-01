@@ -18,7 +18,7 @@ var compiled = null;
 /** `synth-mt.wasm`, compiled once; null when not isolated or it does not compile. */
 function mtModule(base) {
 	if (!globalThis.crossOriginIsolated) return Promise.resolve(null);
-	compiled ??= WebAssembly.compileStreaming(fetch(base + "synth-mt.wasm")).catch(() => null);
+	compiled ??= WebAssembly.compileStreaming(fetch(base + "synth-mt.wasm?v=bb90d96ef4")).catch(() => null);
 	return compiled;
 }
 function mtWorkers(opts = {}) {
@@ -44,7 +44,7 @@ function bounceThreaded(base, module, blob, bank, range, onProgress, opts = {}) 
 			maximum: MT_PAGES,
 			shared: true
 		});
-		const bw = new Worker(base + "bounce-worker.js", { type: "module" });
+		const bw = new Worker(base + "bounce-worker.js?v=fb3c336456", { type: "module" });
 		all.push(bw);
 		bw.onerror = fail;
 		bw.onmessage = (e) => {
@@ -56,7 +56,7 @@ function bounceThreaded(base, module, blob, bank, range, onProgress, opts = {}) 
 				let ready = 0;
 				timer = setTimeout(fail, READY_MS);
 				m.blocks.forEach(([stack, tls]) => {
-					const h = new Worker(opts.helperUrl ?? base + "bounce-helper.js", { type: "module" });
+					const h = new Worker(opts.helperUrl ?? base + "bounce-helper.js?v=c7a3a58e10", { type: "module" });
 					all.push(h);
 					h.onerror = fail;
 					h.onmessage = (e) => {
@@ -116,7 +116,7 @@ var Engine = class Engine {
 		this.x = new WebAssembly.Instance(module, { env: { host_now_ms: () => performance.now() } }).exports;
 	}
 	static async create(base = "./") {
-		const module = await WebAssembly.compileStreaming(fetch(base + "synth.wasm"));
+		const module = await WebAssembly.compileStreaming(fetch(base + "synth.wasm?v=4948688ecc"));
 		return new Engine(module, base);
 	}
 	call(fn, bytes) {
@@ -208,7 +208,7 @@ var Engine = class Engine {
 			sampleRate: rate,
 			latencyHint: this.latency
 		});
-		await ctx.audioWorklet.addModule(this.base + "worklet.js");
+		await ctx.audioWorklet.addModule(this.base + "worklet.js?v=d6dc582bf9");
 		const node = new AudioWorkletNode(ctx, "synth", {
 			numberOfInputs: 0,
 			numberOfOutputs: 1,
@@ -435,7 +435,7 @@ var Engine = class Engine {
 		};
 	}
 	bounceSingle(blob, range, onProgress) {
-		const w = new Worker(this.base + "bounce-worker.js", { type: "module" });
+		const w = new Worker(this.base + "bounce-worker.js?v=fb3c336456", { type: "module" });
 		let reject = () => {};
 		const done = new Promise((res, rej) => {
 			reject = rej;
