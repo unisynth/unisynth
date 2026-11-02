@@ -2,6 +2,7 @@
 // undo reconciles track objects and would delete fields it does not snapshot, and DOM nodes do not belong in a store.
 // Not saved, not undoable.
 import { createSignal } from "solid-js";
+import type { UIClip } from "../../model.ts";
 
 /** Id of the selected track ("master" for the master). */
 export const [selectedId, setSelectedId] = createSignal("");
@@ -11,7 +12,7 @@ export const laneEl = new Map<string, HTMLElement>();
 /** Automation keys (`<device index>:<param>`) the user turned by hand: those knobs stop following their lane. */
 export const overrides = new Map<string, Set<string>>();
 /** Clip each track last opened in the piano roll (object as loaded; resolved again by name/start after an undo). */
-export const rollClips = new Map<string, unknown>();
+export const rollClips = new Map<string, Pick<UIClip, "name" | "start"> | null>();  // a restore keeps only name + start
 
 /** The override set of a track, created on first use. */
 export function overrideSet(id: string): Set<string> {
