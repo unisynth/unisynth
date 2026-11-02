@@ -683,6 +683,16 @@ One commit, built on a side branch with checkpoints. What it does and what was d
 - **Size** recorded in `tools/unisynth-parity/size.md` (`measure.sh`, all songs re-converted); speed in the switch
   section above and `size.md`.
 
+## Task 7.2: integration (2026-11-02, HEAD after 7.1)
+
+Workspace tests (98 targets), JS tests (253 pass, 0 fail), `check-unisynth-features.sh`, bake check 7/7: pass.
+Parity 49/49 and V2 18/18 (the turtles reference needs `ES4_SONGS`, absent on this machine, as in every stage run);
+drift against the task-1.1 baseline: the 49 parity items 0.00 dB everywhere, the V2 songs at most −0.04 dB loudness
+and −0.11 dB in one band (flybye, 16 kHz). Per-song drift against 6.2 (387 items): none past D7.3, identical to the
+switch run. Cauldron parity unchanged (6.9). Every file the change touched has its `AGENTS.md` row (checked by script;
+the root `README.md`, `.gitignore` and `bunfig.toml` have none by design). Open: the user's A/B listening, then
+archive and merge (workflow follow-up).
+
 ## Risks / Trade-offs
 
 - [Drift accumulates across stages until a song leaves tolerance] → D7.3 records drift per stage. A song near the

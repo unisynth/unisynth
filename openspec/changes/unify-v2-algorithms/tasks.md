@@ -88,7 +88,7 @@ separate commits; 6.5–6.8 are checkpoints of one switch commit (each needs a p
 
 - [x] 7.1 Document the kept quirks (table from 6.3) with their cargo features and module ids; the source-name ban also
   covers "farbrausch" (song credits exempt). Verify: "A quirk is listed with its songs"
-- [ ] 7.2 Integration check: workspace tests, `tools/check-unisynth-features.sh`, bake check, both parity reports,
+- [x] 7.2 Integration check: workspace tests, `tools/check-unisynth-features.sh`, bake check, both parity reports,
   drift per song against the 1.1 baseline (parity items) and 6.2 (every tracked song); AGENTS rows for every touched
   file. Verify: all pass; `openspec validate unify-v2-algorithms --strict` passes
 
