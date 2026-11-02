@@ -74,7 +74,7 @@ export function inventory(externals: boolean): Location[] {
     { name: "project/music/released/*.song.json", kind: "tracked", recorded: 28, jobs: () => songJobs(music("released")) },
     { name: "project/music/released/v2/*.song.json", kind: "tracked", recorded: 347, jobs: () => songJobs(music("released/v2")) },
     {
-      name: "DAW instrument templates (app.js, main.ts)", kind: "tracked", recorded: 2,
+      name: "DAW instrument templates (ui/app/tracks.ts, main.ts)", kind: "tracked", recorded: 2,
       jobs: () => templates().map((t) => ({ name: t.slug, json: t.json })),
       note: "DAW test and bench fixtures are checked by the JS tests",
     },

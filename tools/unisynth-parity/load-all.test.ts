@@ -37,6 +37,6 @@ test("the inventory lists the tracked locations with their recorded counts", () 
     ["project/music/patches/*.patch.json", 2],
     ["project/music/released/*.song.json", 28],
     ["project/music/released/v2/*.song.json", 347],
-    ["DAW instrument templates (app.js, main.ts)", 2],
+    ["DAW instrument templates (ui/app/tracks.ts, main.ts)", 2],
   ]);
 });

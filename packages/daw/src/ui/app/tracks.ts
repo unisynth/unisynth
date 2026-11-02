@@ -18,11 +18,11 @@ import { drawRoll, genRoll } from "./roll.ts";
 import { renderAll, senders } from "./device.ts";
 
 /** A new track's instrument: one oscillator through a low-pass filter. */
-export const initInstrument = (): Device => ({ kind: 64, preset: "init", values: { "osc1.type": 0.5, "filt1.type": 0.125, "filt1.cutoff": 0.6, "env1.sustain": 0.7, "env1.release": 0.15 } });
+export const initInstrument = (): Device => ({ kind: 64, preset: "init", values: { "osc1.type": 0.16666667, "filt1.type": 0.1, "filt1.cutoff": 0.6, "env1.sustain": 0.7, "env1.release": 0.15 } });
 /** Header device line: a bus's senders and effects, else the chain (`*` edited preset, "(off)" bypassed). */
 export const devLabel = (t: UITrack): string => t.bus ? `Bus · ← ${senders(t).map(x => x.name).join(", ") || "no sends"}${fxOf(t).length ? " · " + fxOf(t).map(devName).join(" → ") : ""}`
   : t.devices.map(d => devName(d) + ((d as Device & { _edited?: boolean })._edited ? "*" : "") + (d.bypass ? " (off)" : "")).join(" → ") || "no devices";
-/** One line from a song/1 about: type · style · tempo · engine · like … — description. */
+/** One line from a song/2 about: type · style · tempo · engine · like … — description. */
 export const aboutText = (a: About): string => [a.type, a.style, a.tempo, a.engine, a.similar_to?.length ? "like " + a.similar_to.join(", ") : ""].filter(Boolean).join(" · ") + " — " + a.description;
 const focusHeader = (t: UITrack): void => { document.querySelector<HTMLElement>(`.thdr.track[data-track="${t.id}"]`)?.focus(); };
 /** Binds the arrangement corner's "Add track" button. */

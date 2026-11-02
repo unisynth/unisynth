@@ -229,7 +229,7 @@ test("sampler block: description, Play, Choose, source select (one undo step), R
   const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.locator("#device .impsmp").click()]);
   await chooser.setFiles(toneWav());
   await page.waitForFunction(() => document.querySelector("#device .sampler") !== null);
-  const d = (await track("lead")).devices[0], i = [1, 2, 3].find((k) => d.values[`osc${k}.type`] === 1)!;
+  const d = (await track("lead")).devices[0], i = [1, 2, 3].find((k) => d.values[`osc${k}.type`] === 4 / 12)!; // Sampler: option 4 of the 13 v3 kinds
   const box = page.locator(`#device .grp[aria-label="Osc ${i}"] .sampler`);
   expect(await box.locator(".srow .dim").first().textContent()).toMatch(/^GSM sample 1 of 1 in this instrument · [\d.]+ KB$/);
   expect(await box.locator("button").allTextContents()).toEqual(["▶ Play", "Choose GSM sample…", "Import WAV…"]);  // nothing unused

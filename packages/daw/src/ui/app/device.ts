@@ -12,7 +12,7 @@ import * as devst from "../state/device.ts";
 import * as lib from "../state/library.ts";
 import { persist as store } from "../state/persist.ts";
 import { overrides } from "../state/view.ts";
-import { choice, devName, effectChoices, fmtVal, ip, modSrcName, nModes, oscType, paramOf, routesOf, SLOTS, type SlotGroup, slotKeys, slotUsed, smpShapes, tableOf, TARGETS, vget } from "../model/params.ts";
+import { choice, devName, effectChoices, fmtVal, ip, modSrcName, nModes, optValue, oscType, paramOf, routesOf, SLOTS, type SlotGroup, slotKeys, slotUsed, smpShapes, tableOf, TARGETS, vget } from "../model/params.ts";
 import { engineDev, instOf, links } from "../model/track.ts";
 import { bytesToB64 } from "../model/bytes.ts";
 import { api, E, selected, tracks } from "./session.ts";
@@ -42,7 +42,7 @@ export function renderAll(): void {
   arrange.setLabelRev(v => v + 1);  // header device labels (fields like _edited are written outside the store)
   renderDevice();  // the mixer follows the song store by itself
 }
-// ---- Device panels generated from the engine's parameter tables (design D8). Values live in the song/1 device
+// ---- Device panels generated from the engine's parameter tables (design D8). Values live in the song/2 device
 // (`d.values`, by parameter name); a knob or select writes there, sets the live parameter at once and queues an
 // engine update (structural parameters rebuild the device there). ----
 /** The panel's status line (aria-live), shown under the mod matrix (made by initDevice). */
@@ -81,7 +81,7 @@ function slotCmd(msg: string, fn: () => void): void { const before = snap(); fn(
 export function useGsm(t: UITrack, d: Device, b64: string, label: string, slot = gsmSlot(d)): void {
   const before = snap(); d.samples ??= [];
   let k = d.samples.indexOf(b64); if (k < 0) { d.samples.push(b64); k = d.samples.length - 1; }
-  Object.assign(d.values, { [`osc${slot}.type`]: 1, [`osc${slot}.s7`]: 0, [`osc${slot}.sample`]: k + 1 });
+  Object.assign(d.values, { [`osc${slot}.type`]: optValue(`osc${slot}.type`, "Sampler"), [`osc${slot}.s7`]: 0, [`osc${slot}.sample`]: k + 1 });
   overrides.get(t.id)?.clear(); livePush(); rebuildTracks(); renderAll(); commit(before, `${t.name}: osc ${slot} plays ${label} (GSM sample ${k + 1})`);
 }
 // Samples no GSM sampler slot plays still cost bytes in the intro: drop them and renumber the slots.
@@ -210,20 +210,25 @@ export async function loadInto(t: UITrack, src: Source, it: LibItem): Promise<vo
   if (src.id === "project") {
     const text = await api.read(it.preset.path), r = E.presetLoad(text);
     if (!r.device) { say(`${it.name}: ${r.errors?.map((e: { message: string }) => e.message).join("; ")}`); return; }
-    const i = t.devices.indexOf(inst); t.devices[i] = { ...r.device, _edited: false } as Device; inst = t.devices[i]!;
-    for (const ln of t.lanes) if (ln.dev === i && !paramOf(inst, ln.param)) ln.param = "filt1.cutoff";
+    const i = t.devices.indexOf(inst);
+    const lost = t.lanes.filter(ln => ln.dev === i && !paramOf(r.device as Device, ln.param)).map(ln => ln.param);
+    if (lost.length) { say(`${it.name}: the lanes on ${lost.join(", ")} have no parameter in this patch`); return; }
+    t.devices[i] = { ...r.device, _edited: false } as Device; inst = t.devices[i]!;
   } else if (it.conv?.devices?.length) {
     // converted legacy entry: its instrument replaces the track's, its insert effects go right after it
     const [ins, ...fx] = (it.conv.devices as Device[]).map(d => ({ ...structuredClone(d), preset: it.name, _edited: false }));
-    const i = t.devices.indexOf(inst); t.devices.splice(i, 1, ins!, ...fx); inst = ins!;
-    for (const ln of t.lanes) { if (ln.dev > i) ln.dev += fx.length; else if (ln.dev === i && !paramOf(inst, ln.param)) ln.param = "filt1.cutoff"; }
+    const i = t.devices.indexOf(inst);
+    const lost = t.lanes.filter(ln => ln.dev === i && !paramOf(ins!, ln.param)).map(ln => ln.param);
+    if (lost.length) { say(`${it.name}: the lanes on ${lost.join(", ")} have no parameter in this patch`); return; }
+    t.devices.splice(i, 1, ins!, ...fx); inst = ins!;
+    for (const ln of t.lanes) if (ln.dev > i) ln.dev += fx.length;
   } else if (src.id === "gsm") {
     const b64 = await gsmOf(it.gsm); if (!b64) { say(`${it.name}: sample not found in ${it.gsm.path}`); return; }
     useGsm(t, inst, b64, it.name); return;
   } else if (src.id === "gm") {
     // a sampler slot on the GM.DLS instrument (source 0.5): each note plays the region for its key and velocity
     const d = inst, g = it.gm, slot = [1, 2, 3].find(i => oscType(d, i) === 4) || [1, 2, 3].find(i => !slotUsed(d, "osc", i)) || 1;
-    Object.assign(d.values, { [`osc${slot}.type`]: 1, [`osc${slot}.s7`]: 0.5, [`osc${slot}.sample`]: 1 + (g.drums ? 16384 : 0) + g.bank * 128 + g.prog });
+    Object.assign(d.values, { [`osc${slot}.type`]: optValue(`osc${slot}.type`, "Sampler"), [`osc${slot}.s7`]: 0.5, [`osc${slot}.sample`]: 1 + (g.drums ? 16384 : 0) + g.bank * 128 + g.prog });
     delete d.values[`osc${slot}.s8`];
     d.preset = `GM ${it.gm.name}`; (d as Device & { _edited?: boolean })._edited = false;
   }

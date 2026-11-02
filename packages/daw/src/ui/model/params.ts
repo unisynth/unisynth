@@ -42,10 +42,15 @@ export const ip = (name: string): Param => byName.get(name)!;
 export const vget = (d: Device, p: Param): number => d.values[p.name] ?? p.default;
 /** Option name of an instrument choice parameter. */
 export function optName(d: Device, name: string): string | undefined { const p = ip(name), o = p.options || []; return o[choice(vget(d, p), o.length)]; }
-/** An envelope `law` value plays the Tunefish rate law (its option, by stored position: the law gained V2's kind). */
+/** An envelope `law` value plays the rate law. */
 export function envRate(v: number): boolean { const o = ip("env1.law").options; return o[choice(v, o.length)] === "Rate"; }
-/** Oscillator kind id (unisynth `osc_type`): 0 Off … 4 Sampler, 5 Naive (V2), 6 Cauldron. */
-export function oscType(d: Device, i: number): number { return Math.max(0, ["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive", "Cauldron"].indexOf(optName(d, `osc${i}.type`) ?? "")); }
+/** The stored value of a choice parameter's option `label` (from the engine's table, so no encoding is assumed here). */
+export function optValue(name: string, label: string): number { const o = ip(name).options || [], i = o.indexOf(label); return i <= 0 || o.length < 2 ? 0 : i / (o.length - 1); }
+/** Oscillator kind id (unisynth `osc_type`): 0 Off … 4 Sampler, 5–11 the naive generators, 12 Clocked. */
+export function oscType(d: Device, i: number): number {
+  return Math.max(0, ["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive saw/tri", "Naive pulse", "Sine", "Coloured noise", "FM",
+    "Aux in A", "Aux in B", "Clocked"].indexOf(optName(d, `osc${i}.type`) ?? ""));
+}
 /** Sampler screens a slot shows: the waveform, plus loop and pitch when looping. */
 export const smpShapes = (d: Device, i: number): number[] => [0, ...(choice(vget(d, ip(`osc${i}.s1`)), 3) && choice(vget(d, ip(`osc${i}.s2`)), 2) ? [3, 4] : [])];
 export const slotKeys = (g: string, i: number): string[] => INST().params.filter((p) => p.name.startsWith(`${g}${i}.`)).map((p) => p.name);

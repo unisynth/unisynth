@@ -4,7 +4,7 @@ import type { UITrack } from "../../model.ts";
 import * as tr from "../state/transport.ts";
 import * as files from "../state/files.ts";
 import * as dialogs from "../files/dialogs.tsx";
-import { api, DAW, E, master, tracks } from "./session.ts";
+import { api, DAW, E, master, songText, tracks } from "./session.ts";
 import { H, restore, say, snap } from "./core.ts";
 import { BARS, barsPerSec, beatsPerBar, fmtBars, LOOP, playing, setBars, setPos } from "./transport.ts";
 import { livePush, setPlay, setSongMeta, songOf, unloadLive } from "./engine.ts";
@@ -35,7 +35,7 @@ export function dirtyUpd(): void {
   files.setDirty({ on: d, n });
   document.getElementById("saved-info")!.textContent = d ? `${n} unsaved change${n > 1 ? "s" : ""}` : savedAt ? `Saved ${savedAt.toTimeString().slice(0, 5)}` : "No changes";
 }
-// Puts a song/1 source into the editor (undo history cleared).
+// Puts a song/2 source into the editor (undo history cleared).
 function useSong(s: unknown, file: string, saved: boolean): void {
   if (playing) setPlay(false);
   const st = DAW.model.fromSong(s as Parameters<typeof DAW.model.fromSong>[0]), d = JSON.parse(snap()); setSongMeta(st.meta, st.length0);
@@ -48,7 +48,7 @@ function useSong(s: unknown, file: string, saved: boolean): void {
   relayout(); updateLoop(); setPos(1); showPos(); fitSong(true); if (saved) markSaved(); else savedId = -1; unloadLive(); livePush(); dirtyUpd();
 }
 async function loadSong(f: string): Promise<void> {
-  try { useSong(JSON.parse(await api.read(f)), f, true); say(`opened ${f}`); } catch (e) { say(`cannot open ${f}: ${(e as Error).message}`); }
+  try { useSong(songText(await api.read(f)), f, true); say(`opened ${f}`); } catch (e) { say(`cannot open ${f}: ${(e as Error).message}`); }
 }
 /** Opens a song from the list (asks to save unsaved changes first). */
 export function openSong(f: string): void {
@@ -74,9 +74,9 @@ export async function save(): Promise<boolean> {
   const r = await api.write(songFile, json);
   if (!r.ok) { if (r.errors) showErrors(r.errors, "Save"); else say(`save failed: ${r.error}`); return false; }
   markSaved(); savedDepth = H.depth; savedAt = new Date(); files.addSong(songFile);
-  dirtyUpd(); say(`${api.static ? "downloaded (read-only preview)" : "saved"} ${songFile} (song/1, ${(json.length / 1024).toFixed(1)} kB)`); return true;
+  dirtyUpd(); say(`${api.static ? "downloaded (read-only preview)" : "saved"} ${songFile} (song/2, ${(json.length / 1024).toFixed(1)} kB)`); return true;
 }
-const emptySong = (): unknown => ({ format: "song/1", rate: 44100, tempo: 120, signature: [4, 4], ticks_per_beat: 960, length: 8 * 3840, clips: [],
+const emptySong = (): unknown => ({ format: "song/2", rate: 44100, tempo: 120, signature: [4, 4], ticks_per_beat: 960, length: 8 * 3840, clips: [],
   tracks: [{ id: "t1", name: "Track 1", color: "--t-lead", volume: 0.5, mute: false, receives: [], devices: [initInstrument()], placements: [], lanes: [] }],
   master: { id: "master", name: "Master", volume: 1, mute: false, receives: [{ from: "t1", channel: "main", volume: 1 }], devices: [], placements: [], lanes: [] } });
 /** A new untitled song (asks to save unsaved changes first). */

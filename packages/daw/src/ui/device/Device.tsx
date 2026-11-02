@@ -66,8 +66,10 @@ export { SLOTS };
 const SLOT_NOUN = { osc: "Osc", filt: "Filter", env: "Env", lfo: "LFO" };
 const OSC_COMMON = ["tracking", "coarse", "fine", "octave", "ratio", "ratio_fine", "fixed_hz", "gain", "mix", "pan", "pm_out", "feedback"];
 const OSC_SHAPES: Record<number, (string | null)[]> = { 1: ["waveform"], 2: ["waveform", "pulse width"], 3: ["bandwidth", "harmonics", "damp", "scale", "mod", "drive", "layers", "layer detune", "layer spread"],
-  4: ["start", null, null, "loop start", "loop length"], 5: ["mode", "colour", "ring"],
-  6: ["wave", "voices", "version", "clock", "retrigger", "filter base", "filter amount", "filter decay", "filter damp"] };  // s1 loop mode, s2 boundary, s5 reverse, s6 interp, s7 source: samplerPre; index: osc<i>.sample
+  4: ["start", null, null, "loop start", "loop length"],
+  // the naive generators (5–11): the colour; type, combine and law are their own parameters
+  5: [null, "colour"], 6: [null, "colour"], 7: [null, "colour"], 8: [null, "colour"], 9: [null, "colour"], 10: [null, "colour"], 11: [null, "colour"],
+  12: ["wave", "voices", "version", "clock", "retrigger", "filter base", "filter amount", "filter decay", "filter damp"] };  // s1 loop mode, s2 boundary, s5 reverse, s6 interp, s7 source: samplerPre; index: osc<i>.sample
 const range = (n: number) => [...Array(n)].map((_, k) => k + 1);
 
 let A!: DeviceActions;

@@ -10,7 +10,7 @@ Every song is validated, exported and loaded into the song player (`song check`)
 | project/music/patches/*.patch.json | tracked | 2 | 2 | 2 | ok |
 | project/music/released/*.song.json | tracked | 28 | 28 | 28 | ok |
 | project/music/released/v2/*.song.json | tracked | 347 | 347 | 347 | ok |
-| DAW instrument templates (app.js, main.ts) | tracked | 2 | 2 | 2 | ok; DAW test and bench fixtures are checked by the JS tests |
+| DAW instrument templates (ui/app/tracks.ts, main.ts) | tracked | 2 | 2 | 2 | ok; DAW test and bench fixtures are checked by the JS tests |
 | research/us-size-probe/out/songs/*.song | ignored | 27 | 27 | 27 | ok; re-converted by measure.sh |
 | research/us-size-probe/out/songs/legacy/*.song | ignored | 16 | 16 | 16 | ok; WaveSabre sources: converted, then loaded |
 | project/music/.library.json | ignored | 1007 | 1007 | 1007 | ok; one song per entry (instrument and its effects) |

@@ -4,7 +4,7 @@ import type { Device } from "../../model.ts";
 import { choice, ip, oscType, slotUsed, vget } from "../model/params.ts";
 import { b64ToBytes, gmInstrument } from "../model/bytes.ts";
 import * as lib from "../state/library.ts";
-import { api, E } from "./session.ts";
+import { api, E, songText } from "./session.ts";
 import { say } from "./core.ts";
 
 type GmInst = { name: string; drums?: boolean; bank: number; prog: number; regions: number[][] };
@@ -32,7 +32,7 @@ export const pcmOf = (b64: string): Float32Array | null => { if (!pcmCache.has(b
 const gsmSongs = new Map<string, any>();  // song path → parsed song (library loads)
 /** A library GSM entry's sample (base64), read from its song. */
 export async function gsmOf(g: { path: string; track: string; device: number; sample: number }): Promise<string | null> {
-  if (!gsmSongs.has(g.path)) gsmSongs.set(g.path, JSON.parse(await api.read(g.path)));
+  if (!gsmSongs.has(g.path)) gsmSongs.set(g.path, songText(await api.read(g.path)));
   const s = gsmSongs.get(g.path), t = [...s.tracks, s.master].find((x: { id: string }) => x.id === g.track);
   return t?.devices?.[g.device]?.samples?.[g.sample] ?? null;
 }

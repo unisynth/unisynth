@@ -71,7 +71,7 @@ export function envView(d: Device, i: number): Screen {
     svg.innerHTML = `<line x1="${x(off)}" y1="2" x2="${x(off)}" y2="${H - 10}" stroke="${css("--line")}" stroke-dasharray="2 2"/>
       <polyline fill="currentColor" fill-opacity=".14" stroke="currentColor" stroke-width="1.5" points="${x(0)},${y(0)} ${line} ${x(tot)},${y(0)}"/>
       <text x="${x(off) > W - 40 ? x(off) - 2 : x(off) + 2}" y="9" font-size="8" text-anchor="${x(off) > W - 40 ? "end" : "start"}" fill="${css("--dim")}">note off</text>
-      <text x="${W - 4}" y="${H - 1}" font-size="8" text-anchor="end" fill="${css("--dim")}">${fmt(tot)}${tf ? " · Tunefish" : ""}</text>`;
+      <text x="${W - 4}" y="${H - 1}" font-size="8" text-anchor="end" fill="${css("--dim")}">${fmt(tot)}${tf ? " · rate law" : ""}</text>`;
   };
   return svg;
 }

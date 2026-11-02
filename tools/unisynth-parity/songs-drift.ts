@@ -44,7 +44,7 @@ export function patchSong(patch: { kind: number; values: Record<string, number>;
  * after the format switch plays the switched values. Fails when a template is no longer found there. */
 export function templates(): Item[] {
   const src: [string, string, RegExp][] = [
-    ["template-init-instrument", "packages/daw/src/app.js", /const initInstrument = \(\) => \(\{ kind: 64, preset: "init", values: (\{[^}]*\}) \}\);/],
+    ["template-init-instrument", "packages/daw/src/ui/app/tracks.ts", /const initInstrument = \(\): Device => \(\{ kind: 64, preset: "init", values: (\{[^}]*\}) \}\);/],
     ["template-new-song", "packages/daw/src/main.ts", /devices: \[\{ kind: 64, preset: "init", values: (\{[^}]*\}) \}\]/],
   ];
   return src.map(([slug, file, re]) => {

@@ -24,14 +24,14 @@ export interface EngineHooks {
 }
 let hooks: EngineHooks = { showPos() {}, seeked() {}, frame() {} };
 
-/** song/1 meta (title, author, licence notes) and [bars, ticks] as loaded: written back unchanged. */
+/** song/2 meta (title, author, licence notes) and [bars, ticks] as loaded: written back unchanged. */
 let songMeta: Record<string, unknown> | undefined, songLen0: [number, number] | undefined;
 export function setSongMeta(meta: typeof songMeta, len0: typeof songLen0): void { songMeta = meta; songLen0 = len0; }
 
 /** Audible = not muted, and soloed, a send source of a soloed track, or a bus it sends to when any solo is on. */
 export const audible = (t: UITrack): boolean => modelAudible(tracks, t);
 const uiState = () => ({ tracks: raw(tracks), master: raw(master), tempo: tr.tempo() || 120, sig: sig(), bars: BARS, length0: songLen0, ...(songMeta ? { meta: songMeta } : {}) });
-/** The song as song/1 (`live`: what the engine plays, mute/solo applied). */
+/** The song as song/2 (`live`: what the engine plays, mute/solo applied). */
 export function songOf(live: boolean): Song {
   const s1 = toSong(uiState() as Parameters<typeof toSong>[0], live ? audible : undefined);
   for (const t of [...s1.tracks, s1.master]) t.devices = t.devices.map((d) => cleanDev(d as UIDevice));

@@ -39,4 +39,10 @@ export function initSession(daw: Daw): void {
   armed = tracks.find((t) => instOf(t)) || null;
 }
 export function setSelected(t: UITrack): void { selected = t; }
+/** A song file as the current layout: a song/1 file migrates (the engine's `song_migrate`), song/2 as it is. */
+export function songText(text: string): model.Song {
+  const r = E.migrate(text);
+  if (!r.song) throw new Error((r.errors || []).map(e => `${e.path}: ${e.message}`).join("; "));
+  return r.song;
+}
 export function setArmed(t: UITrack | null): void { armed = t; }
