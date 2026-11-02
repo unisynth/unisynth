@@ -3,11 +3,12 @@ import { raw } from "./ui/state/song.ts";
 import { api, armed, E, initSession, master, selected, setArmed, setSelected, song, tracks } from "./ui/app/session.ts";
 import { commit, H, initCore, redo, restore, say, snap, undo } from "./ui/app/core.ts";
 import { BARS, barsPerSec, beatsPerBar, fmtBars, LOOP, loopOn, playing, setBars, setPos, sig } from "./ui/app/transport.ts";
-import { addAutoLane, addLane, applyAutomation, curVal, grab, initAutomation, knobEdited, laneVals, recOn, recordFrame, recordPoint, release, setRec, updateReauto } from "./ui/app/automation.ts";
+import { addAutoLane, addLane, applyAutomation, initAutomation, laneVals, recOn, recordFrame, release, setRec } from "./ui/app/automation.ts";
 import { BW, fitArr, fitSong, hdrs, initArrange, lanes, laneTick, loopSelection, lw, onLength, onLoopText, rebuildTracks, relayout, ruler, setFocusArea, showPos, toggleFollow, toggleLoop, updateLoop, zoomArr } from "./ui/app/arrange.ts";
-import { arrKeys, clearClipSel, initClips, place, selClips } from "./ui/app/clips.ts";
-import { css } from "./ui/app/theme.ts";
-import { attachRoll, centreRoll, detachRoll, drawRoll, fitRoll, followRoll, genRoll, initRoll, inRoll, keyLight, moveRollPh, NAMES, rollLoopChanged, zoomRoll } from "./ui/app/roll.ts";
+import { arrKeys, clearClipSel, initClips, selClips } from "./ui/app/clips.ts";
+import { addEffect, devBypass, initDevice, renderAll, renderDevice, senders, trackIndex, updateWatch, useGsm } from "./ui/app/device.ts";
+import { gsmOf, playSample } from "./ui/app/samples.ts";
+import { attachRoll, centreRoll, detachRoll, drawRoll, fitRoll, followRoll, genRoll, initRoll, inRoll, keyLight, moveRollPh, rollLoopChanged, zoomRoll } from "./ui/app/roll.ts";
 import { audible, ensureAudio, initEngine, livePush, onBuffer, onOpenFilters, pushSong, seek, setPlay, setSongMeta, songOf, stopPressed, unloadLive } from "./ui/app/engine.ts";
 import * as liveState from "./ui/state/live.ts";
 import * as tr from "./ui/state/transport.ts";
@@ -16,7 +17,7 @@ import * as files from "./ui/state/files.ts";
 import * as lib from "./ui/state/library.ts";
 import { mountFiles } from "./ui/files/Files.tsx";
 import * as dialogs from "./ui/files/dialogs.tsx";
-import { mountLibrary, openLibrary } from "./ui/library/Library.tsx";
+import { mountLibrary } from "./ui/library/Library.tsx";
 import { popMenu } from "./ui/common/Menu.tsx";
 import * as arrange from "./ui/state/arrange.ts";
 import { mountTracks } from "./ui/arrange/Tracks.tsx";
@@ -30,11 +31,9 @@ import { laneEl, overrides, overrideSet, rollClips, selectedId, setRollShown, se
 import { mountMixer, setMixerShown } from "./ui/mixer.tsx";
 // DAW UI (change add-synth-daw): the reviewed mockup's views and interactions on the real song/2 model,
 import * as devst from "./ui/state/device.ts";
-import { mountDevice, SLOTS } from "./ui/device/Device.tsx";
 import * as live1 from "./ui/device/live.ts";
-import { autoParams, choice, devName, effectChoices, envCurve, envRate, fmtVal, initParams, ip, modSrcName, nModes, oscType, paramOf, routesOf, slotKeys, slotUsed, smpShapes, tableOf, TARGETS, vget } from "./ui/model/params.ts";
-import { carry, cleanDev, devicesOf, engineDev, fxOf, instOf, laneText, links, patOf } from "./ui/model/track.ts";
-import { b64ToBytes, bytesToB64, gmInstrument } from "./ui/model/bytes.ts";  // live per-voice overlays (`live` is the aria-live element)
+import { autoParams, devName, effectChoices, initParams, oscType, paramOf, slotUsed } from "./ui/model/params.ts";
+import { carry, cleanDev, devicesOf, engineDev, fxOf, instOf, laneText, patOf } from "./ui/model/track.ts";
 // DAW UI (change add-synth-daw): the reviewed mockup's views and interactions on the real song/1 model,
 // engine (AudioWorklet + synth-wasm live host), device panels generated from the engine's parameter tables and
 // /api/music. Started by main.ts with { engine, model, api, tables, initial, files, library }.
@@ -46,7 +45,6 @@ const st0 = DAW.initial;
 setBars(st0.bars); LOOP[1] = Math.min(BARS, 4) + 1;
 // ---- device tables (design D8): every device's parameters come from the engine module (ui/model/params.ts) ----
 initParams(TABLES, (k, m, i, p) => E.physical(k, m, i, p));
-const senders = t => tracks.filter(x => x.sends.some(s1 => s1[0] === t.name));
 const devLabel = t => t.bus ? `Bus · ← ${senders(t).map(x => x.name).join(", ") || "no sends"}${fxOf(t).length ? " · " + fxOf(t).map(devName).join(" → ") : ""}`
   : t.devices.map(d => devName(d) + (d._edited ? "*" : "") + (d.bypass ? " (off)" : "")).join(" → ") || "no devices";
 let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -455,45 +453,10 @@ function renderDevice() {
   applyAutomation(); updateReauto(t);
   updateWatch(); live1.markLiveDirty();
 }
+const initInstrument = () => ({ kind: 64, preset: "init", values: { "osc1.type": 0.5, "filt1.type": 0.125, "filt1.cutoff": 0.6, "env1.sustain": 0.7, "env1.release": 0.15 } });
+// Device panel, commands and live view (ui/app/device.ts).
+initDevice();
 
-// ---- Live per-voice displays: ui/device/live.ts (probe parsing, spectra, overlays, chips; change add-device-live-view D7). ----
-function liveOn() { return store.get("daw.live") !== "0"; }
-// The device panel's actions (ui/device/Device.tsx; called once, at the first renderDevice).
-function deviceActions() {
-  const scr = { osc: oscView, filt: filtView, lfo: lfoView };
-  return {
-    ip, tableOf, nModes, devName, fmtVal, vget, choice, oscType, smpShapes, slotUsed, routesOf, modSrcName,
-    senders: t => senders(t).map(x => x.name),
-    sideSenders: t => tracks.filter(x => x.sends.some(s1 => s1[0] === t.name && s1[1] === "side")).map(x => x.name),
-    setParam: (t, d, p, v, msg) => { const before = snap(); d.values[p.name] = v; liveParam(t, d, p, v); if (p.structural || p.name.endsWith(".type") || p.name === "mode") renderDevice(); commit(before, msg); },
-    knobInput: (t, d, p, v) => { d.values[p.name] = v; if (!(recOn && playing && recordPoint(t, d, p, v))) knobEdited(t, d, p); liveParam(t, d, p, v); },
-    grab, release,
-    begin: () => snap(), end: (before, msg) => commit(before, msg),
-    // a mode change selects another parameter set: keep only the mode
-    modeChanged: (t, d) => { for (const k of Object.keys(d.values)) if (k !== "mode") delete d.values[k]; renderDevice(); livePush(); },
-    clearSlot: (t, d, g, i) => slotCmd(t, `${SLOT_TITLE(g, i)} cleared; mod rows that targeted it are off, its lanes removed`, () => remapSlots(t, d, g, y => y === i ? 0 : y)),
-    swapFilters: (t, d, i) => slotCmd(t, `Filter ${i - 1} ↔ ${i}: mod targets and automation lanes follow`, () => remapSlots(t, d, "filt", x => x === i ? i - 1 : x === i - 1 ? i : x)),
-    bypass: (t, i) => devBypass(t, i), move: (t, i, dir) => moveDev(t, i, dir), remove: (t, i) => removeDev(t, i),
-    effects: () => effectChoices().map(tb => tb.label), addEffect: (t, label) => addEffect(t, label),
-    browse: () => openLibrary(), importSample: (t, d) => importWav(t, d, gsmSlot(d)), savePreset: (t, d, btn) => savePreset(t, d, btn),
-    liveOn, toggleLive: () => { store.set("daw.live", liveOn() ? "0" : "1"); updateWatch(); },
-    screen: (t, d, g, i) => g === "env" ? envView(d, i) : g === "filt" ? filtView(t, d, i) : scr[g](d, i),
-    // sampler block (ui/device/Sampler.tsx)
-    curVal, smpWhat, gmMissing: () => !lib.catalog()?.gm || NOBANK,
-    gsmUnused: d => { const n = d.samples?.length ?? 0, used = gsmUsed(d); return n > used.size ? n - [...used].filter(k => k >= 1 && k <= n).length : 0; },
-    playSample: b64 => playSample(b64), openLibrary: src => openLibrary(src), importWav: (t, d, i) => importWav(t, d, i),
-    removeUnusedGsm: (t, d) => removeUnusedGsm(t, d), pcm: pcmOf,
-    put: (t, d, p, v) => { d.values[p.name] = v; liveParam(t, d, p, v); },
-    dragEnd: (t, d, before, msg) => { d._edited = true; commit(before, msg); },
-    status,
-  };
-}
-const SLOT_TITLE = (g, i) => `${{ osc: "Osc", filt: "Filter", env: "Env", lfo: "LFO" }[g]} ${i}`;  // live view on/off, remembered in the browser
-function updateWatch() {
-  const t = selected, on = liveOn() && !document.getElementById("p-dev").hidden && t && !t.bus && !t.master && instOf(t);
-  E.watch(on ? trackIndex(t) : -1);
-  if (!on) live1.liveClear();
-}
 // Mixer: each strip = inserts (the track's effect chain), sends (stored as receives on the target track,
 // post-fader), fader, meters. Bus tracks have no instrument; the master is the last track and can hold effects.
 const mixer = document.getElementById("mixer");
@@ -524,10 +487,6 @@ mountMixer(mixer, song, {
   addBus: () => addTrack(true),
   devName,
 });
-function renderAll() {
-  arrange.setLabelRev(v => v + 1);  // header device labels (fields like _edited are written outside the store)
-  renderDevice();  // the mixer follows the song store by itself
-}
 function selectTrack(t) {
   t = (t.master ? master : tracks.find(x => x.id === t.id)) || t;  // always the store proxy (writes must notify)
   setSelected(t); setSelectedId(t.id);

@@ -1,0 +1,77 @@
+// Device slot screens (change daw-solid-ts 9.1, step 7): small SVG drawings of an oscillator, filter, LFO or envelope,
+// redrawn by the panel through `_draw` from the values shown now (automation at the playhead, else stored).
+import type { Device } from "../../model.ts";
+import type { Param } from "../../engine.ts";
+import { choice, envCurve, envRate, ip, oscType, vget } from "../model/params.ts";
+import { E } from "./session.ts";
+import { curVal } from "./automation.ts";
+import { css } from "./theme.ts";
+
+// Slot screens (D4): an SVG in a 100×40 box (stretched), redrawn from the current values through the group's
+// `_redraw` (knobs, automation, selects). Drawings, not measurements: shapes follow the parameters' meaning.
+const SVGNS = "http://www.w3.org/2000/svg";
+export type Screen = SVGSVGElement & { _draw?: () => void; _geo?: unknown };
+function scrSvg(draw: () => string): Screen {
+  const svg: Screen = document.createElementNS(SVGNS, "svg"); svg.setAttribute("class", "scr"); svg.setAttribute("viewBox", "0 0 100 40");
+  svg.setAttribute("preserveAspectRatio", "none"); svg.setAttribute("aria-hidden", "true");
+  svg._draw = () => { svg.innerHTML = draw(); }; return svg;
+}
+const scrPath = (f: (x: number) => number, n = 160): string => "M" + Array.from({ length: n + 1 }, (_, k) => `${(k * 100 / n).toFixed(2)} ${Math.max(.5, Math.min(39.5, f(k / n))).toFixed(2)}`).join(" L");
+const scrLine = (d: string, fill?: boolean): string => (fill ? `<path class="fl" d="${d} L100 40 L0 40 Z"/>` : "") + `<path class="ln" d="${d}"/>`;
+const scrMid = `<line class="mk0" x1="0" y1="20" x2="100" y2="20"/>`;
+/** Oscillator waveform (phase mod with feedback, saw/pulse, wavetable). */
+export function oscView(d: Device, i: number): Screen {
+  return scrSvg(() => {
+    const ty = oscType(d, i), v = (n: string): number => curVal(d, `osc${i}.${n}`), TAU = 2 * Math.PI;
+    let f: (x: number) => number;
+    if (ty === 2) { const pulse = choice(v("s0"), 2), pw = .05 + .9 * v("s1"); f = (x) => { const ph = (x * 2) % 1; return 20 - 15 * (pulse ? (ph < pw ? 1 : -1) : 2 * ph - 1); }; }
+    else if (ty === 3) { const hn = 1 + Math.round(v("s1") * 15), dm = 1 + v("s2") * 3; let pk = 0; const g = (x: number): number => { let y = 0; for (let k = 1; k <= hn; k++) y += Math.sin(TAU * 2 * k * x) / k ** dm; return y; };
+      for (let k = 0; k <= 64; k++) pk = Math.max(pk, Math.abs(g(k / 128))); f = (x) => 20 - 15 * g(x) / (pk || 1); }
+    else { const fb = v("feedback") * 2.5; f = (x) => 20 - 15 * Math.sin(TAU * 2 * x + fb * Math.sin(TAU * 2 * x)); }
+    return scrMid + scrLine(scrPath(f));
+  });
+}
+// filter response on a 20 Hz…20 kHz log axis (x = 100·log10(f/20)/3), 0 dB near the top, −60 dB at the bottom
+/** Filter screens: dB → y (also the live overlays). */
+export const yDb = (db: number): number => 38 - Math.max(0, Math.min(36, (db + 60) * .55));
+/** Filter response for the current type, cutoff and resonance. */
+export function filtView(d: Device, i: number): Screen {
+  return scrSvg(() => {
+    const p = ip(`filt${i}.cutoff`), hz = E.physical(d.kind, 0, p.index, curVal(d, p.name)), cx = Math.max(0, Math.min(100, Math.log10(hz / 20) / .03));
+    const name = ((p0: Param) => p0.options[choice(vget(d, p0), p0.options.length)] || "")(ip(`filt${i}.type`)).toLowerCase();
+    const q = .6 + curVal(d, `filt${i}.resonance`) * 6, poles = /ladder/.test(name) ? 2 : 1;
+    const h = (x: number): number => { let r = 10 ** ((x - cx) * .03); if (/high/.test(name)) r = 1 / r;
+      const den = Math.sqrt((1 - r * r) ** 2 + (r / q) ** 2), lp = 1 / den;
+      return /band/.test(name) ? (r / q) / den : /notch/.test(name) ? Math.abs(1 - r * r) / den : lp ** poles; };
+    return scrLine(scrPath(x => yDb(20 * Math.log10(h(x * 100) + 1e-9))), true) + `<line class="mk" x1="${cx.toFixed(2)}" y1="0" x2="${cx.toFixed(2)}" y2="40"/>`;
+  });
+}
+/** LFO shapes by choice index (sine, saw up, saw down, square, sample & hold). */
+export const LFO_SHAPES: ((x: number) => number)[] = [(x) => Math.sin(2 * Math.PI * x), (x) => 2 * x - 1, (x) => 1 - 2 * x, (x) => x < .5 ? 1 : -1, (x) => Math.sin(Math.floor(x * 8) * 2.7 + 1)];
+export function lfoView(d: Device, i: number): Screen {
+  return scrSvg(() => { const f = LFO_SHAPES[choice(curVal(d, `lfo${i}.shape`), 5)], dep = .25 + .75 * curVal(d, `lfo${i}.depth`);
+    return scrMid + scrLine(scrPath(x => 20 - 15 * dep * f(x), 200)); });
+}
+// Envelope curve as the engine plays it (crates/unisynth/src/env.rs): WaveSabre mode in closed form (linear attack,
+// quadratic decay and release, times `p²·5000 + 1` ms), Tunefish mode integrated per 512-frame block. A note is held
+// for a while after the decay, then released. Redrawn from the knobs (`_draw`), so it follows edits and automation.
+// Tunefish-mode stage times in seconds (same integration as envCurve): attack 0 → 1, decay 1 → sustain (with the
+// current sustain and slope), release from full level to silence. Infinity when the stage never ends.
+/** Envelope curve with the note-off mark and its total time. */
+export function envView(d: Device, i: number): Screen {
+  const W = 196, H = 54, NS = "http://www.w3.org/2000/svg";
+  const svg: Screen = document.createElementNS(NS, "svg"); svg.setAttribute("class", "env"); svg.setAttribute("viewBox", `0 0 ${W} ${H}`); svg.setAttribute("aria-hidden", "true");
+  svg._draw = () => {
+    const v = (n: string): number => curVal(d, `env${i}.${n}`), tf = envRate(v("law"));
+    const { pts, off } = envCurve(tf, v("attack"), v("decay"), v("sustain"), v("release"), v("curve_slope"));
+    const tot = Math.max(pts[pts.length - 1][0], 1e-3), x = (t1: number): number => 4 + (t1 / tot) * (W - 8), y = (q: number): number => H - 10 - q * (H - 14);
+    svg._geo = { x, y, off, tot };  // the live dots use the curve's own time axis
+    const step = Math.max(1, Math.ceil(pts.length / 200)), line = pts.filter((_, k) => k % step === 0 || k === pts.length - 1).map(([t1, q]) => x(t1).toFixed(1) + "," + y(q).toFixed(1)).join(" ");
+    const fmt = (s: number): string => s >= 1 ? s.toFixed(2) + " s" : Math.round(s * 1000) + " ms";
+    svg.innerHTML = `<line x1="${x(off)}" y1="2" x2="${x(off)}" y2="${H - 10}" stroke="${css("--line")}" stroke-dasharray="2 2"/>
+      <polyline fill="currentColor" fill-opacity=".14" stroke="currentColor" stroke-width="1.5" points="${x(0)},${y(0)} ${line} ${x(tot)},${y(0)}"/>
+      <text x="${x(off) > W - 40 ? x(off) - 2 : x(off) + 2}" y="9" font-size="8" text-anchor="${x(off) > W - 40 ? "end" : "start"}" fill="${css("--dim")}">note off</text>
+      <text x="${W - 4}" y="${H - 1}" font-size="8" text-anchor="end" fill="${css("--dim")}">${fmt(tot)}${tf ? " · Tunefish" : ""}</text>`;
+  };
+  return svg;
+}

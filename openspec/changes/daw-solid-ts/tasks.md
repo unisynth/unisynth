@@ -260,6 +260,9 @@ before → `AGENTS.md` rows → land on `main`.
     alternating against it: 27–34 vs 30–37 ms (noise). 161/161 twice.
   - [x] step 6: piano roll into `ui/app/roll.ts` (typed gesture unions; audition keys via `initRoll` hooks;
     `rollClips` typed). 161/161 twice, bench unchanged (roll 29.8 / 7.9 ms).
+  - [x] step 7: device helpers into `ui/app/device.ts` (commands, panel actions, renderDevice, live watch),
+    `screens.ts`, `samples.ts`; panel callback types mapped to store/engine types. 161/161 twice; bench
+    alternating against step 6: roll 31–36 vs 31 ms, big-song open ≈1.32–1.35 s both (noise).
 - [ ] 9.2 Integration check of the spec budgets on the 50-track song: bench every scenario against the step-3
   baseline, "Edit response budget" and "Playback display budget" as browser tests. Verify: `/daw/` from `serve`,
   `/dsp` static build loads and bounces, hot-reload dev loop works.
