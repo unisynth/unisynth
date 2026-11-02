@@ -319,7 +319,16 @@ before → `AGENTS.md` rows → land on `main`.
   a smaller first paint. Verify: device and live tests green (mount-only-while-shown kept), a select-on-Device-tab
   scenario in `test/budgets.test.ts` under one frame on the generated 50-track song, bench select-dev under 16.7 ms on
   both songs, no change to tab-dev.
-- [ ] 9.5 `docs/synth/daw.md` UI structure (components, stores, display state), `packages/daw/AGENTS.md` (remove the
+- [ ] 9.5 Dense automation lanes (from 9.3): one undo on the generated dense song (45 tracks, 7000 points per lane)
+  takes ~1.4 s although the snapshot restore is ~9 ms. Cause: `hooks.restored` → `rebuildTracks` → `relayout` redraws
+  every mounted lane (`addLane` `draw`: `innerHTML` SVG with a focusable `<g>` + two circles per point) and pads the
+  headers. Fix: (a) a restore redraws only lanes of tracks it changed (`restoreStats`), `relayout` only on a length or
+  zoom change; (b) a lane builds point handles only for the bars in view (+ margin, refreshed on horizontal scroll and
+  zoom, as clips are windowed) and the line/area from points thinned to one per pixel column; a handle moved, added or
+  focused by keyboard stays reachable. Verify: the dense undo `test.todo` in `test/budgets.test.ts` becomes a test
+  under 16.7 ms, automation editing tests green (mouse + keyboard point editor, record), axe test green, bench
+  tbl-stash-over2 undo and scroll p95 not worse.
+- [ ] 9.6 `docs/synth/daw.md` UI structure (components, stores, display state), `packages/daw/AGENTS.md` (remove the
   `app.js` sidecar, add `src/ui/**` directory `AGENTS.md`), and memory of the conventions.
 
 ## Workflow follow-up
