@@ -290,7 +290,25 @@ before → `AGENTS.md` rows → land on `main`.
   Open against the edit budget on the released songs (the spec scenarios pass): selecting a track while the Device
   tab shows (select-dev, the instrument panel mounts for the new track) 23–26 ms; a knob step on tbl-stash-over2
   30 ms (two JSON snapshots of the 4 MB song per undo step); mute on tbl-stash-over2 15.9 ms (at the limit).
-- [ ] 9.3 `docs/synth/daw.md` UI structure (components, stores, display state), `packages/daw/AGENTS.md` (remove the
+- [ ] 9.3 Undo snapshot cost on large songs (from 9.2): a knob step on tbl-stash-over2 takes 30 ms and mute 15.9 ms
+  against the 16.7 ms edit budget. Cause, measured: `snap()` stringifies tracks + master per gesture, twice (start
+  and commit compare); on tbl-stash-over2 that is 6.57 MB, of which automation lane points are 6.10 MB (a converted
+  song with dense lanes), pats 0.37 MB, GSM samples 0.02 MB; one stringify ≈ 19 ms, one track ≈ 0.14 ms. D2's planned
+  fallback (samples to an asset table) would not help here, so D2 "Snapshot cost" is revised with the chosen
+  approach: candidates are a per-track snapshot cache invalidated when the track changes (via the store or the
+  actions), reusing the last committed snapshot as a gesture's start state, and a dirty flag instead of the string
+  compare. Run `doubt-driven-review` on the choice before it lands (undo correctness, non-undoable writes such as solo,
+  restore by id). Verify: a generated dense-automation fixture (≈ 6 MB) in `test/budgets.test.ts` with knob step and
+  mute under one frame; `ui/state/history.test.ts` and the undo/redo contract tests green; bench knob / mute / undo on
+  tbl-stash-over2 under 16.7 ms and trashpanda unchanged.
+- [ ] 9.4 Track selection with the Device tab shown (from 9.2): select-dev 23–26 ms on trashpanda and
+  tbl-stash-over2. Cause: `Device.tsx` renders `<Show when={shownTrack()} keyed>`, so every selection unmounts and
+  mounts the whole chain (instrument blocks, knobs, screens). Profile with `bench/ui-profile.ts` first; candidates
+  are keeping the chain mounted across tracks (non-keyed, devices by index with per-device keys on kind and mode) or
+  a smaller first paint. Verify: device and live tests green (mount-only-while-shown kept), a select-on-Device-tab
+  scenario in `test/budgets.test.ts` under one frame on the generated 50-track song, bench select-dev under 16.7 ms on
+  both songs, no change to tab-dev.
+- [ ] 9.5 `docs/synth/daw.md` UI structure (components, stores, display state), `packages/daw/AGENTS.md` (remove the
   `app.js` sidecar, add `src/ui/**` directory `AGENTS.md`), and memory of the conventions.
 
 ## Workflow follow-up
