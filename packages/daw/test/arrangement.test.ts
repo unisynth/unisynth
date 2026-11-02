@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import type { Browser, Page } from "playwright";
 import { startServer, type Server } from "../../cli/src/server.ts";
 import { buildDaw, DIST } from "../build.ts";
+import { BIG_TRACKS, bigSong } from "./fixtures.ts";
 
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const root = mkdtempSync(join(tmpdir(), "daw-arr-"));
@@ -18,15 +19,6 @@ const music = join(root, "project/music");
 let s: Server, browser: Browser, page: Page;
 const errors: string[] = [];
 const BW = 44; // px per bar at the default zoom
-export const BIG_TRACKS = 50;
-
-/** The demo's bass track (instrument + delay, one automation lane) 50 times, every one routed to the master. */
-export function bigSong(demo: any, n = BIG_TRACKS): any {
-  const bass = demo.tracks.find((t: any) => t.id === "bass");
-  const tracks = Array.from({ length: n }, (_, i) => ({ ...structuredClone(bass), id: `t${i + 1}`, name: `Track ${i + 1}` }));
-  return { ...demo, tracks, clips: demo.clips.filter((c: any) => c.id === "bass-a"),
-    master: { ...demo.master, receives: tracks.map((t) => ({ from: t.id, channel: "main", volume: 1 })) } };
-}
 
 beforeAll(async () => {
   mkdirSync(music, { recursive: true });

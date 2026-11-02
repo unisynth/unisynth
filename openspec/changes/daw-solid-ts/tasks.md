@@ -271,9 +271,25 @@ before → `AGENTS.md` rows → land on `main`.
     dead `clipNotes`, `rnd`, `live` element, `CAT` alias dropped. Ratchet counts `SESSION`, BASELINE 98 (two GM-load
     writes on `inst.values` the counter missed by name, now seen as `d.values`). `rg "app.js" packages/daw/src`
     empty, tsc clean, 161/161 twice.
-- [ ] 9.2 Integration check of the spec budgets on the 50-track song: bench every scenario against the step-3
+- [x] 9.2 Integration check of the spec budgets on the 50-track song: bench every scenario against the step-3
   baseline, "Edit response budget" and "Playback display budget" as browser tests. Verify: `/daw/` from `serve`,
   `/dsp` static build loads and bounces, hot-reload dev loop works.
+  Done: `test/budgets.test.ts` (7 tests, stable 3×; `bigSong` moved to `test/fixtures.ts`) on the generated 50-track
+  song: select 3.8, fader 3.4, mute 2.9, solo 0.6, send level 3.1, knob 1.3 ms (median, budget 16.7); playback with
+  Mixer 100 % and with Device + Live 99.7–100 % of frames < 20 ms, no strip or knob rebuilt, only meters change. The
+  timing fails with a 20 ms busy-wait added to `setVolume` (43 ms). Checks: `/daw/` from `serve` plays without errors;
+  `build/dsp` from build-static.ts on a plain static server (not cross-origin isolated, like the bucket) loads and
+  bounces the loop (7.5 s WAV); Vite dev on :6465 picks up a `Files.tsx` label edit without reload. Full suite
+  168/168 twice.
+  Bench (load ≈2.3) against the step-3 baseline — trashpanda: open 1 011 → 1 108 (same-session runs 1 094–1 379),
+  select-dev 33 → 25.6, knob 1.3 → 1.1, undo 444 → 13.8, select-mix 12.6 → 0.6, fader 0.4 → 0.03, mute 1.3 → 0.5,
+  roll 34 → 29.7 ms; scroll p95 17.7 → 18.5 (> 20 ms: 3 → 0), play-mix 17.7 → 18.5 (7 → 8), play-dev 17.7 → 18.5
+  (7 → 4). tbl-stash-over2: open 8 217 → 1 268, select-dev 53 → 22.9, knob 32 → 30.0, undo 6 358 → 178,
+  select-mix 26 → 1.2, fader 11 → 0.1, mute 37 → 15.9, roll 6 → 7.8 ms; scroll p95 43.9 → 25.6 (20 → 6), play-mix
+  21.0 → 18.5 (46 → 4), play-dev 19.6 → 18.6 (6 → 1).
+  Open against the edit budget on the released songs (the spec scenarios pass): selecting a track while the Device
+  tab shows (select-dev, the instrument panel mounts for the new track) 23–26 ms; a knob step on tbl-stash-over2
+  30 ms (two JSON snapshots of the 4 MB song per undo step); mute on tbl-stash-over2 15.9 ms (at the limit).
 - [ ] 9.3 `docs/synth/daw.md` UI structure (components, stores, display state), `packages/daw/AGENTS.md` (remove the
   `app.js` sidecar, add `src/ui/**` directory `AGENTS.md`), and memory of the conventions.
 
