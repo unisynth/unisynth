@@ -43,7 +43,7 @@ const renderLane = (t: UITrack) => arrange.bumpLane(t.id);
 export function initClips(h: ClipHooks): void {
   hooks = h;
   lanesEl = document.getElementById("lanes")!; lw = document.getElementById("lanes-wrap")!;
-  cursorEl = Object.assign(document.createElement("div"), { className: "cursor" }); lanesEl.append(cursorEl); drawCursor();
+  cursorEl = Object.assign(document.createElement("div"), { className: "cursor" }); lanesEl.insertBefore(cursorEl, lanesEl.querySelector(".after-end")); drawCursor();  // under the song-end shade, as before
   document.querySelectorAll<HTMLElement>("#arr-corner [data-arr]").forEach(b => b.onclick = () => { setFocusArea("arr"); arrCmd(b.dataset.arr!); lw.focus(); });
   lanesEl.addEventListener("pointerdown", onDown);
   lanesEl.addEventListener("pointermove", onMove);

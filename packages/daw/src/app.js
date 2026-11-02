@@ -2,12 +2,12 @@
 import { raw } from "./ui/state/song.ts";
 import { api, armed, E, initSession, master, selected, setArmed, setSelected, song, tracks } from "./ui/app/session.ts";
 import { commit, H, initCore, lastSaid, redo, restore, say, snap, undo } from "./ui/app/core.ts";
-import { arrSnap, rollSnap, snapTo, BARS, barsPerSec, beatsPerBar, fmtBars, followHold, holdFollow, LOOP, loopOn, PAD_BARS, playing, resumeFollow, setBars, setLoopOn, setPos, sig, SONG_POS } from "./ui/app/transport.ts";
+import { rollSnap, snapTo, BARS, barsPerSec, beatsPerBar, fmtBars, LOOP, loopOn, playing, setBars, setPos, sig, SONG_POS } from "./ui/app/transport.ts";
 import { addAutoLane, addLane, applyAutomation, curVal, grab, initAutomation, knobEdited, laneVals, recOn, recordFrame, recordPoint, release, setRec, updateReauto } from "./ui/app/automation.ts";
-import { BW, focusArea, setBW, setFocusArea } from "./ui/app/arrange.ts";
-import { arrKeys, clearClipSel, clipboard, drawCursor, initClips, place, selClips } from "./ui/app/clips.ts";
+import { BW, fitArr, fitSong, focusArea, hdrs, holdOn, holdOnBar, initArrange, lanes, laneTick, loopSelection, lw, onLength, onLoopText, rebuildTracks, relayout, ruler, setFocusArea, showPos, toggleFollow, toggleLoop, updateLoop, zoomArr } from "./ui/app/arrange.ts";
+import { arrKeys, clearClipSel, clipboard, initClips, place, selClips } from "./ui/app/clips.ts";
 import { css } from "./ui/app/theme.ts";
-import { audible, ensureAudio, initEngine, livePush, liveLoop, onBuffer, onOpenFilters, pushSong, seek, setPlay, setSongMeta, songOf, stopPressed, unloadLive } from "./ui/app/engine.ts";
+import { audible, ensureAudio, initEngine, livePush, onBuffer, onOpenFilters, pushSong, seek, setPlay, setSongMeta, songOf, stopPressed, unloadLive } from "./ui/app/engine.ts";
 import * as liveState from "./ui/state/live.ts";
 import * as tr from "./ui/state/transport.ts";
 import { mountTransport } from "./ui/transport/TransportBar.tsx";
@@ -69,17 +69,12 @@ mountLibrary(document.getElementById("lib"), {
   audition: (src, it, done) => auditionEntry(src, it, done), load: (src, it) => loadInto(selected, src, it),
 });
 
-// Ruler
-const ruler = document.getElementById("ruler");
-ruler.style.width = BARS * BW + "px";
-for (let b = 0; b < BARS; b++) {
-  const d = document.createElement("div"); d.className = "bar num"; d.style.left = b * BW + "px"; d.textContent = b + 1; ruler.append(d);
-}
-const lp = document.createElement("div"); lp.className = "loop"; lp.style.left = 8 * BW + "px"; lp.style.width = 8 * BW + "px"; ruler.append(lp);
-
-// Headers + lanes
-const hdrs = document.getElementById("hdrs"), lanes = document.getElementById("lanes");
-lanes.style.width = BARS * BW + "px";
+// Arrangement view (ui/app/arrange.ts): ruler, loop, playheads, follow, zoom; the roll's parts are hooks.
+initArrange({
+  rollLoop: () => { if (rollEls && rollClip) drawRoll(); },
+  rollFollow: () => { if (grid && rollClip) { const rx = songStep(SONG_POS) * STEP, gl = grid.scrollLeft, gw = grid.clientWidth; if (rx >= 0 && rx <= rollLen * STEP && (rx < gl || rx > gl + gw - 30)) grid.scrollLeft = Math.max(0, rx - 30); } },
+  rollPos: () => moveRollPh(),
+});
 // Clips: ui/arrange/Clip.tsx (reactive; canvas thumbnail redrawn when renderLane bumps the lane version).
 // Every note occurrence of a placement: [note, step in the clip, audible length]. A looping clip repeats its
 // pattern (pattern length = pt.len bars); a cropped clip plays the pattern's start.
@@ -160,14 +155,6 @@ const live = document.getElementById("live");
 // open, its automation lanes (addLane per lane); rebuildTracks() bumps arrange.rev so mounted rows refill after
 // add/delete/reorder/undo. Rows off screen hold nothing (laneEl / laneVals only list mounted rows). Clips render
 // reactively in the lane (Clip.tsx), culled to the bars around the view.
-function rebuildTracks() {
-  arrange.setRev(v => v + 1);
-  if (typeof relayout === "function") { relayout(); applyAutomation(); hdrPad(); hdrs.scrollTop = lw.scrollTop; }
-}
-const shade = document.createElement("div"); shade.className = "loopshade"; shade.style.left = 8 * BW + "px"; shade.style.width = 8 * BW + "px"; lanes.append(shade);
-const ph = document.createElement("div"); ph.className = "playhead"; ph.style.transform = `translateX(${(11 + 2.5 / 4) * BW}px)`; lanes.append(ph);
-const ph2 = ph.cloneNode(); ruler.append(ph2);
-const lw = document.getElementById("lanes-wrap");
 arrange.setArmedId(armed?.id ?? null); setSelectedId(selected.id); arrange.setBw(BW);  // the rows mark and pin them from the start
 mountTracks(hdrs, lanes, lw, tracks, {
   devLabel: t => devLabel(t), about: t => t.about ? aboutText(t.about) : "", rename: (t, v) => renameTo(t, v),
@@ -175,17 +162,7 @@ mountTracks(hdrs, lanes, lw, tracks, {
   mute: t => toggleMuteSolo(t, false), solo: t => toggleMuteSolo(t, true), arm: t => toggleArm(t), volume: (t, v, done) => setVolume(t, v, done),
   click: (t, e) => headerClick(t, e), key: (t, e, h) => headerKey(t, e, h), menu: (t, e) => headerMenu(t, e), startRename: t => renameTrack(t),
 });
-lw.addEventListener("scroll", () => { ruler.style.transform = `translateX(${-lw.scrollLeft}px)`; hdrs.scrollTop = lw.scrollTop; });
-// One scroller: the lanes. Headers only mirror lw.scrollTop (they never write back, which made momentum scrolling
-// jump back a frame). Wheel over the headers scrolls the lanes; focusing a header scrolls the lanes to it.
-const hdrPad = () => { hdrs.style.paddingBottom = (lw.offsetHeight - lw.clientHeight) + 40 + "px"; };  // room for lw's horizontal scrollbar
-hdrPad(); new ResizeObserver(hdrPad).observe(lw);
-hdrs.addEventListener("wheel", e => { if (e.ctrlKey || e.metaKey) return; e.preventDefault(); lw.scrollTop += e.deltaY; lw.scrollLeft += e.deltaX; }, { passive: false });
-hdrs.addEventListener("focusin", e => {
-  const h = e.target.closest(".thdr"); if (!h) return; const top = h.offsetTop, bot = top + h.offsetHeight;
-  if (top < lw.scrollTop) lw.scrollTop = top; else if (bot > lw.scrollTop + lw.clientHeight) lw.scrollTop = bot - lw.clientHeight;
-  requestAnimationFrame(() => { hdrs.scrollTop = lw.scrollTop; });
-});
+
 
 // Knob factory: SVG arc, role=slider, keyboard + drag.
 // The value a control shows now (the knob's, which follows automation while playing), else the stored one.
@@ -897,87 +874,6 @@ mountSplitter(document.getElementById("split-h-slot"), { id: "split-h", label: "
 // ===== Transport: song length, loop, seek, playback (clock + meters + a small WebAudio preview voice per track) =====
 function onTempo(v) { tr.setTempo(v); showPos(); say(`tempo ${v} BPM`); dirtyUpd(); livePush(); }
 function onSig(v) { tr.setSig(v); document.documentElement.style.setProperty("--beats", beatsPerBar()); showPos(); dirtyUpd(); say(`time signature ${v}: beat grid and positions follow; the piano roll keeps 16 steps per bar`); }
-const afterEl = Object.assign(document.createElement("div"), { className: "after-end" }); lanes.append(afterEl);
-// Grow the song to cover the last clip (never shrinks by itself).
-function fitSong(quiet) {
-  const end = Math.max(1, ...tracks.flatMap(t => t.clips.map(c => c.start + c.len))), need = Math.ceil(end - 1 - 1e-9);
-  if (need > BARS) { setBars(need); relayout(); if (!quiet) say(`${lastSaid()} · song extended to ${BARS} bars`); }
-}
-function relayout() {
-  const W = (BARS + PAD_BARS) * BW;
-  ruler.style.width = lanes.style.width = W + "px";
-  ruler.querySelectorAll(".bar, .end").forEach(e => e.remove());
-  const every = BW < 12 ? 8 : BW < 20 ? 4 : BW < 30 ? 2 : 1;
-  for (let b1 = 0; b1 < BARS + PAD_BARS; b1++) { if (b1 % every) continue; const d = document.createElement("div"); d.className = "bar num"; d.style.left = b1 * BW + "px"; d.textContent = b1 + 1; if (b1 >= BARS) d.style.opacity = .4; ruler.prepend(d); }
-  const end = Object.assign(document.createElement("div"), { className: "end", textContent: "end" }); end.style.left = BARS * BW + "px"; ruler.append(end);
-  afterEl.style.left = BARS * BW + "px"; afterEl.style.width = PAD_BARS * BW + "px";
-  tr.setBars(BARS); laneVals.forEach(l => l.draw());
-}
-function onLength(v) {
-  const last = Math.ceil(Math.max(1, ...tracks.flatMap(t => t.clips.map(c => c.start + c.len))) - 1 - 1e-9);
-  if (v < last) { setBars(last); say(`length kept at ${last} bars: clips reach bar ${last + 1}`); } else { setBars(v); say(`song length ${v} bars`); }
-  relayout();
-}
-// Loop: top strip of the ruler. Drag the bar to move, its edges to resize, empty strip to draw a new loop.
-const loopStrip = Object.assign(document.createElement("div"), { className: "loopstrip" }); ruler.prepend(loopStrip);
-lp.tabIndex = 0; lp.setAttribute("role", "group");
-const loopSnap = () => arrSnap() || 0;
-const snapBar = b => 1 + snapTo(b - 1, loopSnap());
-function updateLoop(msg) {
-  lp.style.left = shade.style.left = (LOOP[0] - 1) * BW + "px"; lp.style.width = shade.style.width = (LOOP[1] - LOOP[0]) * BW + "px";
-  lp.classList.toggle("off", !loopOn); shade.classList.toggle("off", !loopOn);
-  lp.setAttribute("aria-label", `Loop ${fmtBars(LOOP[0])} to ${fmtBars(LOOP[1])}${loopOn ? "" : ", off"}. Arrows move it, Shift+arrows change its end.`);
-  tr.setLoop([LOOP[0], LOOP[1]]); tr.setLoopOn(loopOn);  // the bar shows them
-  if (!document.getElementById("p-roll").hidden && rollClip) drawRoll();
-  if (msg) say(msg);
-  if (typeof liveLoop === "function") liveLoop();
-}
-let lDrag = null;
-const rbar = e => 1 + (e.clientX - ruler.getBoundingClientRect().left) / BW;
-ruler.addEventListener("pointerdown", e => {
-  ruler.setPointerCapture(e.pointerId); const b1 = rbar(e), top = e.clientY - ruler.getBoundingClientRect().top < 10;
-  if (!top) { lDrag = { seek: true }; seek(b1); return; }
-  const x0 = (LOOP[0] - 1) * BW, x1 = (LOOP[1] - 1) * BW, x = (b1 - 1) * BW;
-  const mode = Math.abs(x - x0) < 6 ? "a" : Math.abs(x - x1) < 6 ? "b" : x > x0 && x < x1 ? "move" : "new";
-  lDrag = { mode, b0: b1, a: LOOP[0], b: LOOP[1], anchor: snapBar(b1) };
-  if (mode === "new") { LOOP[0] = LOOP[1] = lDrag.anchor; }
-  setLoopOn(true); updateLoop();
-});
-ruler.addEventListener("pointermove", e => {
-  const b1 = rbar(e);
-  if (!lDrag) { const x = (b1 - 1) * BW, top = e.clientY - ruler.getBoundingClientRect().top < 10, x0 = (LOOP[0] - 1) * BW, x1 = (LOOP[1] - 1) * BW;
-    ruler.style.cursor = !top ? "pointer" : Math.abs(x - x0) < 6 || Math.abs(x - x1) < 6 ? "ew-resize" : x > x0 && x < x1 ? "grab" : "copy"; return; }
-  if (lDrag.seek) return seek(b1);
-  const min = loopSnap() || .25, endMax = BARS + PAD_BARS + 1;
-  if (lDrag.mode === "move") { const d = Math.max(1 - lDrag.a, Math.min(endMax - lDrag.b, snapTo(b1 - lDrag.b0, loopSnap()))); LOOP[0] = lDrag.a + d; LOOP[1] = lDrag.b + d; }
-  else if (lDrag.mode === "a") LOOP[0] = Math.max(1, Math.min(LOOP[1] - min, snapBar(b1)));
-  else if (lDrag.mode === "b") LOOP[1] = Math.min(endMax, Math.max(LOOP[0] + min, snapBar(b1)));
-  else { const c1 = Math.max(1, snapBar(b1)); [LOOP[0], LOOP[1]] = c1 >= lDrag.anchor ? [lDrag.anchor, Math.max(c1, lDrag.anchor + min)] : [c1, lDrag.anchor]; }
-  updateLoop(); ruler.style.cursor = lDrag.mode === "move" ? "grabbing" : "ew-resize";
-});
-ruler.addEventListener("pointerup", () => { if (lDrag && !lDrag.seek) updateLoop(`loop ${fmtBars(LOOP[0])} – ${fmtBars(LOOP[1])}`); lDrag = null; });
-lp.addEventListener("keydown", e => {
-  const d = (e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0) * (loopSnap() || 1); if (!d) return; e.preventDefault();
-  if (e.shiftKey) LOOP[1] = Math.max(LOOP[0] + (loopSnap() || .25), LOOP[1] + d); else if (LOOP[0] + d >= 1) { LOOP[0] += d; LOOP[1] += d; }
-  updateLoop(`loop ${fmtBars(LOOP[0])} – ${fmtBars(LOOP[1])}`);
-});
-function onLoopText(str) {
-  const m = str.match(/(\d+(?:\.\d+)?)\s*[–\-—,: ]+\s*(\d+(?:\.\d+)?)/);
-  if (!m || +m[1] < 1 || +m[2] <= +m[1]) { say("loop: type start – end in bars, e.g. 5 – 13"); return false; }
-  LOOP[0] = +m[1]; LOOP[1] = +m[2]; setLoopOn(true); updateLoop(`loop ${fmtBars(LOOP[0])} – ${fmtBars(LOOP[1])}`); return true;
-}
-const toggleLoop = () => { setLoopOn(!loopOn); updateLoop(loopOn ? "loop on" : "loop off"); };
-const loopSelection = () => { const cs = selClips(); if (!cs.length) return say("select clips to loop them");
-  LOOP[0] = Math.min(...cs.map(x => x.c.start)); LOOP[1] = Math.max(...cs.map(x => x.c.start + x.c.len)); setLoopOn(true); updateLoop(`loop set to the selection ${fmtBars(LOOP[0])} – ${fmtBars(LOOP[1])}`); };
-// Follow pauses when the user scrolls or zooms a view by hand (Ableton's rule); ⇥/F, play or a ruler click resume it.
-function toggleFollow() {
-  if (followHold) { resumeFollow(); tr.setFollow(true); say("follow resumed"); showPos(); return; }
-  tr.setFollow(!tr.follow()); resumeFollow();
-}
-const holdOn = els => { for (const el of els) { el.addEventListener("wheel", holdFollow, { passive: true }); el.addEventListener("touchmove", holdFollow, { passive: true }); } };
-// Dragging a scrollbar: the press lands on the scroll container itself, not on its content.
-const holdOnBar = el => el.addEventListener("pointerdown", e => { if (e.target === el) holdFollow(); });
-holdOn([lw, hdrs, ruler]); holdOnBar(lw);
 onRollMount(() => { holdOn([grid, vel, keys]); holdOnBar(grid); });
 
 // Mute / solo (header and mixer strip buttons, design D7): one state per track, both views follow the store. Mute is
@@ -992,21 +888,6 @@ function toggleMuteSolo(t, solo) {
 function moveRollPh() {
   const el = rollEls?.rollPh; if (!el) return; if (!rollClip) { el.hidden = true; return; }
   let x = songStep(SONG_POS); if (rollClip.loop && x >= 0 && x < rollClip.len * 16) x %= rollLen; const hide = x < 0 || x > rollLen; if (el.hidden !== hide) el.hidden = hide; el.style.transform = `translateX(${x * STEP}px)`;
-}
-// Runs every animation frame while playing: reads layout first (still valid from the last frame), then writes
-// only what changed; the playheads move by transform so no frame re-lays-out the arrangement.
-function showPos() {
-  liveState.setPos(SONG_POS);
-  const x = (SONG_POS - 1) * BW;
-  if (playing && tr.follow()) {
-    const sl = lw.scrollLeft, cw = lw.clientWidth;
-    // paused by a hand scroll: resumes by itself when the playhead, still in view, reaches the right edge
-    if (followHold && x > sl + cw - 40 && x <= sl + cw) resumeFollow();
-    if (!followHold && (x < sl || x > sl + cw - 40)) lw.scrollLeft = Math.max(0, x - 40);
-    if (!followHold && grid && rollClip) { const rx = songStep(SONG_POS) * STEP, gl = grid.scrollLeft, gw = grid.clientWidth; if (rx >= 0 && rx <= rollLen * STEP && (rx < gl || rx > gl + gw - 30)) grid.scrollLeft = Math.max(0, rx - 30); }
-  }
-  ph.style.transform = ph2.style.transform = `translateX(${x}px)`;
-  moveRollPh();
 }
 // ---- Engine transport (design D6, D8e): the AudioWorklet live host plays the song; the UI clock follows the
 // position it reports. Every edit sends the exported song to the host, which applies it per track (D4). ----
@@ -1098,9 +979,6 @@ initEngine({
   seeked: () => { applyAutomation(); laneVals.forEach(l => l.val()); },
   frame: now => { recordFrame(); showPos(); applyAutomation(); laneTick(now); },
 });
-let lastLane = 0;
-function laneTick(now) { if (now - lastLane < 100) return; lastLane = now; laneVals.forEach(l => l.val());
-  for (const t of tracks) laneEl.get(t.id)?.querySelectorAll(".clip").forEach(el => el.classList.toggle("playing", SONG_POS >= el._clip.start && SONG_POS < el._clip.start + el._clip.len)); }
 relayout(); updateLoop(); showPos();
 queueMicrotask(() => updateArmed());
 
@@ -1347,13 +1225,6 @@ function setVolume(t, v, done) {
   t.vol = v; livePush();
 }
 // ===== Zoom: arrangement (px per bar) and piano roll (px per 1/16, px per key), anchored at the pointer =====
-function zoomArr(f, clientX, quiet) {
-  const r = lw.getBoundingClientRect(), ax = (clientX ?? r.left + lw.clientWidth / 2) - r.left, s0 = lw.scrollLeft, b0 = BW;
-  const nb = clamp(BW * f, 6, 400); if (Math.abs(nb - BW) < .01) return;
-  setBW(nb); arrange.setBw(BW); document.documentElement.style.setProperty("--bar-w", BW + "px");
-  relayout(); tracks.forEach(renderLane); updateLoop(); drawCursor(); showPos();
-  lw.scrollLeft = anchorScroll(s0, ax, b0, BW); if (!quiet) say(`arrangement zoom ${Math.round(BW / 44 * 100)}%`);
-}
 function zoomRoll(fx, fy, clientX, clientY, quiet) {
   if (!grid) return;
   const r = grid.getBoundingClientRect(), ax = (clientX ?? r.left + grid.clientWidth / 2) - r.left, ay = (clientY ?? r.top + grid.clientHeight / 2) - r.top;
@@ -1363,10 +1234,6 @@ function zoomRoll(fx, fy, clientX, clientY, quiet) {
   drawRoll(); grid.scrollLeft = anchorScroll(sx, ax, step0, STEP); grid.scrollTop = anchorScroll(sy, ay, kh0, KH);
   if (!quiet) say(`piano roll zoom ${Math.round(STEP / 22 * 100)}% × ${Math.round(KH / 12 * 100)}%`);
 }
-function fitArr() {
-  const cs = selClips(), a = cs.length ? Math.min(...cs.map(x => x.c.start)) : 1, b1 = cs.length ? Math.max(...cs.map(x => x.c.start + x.c.len)) : BARS + 1;
-  zoomArr((lw.clientWidth - 8) / (b1 - a) / BW, undefined, true); lw.scrollLeft = (a - 1) * BW; say(cs.length ? `zoomed to ${cs.length} clips` : "zoomed to the song");
-}
 function fitRoll() {
   if (!rollClip || !grid) return; const ns = rollNotes.filter(n => n.s < rollLen);
   STEP = clamp((grid.clientWidth - 4) / rollLen, 3, 120);
@@ -1375,21 +1242,17 @@ function fitRoll() {
   drawRoll(); grid.scrollLeft = 0; centreRoll(); say("zoomed to the clip");
 }
 // Gestures: Ctrl/⌘+wheel and trackpad pinch (Chrome/Firefox send ctrl+wheel, Safari sends gesture events).
-lw.addEventListener("wheel", e => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); zoomArr(wheelF(e), e.clientX, true); } }, { passive: false });
-ruler.addEventListener("wheel", e => { e.preventDefault(); if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && !e.ctrlKey) lw.scrollLeft += e.deltaX; else zoomArr(wheelF(e), e.clientX, true); }, { passive: false });
 const rollWheel = e => {
   if (e.ctrlKey || e.metaKey) { e.preventDefault(); zoomRoll(wheelF(e), 1, e.clientX, e.clientY, true); }
   else if (e.altKey) { e.preventDefault(); zoomRoll(1, wheelF(e), e.clientX, e.clientY, true); }
 };
 onRollMount(() => { grid.addEventListener("wheel", rollWheel, { passive: false }); vel.addEventListener("wheel", rollWheel, { passive: false });
 keys.addEventListener("wheel", e => { if (e.ctrlKey || e.metaKey || e.altKey) { e.preventDefault(); zoomRoll(1, wheelF(e), undefined, e.clientY, true); } else grid.scrollTop += e.deltaY; }, { passive: false }); });
-let g0 = 1;
-const pinch = (el, fn) => {
-  el.addEventListener("gesturestart", e => { e.preventDefault(); g0 = el === lw ? BW : STEP; });
-  el.addEventListener("gesturechange", e => { e.preventDefault(); fn(e.scale, e); });
-};
-pinch(lw, (sc, e) => zoomArr(g0 * sc / BW, e.clientX, true));
-onRollMount(() => pinch(grid, (sc, e) => zoomRoll(g0 * sc / STEP, 1, e.clientX, e.clientY, true)));
+let g0 = 1;  // trackpad pinch (Safari gesture events) on the roll; the arrangement's: ui/app/arrange.ts
+onRollMount(() => {
+  grid.addEventListener("gesturestart", e => { e.preventDefault(); g0 = STEP; });
+  grid.addEventListener("gesturechange", e => { e.preventDefault(); zoomRoll(g0 * e.scale / STEP, 1, e.clientX, e.clientY, true); });
+});
 
 onRollMount(() => rollEls.tools.querySelectorAll("[data-zoom]").forEach(b => b.onclick = () => ({ "t+": () => zoomRoll(1.5, 1), "t-": () => zoomRoll(1 / 1.5, 1), "p+": () => zoomRoll(1, 1.25), "p-": () => zoomRoll(1, .8), fit: fitRoll })[b.dataset.zoom]()));
 // Global shortcuts (ui/keys.ts): Ctrl/⌘+S and the computer keyboard before the focused editor, the rest after it.
