@@ -4,18 +4,30 @@ i686 `no_std` probe, opt-level z, LTO, static base (`research/us-size-probe`, `m
 
 | build | song B | raw B | xz -9e B | squishy 0.1.3 B | features |
 |---|---:|---:|---:|---:|---|
-| all-modules | 3401 | 135680 | 64788 | 49152 | us-all |
-| global-groove | 559 | 30720 | 15536 | 14336 | us-noise,us-flt-svf,us-env-seconds |
-| elysian | 63301 | 122880 | 53044 | 45056 | us-osc-pm,us-osc-blit,us-osc-sample,us-sample-gsm,us-noise,us-flt-svf,us-env-seconds,us-fx-distortion-shaper,us-fx-crusher,us-fx-eq-parametric,us-fx-delay-tempo,us-fx-reverb-rooms,us-fx-compressor,us-voice-lfo,us-voice-unison,us-voice-oneshot,us-matrix,us-automation |
-| engage | 80254 | 151040 | 47328 | 38400 | us-osc-pm,us-osc-blit,us-osc-sample,us-sample-gsm,us-sample-dls,us-noise,us-flt-svf,us-env-seconds,us-fx-distortion-shaper,us-fx-crusher,us-fx-eq-parametric,us-fx-delay-tempo,us-fx-flanger-phaser,us-fx-reverb-freeverb,us-fx-reverb-rooms,us-fx-compressor,us-voice-lfo,us-voice-unison,us-voice-oneshot,us-matrix,us-automation |
-| eladamri | 32247 | 92160 | 38332 | 31232 | us-osc-pm,us-osc-blit,us-osc-sample,us-sample-gsm,us-noise,us-flt-svf,us-env-seconds,us-fx-distortion-shaper,us-fx-eq-parametric,us-fx-delay-tempo,us-fx-reverb-rooms,us-fx-compressor,us-voice-lfo,us-voice-glide,us-voice-mono,us-voice-unison,us-matrix,us-automation |
-| no-remorse | 57534 | 103936 | 27388 | 22528 | us-osc-wt,us-noise,us-flt-ladder,us-flt-rbj,us-env-seconds,us-env-rate,us-fx-distortion-power,us-fx-eq-3band,us-fx-delay-ms,us-fx-reverb-compact,us-voice-lfo,us-matrix |
-| tf4testsong | 12279 | 58880 | 25544 | 21504 | us-osc-wt,us-noise,us-flt-ladder,us-flt-rbj,us-env-seconds,us-env-rate,us-fx-distortion-power,us-fx-eq-3band,us-fx-delay-ms,us-fx-reverb-compact,us-voice-lfo,us-matrix |
-| v2-fr08 | 288511 | 354304 | 47416 | 34816 | us-voice-lfo,us-matrix,us-automation,us-matrix-add,us-env-frame,us-osc-naive,us-flt-feedback,us-drive,us-lfo-frame,us-voice-out,us-strip,us-fx-eq-cut,us-fx-delay-modulated,us-fx-reverb-comb,us-fx-compressor-lookahead,us-chunk-wide |
-| v2-brullwurfel | 43485 | 109056 | 34816 | 27648 | us-voice-lfo,us-matrix,us-automation,us-matrix-add,us-env-frame,us-osc-naive,us-flt-feedback,us-lfo-frame,us-voice-out,us-strip,us-fx-eq-cut,us-fx-delay-modulated,us-fx-reverb-comb,us-fx-compressor-lookahead,us-chunk-wide |
-| v2-candytron | 79630 | 157184 | 45964 | 35328 | us-voice-lfo,us-matrix,us-automation,us-matrix-add,us-speech,us-env-frame,us-osc-naive,us-flt-feedback,us-flt-parallel,us-drive,us-lfo-frame,us-voice-out,us-strip,us-fx-eq-cut,us-fx-delay-modulated,us-fx-reverb-comb,us-fx-compressor-lookahead,us-chunk-wide |
-| v2-kkrieger | 37131 | 114688 | 39900 | 31744 | us-voice-lfo,us-matrix,us-automation,us-matrix-add,us-speech,us-env-frame,us-osc-naive,us-flt-feedback,us-flt-parallel,us-drive,us-lfo-frame,us-voice-out,us-strip,us-fx-eq-cut,us-fx-delay-modulated,us-fx-reverb-comb,us-fx-compressor-lookahead,us-chunk-wide |
-| turtles | 98154 | 144384 | 35992 | 28160 | us-osc-wt,us-noise,us-flt-ladder,us-flt-rbj,us-env-seconds,us-env-rate,us-fx-distortion-power,us-fx-delay-ms,us-fx-reverb-compact,us-voice-lfo,us-voice-glide,us-matrix |
+| all-modules | 3401 | 155136 | 75740 | 56832 | us-all |
+| global-groove | 559 | 31744 | 16264 | 14336 | us-noise,us-flt-svf,us-env-seconds |
+| elysian | 63301 | 123904 | 53908 | 45568 | us-osc-pm,us-osc-blit,us-osc-sample,us-sample-gsm,us-noise,us-flt-svf,us-env-seconds,us-fx-distortion-shaper,us-fx-crusher,us-fx-eq-parametric,us-fx-delay-tempo,us-fx-reverb-rooms,us-fx-compressor,us-voice-lfo,us-voice-unison,us-voice-oneshot,us-matrix,us-automation |
+| engage | 80254 | 152064 | 48192 | 38912 | us-osc-pm,us-osc-blit,us-osc-sample,us-sample-gsm,us-sample-dls,us-noise,us-flt-svf,us-env-seconds,us-fx-distortion-shaper,us-fx-crusher,us-fx-eq-parametric,us-fx-delay-tempo,us-fx-flanger-phaser,us-fx-reverb-freeverb,us-fx-reverb-rooms,us-fx-compressor,us-voice-lfo,us-voice-unison,us-voice-oneshot,us-matrix,us-automation |
+| eladamri | 32247 | 94208 | 39404 | 31744 | us-osc-pm,us-osc-blit,us-osc-sample,us-sample-gsm,us-noise,us-flt-svf,us-env-seconds,us-fx-distortion-shaper,us-fx-eq-parametric,us-fx-delay-tempo,us-fx-reverb-rooms,us-fx-compressor,us-voice-lfo,us-voice-glide,us-voice-mono,us-voice-unison,us-matrix,us-automation |
+| no-remorse | 57534 | 106496 | 28548 | 23552 | us-osc-wt,us-noise,us-flt-ladder,us-flt-rbj,us-env-seconds,us-env-rate,us-fx-distortion-power,us-fx-eq-3band,us-fx-delay-ms,us-fx-reverb-compact,us-voice-lfo,us-matrix |
+| tf4testsong | 12279 | 60928 | 26720 | 22016 | us-osc-wt,us-noise,us-flt-ladder,us-flt-rbj,us-env-seconds,us-env-rate,us-fx-distortion-power,us-fx-eq-3band,us-fx-delay-ms,us-fx-reverb-compact,us-voice-lfo,us-matrix |
+| v2-fr08 | 288888 | 355840 | 49288 | 35840 | us-voice-lfo,us-matrix,us-automation,us-matrix-add,us-env-frame,us-osc-naive,us-flt-feedback,us-drive,us-lfo-frame,us-voice-out,us-strip,us-fx-eq-cut,us-fx-delay-modulated,us-fx-reverb-comb,us-fx-compressor-lookahead,us-chunk-wide,us-quirk-exact-math,us-quirk-fixed-seed,us-quirk-lcg-noise,us-quirk-coarse-env |
+| v2-brullwurfel | 43495 | 110592 | 35896 | 28672 | us-voice-lfo,us-matrix,us-automation,us-matrix-add,us-env-frame,us-osc-naive,us-flt-feedback,us-lfo-frame,us-voice-out,us-strip,us-fx-eq-cut,us-fx-delay-modulated,us-fx-reverb-comb,us-fx-compressor-lookahead,us-quirk-exact-math,us-quirk-fixed-seed |
+| v2-candytron | 80043 | 159232 | 47380 | 36352 | us-voice-lfo,us-matrix,us-automation,us-matrix-add,us-speech,us-env-frame,us-osc-naive,us-flt-feedback,us-flt-parallel,us-drive,us-lfo-frame,us-voice-out,us-strip,us-fx-eq-cut,us-fx-delay-modulated,us-fx-reverb-comb,us-fx-compressor-lookahead,us-chunk-wide,us-quirk-exact-math,us-quirk-integer-fm,us-quirk-fixed-seed,us-osc-combine |
+| v2-kkrieger | 37417 | 116736 | 41260 | 32256 | us-voice-lfo,us-matrix,us-automation,us-matrix-add,us-speech,us-env-frame,us-osc-naive,us-flt-feedback,us-flt-parallel,us-drive,us-lfo-frame,us-voice-out,us-strip,us-fx-eq-cut,us-fx-delay-modulated,us-fx-reverb-comb,us-fx-compressor-lookahead,us-chunk-wide,us-quirk-exact-math,us-quirk-integer-fm,us-quirk-fixed-seed,us-osc-combine |
+| turtles | 98154 | 146432 | 37224 | 28672 | us-osc-wt,us-noise,us-flt-ladder,us-flt-rbj,us-env-seconds,us-env-rate,us-fx-distortion-power,us-fx-delay-ms,us-fx-reverb-compact,us-voice-lfo,us-voice-glide,us-matrix |
+
+Measured 2026-11-02 after the format switch (change unify-v2-algorithms, tasks 6.5–6.9; `measure.sh` re-converted every
+song with this tree's converters). Against the previous table (from `4f74abf`), the reference songs are one squishy
+step (512 B) larger and all-modules 7,680 B. Neither comes from the switch: on the same baked bytes the switch tree
+matches the 6.4 tree in squishy on every reference song and on all-modules (+412 B xz), and each unify stage was gated
+against the previous one (design, Gate 6). all-modules measured pre-unify (`e3fef8f`) 50,688, stage 5 56,832, now
+56,832: `us-all` gained the strip, the wide chunk, quiet tracks and the clocked oscillator (cauldron) along that line.
+The per-stage and switch figures are in `openspec/changes/unify-v2-algorithms/design.md`.
+
+Speed after the switch (unisynth `render` example, median of 3, interleaved, against the 6.4 tree; outputs
+byte-identical): elysian +2.9 %, eladamri +0.5 %, no-remorse +2.3 %, tf4testsong +2.2 %, kkrieger +1.0 %,
+brullwurfel +2.1 %; no-remorse against the build before unify-v2-algorithms +5.0 % (median of 5).
 
 turtles: without `ES4_SONGS` (`zoom.tf4m`), exported from `project/music/turtles.song.json` (98,154 B). Its bytes differ
 from the `.tf4m` conversion of earlier tables (97,922 B: 142848 raw / 31164 xz / 25088 squishy), so compare it only

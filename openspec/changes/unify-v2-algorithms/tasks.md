@@ -78,7 +78,7 @@ separate commits; 6.5–6.8 are checkpoints of one switch commit (each needs a p
   chunk" and "Effect chunk version", incl. "Old layout rejected by the player"; truncation at every byte without a panic (checked build); "Quirk
   disabled"; workspace tests, feature builds, bake check, parity 49/49 and V2 18/18; squishy probe and speed against
   6.4 (D7.6, D7.7)
-- [ ] 6.9 Migrate every tracked song to `song/2` and regenerate the git-ignored binaries (size probe, parity caches,
+- [x] 6.9 Migrate every tracked song to `song/2` and regenerate the git-ignored binaries (size probe, parity caches,
   library) with the new converters. Load-all check over the tracked inventory (fails on a song that does not load, is
   skipped, or a location with fewer songs than recorded); external corpora re-converted and checked when present
   (opt-in, reported). Verify: load-all ok; "No song left behind"; drift report per tracked song and template against
@@ -95,4 +95,6 @@ separate commits; 6.5–6.8 are checkpoints of one switch commit (each needs a p
 ## Workflow follow-up
 
 - User A/B listen of the songs listed by the drift thresholds (D7.3), a few migrated DAW songs and V2 songs, before archive.
+- After the merge, in the main checkout: regenerate its git-ignored outputs (library example, `measure.sh`, cauldron
+  conversions via `cauldron.ts`) and run `load-all.ts --externals`.
 - Archive the change and sync specs.

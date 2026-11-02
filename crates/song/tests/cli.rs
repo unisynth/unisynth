@@ -70,6 +70,17 @@ fn import_info_and_check() {
     assert!(bin().args(["import", blob.to_str().unwrap(), "-o", back.to_str().unwrap()]).status().unwrap().success());
     let c = bin().args(["check", back.to_str().unwrap()]).output().unwrap();
     assert!(c.status.success(), "{}", String::from_utf8_lossy(&c.stderr));
+    assert!(String::from_utf8_lossy(&c.stdout).contains("loads (song/2,"), "{}", String::from_utf8_lossy(&c.stdout));
+    // a blob loads into the player too; one with an old-layout instrument chunk does not (unify-v2-algorithms 6.9)
+    let c = bin().args(["check", blob.to_str().unwrap()]).output().unwrap();
+    assert!(String::from_utf8_lossy(&c.stdout).contains("loads (blob,"), "{}", String::from_utf8_lossy(&c.stderr));
+    let mut m = song::blob::BlobM::read(&std::fs::read(&blob).unwrap()).unwrap();
+    let d = m.devices.iter_mut().find(|d| d.0 == 64).unwrap();
+    d.1 = unisynth::migrate::encode_old(&unisynth::params::old::DEFAULTS, &[], &[]);
+    let old = tmp("old.song.bin");
+    std::fs::write(&old, m.write()).unwrap();
+    let c = bin().args(["check", old.to_str().unwrap()]).output().unwrap();
+    assert!(!c.status.success() && String::from_utf8_lossy(&c.stderr).contains("UnknownVersion"), "{}", String::from_utf8_lossy(&c.stderr));
     let info = bin().args(["info", json.to_str().unwrap()]).output().unwrap();
     let out = String::from_utf8_lossy(&info.stdout);
     assert!(out.contains("128 BPM") && out.contains("Unisynth → Crusher"), "{out}");

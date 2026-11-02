@@ -96,7 +96,7 @@ fn main() {
     let tf = tunefish(&lab.join("tunefish/patches/tf4programs"));
     let ws = wavesabre(&lab.join("ws/refs"));
     let n_ws: usize = ws.values().map(|v| v.len()).sum();
-    let json = serde_json::json!({ "format": "us-library/1", "tunefish": tf, "wavesabre": ws });
+    let json = serde_json::json!({ "format": "us-library/2", "tunefish": tf, "wavesabre": ws });
     std::fs::write(&out, serde_json::to_string(&json).unwrap()).unwrap();
     println!("{out}: {} Tunefish programs, {n_ws} WaveSabre instruments", tf.len());
 }

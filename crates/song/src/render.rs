@@ -10,6 +10,18 @@ use unisynth::UDevice;
 pub const SEED: u32 = 1;
 
 /// Interleaved stereo f32 of the whole song (`length · rate` frames). `bank`: GM.DLS bytes for sampler slots.
+/// Loads `blob` into the song player without rendering: the load-all check of the format switch (change
+/// unify-v2-algorithms 6.9). Returns the length in frames.
+pub fn load(blob: &[u8], bank: Option<&[u8]>) -> Result<u64, String> {
+    let s = Song::parse(blob).map_err(|e| format!("not a valid song blob: {e:?}"))?;
+    let env = Env::for_song(&s, bank);
+    let need = Player::<UDevice, Xorshift>::required_pool(&s, &env, DEFAULT_SUB).map_err(|e| format!("cannot load: {e:?}"))?;
+    let mut mem = vec![0u8; need];
+    let mut pool = Pool::new(&mut mem);
+    let p = Player::<UDevice, Xorshift>::new(s, &env, &mut pool, Xorshift::new(SEED), DEFAULT_SUB).map_err(|e| format!("cannot load: {e:?}"))?;
+    Ok(p.length_frames() as u64)
+}
+
 pub fn render(blob: &[u8], bank: Option<&[u8]>) -> Result<Vec<f32>, String> {
     let s = Song::parse(blob).map_err(|e| format!("not a valid song blob: {e:?}"))?;
     let env = Env::for_song(&s, bank);

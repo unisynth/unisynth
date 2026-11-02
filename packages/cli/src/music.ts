@@ -98,7 +98,9 @@ function wsSongs(dir: string) {
 /**
  * Converted legacy entries (change add-synth-daw task 5.7b): `project/music/.library.json`, written from the local lab
  * by `cargo run -p synth-convert --example library` (git-ignored), gives each Tunefish program and each WaveSabre
- * instrument instance its song/1 devices (instrument first, then the program's insert effects). Attached as `conv`.
+ * instrument instance its song/2 devices (instrument first, then the program's insert effects). Attached as `conv`.
+ * Only `us-library/2` (v3 values, change unify-v2-algorithms) is attached; an older file is left out like a missing one
+ * (its values are the old layout's: rebuild it).
  */
 function attachConverted(root: string, cat: Record<string, any>) {
   const f = join(root, "project/music/.library.json");
@@ -109,6 +111,7 @@ function attachConverted(root: string, cat: Record<string, any>) {
   } catch {
     return;
   }
+  if (lib?.format !== "us-library/2") return;
   for (const p of cat.tunefish?.programs ?? []) if (lib.tunefish?.[p.n]) p.conv = lib.tunefish[p.n];
   for (const s of cat.wavesabre?.songs ?? []) s.instruments.forEach((d: any, i: number) => { const c = lib.wavesabre?.[s.file]?.[i]; if (c?.devices) d.conv = c; });
 }

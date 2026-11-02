@@ -111,6 +111,26 @@ test("library lists the GSM samples stored in project songs, once per distinct s
   }
 });
 
+test("library attaches converted entries only from a us-library/2 file (unify-v2-algorithms 6.9)", () => {
+  const lab = mkdtempSync(join(tmpdir(), "daw-lab-"));
+  const progs = join(lab, "tunefish/patches/tf4programs");
+  mkdirSync(progs, { recursive: true });
+  writeFileSync(join(progs, "program7.txt"), "Lead\n");
+  const f = join(root, "project/music/.library.json");
+  const entry = { devices: [{ kind: 64, values: { "osc1.type": 0.25 } }] };
+  const conv = (format: string) => {
+    writeFileSync(f, JSON.stringify({ format, tunefish: { "7": entry }, wavesabre: {} }));
+    return library(root, loadSynth(), { GM_DLS: "", SYNTH_LAB: lab } as NodeJS.ProcessEnv).tunefish.programs[0].conv;
+  };
+  try {
+    expect(conv("us-library/2")).toEqual(entry);
+    expect(conv("us-library/1")).toBeUndefined(); // the old layout's values: left out until rebuilt
+  } finally {
+    rmSync(f);
+    rmSync(lab, { recursive: true, force: true });
+  }
+});
+
 test("/api/bank is 404 without a bank and the bytes with one", async () => {
   expect((await api("/api/bank")).status).toBe(404);
   const fake = join(root, "fake.dls");

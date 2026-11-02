@@ -7,7 +7,8 @@
 //! song render <song.json|blob> -o <wav> [--f32] [--bank gm.dls] [--threads <n>]   through the song player (16-bit
 //!                                             default); n ≥ 2 renders independent tracks on n threads, same output
 //! song info <song.json|blob>                  tracks, devices, length, required cargo features
-//! song check <song.json>                      validate only (exit 0 = valid)
+//! song check <song.json|blob> [--bank gm.dls]  validate, export and load into the song player without rendering
+//!                                             (exit 0 = loads); prints the file's format (a song/1 file migrates)
 //! song migrate <song.json|patch.json> [-o <out>]   a song/1 or us-patch/1 file saved as song/2 or us-patch/2 (in
 //!                                             place without -o); a /2 file is written back unchanged
 //! ```
@@ -120,8 +121,17 @@ fn main() {
             println!("features: {}", song::features(&s).join(" "));
         }
         Some("check") => {
-            load_song(&input);
-            println!("{input}: valid");
+            let raw = read(&input);
+            let format = if is_json(&input, &raw) {
+                let v: serde_json::Value = serde_json::from_slice(&raw).unwrap_or_else(|e| die(format!("{input}: {e}")));
+                v["format"].as_str().unwrap_or("?").to_string()
+            } else {
+                "blob".into()
+            };
+            let b = blob_of(&input);
+            let bank = opt("--bank").or_else(|| std::env::var("GM_DLS").ok()).filter(|p| !p.is_empty()).map(|p| read(&p));
+            let frames = song::render::load(&b, bank.as_deref()).unwrap_or_else(|e| die(format!("{input}: {e}")));
+            println!("{input}: loads ({format}, {frames} frames)");
         }
         Some("migrate") => {
             let text = if input.ends_with(".patch.json") {

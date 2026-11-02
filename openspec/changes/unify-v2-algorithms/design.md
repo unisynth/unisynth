@@ -662,6 +662,27 @@ One commit, built on a side branch with checkpoints. What it does and what was d
   templates): 387 items, none past the D7.3 thresholds; the largest are entroxion (+0.48 dB, +1.41 dB at 63 Hz) and
   icefall subcelestial tranquility (+0.15 dB, +0.66 dB at 63 Hz), from the dropped denormal biases.
 
+## Task 6.9: every song we hold (2026-11-02)
+
+- **Load-all check** `bun tools/unisynth-parity/load-all.ts --externals` (report `tools/unisynth-parity/load-all.md`):
+  every song is validated, exported and loaded into the player (`song check`, which now loads without rendering);
+  tracked JSON must declare `song/2` (patches `us-patch/2`, the library `us-library/2`). Result: tracked 8 + 2 + 28 +
+  347 songs and 2 DAW templates, the size probe's 27 songs and 16 WaveSabre sources, the library's 1,007 entries, the
+  lab's 56 WaveSabre and 2 Tunefish songs, 15 + 20 + 324 + 1 V2 songs and the 18 V2 parity conversions all load.
+  One modland source never converted (truncated file, skipped by the released set too): listed in `UNCONVERTIBLE`.
+- **Corrections to the inventory:** the size probe holds 27 songs (the 28 counted the `legacy/` directory); the V2
+  parity caches are the 18 the parity run rewrites, and 52 stale conversions of an older layout (`parity/aux/`) were
+  moved to `synth-lab/unify/stale-parity-aux`; `synth-lab/ws/unified` held 52 old-layout conversions that nothing
+  reads, now rewritten from `ws/refs`.
+- **Library** bumped to `us-library/2`; the DAW server attaches only that format (an old file would put old values
+  into the v3 DAW), regenerated.
+- **Cauldron parity** (`cauldron.ts`, on a copy of the main tree's material): every row identical to the committed
+  report (songs 3/3; phrases 82/85, the same three failing as before).
+- **The main checkout** still holds pre-switch git-ignored outputs (`research/tbl-mini-cauldron/out` conversions, its
+  size-probe songs, an `us-library/1` library). They are regenerated there after the merge (workflow follow-up).
+- **Size** recorded in `tools/unisynth-parity/size.md` (`measure.sh`, all songs re-converted); speed in the switch
+  section above and `size.md`.
+
 ## Risks / Trade-offs
 
 - [Drift accumulates across stages until a song leaves tolerance] → D7.3 records drift per stage. A song near the
