@@ -100,9 +100,9 @@ export function inventory(externals: boolean): Location[] {
       note: "one song per entry (instrument and its effects)",
     },
     {
-      name: "research/tbl-mini-cauldron/out", kind: "ignored", recorded: 3,
-      jobs: present(tbl, () => files(tbl, /\.song$/).map((f) => ({ name: rel(f), file: f }))),
-      note: "re-converted by synth-convert xm / xm-phrase",
+      name: "research/tbl-mini-cauldron/out/{songs,parity,compact}", kind: "ignored", recorded: 3 + 88 + 9,
+      jobs: present(tbl, () => ["songs", "parity", "compact"].flatMap((d) => files(join(tbl, d), /\.song$/, true)).map((f) => ({ name: rel(f), file: f }))),
+      note: "re-converted by `tools/run_all.sh` (songs), `cauldron.ts` (parity: songs and phrases), `cauldron-compact.ts`",
     },
     ext({
       name: "synth-lab/ws/*.bin + refs/*.bin (→ ws/unified)", kind: "external", recorded: 4 + 52,

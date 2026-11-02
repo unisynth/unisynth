@@ -96,5 +96,6 @@ separate commits; 6.5–6.8 are checkpoints of one switch commit (each needs a p
 
 - User A/B listen of the songs listed by the drift thresholds (D7.3), a few migrated DAW songs and V2 songs, before archive. Done 2026-11-02 (8 before/after pairs, `synth-lab/unify/listen-switch`): "it seems ok".
 - After the merge, in the main checkout: regenerate its git-ignored outputs (library example, `measure.sh`, cauldron
-  conversions via `cauldron.ts`) and run `load-all.ts --externals`.
+  conversions via `cauldron.ts`) and run `load-all.ts --externals`. Done 2026-11-02: library, size probe, the TBL `songs/`, `parity/` and `compact/`
+  conversions regenerated; load-all with every location present: no failures.
 - Archive the change and sync specs.
