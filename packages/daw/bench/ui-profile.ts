@@ -1,6 +1,6 @@
 // CPU profile of 10 knob-step + undo cycles in Chrome (change daw-solid-ts): self time per function, and the time
 // spent in Solid store proxy traps attributed to their callers. Finds hot proxy reads and layout costs.
-// ROOT=<repo holding SONG> SONG=project/music/x.song.json [N=10 cycles] [KNOB_ONLY=1: knob steps, no undo] [PLAY=1: 3 s playing, Mixer shown] [SCROLL=1: 2 s arrangement scroll, 40 px/frame] [TAB=1: 20 Mixer → Device tab switches (panel remount)]  bun packages/daw/bench/ui-profile.ts   (needs dist)
+// ROOT=<repo holding SONG> SONG=project/music/x.song.json [N=10 cycles] [KNOB_ONLY=1: knob steps, no undo] [PLAY=1: 3 s playing, Mixer shown] [SCROLL=1: 2 s arrangement scroll, 40 px/frame] [TAB=1: 20 Mixer → Device tab switches (panel remount)] [SELECT=1: 20 track-header clicks, Device shown]  bun packages/daw/bench/ui-profile.ts   (needs dist)
 import { chromium } from "playwright";
 import { startServer } from "../../cli/src/server.ts";
 const s = await startServer({ port: 0, root: process.env.ROOT, build: false, dawDist: new URL("../dist", import.meta.url).pathname, headless: false });
@@ -16,7 +16,9 @@ if (process.env.PLAY) {  // PLAY=1: profile 3 s of playback with the Mixer tab s
   await cdp.send("Profiler.start");
   await p.evaluate(async () => { document.body.dispatchEvent(new KeyboardEvent("keydown", { key: " ", code: "Space", bubbles: true })); await new Promise((r) => setTimeout(r, 3000)); document.body.dispatchEvent(new KeyboardEvent("keydown", { key: " ", code: "Space", bubbles: true })); });
 } else await cdp.send("Profiler.start");
-if (process.env.TAB) await p.evaluate(async () => { const raf = () => new Promise((r) => requestAnimationFrame(r));
+if (process.env.SELECT) await p.evaluate(async () => { const raf = () => new Promise((r) => requestAnimationFrame(r)), h = [...document.querySelectorAll<HTMLElement>(".thdr.track")];
+  for (let i = 0; i < 20; i++) { h[i % h.length]!.click(); await raf(); } });
+else if (process.env.TAB) await p.evaluate(async () => { const raf = () => new Promise((r) => requestAnimationFrame(r));
   for (let i = 0; i < 20; i++) { document.getElementById("tab-mix")!.click(); await raf(); document.getElementById("tab-dev")!.click(); await raf(); await raf(); } });
 else if (process.env.SCROLL) await p.evaluate(async () => { const lw = document.getElementById("lanes-wrap")!, t0 = performance.now();
   await new Promise<void>((res) => { const f = () => { lw.scrollTop = (lw.scrollTop + 40) % Math.max(1, lw.scrollHeight - lw.clientHeight); lw.scrollLeft = (lw.scrollLeft + 40) % Math.max(1, lw.scrollWidth - lw.clientWidth); if (performance.now() - t0 < 2000) requestAnimationFrame(f); else res(); }; requestAnimationFrame(f); }); });

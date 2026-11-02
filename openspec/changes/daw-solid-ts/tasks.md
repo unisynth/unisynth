@@ -312,13 +312,20 @@ before → `AGENTS.md` rows → land on `main`.
   fixture stays ~1.4 s: the restore rebuilds the mounted rows and redraws every automation lane as an SVG with one
   element per point (profile: lane `draw` + `hdrPad`; reconcile ~9 ms) — a lane rendering issue (`test.todo` in
   budgets.test). Write ratchet 98 → 97. Full suite 176/176 (+1 todo) twice.
-- [ ] 9.4 Track selection with the Device tab shown (from 9.2): select-dev 23–26 ms on trashpanda and
+- [x] 9.4 Track selection with the Device tab shown (from 9.2): select-dev 23–26 ms on trashpanda and
   tbl-stash-over2. Cause: `Device.tsx` renders `<Show when={shownTrack()} keyed>`, so every selection unmounts and
   mounts the whole chain (instrument blocks, knobs, screens). Profile with `bench/ui-profile.ts` first; candidates
   are keeping the chain mounted across tracks (non-keyed, devices by index with per-device keys on kind and mode) or
   a smaller first paint. Verify: device and live tests green (mount-only-while-shown kept), a select-on-Device-tab
   scenario in `test/budgets.test.ts` under one frame on the generated 50-track song, bench select-dev under 16.7 ms on
   both songs, no change to tab-dev.
+  Done without the non-keyed rewrite: the profile (`bench/ui-profile.ts SELECT=1`) showed the cost was in what a
+  chain builds, not in remounting it. Mod matrix source/target selects (142 options per target) were 2,096 of 3,233
+  panel elements: long selects (> 16 options) now hold the current option until first used (like lane targets).
+  The sampler's GM-bank note was canvas text (`ctx.font` ≈ 10 ms per mount): now an HTML overlay; waveform path
+  cached per PCM; `slotKeys` cached. Bench select-dev trashpanda 25.6 → 8.2, tbl-stash-over2 23.4 → 14.1 ms; tab-dev
+  17/54 → 10/34 and 19/84 → 12/35 ms (handler/frame). Budget test "select with the Device tab shown" 41.7 → 13.6 ms.
+  Full suite 177/177 (+1 todo) twice.
 - [ ] 9.5 Dense automation lanes (from 9.3): one undo on the generated dense song (45 tracks, 7000 points per lane)
   takes ~1.4 s although the snapshot restore is ~9 ms. Cause: `hooks.restored` → `rebuildTracks` → `relayout` redraws
   every mounted lane (`addLane` `draw`: `innerHTML` SVG with a focusable `<g>` + two circles per point) and pads the

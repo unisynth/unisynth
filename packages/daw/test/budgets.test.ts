@@ -145,6 +145,16 @@ test("knob step in the device panel: one frame, only the knob, its filter screen
   expect(hit.filter((h) => h !== label && !["(svg.scr)", "(span.kind)"].includes(h))).toEqual([]);
 });
 
+// The Device tab rebuilds its panel for the selected track (design D5); that rebuild is the edit's display update.
+test("select a track with the Device tab shown: one frame, the panel shows the selected track's chain", async () => {
+  await page.locator("#tab-dev").click();
+  const ms = await timeEdit("select dev", (i) => (document.querySelector(`.thdr.track[data-track="t${2 + (i % 2)}"]`) as HTMLElement).click());
+  expect(ms).toBeLessThan(FRAME);
+  expect(await page.evaluate(() => (window as any).DAW.debug.selected())).toBe("t2");
+  expect(await page.locator('#device [data-param="filt1.resonance"]').count()).toBe(1);
+  expect(await page.locator("#device .mm select").count()).toBeGreaterThan(0);  // the mod matrix is part of the panel
+});
+
 /** Plays 5 s with `tab` shown; frame intervals and whether the given elements were replaced. */
 async function play5s(tab: string, keep: string): Promise<{ n: number; under: number; p95: number; same: boolean }> {
   await page.locator(tab).click();

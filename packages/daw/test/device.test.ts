@@ -194,10 +194,12 @@ test("mod matrix: a row lights up with its source kind; target and amount are on
   expect(await row.getAttribute("class")).toBe("off");
   const d0 = await depth();
   const env = opts.findIndex((o) => /^Env/.test(o)), lfo = opts.findIndex((o) => /^LFO/.test(o));
+  await row.locator('select[aria-label$=" mod1.source"]').focus();  // long option lists are built when the select is first used
   await row.locator('select[aria-label$=" mod1.source"]').selectOption(String(env));
   const r1 = page.locator("table.mm tbody tr").first();  // the panel rebuilds after a source change
   expect(await r1.getAttribute("class")).toBe("");
   expect(await r1.getAttribute("data-src")).toBe("env");
+  await r1.locator('select[aria-label$=" mod1.target"]').focus();  // long option lists are built when the select is first used
   await r1.locator('select[aria-label$=" mod1.target"]').selectOption("2");
   const amt = page.locator("table.mm tbody tr").first().locator('[role="slider"]');
   await amt.focus(); await page.keyboard.press("End");
@@ -206,6 +208,7 @@ test("mod matrix: a row lights up with its source kind; target and amount are on
   expect(v["mod1.source"]).toBeCloseTo(env / (n - 1), 6);
   expect(v["mod1.amount"]).toBe(1);
   expect(await depth()).toBe(d0 + 3);
+  await page.locator("table.mm tbody tr").first().locator('select[aria-label$=" mod1.source"]').focus();  // long option lists are built when the select is first used
   await page.locator("table.mm tbody tr").first().locator('select[aria-label$=" mod1.source"]').selectOption(String(lfo));
   expect(await page.locator("table.mm tbody tr").first().getAttribute("data-src")).toBe("lfo");
   for (let i = 0; i < 4; i++) await undo();

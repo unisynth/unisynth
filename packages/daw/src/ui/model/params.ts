@@ -53,7 +53,12 @@ export function oscType(d: Device, i: number): number {
 }
 /** Sampler screens a slot shows: the waveform, plus loop and pitch when looping. */
 export const smpShapes = (d: Device, i: number): number[] => [0, ...(choice(vget(d, ip(`osc${i}.s1`)), 3) && choice(vget(d, ip(`osc${i}.s2`)), 2) ? [3, 4] : [])];
-export const slotKeys = (g: string, i: number): string[] => INST().params.filter((p) => p.name.startsWith(`${g}${i}.`)).map((p) => p.name);
+const slotKeyCache = new WeakMap<Table, Map<string, string[]>>();
+/** Parameter names of one slot (`osc2` → `osc2.*`), cached per instrument table (called per control on a panel mount). */
+export const slotKeys = (g: string, i: number): string[] => {
+  const T = INST(); let m = slotKeyCache.get(T); if (!m) slotKeyCache.set(T, m = new Map());
+  const k = `${g}${i}.`; let r = m.get(k); if (!r) m.set(k, r = T.params.filter((p) => p.name.startsWith(k)).map((p) => p.name)); return r;
+};
 /** Mod target names (by stored index / 255). */
 export const TARGETS = (): string[] => ip("mod1.target").options;
 export function modSrcName(d: Device, m: number): string { const p = ip(`mod${m}.source`); return p.options[choice(vget(d, p), p.options.length)] || "None"; }

@@ -37,6 +37,22 @@ const SOURCES = ["GSM sample", "GM instrument (per-note regions)", "GM wave"];
 const LOOP_MODES = ["Off", "Repeat", "Ping-pong"], LOOP_REGIONS = ["Sample's own loop", "Custom"], INTERPS = ["Nearest", "Linear"];
 const SETTING = ["", "loop", "loop region", "", "", "reverse", "interpolation"];
 const W = 360, H = 52;
+/** The waveform as one path: peaks per pixel column (min, max), normalised; cached per decoded PCM (a selection remounts the panel). */
+const peakCache = new WeakMap<Float32Array, { path: Path2D }>(), NO_PEAKS = { path: null as unknown as Path2D };
+function peaksOf(pcm: Float32Array | null): { path: Path2D } {
+  if (!pcm?.length) return NO_PEAKS;
+  let r = peakCache.get(pcm); if (r) return r;
+  const peaks = new Float32Array(W * 2);
+  for (let x = 0; x < W; x++) {
+    let lo = 0, hi = 0; const s0 = Math.floor((x * pcm.length) / W), s1 = Math.max(s0 + 1, Math.floor(((x + 1) * pcm.length) / W));
+    for (let k = s0; k < s1; k++) { lo = Math.min(lo, pcm[k]!); hi = Math.max(hi, pcm[k]!); }
+    peaks[2 * x] = lo; peaks[2 * x + 1] = hi;
+  }
+  let pk = 0; for (const x of peaks) pk = Math.max(pk, Math.abs(x));
+  const gain = pk > 1e-4 ? 0.95 / pk : 1, path = new Path2D();  // one fill per draw instead of a rect per column
+  for (let x = 0; x < W; x++) { const y0 = H / 2 - peaks[2 * x + 1]! * gain * H / 2, y1 = H / 2 - peaks[2 * x]! * gain * H / 2; path.rect(x, y0, 1, Math.max(1, y1 - y0)); }
+  r = { path }; peakCache.set(pcm, r); return r;
+}
 const tokens = new Map<string, string>();  // static theme colours (no theme switching), as ui/app/theme.ts `css()`
 const css = (v: string) => { let c = tokens.get(v); if (c === undefined) tokens.set(v, (c = getComputedStyle(document.documentElement).getPropertyValue(v).trim())); return c; };
 
@@ -76,16 +92,7 @@ function Settings(p: { t: Track; d: Device; i: number; a: SamplerActions; b64: (
     <label class="pchoice"><span>{label}</span><select data-s={k} aria-label={`Osc ${i} ${label}`} onChange={(e) => set(k, +e.currentTarget.value, e.currentTarget.selectedOptions[0]!.text)}>
       <For each={opts}>{(o, j) => <option value={j()} selected={j() === opt(k, opts.length)}>{o}</option>}</For></select></label>;
   // the waveform: peaks per pixel column, drawn normalised
-  const wave = createMemo(() => {
-    const b = p.b64(), pcm = b ? a.pcm(b) : null, peaks = new Float32Array(W * 2);
-    if (pcm?.length) for (let x = 0; x < W; x++) {
-      let lo = 0, hi = 0; const s0 = Math.floor((x * pcm.length) / W), s1 = Math.max(s0 + 1, Math.floor(((x + 1) * pcm.length) / W));
-      for (let k = s0; k < s1; k++) { lo = Math.min(lo, pcm[k]!); hi = Math.max(hi, pcm[k]!); }
-      peaks[2 * x] = lo; peaks[2 * x + 1] = hi;
-    }
-    let pk = 0; for (const x of peaks) pk = Math.max(pk, Math.abs(x));
-    return { pcm, peaks, gain: pk > 1e-4 ? 0.95 / pk : 1 };
-  });
+  const wave = createMemo(() => { const b = p.b64(), pcm = b ? a.pcm(b) : null; return { pcm, ...peaksOf(pcm) }; });
   const loopOf = (): [number, number] | null => {
     const on = a.choice(cv(1), 3), custom = a.choice(cv(2), 2); if (!on) return null;
     if (!custom) return wave().pcm ? [0, 1] : null;
@@ -97,14 +104,13 @@ function Settings(p: { t: Track; d: Device; i: number; a: SamplerActions; b64: (
   };
   let cvs!: HTMLCanvasElement;
   createEffect(() => {
-    const { pcm, peaks, gain } = wave(), lp = loopOf(), rev = a.choice(cv(5), 2), st = cv(0), sx = (rev ? 1 - st : st) * W;
+    const { pcm, path } = wave(), lp = loopOf(), rev = a.choice(cv(5), 2), st = cv(0), sx = (rev ? 1 - st : st) * W;
     const g = cvs.getContext("2d")!, dpr = devicePixelRatio;
     g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
     g.fillStyle = css("--bg"); g.fillRect(0, 0, W, H);
     if (lp) { g.fillStyle = css("--focus") + "33"; g.fillRect(lp[0] * W, 0, (lp[1] - lp[0]) * W, H); g.fillStyle = css("--focus"); g.fillRect(lp[0] * W, 0, 2, H); g.fillRect(lp[1] * W - 2, 0, 2, H); }
     g.fillStyle = css("--fg") + "aa";
-    if (pcm?.length) for (let x = 0; x < W; x++) { const y0 = H / 2 - peaks[2 * x + 1]! * gain * H / 2, y1 = H / 2 - peaks[2 * x]! * gain * H / 2; g.fillRect(x, y0, 1, Math.max(1, y1 - y0)); }
-    else { g.fillStyle = css("--dim"); g.font = "10px sans-serif"; g.fillText("GM bank sample: waveform not shown; positions are fractions of it", 6, H / 2 + 3); }
+    if (pcm?.length) g.fill(path);  // no PCM: the note below (canvas text would cost ~10 ms per mount: font set-up)
     const ok = css("--ok") || "#4c4";
     g.strokeStyle = ok; g.lineWidth = 2; g.beginPath(); g.moveTo(sx, 0); g.lineTo(sx, H); g.stroke();
     g.fillStyle = ok; g.beginPath(); g.moveTo(sx, 0); g.lineTo(sx + (rev ? -7 : 7), 0); g.lineTo(sx, 7); g.fill();
@@ -141,6 +147,7 @@ function Settings(p: { t: Track; d: Device; i: number; a: SamplerActions; b64: (
     <div class="smpwrap">
       <canvas ref={cvs} class="smpwave" width={W * devicePixelRatio} height={H * devicePixelRatio} style={{ width: `${W}px`, height: `${H}px` }}
         role="img" aria-label={label()} title={`${label()} · drag the start line or the loop`} onPointerDown={down} />
+      <Show when={!wave().pcm?.length}><span class="smpnote" aria-hidden="true">GM bank sample: waveform not shown; positions are fractions of it</span></Show>
       <svg class="smplive" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true" data-live={`smp${i}`} ref={(el) => onCleanup(registerLive(el, `smp${i}`))} />
     </div>
   </>;

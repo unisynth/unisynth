@@ -101,6 +101,7 @@ function Chain(p: { t: Track }): JSX.Element {
   </div>;
 }
 
+const LAZY_OPTIONS = 16;
 /** One parameter control: a select (choices), a number field (raw), else a knob. */
 function PCtl(p: { t: Track; d: Device; p: Param; label?: string; aria?: string }): JSX.Element {
   const { t, d } = p, prm = p.p, short = p.label ?? prm.name.slice(prm.name.indexOf(".") + 1).replace(/_/g, " ");
@@ -108,13 +109,17 @@ function PCtl(p: { t: Track; d: Device; p: Param; label?: string; aria?: string 
   if (prm.law === "Index" || prm.options.length) {
     const idx = prm.law === "Index";
     const cur = () => idx ? Math.round(A.vget(d, prm) * 255) : A.choice(A.vget(d, prm), prm.options.length);
+    // long lists (mod targets: 142) hold the current option only until the select is first used: a selection
+    // remounts the panel, and these options were two thirds of its elements (daw-solid-ts 9.4)
+    const [full, setFull] = createSignal(prm.options.length <= LAZY_OPTIONS), fill = () => setFull(true);
     return <label class="pchoice"><span>{short}</span>
-      <select aria-label={aria()} onChange={(e) => {
+      <select aria-label={aria()} onPointerDown={fill} onFocus={fill} onKeyDown={fill} onChange={(e) => {
         const i = +e.currentTarget.value, v = idx ? i / 255 : prm.options.length > 1 ? i / (prm.options.length - 1) : 0;
         A.setParam(t, d, prm, v, `${t.name}: ${prm.name} = ${prm.options[i]}`);
         if (prm.name === "mode" && d.kind !== 64) A.modeChanged(t, d);
       }}>
-        <Index each={prm.options}>{(o, i) => <option value={i} selected={i === cur()}>{o()}</option>}</Index>
+        <Show when={full()} fallback={<option value={cur()} selected>{prm.options[cur()]}</option>}>
+          <Index each={prm.options}>{(o, i) => <option value={i} selected={i === cur()}>{o()}</option>}</Index></Show>
       </select></label>;
   }
   if (prm.raw) {

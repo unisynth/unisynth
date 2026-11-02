@@ -146,7 +146,9 @@ test("5.6a fixed slots: clear in place keeps other slots and their mod targets; 
   const osc2 = (await vals())["osc2.type"];
   expect(osc2).toBeGreaterThan(0);
   expect(await page.locator('#device .grp.slot[aria-label="Osc 2"]').getAttribute("class")).not.toContain("closed");
+  await page.locator('#device select[aria-label$=" mod1.source"]').focus();  // long option lists are built when the select is first used
   await page.locator('#device select[aria-label$=" mod1.source"]').selectOption({ label: "LFO 1" });
+  await page.locator('#device select[aria-label$=" mod1.target"]').focus();  // long option lists are built when the select is first used
   await page.locator('#device select[aria-label$=" mod1.target"]').selectOption({ label: "osc2.gain" });
   expect(await page.locator('#device .grp.slot[aria-label="LFO 1"] .rt').textContent()).toBe("→ osc2.gain");
   await page.locator('#device button[aria-label="Clear Osc 1"]').click();
@@ -161,6 +163,7 @@ test("5.6a fixed slots: clear in place keeps other slots and their mod targets; 
   await page.locator('[aria-label="Undo"]').click();
   expect(await lanes()).toEqual(["filt1.cutoff"]);
   // swap filters 1 and 2: values, lane and mod target follow
+  await page.locator('#device select[aria-label$=" mod1.target"]').focus();  // long option lists are built when the select is first used
   await page.locator('#device select[aria-label$=" mod1.target"]').selectOption({ label: "filt1.cutoff" });
   await page.locator('#device button[aria-label="Swap Filter 1 and Filter 2"]').click();
   d = await vals();
