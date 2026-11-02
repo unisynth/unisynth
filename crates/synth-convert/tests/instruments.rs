@@ -40,7 +40,7 @@ fn patch(s: &SongM, d: usize) -> [f32; COUNT] {
 }
 
 fn conv(s: &SongM) -> (SongM, Vec<String>) {
-    let c = convert(&s.write()).expect("converts");
+    let c = convert(&s.write().unwrap()).expect("converts");
     (SongM::read(&c.blob).unwrap(), c.warnings)
 }
 
@@ -88,7 +88,7 @@ fn a_wavesabre_song_converts_to_unified_kinds_with_the_same_structure() {
     assert_eq!((out.tempo, out.rate, out.length), (src.tempo, src.rate, src.length));
     assert_eq!(out.lanes, src.lanes);
     assert_eq!(out.tracks, src.tracks, "no automation: every track is unchanged");
-    loads_and_renders(&out.write());
+    loads_and_renders(&out.write().unwrap());
 }
 
 #[test]
@@ -151,7 +151,7 @@ fn a_filter_type_sweep_switches_exactly_where_the_legacy_decode_changes() {
     let mut switches = vec![];
     for (k, (g, l)) in got.iter().zip(&legacy).enumerate() {
         assert_eq!(law::choice(*g, filter_type::COUNT), want(*l), "block {k}");
-        if k > 0 && law::choice(*g, 9) != law::choice(got[k - 1], 9) {
+        if k > 0 && law::choice(*g, filter_type::COUNT) != law::choice(got[k - 1], filter_type::COUNT) {
             switches.push(k * 100);
         }
     }
@@ -247,7 +247,7 @@ fn a_falcon_becomes_two_phase_mod_operators_with_the_carrier_envelope_on_envelop
     assert_eq!(o(0, pm::o::MIX), 0.0, "operator 1 only modulates");
     assert_eq!(law::choice(p[v::ENV1_AT_OUTPUT], 2), 0);
     assert!((law::gain(p[v::MASTER]) - (0.4f32 * 0.8).powi(2)).abs() < 1e-4);
-    loads_and_renders(&out.write());
+    loads_and_renders(&out.write().unwrap());
 }
 
 #[test]
@@ -274,7 +274,7 @@ fn hostile_instrument_chunks_never_panic_and_always_load() {
                 })
                 .collect();
             let src = one_instrument(kind, chunk_of(&params), vec![], MELODY.to_vec());
-            let out = convert(&src.write()).unwrap_or_else(|e| panic!("kind {kind} round {round}: {e}"));
+            let out = convert(&src.write().unwrap()).unwrap_or_else(|e| panic!("kind {kind} round {round}: {e}"));
             loads_and_renders(&out.blob);
         }
     }
@@ -282,7 +282,7 @@ fn hostile_instrument_chunks_never_panic_and_always_load() {
     for kind in [w::SPECIMEN, w::THUNDER] {
         let junk: Vec<u8> = (0..200).map(|_| next() as u8).collect();
         let src = one_instrument(kind, junk, vec![], MELODY.to_vec());
-        assert!(matches!(convert(&src.write()), Err(ConvError::Device(k, _)) if k == kind));
+        assert!(matches!(convert(&src.write().unwrap()), Err(ConvError::Device(k, _)) if k == kind));
     }
 }
 
@@ -343,8 +343,8 @@ fn slaughter_parameters_decode_to_the_same_physical_values() {
     near(p[pm::osc(1, pm::o::SHAPE + pm::shape::BLIT_WAVEFORM)], 0.7, "pulse blend");
     near(p[pm::osc(1, pm::o::SHAPE + pm::shape::BLIT_PULSE_WIDTH)], 0.7, "pulse width is 1 − the parameter");
     near(law::gain(p[v::NOISE_LEVEL]), 0.64, "noise level is its parameter squared");
-    assert_eq!(p[pm::ext::NOISE_WIDTH], 0.0, "WaveSabre's noise is one signal on both channels");
-    assert_eq!(law::choice(p[filt(0, pm::f::TYPE)], 9), filter_type::SVF_BP);
+    assert_eq!(p[pm::NOISE + pm::n::WIDTH], 0.0, "WaveSabre's noise is one signal on both channels");
+    assert_eq!(filter_type::decode(p[filt(0, pm::f::TYPE)]), filter_type::SVF_BP);
     near(law::cutoff(p[filt(0, pm::f::CUTOFF)]), 20.0 + 19980.0 * 0.25, "cutoff");
     near(p[filt(0, pm::f::RESONANCE)], 0.3, "resonance");
     for (k, want) in [0.1, 0.2, 0.3, 0.4].into_iter().enumerate() {
@@ -372,8 +372,8 @@ fn slaughter_parameters_decode_to_the_same_physical_values() {
     near(amount_of(source::LFO1), 0.5, "vibrato depth in semitones");
     // upstream advances its vibrato phase by `freq` radians per second
     near(law::lfo_rate(p[pm::lfo(0, pm::l::RATE)]), (0.25 + 0.1) * 70.0 / std::f32::consts::TAU, "vibrato rate in Hz");
-    assert_eq!(law::choice(p[pm::lfo(0, pm::l::SHAPE)], 5), 0, "sine");
-    assert_eq!(law::choice(p[pm::lfo(0, pm::l::SYNC)], 2), 1);
+    assert_eq!(law::choice(p[pm::lfo(0, pm::l::SHAPE)], unisynth::lfo::shape::ALL), unisynth::lfo::shape::SINE, "sine");
+    assert_eq!(law::choice(p[pm::lfo(0, pm::l::SYNC)], pm::lfo_sync::COUNT), pm::lfo_sync::RESTART);
     let (src, op, amount) = route(&p, target::filter_cutoff(0)).expect("a cutoff route");
     assert!(src == source::ENV1 + 1 && op == 1);
     near(amount, 9990.0, "mod envelope depth in Hz");
@@ -412,7 +412,7 @@ fn sampler_parameters_decode_to_the_same_physical_values() {
     assert_eq!(law::choice(sh(pm::shape::SMP_INTERP), 2), 0, "nearest");
     near(law::coarse(p[pm::osc(0, pm::o::COARSE)]), 4.0, "coarse rounds down like upstream");
     near(law::fine(p[pm::osc(0, pm::o::FINE)]), 2.0 * 0.3 - 1.0, "fine semitones");
-    assert_eq!(law::choice(p[filt(0, pm::f::TYPE)], 9), filter_type::SVF_HP);
+    assert_eq!(filter_type::decode(p[filt(0, pm::f::TYPE)]), filter_type::SVF_HP);
     near(p[pm::env(0, pm::e::SUSTAIN)], 0.3, "sustain");
     near(p[pm::env(1, pm::e::RELEASE)], 0.8, "mod envelope release");
     near(law::gain(p[v::MASTER]), (0.4f32 * 0.8).powi(2), "master");

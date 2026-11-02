@@ -1,5 +1,5 @@
 {
-  "format": "song/1",
+  "format": "song/2",
   "meta": {
     "title": "over2",
     "author": "Probe (The Black Lotus)",
@@ -6028,7 +6028,7 @@
             "slide": 0.22016561031341553,
             "transpose": 0.3294117748737335,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.3529411852359772,
             "osc1.octave": 1.0,
@@ -6055,7 +6055,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -6067,7 +6066,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.00537109375,
             "amount": 1.0,
             "sweep": 0.0,
@@ -6077,7 +6076,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -6089,7 +6087,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.03125,
             "left_fine": 0.7074999809265137,
             "right_coarse": 0.03125,
@@ -6104,7 +6101,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.6666666865348816,
             "foldover": 0.0,
@@ -6116,7 +6112,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.00628662109375,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -6126,7 +6122,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -6141,17 +6136,15 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         },
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.30000001192092896,
             "damp": 0.5,
@@ -7168,7 +7161,7 @@
             "mode": 1.0,
             "slide": 0.3494911193847656,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.250980406999588,
             "osc1.octave": 1.0,
@@ -7193,7 +7186,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -7205,7 +7197,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.03411865234375,
             "amount": 1.0,
             "sweep": 0.0,
@@ -7215,7 +7207,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -7227,7 +7218,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.34375,
             "left_fine": 0.5724999904632568,
             "right_coarse": 0.34375,
@@ -7242,7 +7232,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.6666666865348816,
             "foldover": 0.0,
@@ -7254,7 +7243,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.03985595703125,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -7264,7 +7253,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -7279,17 +7267,15 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.15625,
             "left_fine": 0.42750000953674316,
             "right_coarse": 0.15625,
@@ -7304,7 +7290,6 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.30000001192092896,
             "damp": 0.5,
@@ -7662,7 +7647,7 @@
             "slide": 0.2773912847042084,
             "transpose": 0.501960813999176,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.5254902243614197,
             "osc1.octave": 0.375,
@@ -7689,7 +7674,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -7701,7 +7685,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.0135498046875,
             "amount": 1.0,
             "sweep": 0.0,
@@ -7711,7 +7695,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -7723,7 +7706,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.15625,
             "left_fine": 0.2175000011920929,
             "right_coarse": 0.15625,
@@ -7738,7 +7720,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.6666666865348816,
             "foldover": 0.0,
@@ -7750,7 +7731,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.01580810546875,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -7760,7 +7741,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -7775,17 +7755,15 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.15625,
             "left_fine": 0.42750000953674316,
             "right_coarse": 0.15625,
@@ -7800,7 +7778,6 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.30000001192092896,
             "damp": 0.5,
@@ -12454,7 +12431,7 @@
             "mode": 1.0,
             "slide": 0.2656308114528656,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.7058823704719543,
             "osc1.ratio_fine": 0.8503626585006714,
@@ -12479,7 +12456,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -12491,7 +12467,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.09375,
             "left_fine": 0.7124999761581421,
             "right_coarse": 0.09375,
@@ -12506,7 +12481,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.8333333134651184,
             "foldover": 0.0,
@@ -12518,7 +12492,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.0133056640625,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -12528,7 +12502,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -12543,12 +12516,11 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -13282,7 +13254,7 @@
             "slide": 0.2656308114528656,
             "transpose": 0.4941176474094391,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.7058823704719543,
             "osc1.ratio_fine": 0.8503626585006714,
@@ -13307,7 +13279,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -13319,7 +13290,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.09375,
             "left_fine": 0.7124999761581421,
             "right_coarse": 0.09375,
@@ -13334,7 +13304,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.8333333134651184,
             "foldover": 0.0,
@@ -13346,7 +13315,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.0133056640625,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -13356,7 +13325,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -13371,17 +13339,15 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.15625,
             "left_fine": 0.42750000953674316,
             "right_coarse": 0.15625,
@@ -13396,7 +13362,6 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.30000001192092896,
             "damp": 0.5,
@@ -13583,7 +13548,7 @@
             "mode": 1.0,
             "slide": 0.2656308114528656,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.5176470875740051,
             "osc1.octave": 0.125,
@@ -13609,7 +13574,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -13621,7 +13585,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.09375,
             "left_fine": 0.7124999761581421,
             "right_coarse": 0.09375,
@@ -13636,7 +13599,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.7142857313156128,
             "foldover": 0.0,
@@ -13648,7 +13610,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.0133056640625,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -13658,7 +13620,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -13673,17 +13634,15 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.15625,
             "left_fine": 0.42750000953674316,
             "right_coarse": 0.34375,
@@ -13698,7 +13657,6 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.30000001192092896,
             "damp": 0.5,
@@ -15023,7 +14981,7 @@
             "mode": 1.0,
             "slide": 0.31589004397392273,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.7490196228027344,
             "osc1.octave": 0.0,
@@ -15047,7 +15005,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -15059,7 +15016,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.21875,
             "left_fine": 0.6474999785423279,
             "right_coarse": 0.21875,
@@ -15074,7 +15030,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.7142857313156128,
             "foldover": 0.0,
@@ -15086,7 +15041,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.026611328125,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -15096,7 +15051,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -15111,17 +15065,15 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.15625,
             "left_fine": 0.42750000953674316,
             "right_coarse": 0.15625,
@@ -15136,7 +15088,6 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.30000001192092896,
             "damp": 0.5,
@@ -15286,7 +15237,7 @@
             "mode": 1.0,
             "slide": 0.4467359781265259,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.7490196228027344,
             "osc1.octave": 0.125,
@@ -15313,7 +15264,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -15325,7 +15275,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.96875,
             "left_fine": 0.23250000178813934,
             "right_coarse": 0.96875,
@@ -15340,7 +15289,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.7692307829856873,
             "foldover": 0.0,
@@ -15352,7 +15300,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.10626220703125,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -15362,7 +15310,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -15377,12 +15324,11 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -18800,7 +18746,7 @@
             "mode": 1.0,
             "slide": 0.2896724343299866,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.250980406999588,
             "osc1.octave": 0.0,
@@ -18826,7 +18772,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -18838,7 +18783,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.15625,
             "left_fine": 0.5525000095367432,
             "right_coarse": 0.15625,
@@ -18853,7 +18797,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.7142857313156128,
             "foldover": 0.0,
@@ -18865,7 +18808,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.018798828125,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -18875,7 +18818,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -18890,12 +18832,11 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -19062,7 +19003,7 @@
             "slide": 0.5312616229057312,
             "transpose": 0.5058823823928833,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.7490196228027344,
             "osc1.octave": 0.0,
@@ -19089,7 +19030,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -19101,7 +19041,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 1.0,
             "left_fine": 1.0,
             "right_coarse": 1.0,
@@ -19116,7 +19055,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.7692307829856873,
             "foldover": 0.0,
@@ -19128,7 +19066,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.2125244140625,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -19138,7 +19076,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -19153,17 +19090,15 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.15625,
             "left_fine": 0.42750000953674316,
             "right_coarse": 0.15625,
@@ -19178,7 +19113,6 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.30000001192092896,
             "damp": 0.5,
@@ -22847,7 +22781,7 @@
             "slide": 0.5312616229057312,
             "transpose": 0.501960813999176,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.tracking": 0.4627451002597809,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.34117648005485535,
@@ -22874,7 +22808,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -22886,7 +22819,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.1822509765625,
             "amount": 1.0,
             "sweep": 0.0,
@@ -22896,7 +22829,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -22908,7 +22840,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 1.0,
             "left_fine": 1.0,
             "right_coarse": 1.0,
@@ -22923,7 +22854,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.6666666865348816,
             "foldover": 0.0,
@@ -22935,7 +22865,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.2125244140625,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -22945,7 +22875,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -22960,17 +22889,15 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.15625,
             "left_fine": 0.42750000953674316,
             "right_coarse": 0.15625,
@@ -22985,7 +22912,6 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.30000001192092896,
             "damp": 0.5,
@@ -23882,7 +23808,7 @@
             "slide": 0.5236450433731079,
             "transpose": 0.8784313797950745,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.7490196228027344,
             "osc1.octave": 0.0,
@@ -23909,7 +23835,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -23921,7 +23846,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 1.0,
             "left_fine": 1.0,
             "right_coarse": 1.0,
@@ -23936,7 +23860,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.7692307829856873,
             "foldover": 0.0,
@@ -23948,7 +23871,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.20062255859375,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -23958,7 +23881,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -23973,17 +23895,15 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.15625,
             "left_fine": 0.42750000953674316,
             "right_coarse": 0.15625,
@@ -23998,7 +23918,6 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.30000001192092896,
             "damp": 0.5,
@@ -26965,7 +26884,7 @@
             "mode": 1.0,
             "slide": 0.37565869092941284,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.7490196228027344,
             "osc1.octave": 0.25,
@@ -26990,7 +26909,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -27002,7 +26920,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.46875,
             "left_fine": 0.5074999928474426,
             "right_coarse": 0.46875,
@@ -27017,7 +26934,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.7692307829856873,
             "foldover": 0.0,
@@ -27029,7 +26945,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.05316162109375,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -27039,7 +26955,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -27054,12 +26969,11 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -28283,7 +28197,7 @@
             "slide": 0.5236450433731079,
             "transpose": 0.9411764740943909,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.7490196228027344,
             "osc1.octave": 0.0,
@@ -28310,7 +28224,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -28322,7 +28235,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 1.0,
             "left_fine": 1.0,
             "right_coarse": 1.0,
@@ -28337,7 +28249,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.7692307829856873,
             "foldover": 0.0,
@@ -28349,7 +28260,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.20062255859375,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -28359,7 +28270,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -28374,17 +28284,15 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.15625,
             "left_fine": 0.42750000953674316,
             "right_coarse": 0.15625,
@@ -28399,7 +28307,6 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.30000001192092896,
             "damp": 0.5,
@@ -31144,7 +31051,7 @@
             "slide": 0.31589004397392273,
             "transpose": 0.501960813999176,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.7098039388656616,
             "osc1.octave": 0.0,
@@ -31171,7 +31078,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -31183,7 +31089,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.0006103515625,
             "amount": 1.0,
             "sweep": 0.0,
@@ -31193,7 +31099,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -31205,7 +31110,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.21875,
             "left_fine": 0.6474999785423279,
             "right_coarse": 0.21875,
@@ -31220,7 +31124,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.6666666865348816,
             "foldover": 0.0,
@@ -31232,7 +31135,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.026611328125,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -31242,7 +31145,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -31257,12 +31159,11 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -32215,7 +32116,7 @@
             "slide": 0.5312616229057312,
             "transpose": 0.501960813999176,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.tracking": 0.019607843831181526,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.2666666805744171,
@@ -32242,7 +32143,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -32254,7 +32154,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.0048828125,
             "amount": 1.0,
             "sweep": 0.0,
@@ -32264,7 +32164,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 1.0,
             "left_fine": 1.0,
             "right_coarse": 1.0,
@@ -32279,7 +32178,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.2125244140625,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -32289,7 +32188,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -32304,12 +32202,11 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -32515,7 +32412,7 @@
             "mode": 1.0,
             "slide": 0.4467359781265259,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.7490196228027344,
             "osc1.octave": 0.125,
@@ -32540,7 +32437,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -32552,7 +32448,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.96875,
             "left_fine": 0.23250000178813934,
             "right_coarse": 0.96875,
@@ -32567,7 +32462,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.9090909361839294,
             "foldover": 0.0,
@@ -32579,7 +32473,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -32594,12 +32487,11 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -48310,7 +48202,7 @@
             "mode": 1.0,
             "slide": 0.2656308114528656,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.5686274766921997,
             "osc1.octave": 0.25,
@@ -48333,7 +48225,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -48345,7 +48236,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.00152587890625,
             "amount": 1.0,
             "sweep": 0.0,
@@ -48355,7 +48246,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -48367,7 +48257,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.09375,
             "left_fine": 0.7124999761581421,
             "right_coarse": 0.09375,
@@ -48382,7 +48271,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.7142857313156128,
             "foldover": 0.0,
@@ -48394,7 +48282,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.0133056640625,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -48404,7 +48292,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -48419,17 +48306,15 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.15625,
             "left_fine": 0.42750000953674316,
             "right_coarse": 0.34375,
@@ -48444,7 +48329,6 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.30000001192092896,
             "damp": 0.5,
@@ -49323,7 +49207,7 @@
             "mode": 1.0,
             "slide": 0.2656308114528656,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.5098039507865906,
             "osc1.octave": 0.25,
@@ -49350,7 +49234,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -49362,7 +49245,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.00030517578125,
             "amount": 1.0,
             "sweep": 0.0,
@@ -49372,7 +49255,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -49384,7 +49266,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.09375,
             "left_fine": 0.7124999761581421,
             "right_coarse": 0.09375,
@@ -49399,7 +49280,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.6666666865348816,
             "foldover": 0.0,
@@ -49411,7 +49291,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.0133056640625,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -49421,7 +49301,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -49436,17 +49315,15 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.15625,
             "left_fine": 0.42750000953674316,
             "right_coarse": 0.34375,
@@ -49461,7 +49338,6 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.30000001192092896,
             "damp": 0.5,
@@ -51116,7 +50992,7 @@
             "mode": 1.0,
             "slide": 0.30689728260040283,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.tracking": 0.29411765933036804,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.250980406999588,
@@ -51142,7 +51018,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -51154,7 +51029,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.21875,
             "left_fine": 0.32249999046325684,
             "right_coarse": 0.21875,
@@ -51169,7 +51043,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.9090909361839294,
             "foldover": 0.0,
@@ -51181,7 +51054,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -51196,12 +51068,11 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -63456,7 +63327,7 @@
             "mode": 1.0,
             "slide": 0.29388582706451416,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.tracking": 0.29411765933036804,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.7490196228027344,
@@ -63482,7 +63353,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -63494,7 +63364,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.15625,
             "left_fine": 0.6775000095367432,
             "right_coarse": 0.15625,
@@ -63509,7 +63378,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.9090909361839294,
             "foldover": 0.0,
@@ -63521,7 +63389,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -63536,12 +63403,11 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -77999,7 +77865,7 @@
             "mode": 1.0,
             "slide": 0.30249732732772827,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.5098039507865906,
             "osc1.octave": 0.125,
@@ -78025,7 +77891,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -78037,7 +77902,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.21875,
             "left_fine": 0.17249999940395355,
             "right_coarse": 0.21875,
@@ -78052,7 +77916,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.7142857313156128,
             "foldover": 0.0,
@@ -78064,7 +77927,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -78079,12 +77941,11 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -78800,7 +78661,7 @@
             "slide": 0.4096587002277374,
             "transpose": 0.10196078568696976,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.2666666805744171,
             "osc1.octave": 0.0,
@@ -78826,7 +78687,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -78838,7 +78698,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.001708984375,
             "amount": 1.0,
             "sweep": 0.0,
@@ -78848,7 +78708,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -78860,7 +78719,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.65625,
             "left_fine": 0.637499988079071,
             "right_coarse": 0.65625,
@@ -78875,7 +78733,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.6666666865348816,
             "foldover": 0.0,
@@ -78887,7 +78744,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.07513427734375,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -78897,7 +78754,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -78912,17 +78768,15 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.15625,
             "left_fine": 0.42750000953674316,
             "right_coarse": 0.15625,
@@ -78937,7 +78791,6 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.30000001192092896,
             "damp": 0.5,
@@ -79958,7 +79811,7 @@
             "mode": 1.0,
             "slide": 0.2656308114528656,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.27843138575553894,
             "osc1.octave": 0.875,
@@ -79984,7 +79837,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -79996,7 +79848,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.00030517578125,
             "amount": 1.0,
             "sweep": 0.0,
@@ -80006,7 +79858,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -80018,7 +79869,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.09375,
             "left_fine": 0.7124999761581421,
             "right_coarse": 0.09375,
@@ -80033,7 +79883,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.7142857313156128,
             "foldover": 0.0,
@@ -80045,7 +79894,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.0133056640625,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -80055,7 +79904,7 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.25,
+            "mode": 1.0,
             "drive": 0.4375,
             "offset": 0.5
           }
@@ -80063,17 +79912,15 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.15625,
             "left_fine": 0.42750000953674316,
             "right_coarse": 0.15625,
@@ -80088,7 +79935,6 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.30000001192092896,
             "damp": 0.5,
@@ -80945,7 +80791,7 @@
             "mode": 1.0,
             "slide": 0.2656308114528656,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.7490196228027344,
             "osc1.octave": 0.125,
@@ -80968,7 +80814,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -80980,7 +80825,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.09375,
             "left_fine": 0.7124999761581421,
             "right_coarse": 0.09375,
@@ -80995,7 +80839,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.8333333134651184,
             "foldover": 0.0,
@@ -81007,7 +80850,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -81022,12 +80864,11 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -81505,7 +81346,7 @@
             "mode": 1.0,
             "slide": 0.3298756778240204,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.2549019753932953,
             "osc1.octave": 0.25,
@@ -81531,7 +81372,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -81543,7 +81383,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.009033203125,
             "amount": 1.0,
             "sweep": 0.0,
@@ -81553,7 +81393,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -81565,7 +81404,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.28125,
             "left_fine": 0.42750000953674316,
             "right_coarse": 0.28125,
@@ -81580,7 +81418,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.7692307829856873,
             "foldover": 0.0,
@@ -81592,7 +81429,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.0316162109375,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -81602,17 +81439,15 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.15625,
             "left_fine": 0.42750000953674316,
             "right_coarse": 0.15625,
@@ -81627,7 +81462,6 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.30000001192092896,
             "damp": 0.5,
@@ -87325,7 +87159,7 @@
             "mode": 1.0,
             "slide": 0.45982635021209717,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.250980406999588,
             "osc1.octave": 0.125,
@@ -87349,7 +87183,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -87361,7 +87194,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 1.0,
             "left_fine": 0.9125000238418579,
             "right_coarse": 1.0,
@@ -87376,7 +87208,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.9090909361839294,
             "foldover": 0.0,
@@ -87388,7 +87219,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -87403,12 +87233,11 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -93872,7 +93701,7 @@
             "mode": 1.0,
             "slide": 0.41561731696128845,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.7490196228027344,
             "osc1.octave": 0.125,
@@ -93897,7 +93726,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -93909,7 +93737,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.71875,
             "left_fine": 0.36250001192092896,
             "right_coarse": 0.71875,
@@ -93924,7 +93751,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.9090909361839294,
             "foldover": 0.0,
@@ -93936,7 +93762,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -93951,12 +93776,11 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -100731,7 +100555,7 @@
             "mode": 1.0,
             "slide": 0.29388582706451416,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.7490196228027344,
             "osc1.octave": 0.375,
@@ -100756,7 +100580,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -100768,7 +100591,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.15625,
             "left_fine": 0.6775000095367432,
             "right_coarse": 0.15625,
@@ -100783,7 +100605,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.9090909361839294,
             "foldover": 0.0,
@@ -100795,7 +100616,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -100810,12 +100630,11 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -109363,7 +109182,7 @@
             "mode": 1.0,
             "slide": 0.29388582706451416,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.7490196228027344,
             "osc1.octave": 0.375,
@@ -109388,7 +109207,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -109400,7 +109218,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.15625,
             "left_fine": 0.6775000095367432,
             "right_coarse": 0.15625,
@@ -109415,7 +109232,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.9090909361839294,
             "foldover": 0.0,
@@ -109427,7 +109243,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -109442,12 +109257,11 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -117350,7 +117164,7 @@
             "mode": 1.0,
             "slide": 0.2656308114528656,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.5803921818733215,
             "osc1.octave": 0.125,
@@ -117376,7 +117190,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -117388,7 +117201,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.09375,
             "left_fine": 0.7124999761581421,
             "right_coarse": 0.09375,
@@ -117403,7 +117215,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.7692307829856873,
             "foldover": 0.0,
@@ -117415,7 +117226,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.0133056640625,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -117425,7 +117236,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -117440,17 +117250,15 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.34375,
             "left_fine": 0.06750000268220901,
             "right_coarse": 0.15625,
@@ -117465,7 +117273,6 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.30000001192092896,
             "damp": 0.5,
@@ -119244,7 +119051,7 @@
             "mode": 1.0,
             "slide": 0.2656308114528656,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.5803921818733215,
             "osc1.octave": 0.125,
@@ -119268,7 +119075,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -119280,7 +119086,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.09375,
             "left_fine": 0.7124999761581421,
             "right_coarse": 0.09375,
@@ -119295,7 +119100,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.7692307829856873,
             "foldover": 0.0,
@@ -119307,7 +119111,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.0133056640625,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -119317,7 +119121,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -119332,12 +119135,11 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -119630,7 +119432,7 @@
             "mode": 1.0,
             "slide": 0.2656308114528656,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.5803921818733215,
             "osc1.octave": 0.125,
@@ -119654,7 +119456,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -119666,7 +119467,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.09375,
             "left_fine": 0.7124999761581421,
             "right_coarse": 0.09375,
@@ -119681,7 +119481,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.7692307829856873,
             "foldover": 0.0,
@@ -119693,7 +119492,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.0133056640625,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -119703,7 +119502,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -119718,12 +119516,11 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -120016,7 +119813,7 @@
             "mode": 1.0,
             "slide": 0.2656308114528656,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.250980406999588,
             "osc1.octave": 0.375,
@@ -120039,7 +119836,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -120051,7 +119847,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.09375,
             "left_fine": 0.7124999761581421,
             "right_coarse": 0.09375,
@@ -120066,7 +119861,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.8333333134651184,
             "foldover": 0.0,
@@ -120078,7 +119872,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -120093,17 +119886,15 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.34375,
             "left_fine": 0.06750000268220901,
             "right_coarse": 0.15625,
@@ -120118,7 +119909,6 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.30000001192092896,
             "damp": 0.5,
@@ -120868,7 +120658,7 @@
             "mode": 1.0,
             "slide": 0.37565869092941284,
             "velocity": 0.0,
-            "osc1.type": 0.375,
+            "osc1.type": 1.0,
             "osc1.coarse": 0.501960813999176,
             "osc1.fine": 0.2549019753932953,
             "osc1.octave": 0.125,
@@ -120892,7 +120682,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -120904,7 +120693,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.01519775390625,
             "amount": 1.0,
             "sweep": 0.0,
@@ -120914,7 +120703,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 1.0,
             "foldover": 0.0,
@@ -120926,7 +120714,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.46875,
             "left_fine": 0.5074999928474426,
             "right_coarse": 0.46875,
@@ -120941,7 +120728,6 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.7692307829856873,
             "foldover": 0.0,
@@ -120953,7 +120739,7 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.5,
+            "mode": 1.0,
             "delay": 0.05316162109375,
             "amount": 1.0,
             "sweep": 0.3015044629573822,
@@ -120963,17 +120749,15 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.0,
             "mid": 0.0,
             "high": 0.0
-          },
-          "trailer": 20
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.15625,
             "left_fine": 0.42750000953674316,
             "right_coarse": 0.15625,
@@ -120988,7 +120772,6 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.30000001192092896,
             "damp": 0.5,
@@ -123044,7 +122827,7 @@
             "pan": 0.501960813999176,
             "capacity": 0.0,
             "velocity": 0.0,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.fine": 0.6078828573226929,
             "osc1.octave": 0.0,
             "osc1.gain": 0.25677791237831116,
@@ -123053,9 +122836,9 @@
             "osc1.s3": 0.000169491526321508,
             "osc1.s4": 0.000169491526321508,
             "osc1.s6": 1.0,
+            "osc1.sample": 1.0,
             "env1.decay": 0.0,
-            "env1.release": 0.0,
-            "osc1.sample": 1.0
+            "env1.release": 0.0
           },
           "samples": ["igIAAIYLAAAxAAEARKwAAP0iAABBAAAAAgBAAaJo0ZGC4n3cWDxyByMZEG2XS7SCNBlr/797S1UKACSjLZjY6W3CSP27bUmSP4p0KikicXi09n8tKWFUjKSTLdtygohdGrck5NkSBEmULYWWz9plV5VjBKlp2qQ0Q4ii0fQvgNelcUo7/N4tuylpN7JxLGv7ZifqujxZLnQrlEDCMmmCh5vaBrZigBCNa4nfgVwYLAhKV0IhFkoVY9chk0mW3h98t6VRdh9o5yJLynIbIi6CoIHyLRYtGRZRbiXs/v3/v0JnG94m94Rsx1HTIJPDSBRp47hOhBPH0vy7JcN/b9MsF3TYHU74IDJqw4IAKhgUSFmo73E1Rs50Xd8tLdhyk4YMwnZZ2gbrAkqCAEKiEoLBsFAly4ujbVn39Z8K47Vtmh4ncJZpTcEsJkpJkgCtNhAhSpbJwSawUCxb+6go9t7ubbvBdh0e54rhPU9uzMTOYpy0ZEgEs0IRSGaqGAyiLc22vRtsteFtQDfsvjZb8rwa9tFpMkTlMiZFybBERSEQgdLEsIJWHdo2LYJkafO1jbqi5ktWH51SYizHjdnAbUOToiQZKFzU5U2oIoQly6ZpxSTSteXpuvAwTp9+e5qwCvi6ZYUOw0WZ2mZPYms2LBmy0wKTsiWa1nQC28aVqzcr4mxd1/YpYNThbS8l6HpfyVG+FJ6mICMh2SKkLIMCCTcbsEwSRXVFVRnaVKwhVTuzd83Owj37mq9pi8E05+nipg1CmyRlw5JILSlVryfQbBM5VdshGq2Ut5O4IljWbGv51iRolt7OWYrVVtbmlsFdyRlOB8thnDYV+jgHYBxHilRnJ2DkyHUdGXh0YU13AjaS5MqNZQY4bhu5cVkASJIjSZItAEiSJEmS"]
         }
@@ -124045,7 +123828,7 @@
             "pan": 0.501960813999176,
             "capacity": 0.0,
             "velocity": 0.0,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.fine": 0.6078828573226929,
             "osc1.octave": 0.0,
             "osc1.gain": 0.25677791237831116,
@@ -124054,9 +123837,9 @@
             "osc1.s3": 0.000169491526321508,
             "osc1.s4": 0.000169491526321508,
             "osc1.s6": 1.0,
+            "osc1.sample": 1.0,
             "env1.decay": 0.0,
-            "env1.release": 0.0,
-            "osc1.sample": 1.0
+            "env1.release": 0.0
           },
           "samples": ["igIAAIYLAAAxAAEARKwAAP0iAABBAAAAAgBAAaJo0ZGC4n3cWDxyByMZEG2XS7SCNBlr/797S1UKACSjLZjY6W3CSP27bUmSP4p0KikicXi09n8tKWFUjKSTLdtygohdGrck5NkSBEmULYWWz9plV5VjBKlp2qQ0Q4ii0fQvgNelcUo7/N4tuylpN7JxLGv7ZifqujxZLnQrlEDCMmmCh5vaBrZigBCNa4nfgVwYLAhKV0IhFkoVY9chk0mW3h98t6VRdh9o5yJLynIbIi6CoIHyLRYtGRZRbiXs/v3/v0JnG94m94Rsx1HTIJPDSBRp47hOhBPH0vy7JcN/b9MsF3TYHU74IDJqw4IAKhgUSFmo73E1Rs50Xd8tLdhyk4YMwnZZ2gbrAkqCAEKiEoLBsFAly4ujbVn39Z8K47Vtmh4ncJZpTcEsJkpJkgCtNhAhSpbJwSawUCxb+6go9t7ubbvBdh0e54rhPU9uzMTOYpy0ZEgEs0IRSGaqGAyiLc22vRtsteFtQDfsvjZb8rwa9tFpMkTlMiZFybBERSEQgdLEsIJWHdo2LYJkafO1jbqi5ktWH51SYizHjdnAbUOToiQZKFzU5U2oIoQly6ZpxSTSteXpuvAwTp9+e5qwCvi6ZYUOw0WZ2mZPYms2LBmy0wKTsiWa1nQC28aVqzcr4mxd1/YpYNThbS8l6HpfyVG+FJ6mICMh2SKkLIMCCTcbsEwSRXVFVRnaVKwhVTuzd83Owj37mq9pi8E05+nipg1CmyRlw5JILSlVryfQbBM5VdshGq2Ut5O4IljWbGv51iRolt7OWYrVVtbmlsFdyRlOB8thnDYV+jgHYBxHilRnJ2DkyHUdGXh0YU13AjaS5MqNZQY4bhu5cVkASJIjSZItAEiSJEmS"]
         }
@@ -124155,7 +123938,7 @@
             "pan": 0.501960813999176,
             "capacity": 0.0,
             "velocity": 0.0,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.fine": 0.6078828573226929,
             "osc1.octave": 0.0,
             "osc1.gain": 0.25677791237831116,
@@ -124164,9 +123947,9 @@
             "osc1.s3": 0.000169491526321508,
             "osc1.s4": 0.000169491526321508,
             "osc1.s6": 1.0,
+            "osc1.sample": 1.0,
             "env1.decay": 0.0,
-            "env1.release": 0.0,
-            "osc1.sample": 1.0
+            "env1.release": 0.0
           },
           "samples": ["igIAAIYLAAAxAAEARKwAAP0iAABBAAAAAgBAAaJo0ZGC4n3cWDxyByMZEG2XS7SCNBlr/797S1UKACSjLZjY6W3CSP27bUmSP4p0KikicXi09n8tKWFUjKSTLdtygohdGrck5NkSBEmULYWWz9plV5VjBKlp2qQ0Q4ii0fQvgNelcUo7/N4tuylpN7JxLGv7ZifqujxZLnQrlEDCMmmCh5vaBrZigBCNa4nfgVwYLAhKV0IhFkoVY9chk0mW3h98t6VRdh9o5yJLynIbIi6CoIHyLRYtGRZRbiXs/v3/v0JnG94m94Rsx1HTIJPDSBRp47hOhBPH0vy7JcN/b9MsF3TYHU74IDJqw4IAKhgUSFmo73E1Rs50Xd8tLdhyk4YMwnZZ2gbrAkqCAEKiEoLBsFAly4ujbVn39Z8K47Vtmh4ncJZpTcEsJkpJkgCtNhAhSpbJwSawUCxb+6go9t7ubbvBdh0e54rhPU9uzMTOYpy0ZEgEs0IRSGaqGAyiLc22vRtsteFtQDfsvjZb8rwa9tFpMkTlMiZFybBERSEQgdLEsIJWHdo2LYJkafO1jbqi5ktWH51SYizHjdnAbUOToiQZKFzU5U2oIoQly6ZpxSTSteXpuvAwTp9+e5qwCvi6ZYUOw0WZ2mZPYms2LBmy0wKTsiWa1nQC28aVqzcr4mxd1/YpYNThbS8l6HpfyVG+FJ6mICMh2SKkLIMCCTcbsEwSRXVFVRnaVKwhVTuzd83Owj37mq9pi8E05+nipg1CmyRlw5JILSlVryfQbBM5VdshGq2Ut5O4IljWbGv51iRolt7OWYrVVtbmlsFdyRlOB8thnDYV+jgHYBxHilRnJ2DkyHUdGXh0YU13AjaS5MqNZQY4bhu5cVkASJIjSZItAEiSJEmS"]
         }
@@ -124211,7 +123994,7 @@
             "pan": 0.501960813999176,
             "capacity": 0.0,
             "velocity": 0.0,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.fine": 0.6176578998565674,
             "osc1.octave": 0.375,
             "osc1.gain": 0.2794640362262726,
@@ -124220,9 +124003,9 @@
             "osc1.s3": 0.0001477541372878477,
             "osc1.s4": 0.0001477541372878477,
             "osc1.s6": 1.0,
+            "osc1.sample": 1.0,
             "env1.decay": 0.0,
-            "env1.release": 0.0,
-            "osc1.sample": 1.0
+            "env1.release": 0.0
           },
           "samples": ["ywIAADgNAAAxAAEARKwAAP0iAABBAAAAAgBAAVKtX6KH4q0FN3HNFNvUIJWRsOX7lCSr0JjiKvPb1sakOOUqflJvGk31RcyVZ+5iaQ5tpGEAnRRdF3MyxLYf4jpv0X2Zqmcvb2PJcEZpt9JLPlkoiQKyq0a81CwuD3I87fA84c29MvUmi4UhOGbu/q61UpmwbgKrUbE3Faj4/GlZR44RjuQnReeJNiGy0yimi8yoRxeXxmnfRJWpiq0Lr0POjDbpqLptRen0UZtFsLa6gFI1ta5JooCqpVZr7NragY3LqRLOXiPFS00NL5BOo+3w3MZ1KtkjDCvDbHj5a3DjuK0jOOGNMTJ1wN5m42htzsa4Ff1EqXSK7EE71e1CfKKnTzumk57m4yQ2j2PlTiPhyuwjKXlk6SxKa/RuKl3vS8R8xC414So6UumQNnKZ6Qlm4dpN5Mjt8brE2PgY9raYItBxJWPSnmjfJk5sLVhLGwdr5mOozptozmocV3kE7bxJI6utIDvhZ69tvHpAetVGqciaeIm0MldsgLZ+CsmtWlImyVzxUpKe5idVT4lyC52dmCtjNC+xcz6uCq5KUeZQq8lsBc7lEuFxcVbplkjxS3ip2qY6FTzLUc+wRk1kYXawiKhK5UbtEg4XZyWNh2UzVjJa9OlcxrUhyUtrIkVyhNssiyTGcqMm7Uk+TtSU5IksaipzbMhxFKeT01IwoY+oc2YwILway9ES7lgnhUyFmjbYsdsuhegmtxycagS7KZEkP46IU05q7jDhjflWMDA+u5qbzMheIB5/4VP1UqiThG7xtT7mFKXS0lOeoCeDT2VMobdJac9j9UqUdBptYnSjNHzhjoLF8w8rNuHMqS2sNM6MMReSSxw0jlEFklc+tnEjSHKwNDZGljm4Eu5cJyXLomLywdtEYwTtNi4bB6tBsmqJLAGOgUboza0EzfbULDMcZooST5JFBNqXrdu2OQLKtm3btl8E2LZt25Y="]
         }
@@ -124656,7 +124439,7 @@
             "pan": 0.501960813999176,
             "capacity": 0.0,
             "velocity": 0.0,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.fine": 0.6078828573226929,
             "osc1.octave": 0.375,
             "osc1.gain": 0.2649797201156616,
@@ -124665,9 +124448,9 @@
             "osc1.s3": 0.00019470404367893934,
             "osc1.s4": 0.00019470404367893934,
             "osc1.s6": 1.0,
+            "osc1.sample": 1.0,
             "env1.decay": 0.0,
-            "env1.release": 0.0,
-            "osc1.sample": 1.0
+            "env1.release": 0.0
           },
           "samples": ["SQIAAAgKAAAxAAEARKwAAP0iAABBAAAAAgBAAdh6j9qEInzjUK/Zg0o6X8qnOqorus2LJFIgplqSJJ13W52UXAzSqsl2LC6RaNy4SBGi/l1aN5Ik+eJfMs+2bdu2jwmLimJre4PIbds2RE+SJJGkD83W3kmSJGnTmCS3Ydt2iO5gKWz2JmnbJvE6uvCzLcuSeERHjic3kr76SJIkuRFMetCChAx54Lht29aDSZGk6WmrbpL0evgXxyqtJdXlIXWl1WgMvImLQts2bTzBt22OdmkzDAFA21IyRIYtn8VflhbrRkpAY7Rt2ZJFEVS4QKRt22bkDAAAKHgA7rvXtrIcmbmRaA3Gmkly7Vi0bYGNP10rhPeCw0GbEiexlscs3LbtE8tcCkDNWfpk2h0Xo/L1TJYkmcWUJGYAlpaCTEkmbIJU1QfPFNVgt43UrppoChvXrW3mWjPrtuX0ZnMCHQfR8ChWfDBQoWpR2y5NVzbGcOo0K90uI9F4W85ly2Ovbdnl7Gy1xxpQZwiT5AKaSLEcpVEyqHbHLGviL6uzMubs1zb5FpWdIsamzPEym2JEa6NwQspAyqfqUdimTd9kh3FTrabvas3o1jAxDOv0bcu23+xc3NmTRjDwHIzZomjW6BKlJaZH13zqTTVHzvX89adlK+4dv6uxp0UMlhSZwTrELpIUnuFQzekSVfTUhqHVtswywj7SplyzVqx8z+tnUryK5ApBPEybC9VBUDUH28ZUaHYngdt3ymvvxOBlb9u2bcfgZW/bth2AdCFNbwAm36PLkV0Etm3btm1hALZtG7dxOgC2jSNHkg=="]
         }
@@ -124726,7 +124509,7 @@
             "pan": 0.501960813999176,
             "capacity": 0.0,
             "velocity": 0.0,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.fine": 0.6176578998565674,
             "osc1.gain": 0.2732495069503784,
             "osc1.s1": 1.0,
@@ -124734,9 +124517,9 @@
             "osc1.s3": 0.3060835003852844,
             "osc1.s4": 0.6900990605354309,
             "osc1.s6": 1.0,
+            "osc1.sample": 1.0,
             "env1.decay": 0.0,
-            "env1.release": 0.0,
-            "osc1.sample": 1.0
+            "env1.release": 0.0
           },
           "samples": ["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"]
         }
@@ -124889,7 +124672,7 @@
             "pan": 0.501960813999176,
             "capacity": 0.0,
             "velocity": 0.0,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.fine": 0.6176578998565674,
             "osc1.gain": 0.2732495069503784,
             "osc1.s1": 1.0,
@@ -124897,9 +124680,9 @@
             "osc1.s3": 0.3060835003852844,
             "osc1.s4": 0.6900990605354309,
             "osc1.s6": 1.0,
+            "osc1.sample": 1.0,
             "env1.decay": 0.0,
-            "env1.release": 0.0,
-            "osc1.sample": 1.0
+            "env1.release": 0.0
           },
           "samples": ["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"]
         }
@@ -124974,7 +124757,7 @@
             "pan": 0.501960813999176,
             "capacity": 0.0,
             "velocity": 0.0,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.fine": 0.6176578998565674,
             "osc1.octave": 0.625,
             "osc1.gain": 0.27628886699676514,
@@ -124983,9 +124766,9 @@
             "osc1.s3": 0.00011446886492194608,
             "osc1.s4": 0.00011446886492194608,
             "osc1.s6": 1.0,
+            "osc1.sample": 1.0,
             "env1.decay": 0.0,
-            "env1.release": 0.0,
-            "osc1.sample": 1.0
+            "env1.release": 0.0
           },
           "samples": ["jgMAABARAAAxAAEARKwAAP0iAABBAAAAAgBAARSLnR2JonSW5RjG87u5a7wkfrOLGWDl4JXtKli55EZnOLV4EZXIksFK6VtXr5TVkq66Yc9yDS4yWy9yhJWPNljRUK3G5nCtdZA0e+OmA5DSZkK0IaWuYOn1j5Jla+O84FDs0EBmKDqk+n3jtgVTitRytcPLYY44bVNCtL9sSq8kCYZSLeiOwgsnWzlvRM2r5aVKyGTE5kUrBaYVpy1mnFfaHE+x+FlNz4XJtWiBNDCd/bIAp3+ygn1EMWzZ6Yyj/Kkss1FrGVn1DrUFEEGxOeb11ZsPSoLGlhK/uYVb7/O7honU/NDunDI5Sj2IWMuK7QrZM8AKkXDsau1URRJU4GaVIsFN0G1el4JnTe/XkZzExaiiSj/hyq4p+0otajFnxu8mMRA41cJhLTpcQvp1uSDnfsLu3MbswmK+sdDMhU52Fo5pzMdTq90Zufp1JMdV1ofKWEirOCZuKzllRQ7cWC25WdXNvt24TllSaWi9BJEwtjcGpZ6O9BFj+GBb5IEmeDLLiNS5mBCO1tqyRVItuljkSiSQFCVsHIXFzSW0bRw9RmmI+1WbUMGYlZH1FEmO/LjyNyvbCIzqWcGNOZKjGA/ksV+KJqm50iuVoclLuJKgYiNbRrUXmL5K2yx1jFjvbFHP9eVWahMcuVLZecpeMY2ruItmT1dyg9TQ4Tp14pYGn7lMNyFK9srRbNNZlxP15SWKW2WrsuQeqihf1FVcJ/W0xM0U9WZ1EgXZh7FJsyxfSnuXeFXcwr4opRBy8kSp3PztZP5KjloYgZCd0t5SDK8SRpvexIOuG5USNMdLTf020RIAy0p7fLt0At1I8QntyAKWo8ua2qwOMJxUfOnGGvKSNLJOuhgat5QWEK7S2uAMi4w7DjOPbGogmN4yKyxLGjFSZKvuyF/Jf1sA2YcxJfKU2IFhPOzPmnYlfSXJSIykDHv7VeCYdo4KUJKQjRaXIExJlL68laYKaBHIo+va7qgTtHbkic5oq4dB5hzZ7Ogt7GxqyBB/arl0ImreQG3SnLih9DZOtogkTtTantF9IJeSTGasSUwSOy2ksqOxO1dtpcqagmJ1pQOTzEy7Cd2j7kzVUEgKIreWaigEM+U3OmAswE0VtZq2Kt6GSDtm0b0Ym2APYidZeagmTSJw2dDZBq9CCelX24zqYmPYK3zFuDJhDeQgFi3pwDE7Eh5mJEdyUgTIkRS7jXgGOJJiN00="]
         }
@@ -125124,7 +124907,7 @@
             "pan": 0.501960813999176,
             "capacity": 0.0,
             "velocity": 0.0,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.fine": 0.6176578998565674,
             "osc1.octave": 0.375,
             "osc1.gain": 0.27389395236968994,
@@ -125133,9 +124916,9 @@
             "osc1.s3": 0.48323097825050354,
             "osc1.s4": 0.3577556908130646,
             "osc1.s6": 1.0,
+            "osc1.sample": 1.0,
             "env1.decay": 0.0,
-            "env1.release": 0.0,
-            "osc1.sample": 1.0
+            "env1.release": 0.0
           },
           "samples": ["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"]
         }
@@ -125299,7 +125082,7 @@
             "capacity": 0.0,
             "transpose": 0.501960813999176,
             "velocity": 0.0,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.fine": 0.49069538712501526,
             "osc1.octave": 0.375,
             "osc1.gain": 0.2555692493915558,
@@ -125307,9 +125090,9 @@
             "osc1.s3": 0.000798722030594945,
             "osc1.s4": 1.0,
             "osc1.s6": 1.0,
+            "osc1.sample": 1.0,
             "env1.decay": 0.0,
             "env1.release": 0.0,
-            "osc1.sample": 1.0,
             "ctl.bend": 0.49803921580314636,
             "ctl.bend_range": 1.0
           },
@@ -125318,7 +125101,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.15625,
             "left_fine": 0.42750000953674316,
             "right_coarse": 0.15625,

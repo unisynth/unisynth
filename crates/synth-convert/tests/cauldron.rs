@@ -16,13 +16,13 @@ fn every_record_loads_and_plays_within_full_scale() {
         for c in load(&data(f)).unwrap().calls {
             for (i, r) in c.records.iter().enumerate() {
                 for ratio in [1.0, 2.0] {
-                    let chunk = unisynth::chunk::encode(&instrument(c.version, r, ratio), &[]);
+                    let chunk = unisynth::migrate::encode_old(&instrument(c.version, r, ratio), &[], &[]);
                     let lane = vec![(0, 61, Some(velocity(0.0))), (10000, 61, None)];
                     // the instrument and the chain's first device, the 16-bit clamp
                     let (kind, clip) = effects(&c, i, ratio, 44100.0, 125).devices.remove(0);
-                    let devs = vec![Dev { kind: unisynth::kind::INSTRUMENT, chunk }, Dev { kind, chunk: unisynth::fx::encode(&clip) }];
+                    let devs = vec![Dev { kind: unisynth::kind::INSTRUMENT, chunk }, Dev { kind, chunk: unisynth::migrate::encode_old_fx(&clip) }];
                     let s = song(devs, vec![lane], vec![track(&[0, 1], 0)]);
-                    let out = loads_and_renders(&s.write());
+                    let out = loads_and_renders(&s.write().unwrap());
                     let peak = out.iter().fold(0.0f32, |m, x| m.max(x.abs()));
                     assert!(peak > 1e-3, "{} record {i} ratio {ratio}: silent", c.name);
                     assert!(peak <= 1.0 + 1e-4, "{} record {i} ratio {ratio}: peak {peak} past the clip", c.name);
@@ -43,12 +43,12 @@ fn every_record_with_its_effect_chain_loads_and_plays() {
                 for ratio in [1.0, 2.0] {
                     let mut s = song(vec![], vec![vec![(0, 61, Some(velocity(0.0))), (10000, 61, None)]], vec![]);
                     let chain = effects(&c, i, ratio, s.rate as f64, s.tempo);
-                    s.devices.push(Dev { kind: unisynth::kind::INSTRUMENT, chunk: unisynth::chunk::encode(&instrument(c.version, r, ratio), &[]) });
+                    s.devices.push(Dev { kind: unisynth::kind::INSTRUMENT, chunk: unisynth::migrate::encode_old(&instrument(c.version, r, ratio), &[], &[]) });
                     for (kind, v) in &chain.devices {
-                        s.devices.push(Dev { kind: *kind, chunk: unisynth::fx::encode(v) });
+                        s.devices.push(Dev { kind: *kind, chunk: unisynth::migrate::encode_old_fx(v) });
                     }
                     s.tracks.push(track(&(0..s.devices.len()).collect::<Vec<_>>(), 0));
-                    let out = loads_and_renders(&s.write());
+                    let out = loads_and_renders(&s.write().unwrap());
                     let peak = out.iter().fold(0.0f32, |m, x| m.max(x.abs()));
                     // a comb doubles a full-scale signal at most (the original clamped it to 8 bits; the port does not)
                     // and the echo feeds back below 1: anything far past that is a broken chain
@@ -71,7 +71,7 @@ fn every_phrase_song_loads_and_plays() {
                 for v in 0..r.variants as usize {
                     let (s, lead) = phrase_song(&c, i, v, 44100);
                     assert!(lead > 0 && lead < 2000, "{} {i}/{v}: lead {lead}", c.name);
-                    let out = loads_and_renders(&s.write());
+                    let out = loads_and_renders(&s.write().unwrap());
                     assert!(out[2 * lead..].iter().any(|x| x.abs() > 1e-3), "{} {i}/{v}: silent", c.name);
                     n += 1;
                 }
@@ -233,8 +233,8 @@ fn the_tbl_stored_samples_play() {
                 let dec: Vec<f64> = dec.iter().map(|&v| v as f64).collect();
                 let orig: Vec<f64> = s.data.iter().map(|&v| v as f64 / 32768.0).collect();
                 let lane = vec![(0, st.note(49), Some(100)), (20000, st.note(49), None)];
-                let dev = Dev { kind: unisynth::kind::INSTRUMENT, chunk: unisynth::chunk::encode(&st.values, &[&st.gsm]) };
-                let out = loads_and_renders(&song(vec![dev], vec![lane], vec![track(&[0], 0)]).write());
+                let dev = Dev { kind: unisynth::kind::INSTRUMENT, chunk: unisynth::migrate::encode_old(&st.values, &[&st.gsm], &[]) };
+                let out = loads_and_renders(&song(vec![dev], vec![lane], vec![track(&[0], 0)]).write().unwrap());
                 let mono: Vec<f64> = out.chunks(2).map(|c| c[0] as f64).collect();
                 let step = st.up as f64 * 8363.0 * 2f64.powf((s.relative as f64 + s.finetune as f64 / 128.0) / 12.0) / 44100.0;
                 let at = |pos: f64| {

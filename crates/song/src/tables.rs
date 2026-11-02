@@ -169,16 +169,16 @@ fn effect_params(k: u8, mode: usize) -> Vec<(&'static str, f32)> {
             ("release", env_ms(200.0)), ("output_gain", 0.5),
         ],
         (kind::FORMANT, 0) => vec![("vowel", 0.0), ("wet", 0.0)],
-        // V2 modes (change add-v2-import): V2 raw / 128, then the source format version (`count(0, 6)`, 1 = v6)
-        (kind::EQ, 2) => vec![("low_cut", 0.0), ("high_cut", 127.0 / 128.0), ("era", 1.0)],
+        // the 7-bit modes (change add-v2-import): step / 128; the cut EQ's DC filter is a choice (default on)
+        (kind::EQ, 2) => vec![("low_cut", 0.0), ("high_cut", 127.0 / 128.0), ("dc_filter", 1.0)],
         (kind::DELAY, 2) => vec![
             ("volume", 100.0 / 128.0), ("feedback", 80.0 / 128.0), ("delay_l", 0.5), ("delay_r", 0.5), ("mod_rate", 0.0),
-            ("mod_depth", 0.0), ("mod_phase", 0.5), ("era", 1.0),
+            ("mod_depth", 0.0), ("mod_phase", 0.5),
         ],
-        (kind::REVERB, 3) => vec![("time", 0.5), ("high_cut", 0.5), ("low_cut", 0.25), ("volume", 127.0 / 128.0), ("era", 1.0)],
+        (kind::REVERB, 3) => vec![("time", 0.5), ("high_cut", 0.5), ("low_cut", 0.25), ("volume", 127.0 / 128.0)],
         (kind::COMPRESSOR, 1) => vec![
             ("detect", 0.0), ("couple", 0.0), ("auto_gain", 1.0 / 128.0), ("lookahead", 2.0 / 128.0), ("threshold", 90.0 / 128.0),
-            ("ratio", 0.25), ("attack", 20.0 / 128.0), ("release", 0.5), ("out_gain", 0.5), ("era", 1.0),
+            ("ratio", 0.25), ("attack", 20.0 / 128.0), ("release", 0.5), ("out_gain", 0.5),
         ],
         // mini-cauldron modes (change add-cauldron-xm-import); defaults pass the signal unchanged: drive p·4 (0.25 = ×1),
         // offset 2p − 1; comb delay p·16384 frames, amount, sweep p·0.01 per frame, restart (any change)
@@ -194,45 +194,62 @@ fn choice_options(i: usize, law: Law) -> Vec<String> {
     if matches!(law, Law::Index) && target_field {
         return (0..unisynth::modmx::target::COUNT).map(unisynth::modmx::target::name).collect();
     }
-    // expanded choices (`params::kinds`): one option per stored position, old kinds at the even ones, later kinds at the
-    // odd ones (unused positions are "—"), so `choice(v, options.len())` picks the position as before
-    if let Law::Kinds { old, all } = law {
-        let names: &[&str] = if old == params::osc_type::COUNT {
-            &["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive", "Clocked"]
-        } else if old == params::filter_type::COUNT {
-            &[
-                "Off", "SVF low-pass", "SVF high-pass", "SVF band-pass", "SVF notch", "Ladder low-pass", "RBJ high-pass", "RBJ band-pass",
-                "Resonator notch", "Feedback SVF low-pass", "Feedback SVF band-pass", "Feedback SVF high-pass", "Feedback SVF notch", "Feedback SVF all-pass",
-                "4-pole 2× low-pass", "4-pole 2× high-pass",
-            ]
-        } else if old == params::env_mode::COUNT {
-            &["Seconds", "Rate", "Frame"]
-        } else if old == unisynth::modmx::source::COUNT {
-            &[
-                "None", "Env 1", "Env 2", "Env 3", "Env 4", "LFO 1", "LFO 2", "Mod wheel", "Velocity", "Key", "Breath (CC2)", "CC3", "CC4", "CC5",
-                "CC6", "Volume (CC7)", "Note (centred)",
-            ]
-        } else {
-            &["Scale", "Offset", "Add"]
-        };
-        return (0..2 * old - 1)
-            .map(|c| {
-                let id = params::kinds::at(c, old, all - old, usize::MAX);
-                names.get(id).map_or("—".to_string(), |n| n.to_string())
-            })
-            .collect();
-    }
+    let field = params::name(i);
+    let field = field.rsplit('.').next().unwrap_or("");
     let names: &[&str] = match law {
         Law::Choice(n) => {
-            let base = |b: usize, stride: usize, slots: usize| i >= b && i < b + stride * slots && (i - b) % stride == 0;
-            if base(params::OSC, params::o::LEN, params::OSC_SLOTS) {
-                &["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler"]
-            } else if base(params::FILT, params::f::LEN, params::FILT_SLOTS) {
-                &["Off", "SVF low-pass", "SVF high-pass", "SVF band-pass", "SVF notch", "Ladder low-pass", "RBJ high-pass", "RBJ band-pass", "Resonator notch"]
-            } else if base(params::ENV, params::e::LEN, params::ENV_SLOTS) {
-                &["Seconds", "Rate"]
-            } else if base(params::LFO, params::l::LEN, params::LFO_SLOTS) {
-                &["Sine", "Ramp up", "Ramp down", "Square", "Random"]
+            let base = |b: usize, stride: usize, slots: usize| i >= b && i < b + stride * slots;
+            let at = |b: usize, stride: usize, slots: usize, fld: usize| base(b, stride, slots) && (i - b) % stride == fld;
+            let in_mod = (0..params::MOD_SLOTS).any(|s| params::modslot(s, 0) <= i && i < params::modslot(s, 0) + params::m::LEN);
+            if at(params::OSC, params::o::LEN, params::OSC_SLOTS, params::o::TYPE) {
+                &[
+                    "Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive saw/tri", "Naive pulse", "Sine", "Coloured noise", "FM", "Aux in A",
+                    "Aux in B", "Clocked",
+                ]
+            } else if at(params::OSC, params::o::LEN, params::OSC_SLOTS, params::o::COMBINE) {
+                &["Add", "Multiply (ring)", "Replace"]
+            } else if at(params::OSC, params::o::LEN, params::OSC_SLOTS, params::o::LAW) {
+                &["Semitones/Hz", "7-bit steps"]
+            } else if at(params::FILT, params::f::LEN, params::FILT_SLOTS, params::f::TYPE) {
+                &[
+                    "Off", "SVF low-pass", "SVF high-pass", "SVF band-pass", "SVF notch", "4-pole low-pass", "RBJ high-pass", "RBJ band-pass",
+                    "Resonator notch", "SVF all-pass", "4-pole high-pass",
+                ]
+            } else if at(params::FILT, params::f::LEN, params::FILT_SLOTS, params::f::FORM) {
+                &["Input / feedback before the clip", "Feedback / after the clip"]
+            } else if at(params::FILT, params::f::LEN, params::FILT_SLOTS, params::f::OVERSAMPLE) {
+                &["Interpolated / 1 step", "Held / 2 steps"]
+            } else if at(params::FILT, params::f::LEN, params::FILT_SLOTS, params::f::LAW) {
+                &["Hz", "7-bit steps"]
+            } else if at(params::ENV, params::e::LEN, params::ENV_SLOTS, params::e::LAW) {
+                &["Seconds", "Rate", "Frame"]
+            } else if at(params::ENV, params::e::LEN, params::ENV_SLOTS, params::e::CURVE) {
+                &["By law", "Quadratic", "Power", "Exponential"]
+            } else if at(params::LFO, params::l::LEN, params::LFO_SLOTS, params::l::SHAPE) {
+                &["Sine", "Ramp up", "Ramp down", "Square", "Random", "Triangle", "Sample and hold", "Pulse"]
+            } else if at(params::LFO, params::l::LEN, params::LFO_SLOTS, params::l::SYNC) {
+                &["Song time", "Continue", "Restart"]
+            } else if at(params::LFO, params::l::LEN, params::LFO_SLOTS, params::l::LAW) {
+                &["Hz", "Frame"]
+            } else if at(params::LFO, params::l::LEN, params::LFO_SLOTS, params::l::POLARITY) {
+                &["Positive", "Negative", "Bipolar"]
+            } else if in_mod && field == "source" {
+                &[
+                    "None", "Env 1", "Env 2", "Env 3", "Env 4", "LFO 1", "LFO 2", "Mod wheel", "Velocity", "Key", "Breath (CC2)", "CC3", "CC4", "CC5",
+                    "CC6", "Volume (CC7)", "Note (centred)",
+                ]
+            } else if in_mod && field == "operation" {
+                &["Scale", "Offset", "Add"]
+            } else if i == params::vs::KEYSYNC {
+                &["Free", "Restart", "Full reset"]
+            } else if i == params::vs::ROUTING {
+                &["Serial", "Parallel"]
+            } else if i == params::vs::AMP_SOURCE {
+                &["Master × velocity × env 1", "Env 1 only"]
+            } else if i == params::vs::PAN_STAGE {
+                &["Per slot", "After the drive"]
+            } else if i == params::vs::LAW {
+                &["Semitones", "7-bit steps"]
             } else if i == params::v::MODE {
                 &["Poly", "Mono legato"]
             } else if i == params::v::STEAL {
@@ -268,8 +285,7 @@ fn unit_range(law: Law) -> (&'static str, f32, f32) {
         Law::Index => ("", 0.0, 255.0),
         Law::EnvTime => ("ms", 1.0, 5001.0),
         Law::Raw => ("", 0.0, 65_535.0),
-        Law::Kinds { old, .. } => ("", 0.0, (2 * old - 2) as f32),
-        Law::V2Raw => ("steps", 0.0, 128.0),
+        Law::Steps => ("steps", 0.0, 128.0),
         Law::Unit | Law::Pan | Law::Shape | Law::ModAmount => ("", 0.0, 1.0),
     }
 }
@@ -305,8 +321,8 @@ fn instrument() -> Table {
 
 fn effect(k: u8, mode: usize) -> Table {
     let modes = mode_names(k);
-    // one option per stored position: the V2 modes sit between the old ones (`fx::mode_value`), free positions "—"
-    let positions = unisynth::fx::mode_positions(k);
+    // the mode is `Choice(mode_total(k))`
+    let positions = unisynth::fx::mode_total(k);
     let _ = inv_choice;
     let mut ps = vec![Param {
         index: 0,
@@ -317,7 +333,7 @@ fn effect(k: u8, mode: usize) -> Table {
         unit: "",
         min: 0.0,
         max: positions.saturating_sub(1) as f32,
-        options: (0..positions).map(|p| unisynth::fx::mode_at(k, p).and_then(|m| modes.get(m)).map_or("—".to_string(), |s| s.to_string())).collect(),
+        options: (0..positions).map(|m| modes.get(m).map_or("—".to_string(), |s| s.to_string())).collect(),
         structural: true,
         raw: false,
     }];

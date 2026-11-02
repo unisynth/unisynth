@@ -10,6 +10,8 @@
 //! synth-convert xm <in.xm> <patches.json> <out.song> [--names <tracks.json>] [--controls tick|row|note] [--thin <bytes>] [--keep-layers] [--split-pitches] [--dry] [--exact-chain]
 //! synth-convert xm-triggers <in.xm>
 //!                                                       one mini-cauldron phrase trigger (call jizz | bluish | song0; parity entry)
+//! synth-convert migrate <in.song> <out.song>             a unified song of the old layout (chunk v1/v2, untagged effects)
+//!                                                       → the v3 layout (change unify-v2-algorithms); a v3 song is unchanged
 //! synth-convert features <song>                          the unisynth cargo features the unified song needs (comma separated)
 //! synth-convert features <song> --explain|--json [--cost marginal.csv]
 //!                                                       the same with what calls for each feature, and its marginal size
@@ -18,7 +20,7 @@
 use std::process::ExitCode;
 use synth_convert::Converted;
 
-const USAGE: &str = "usage: synth-convert ws <in.song> <out.song>\n       synth-convert tfm <in.tfm> <out.song> [tail-seconds]\n       synth-convert v2m <in.v2m> <out.song> [tail-seconds] [--channels hex] [--era auto|kkrieger2004]   (Farbrausch V2, format versions 0-6)\n       synth-convert tf4m <in.tf4m> <out.song> [tail-seconds]   (2013 Tunefish 4 of Enigma Studio 4)\n       synth-convert tf4m-tfm <in.tf4m> <out.tfm>   (the same song in the final .tfm layout)\n       synth-convert patch <patch.txt> <phrase.txt> <out.song>\n       synth-convert xm <in.xm> <patches.json> <out.song> [--names <tracks.json>] [--controls tick|row|note] [--thin <bytes>] [--keep-layers] [--split-pitches] [--dry] [--exact-chain]   (a mini-cauldron XM: TBL Jizz, Stash; XM volume/pan/pitch per tick (default), row or note; --thin: lanes within that many bytes of 255, slides as ramps; stereo/echo layers dropped and pitch tracks packed unless --keep-layers / --split-pitches; the dropped layers' echo and room come back as a stereo delay and reverb unless --dry; one low-pass stage (none from 16 kHz) and only the clips the notes reach unless --exact-chain)\n       synth-convert xm-phrase <patches.json> <jizz|bluish|song0> <record> <variant> <out.song>   (one mini-cauldron phrase)\n       synth-convert xm-triggers <in.xm>   (the XM replay's triggers: start s, volume, offset)\n       synth-convert features <unified.song> [--explain | --json] [--cost <marginal.csv>]\n       synth-convert rust <unified.song> <out.rs> [bank.dls]   (compo build: validated song as Rust + module assert)";
+const USAGE: &str = "usage: synth-convert ws <in.song> <out.song>\n       synth-convert tfm <in.tfm> <out.song> [tail-seconds]\n       synth-convert v2m <in.v2m> <out.song> [tail-seconds] [--channels hex] [--era auto|kkrieger2004]   (Farbrausch V2, format versions 0-6)\n       synth-convert tf4m <in.tf4m> <out.song> [tail-seconds]   (2013 Tunefish 4 of Enigma Studio 4)\n       synth-convert tf4m-tfm <in.tf4m> <out.tfm>   (the same song in the final .tfm layout)\n       synth-convert patch <patch.txt> <phrase.txt> <out.song>\n       synth-convert xm <in.xm> <patches.json> <out.song> [--names <tracks.json>] [--controls tick|row|note] [--thin <bytes>] [--keep-layers] [--split-pitches] [--dry] [--exact-chain]   (a mini-cauldron XM: TBL Jizz, Stash; XM volume/pan/pitch per tick (default), row or note; --thin: lanes within that many bytes of 255, slides as ramps; stereo/echo layers dropped and pitch tracks packed unless --keep-layers / --split-pitches; the dropped layers' echo and room come back as a stereo delay and reverb unless --dry; one low-pass stage (none from 16 kHz) and only the clips the notes reach unless --exact-chain)\n       synth-convert xm-phrase <patches.json> <jizz|bluish|song0> <record> <variant> <out.song>   (one mini-cauldron phrase)\n       synth-convert xm-triggers <in.xm>   (the XM replay's triggers: start s, volume, offset)\n       synth-convert migrate <in.song> <out.song>   (a unified song of the old layout → v3)\n       synth-convert features <unified.song> [--explain | --json] [--cost <marginal.csv>]\n       synth-convert rust <unified.song> <out.rs> [bank.dls]   (compo build: validated song as Rust + module assert)";
 
 fn read(path: &str) -> Result<Vec<u8>, String> {
     std::fs::read(path).map_err(|e| format!("{path}: {e}"))
@@ -118,7 +120,7 @@ fn run(args: &[String]) -> Result<(), String> {
             }
             let (song, lead) = synth_convert::cauldron::phrase_song(c, record, variant, 44100);
             eprintln!("lead-frames {lead}");
-            std::fs::write(output, song.write()).map_err(|e| format!("{output}: {e}"))
+            std::fs::write(output, song.write().map_err(|e| e.to_string())?).map_err(|e| format!("{output}: {e}"))
         }
         ["xm", input, patches, output, ref rest @ ..] => {
             // options: --names <tracks.json>, --controls tick|row|note, --thin <bytes>, --keep-layers, --split-pitches, --dry, --exact-chain
@@ -171,7 +173,7 @@ fn run(args: &[String]) -> Result<(), String> {
                 let json = format!("[{}]", c.names.iter().map(|n| format!("{n:?}")).collect::<Vec<_>>().join(","));
                 std::fs::write(names, json).map_err(|e| format!("{names}: {e}"))?;
             }
-            std::fs::write(output, c.song.write()).map_err(|e| format!("{output}: {e}"))
+            std::fs::write(output, c.song.write().map_err(|e| e.to_string())?).map_err(|e| format!("{output}: {e}"))
         }
         ["xm-triggers", input] => {
             // the replay's triggers as "<start s> <first-tick volume> <offset> <channel> <instrument> <sample> <note>" lines (parity onset check, task 5.2)
@@ -182,6 +184,11 @@ fn run(args: &[String]) -> Result<(), String> {
             }
             eprintln!("length {:.6}", r.length);
             Ok(())
+        }
+        ["migrate", input, output] => {
+            let blob = std::fs::read(input).map_err(|e| format!("{input}: {e}"))?;
+            let song = synth_convert::model::SongM::read(&blob).map_err(|e| format!("{input}: {e}"))?;
+            std::fs::write(output, song.write().map_err(|e| format!("{input}: {e}"))?).map_err(|e| format!("{output}: {e}"))
         }
         ["features", input] => {
             println!("{}", synth_convert::features::features(&read(input)?).map_err(|e| format!("{input}: {e}"))?.join(","));

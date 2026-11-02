@@ -49,6 +49,13 @@ fn raw(version: u8, pairs: &[(usize, f32)], samples: &[Vec<u8>]) -> Vec<u8> {
     c
 }
 
+/// The values a build can read: all of them, or (no `us-chunk-wide`, no `us-matrix-add`) the one-byte block, as
+/// `Chunk::values` stores the rest as zero there.
+fn readable(v: [f32; pm::COUNT]) -> Vec<f32> {
+    let n = if cfg!(any(feature = "us-chunk-wide", feature = "us-matrix-add")) { pm::COUNT } else { SHORT };
+    v[..n].to_vec()
+}
+
 fn bad(c: &[u8]) {
     assert_eq!(Chunk::parse(c).err(), Some(LoadError::BadChunk), "{c:?}");
 }
@@ -67,15 +74,15 @@ fn escapes_need_the_wide_module() {
     let mut many = defaults();
     many.iter_mut().take(255).for_each(|x| *x = 0.123);
     assert_eq!(Chunk::parse(&encode(&many, &[])).err(), Some(LoadError::UnsupportedModule(crate::module::CHUNK_WIDE)));
-    // a chunk without escapes (every chunk written before them) still loads
-    assert!(Chunk::parse(&encode(&with(&[(pm::COUNT - 30, 0.75)]), &[])).is_ok());
+    // a chunk without escapes (one-byte indices, fewer than 255 pairs) loads
+    assert!(Chunk::parse(&encode(&with(&[(pm::ctl::WHEEL, 0.75)]), &[])).is_ok());
 }
 
 #[test]
 fn defaults_encode_to_three_bytes() {
     let c = encode(&defaults(), &[]);
     assert_eq!(c, [VERSION, 0, 0]);
-    assert_eq!(Chunk::parse(&c).unwrap().values(), defaults());
+    assert_eq!(readable(Chunk::parse(&c).unwrap().values()), readable(defaults()));
 }
 
 #[test]
@@ -84,7 +91,7 @@ fn sparse_chunk_sets_only_what_differs() {
     let c = encode(&v, &[]);
     assert_eq!(c.len(), 3 + 2 * 5);
     let ch = Chunk::parse(&c).unwrap();
-    assert_eq!(ch.values(), v);
+    assert_eq!(readable(ch.values()), readable(v));
     let pairs: Vec<_> = ch.pairs().collect();
     assert_eq!(pairs, [(osc(0, o::TYPE), 0.5), (osc(0, o::GAIN), 0.4)]);
     assert_eq!(ch.sample_count(), 0);
@@ -125,15 +132,15 @@ fn round_trip_is_bit_exact_and_canonical() {
 
 #[test]
 #[cfg(feature = "us-chunk-wide")]
-fn worst_case_size_is_1325_bytes() {
+fn worst_case_size_is_1529_bytes() {
     let mut v = defaults();
     v.iter_mut().for_each(|x| *x = 0.123); // every value differs from its default
     assert!(v.iter().zip(defaults()).all(|(a, b)| *a != b));
     let c = encode(&v, &[]);
-    // version, escaped count (3), 240 one-byte pairs, 20 two-byte pairs, sample count
+    // version, escaped count (3), 240 one-byte pairs, 54 two-byte pairs, sample count
     assert_eq!(c.len(), 1 + 3 + 5 * SHORT + 6 * (pm::COUNT - SHORT) + 1);
-    assert_eq!(c.len(), 1325);
-    assert_eq!(Chunk::parse(&c).unwrap().values(), v);
+    assert_eq!(c.len(), 1529);
+    assert_eq!(readable(Chunk::parse(&c).unwrap().values()), readable(v));
 }
 
 #[test]
@@ -146,13 +153,13 @@ fn high_indices_take_two_bytes_and_round_trip() {
     assert_eq!(c[7..9], [ESC, (hi - SHORT) as u8], "250 = bank 0, byte 10");
     assert_eq!(c.len(), 1 + 1 + 5 + 6 + 1);
     let ch = Chunk::parse(&c).unwrap();
-    assert_eq!(ch.values(), v);
+    assert_eq!(readable(ch.values()), readable(v));
     assert_eq!(ch.pairs().collect::<Vec<_>>(), [(190, 0.3), (hi, 0.75)]);
-    // a chunk written before the escapes (indices ≤ 183, fewer than 255 pairs) has the same bytes as before
-    let old = with(&[(osc(0, o::TYPE), 0.5), (pm::ext::NOISE_WIDTH, 0.0)]);
+    // a chunk without escapes (indices below 240, fewer than 255 pairs): one byte per index
+    let old = with(&[(osc(0, o::TYPE), 0.5), ((pm::NOISE + pm::n::WIDTH), 0.0)]);
     let mut want = vec![VERSION, 2, osc(0, o::TYPE) as u8];
     want.extend(0.5f32.to_le_bytes());
-    want.push(pm::ext::NOISE_WIDTH as u8);
+    want.push((pm::NOISE + pm::n::WIDTH) as u8);
     want.extend(0.0f32.to_le_bytes());
     want.push(0);
     assert_eq!(encode(&old, &[]), want);
@@ -166,7 +173,7 @@ fn escaped_counts_are_canonical_and_escapes_at_the_end_are_errors() {
     v.iter_mut().take(255).for_each(|x| *x = 0.123);
     let c = encode(&v, &[]);
     assert_eq!(c[..4], [VERSION, COUNT_ESC, 255, 0]);
-    assert_eq!(Chunk::parse(&c).unwrap().values(), v);
+    assert_eq!(readable(Chunk::parse(&c).unwrap().values()), readable(v));
     let mut short = vec![VERSION, COUNT_ESC, 1, 0, 5];
     short.extend(0.5f32.to_le_bytes());
     short.push(0);
@@ -196,10 +203,11 @@ fn truncation_at_every_byte_is_an_error() {
 
 #[test]
 fn rejects_version_index_order_values_and_trailing_bytes() {
-    for ver in [0u8, 3, 255] {
-        bad(&raw(ver, &[], &[]));
+    // the old layout's versions 1 and 2, and unknown ones: rejected, not misread
+    for ver in [0u8, 1, 2, 5, 255] {
+        assert_eq!(Chunk::parse(&raw(ver, &[], &[])).err(), Some(LoadError::UnknownVersion), "version {ver}");
     }
-    bad(&raw(VERSION_TEXT, &[], &[])); // version 2 needs its text section
+    bad(&raw(VERSION_TEXT, &[], &[])); // version 4 needs its text section
     bad_wide(&raw(VERSION, &[(pm::COUNT, 0.5)], &[]));
     assert_eq!(Chunk::parse(&raw(VERSION, &[(pm::COUNT - 1, 0.5)], &[])).is_ok(), cfg!(feature = "us-chunk-wide"), "the last parameter decodes");
     bad(&raw(VERSION, &[(pm::ctl::BEND_RANGE, 1.5)], &[]));
@@ -280,7 +288,7 @@ fn gsm_sampler_index_must_exist() {
             (pm::smp_index(0), index),
         ])
     };
-    let sampler = 1.0; // choice(5) index 4 = 1.0
+    let sampler = pm::osc_type::encode(pm::osc_type::SAMPLER);
     // GSM source (0), index 1 with one sample: ok; index 2: error; index 0 = none: ok
     assert!(Chunk::parse(&encode(&slot(sampler, 0.0, 1.0), &[&e])).is_ok());
     assert!(Chunk::parse(&encode(&slot(sampler, 0.0, 0.0), &[&e])).is_ok());
@@ -323,7 +331,7 @@ fn speech_text_makes_a_version_2_chunk() {
     if cfg!(feature = "us-speech") {
         let ch = Chunk::parse(&c).unwrap();
         assert_eq!(ch.text(), text);
-        assert_eq!(ch.values(), v);
+        assert_eq!(readable(ch.values()), readable(v));
         assert_eq!(Chunk::parse(&encode(&v, &[])).unwrap().text(), b"");
         for n in 0..c.len() {
             assert!(Chunk::parse(&c[..n]).is_err(), "cut at {n}");

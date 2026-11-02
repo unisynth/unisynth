@@ -4,7 +4,7 @@
 
 use super::osc_sample::{bank, chunk_of, dls_slot, gsm_entry, sh, with_bank};
 use super::*;
-use crate::params::{shape as sp, v};
+use crate::params::old::{shape as sp, v};
 
 const RATE: f64 = 44100.0;
 
@@ -161,11 +161,11 @@ fn automating_a_structural_parameter_cannot_reach_memory_that_was_not_sized() {
     let base = render(&mut ins, RATE, &[on(0, 60)], 3000, 512).0;
     ins.reset();
     for ty in [osc_type::WAVETABLE, osc_type::SAMPLER, osc_type::BLIT, osc_type::OFF] {
-        ins.set_param(osc(0, o::TYPE), inv::inv_choice(ty, osc_type::COUNT));
+        ins.set_param(v3::osc(0, v3::o::TYPE), v3::osc_type::encode([v3::osc_type::WAVETABLE, v3::osc_type::SAMPLER, v3::osc_type::BLIT, v3::osc_type::OFF][[osc_type::WAVETABLE, osc_type::SAMPLER, osc_type::BLIT, osc_type::OFF].iter().position(|&t| t == ty).unwrap()]));
     }
     ins.set_param(v::CAPACITY, super::cap(64));
-    ins.set_param(sh(sp::SMP_SOURCE), 1.0);
-    ins.set_param(pm::smp_index(0), 7.0);
+    ins.set_param(v3i(sh(sp::SMP_SOURCE)), 1.0);
+    ins.set_param(v3::smp_index(0), 7.0);
     let after = render(&mut ins, RATE, &[on(0, 60), on(10, 62), on(20, 64)], 3000, 512).0;
     assert!(after.iter().all(|x| x.is_finite()));
     assert_eq!(ins.voices().len(), 2, "the capacity stays what was sized");

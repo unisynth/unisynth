@@ -85,7 +85,7 @@ fn value_only_edit_is_a_parameter_set_not_a_rebuild() {
     let _ = live(&mut h, 22050, 128);
     let e = h.update(&b2).unwrap();
     assert_eq!((e.params, e.rebuilt, e.schedules, e.mixer), (1, 0, 0, false), "{e:?}");
-    v["tracks"][1]["devices"][0]["values"]["osc1.type"] = serde_json::json!(0.75); // structural: oscillator type
+    v["tracks"][1]["devices"][0]["values"]["osc1.type"] = serde_json::json!(0.25); // structural: oscillator type
     let e = h.update(&blob(&v)).unwrap();
     assert_eq!(e.rebuilt, 1, "{e:?}");
 }
@@ -191,7 +191,7 @@ fn random_edits_between_calls_never_panic() {
                 let mut v = base.clone();
                 v["clips"][0]["notes"][0][2] = serde_json::json!(rnd() % 128);
                 v["tracks"][rnd() as usize % 3]["volume"] = serde_json::json!((rnd() % 100) as f64 / 50.0);
-                if rnd() % 2 == 0 { v["tracks"][0]["devices"][0]["values"]["osc1.type"] = serde_json::json!((rnd() % 5) as f64 / 4.0); }
+                if rnd() % 2 == 0 { v["tracks"][0]["devices"][0]["values"]["osc1.type"] = serde_json::json!((rnd() % 5) as f64 / 12.0); }
                 if rnd() % 3 == 0 { v["tracks"][2]["receives"] = serde_json::json!([{ "from": "lead", "channel": "main", "volume": 1.0 }]); }
                 if rnd() % 4 == 0 { v["tracks"].as_array_mut().unwrap().pop(); v["master"]["receives"] = serde_json::json!([{ "from": "lead", "channel": "main", "volume": 1.0 }]); }
                 h.update(&blob(&v)).unwrap();

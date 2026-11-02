@@ -1,4 +1,4 @@
-//! The mod matrix (design D6): 16 slots of `(source, target, amount, operation)` (slots 13–16 and the Add operation:
+//! The mod matrix (design D6): 16 slots of `(source, target, amount, operation)` (slots 11–16 and the Add operation:
 //! change add-v2-import, design D3).
 //!
 //! A **Scale** slot contributes a factor; the factors aimed at one target multiply (`scale`). An **Offset** slot
@@ -17,7 +17,7 @@ use crate::law;
 use crate::lfo;
 use crate::params::{self as pm, m, COUNT};
 
-/// Mod sources (`m::SOURCE`, stored as an expanded choice: `params::kinds` with 10 old sources).
+/// Mod sources (`m::SOURCE`, `Choice(17)`).
 pub mod source {
     pub const NONE: usize = 0;
     pub const ENV1: usize = 1;
@@ -25,36 +25,37 @@ pub mod source {
     pub const WHEEL: usize = 7;
     pub const VELOCITY: usize = 8;
     pub const KEY: usize = 9;
-    /// Sources of chunk v1 (`inv_choice(s, COUNT)` still encodes them).
-    pub const COUNT: usize = 10;
+    /// Sources of the old chunk v1 (the migration decodes the old expanded choice with it).
+    pub const COUNT_V1: usize = 10;
     /// Controller 2 (breath); controllers 2–7 are `CC2..CC2 + 6` (change add-v2-import).
     pub const CC2: usize = 10;
-    /// V2's note source `2·(note − 48)/128`.
-    pub const V2_NOTE: usize = 16;
-    pub const ALL: usize = 17;
+    /// The note, centred: `2·(note − 48)/128`.
+    pub const NOTE_CENTRED: usize = 16;
+    pub const COUNT: usize = 17;
     #[inline]
     pub fn decode(p: f32) -> usize {
-        crate::params::kinds::decode_in(p, COUNT, ALL - COUNT, NONE, cfg!(feature = "us-matrix-add"))
+        crate::law::choice(p, COUNT)
     }
-    pub fn encode(id: usize) -> f32 {
-        crate::params::kinds::encode(id, COUNT)
+    pub const fn encode(id: usize) -> f32 {
+        crate::params::choice_value(id, COUNT)
     }
 }
 
-/// Slot operations (`m::OPERATION`, an expanded choice with 2 old operations).
+/// Slot operations (`m::OPERATION`, `Choice(3)`).
 pub mod op {
     pub const SCALE: usize = 0;
     pub const OFFSET: usize = 1;
-    pub const COUNT: usize = 2;
-    /// V2's additive rule (change add-v2-import).
+    /// Operations of the old chunk v1.
+    pub const COUNT_V1: usize = 2;
+    /// Adds `amount · source` to a parameter target's normalized value (change add-v2-import).
     pub const ADD: usize = 2;
-    pub const ALL: usize = 3;
+    pub const COUNT: usize = 3;
     #[inline]
     pub fn decode(p: f32) -> usize {
-        crate::params::kinds::decode_in(p, COUNT, ALL - COUNT, SCALE, cfg!(feature = "us-matrix-add"))
+        crate::law::choice(p, COUNT)
     }
-    pub fn encode(id: usize) -> f32 {
-        crate::params::kinds::encode(id, COUNT)
+    pub const fn encode(id: usize) -> f32 {
+        crate::params::choice_value(id, COUNT)
     }
 }
 
@@ -92,7 +93,7 @@ pub mod target {
     pub const PARAM: u8 = 78;
     pub const COUNT: u8 = PARAM + PARAMS.len() as u8;
 
-    use crate::params::{self as pm, ch, dist, e, l, lx, o, shape, v, v2};
+    use crate::params::{self as pm, ch, dist, e, l, o, shape, v, vs};
     /// The parameters an Add slot can target: the 64 V2 parameters `sounddef.h` marks as modulation destinations, in
     /// V2's order, at their unified index (design D4a). Frozen with this table.
     pub const PARAMS: [usize; 64] = [
@@ -100,41 +101,41 @@ pub mod target {
         v::TRANSPOSE,
         pm::osc(0, o::COARSE),
         pm::osc(0, o::FINE),
-        pm::osc(0, o::SHAPE + shape::V2_COLOR),
+        pm::osc(0, o::SHAPE + shape::NAIVE_COLOR),
         pm::osc(0, o::GAIN),
         pm::osc(1, o::COARSE),
         pm::osc(1, o::FINE),
-        pm::osc(1, o::SHAPE + shape::V2_COLOR),
+        pm::osc(1, o::SHAPE + shape::NAIVE_COLOR),
         pm::osc(1, o::GAIN),
         pm::osc(2, o::COARSE),
         pm::osc(2, o::FINE),
-        pm::osc(2, o::SHAPE + shape::V2_COLOR),
+        pm::osc(2, o::SHAPE + shape::NAIVE_COLOR),
         pm::osc(2, o::GAIN),
         pm::filt(0, pm::f::CUTOFF),
         pm::filt(0, pm::f::RESONANCE),
         pm::filt(1, pm::f::CUTOFF),
         pm::filt(1, pm::f::RESONANCE),
-        v2::BALANCE,
-        pm::VDIST + dist::GAIN,
-        pm::VDIST + dist::P1,
-        pm::VDIST + dist::P2,
+        vs::BALANCE,
+        pm::DRIVE + dist::GAIN,
+        pm::DRIVE + dist::P1,
+        pm::DRIVE + dist::P2,
         pm::env(0, e::ATTACK),
         pm::env(0, e::DECAY),
         pm::env(0, e::SUSTAIN),
-        pm::env(0, e::SLOPE),
+        pm::env(0, e::SUSTAIN_SLOPE),
         pm::env(0, e::RELEASE),
-        pm::env_amp(0),
+        pm::env(0, e::AMPLIFY),
         pm::env(1, e::ATTACK),
         pm::env(1, e::DECAY),
         pm::env(1, e::SUSTAIN),
-        pm::env(1, e::SLOPE),
+        pm::env(1, e::SUSTAIN_SLOPE),
         pm::env(1, e::RELEASE),
-        pm::env_amp(1),
+        pm::env(1, e::AMPLIFY),
         pm::lfo(0, l::RATE),
-        pm::lfo_ext(0, lx::PHASE),
+        pm::lfo(0, l::PHASE),
         pm::lfo(0, l::DEPTH),
         pm::lfo(1, l::RATE),
-        pm::lfo_ext(1, lx::PHASE),
+        pm::lfo(1, l::PHASE),
         pm::lfo(1, l::DEPTH),
         ch::VOL,
         ch::RECV_AUXA,
@@ -174,7 +175,7 @@ pub mod target {
     /// Whether parameter target `t` belongs to the channel stage (evaluated from the newest voice, design D3).
     pub const fn is_channel(t: u8) -> bool {
         match param(t) {
-            Some(i) => i >= pm::CH,
+            Some(i) => pm::is_strip(i),
             None => false,
         }
     }
@@ -243,13 +244,18 @@ pub mod target {
     }
 }
 
-/// Slots this build evaluates: 16 with `us-matrix-add`, else the 12 of chunk v1.
-pub const SLOTS: usize = if cfg!(feature = "us-matrix-add") { pm::MOD_SLOTS } else { pm::MOD_SLOTS1 };
+/// Slots 1–10, the chunk's one-byte block: the matrix without `us-matrix-add` (one index form for every slot it reads).
+pub const SLOTS_BASE: usize = pm::MOD_SLOTS1;
+/// Slots whose own amount is a target ([`target::SLOT`]`..`): 1–12.
+pub const OWN_SLOTS: usize = 12;
 
-/// Whether slot `i` needs `us-matrix-add`: it routes and is one of slots 13–16, Adds, or reads a later source.
+/// Slots this build evaluates: 16 with `us-matrix-add`, else slots 1–10.
+pub const SLOTS: usize = if cfg!(feature = "us-matrix-add") { pm::MOD_SLOTS } else { SLOTS_BASE };
+
+/// Whether slot `i` needs `us-matrix-add`: it routes and is one of slots 11–16, Adds, or reads a later source.
 pub fn needs_add(p: &[f32; COUNT], i: usize) -> bool {
     let b = pm::modslot(i, 0);
-    routes(p, i) && (i >= pm::MOD_SLOTS1 || op::decode(p[b + m::OPERATION]) == op::ADD || source::decode(p[b + m::SOURCE]) >= source::COUNT)
+    routes_as(p, i, true) && (i >= SLOTS_BASE || op::decode(p[b + m::OPERATION]) == op::ADD || source::decode(p[b + m::SOURCE]) >= source::COUNT_V1)
 }
 
 /// Whether mod slot `i` routes: it has a source and a valid target (what `Matrix::eval` makes active).
@@ -257,13 +263,18 @@ pub fn needs_add(p: &[f32; COUNT], i: usize) -> bool {
 pub fn adds_to(p: &[f32; COUNT], i: usize, param: usize) -> bool {
     let b = pm::modslot(i, 0);
     let t = law::index(p[b + m::TARGET]);
-    routes(p, i) && op::decode(p[b + m::OPERATION]) == op::ADD && t >= target::PARAM && target::PARAMS.get((t - target::PARAM) as usize) == Some(&param)
+    routes_as(p, i, true) && op::decode(p[b + m::OPERATION]) == op::ADD && t >= target::PARAM && target::PARAMS.get((t - target::PARAM) as usize) == Some(&param)
 }
 
 pub fn routes(p: &[f32; COUNT], i: usize) -> bool {
+    // a build without `us-matrix-add` never loads an Add slot (`needs_add` reads every patch with Add on)
+    routes_as(p, i, cfg!(feature = "us-matrix-add"))
+}
+
+fn routes_as(p: &[f32; COUNT], i: usize, add_on: bool) -> bool {
     let b = pm::modslot(i, 0);
     let t = law::index(p[b + m::TARGET]);
-    let add = op::decode(p[b + m::OPERATION]) == op::ADD;
+    let add = add_on && op::decode(p[b + m::OPERATION]) == op::ADD;
     // an Add slot acts only on a parameter target, the others only on the targets before them
     source::decode(p[b + m::SOURCE]) != source::NONE && t != target::NONE && t < target::COUNT && (add == (t >= target::PARAM))
 }
@@ -302,12 +313,12 @@ pub struct Sources {
 #[derive(Clone, Copy, Debug)]
 pub struct Matrix {
     slot: [Slot; SLOTS],
-    own: [f32; pm::MOD_SLOTS1],
+    own: [f32; OWN_SLOTS],
 }
 
 impl Matrix {
     pub const fn new() -> Self {
-        Matrix { slot: [OFF; SLOTS], own: [1.0; pm::MOD_SLOTS1] }
+        Matrix { slot: [OFF; SLOTS], own: [1.0; OWN_SLOTS] }
     }
 
     /// Product of the Scale results aimed at `t` (1 when none).
@@ -355,7 +366,8 @@ impl Matrix {
             let source = source::decode(p[b + m::SOURCE]);
             let tgt = law::index(p[b + m::TARGET]);
             let opn = op::decode(p[b + m::OPERATION]);
-            let (scale, add) = (opn == op::SCALE, opn == op::ADD);
+            // Add needs `us-matrix-add` (a patch with one does not load without it): elsewhere it is never set
+            let (scale, add) = (opn == op::SCALE, cfg!(feature = "us-matrix-add") && opn == op::ADD);
             let value = match source {
                 s @ source::ENV1..=4 => src.env[s - source::ENV1],
                 s @ (source::LFO1 | 6) => {
@@ -385,11 +397,11 @@ impl Matrix {
             } else {
                 law::offset_amount(p[b + m::AMOUNT], target::offset_range(tgt))
             };
-            let own = if i < pm::MOD_SLOTS1 { self.own[i] } else { 1.0 };
-            let voice_src = matches!(source, source::ENV1..=6 | source::KEY | source::V2_NOTE);
+            let own = if i < OWN_SLOTS { self.own[i] } else { 1.0 };
+            let voice_src = matches!(source, source::ENV1..=6 | source::KEY | source::NOTE_CENTRED);
             self.slot[i] = Slot { active: true, scale, add, voice_src, target: tgt, res: amount * value * own };
         }
-        for i in 0..pm::MOD_SLOTS1 {
+        for i in 0..OWN_SLOTS.min(SLOTS) {
             self.own[i] = self.scale(target::SLOT + i as u8);
         }
     }

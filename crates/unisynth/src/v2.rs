@@ -231,7 +231,7 @@ impl DistP {
             dmode::DECIMATE => d.dfreq = ftou32(calcfreq(p1 / 128.0)),
             _ => {
                 let kind = crate::flt::STEPS_KINDS[(mode - dmode::FLT_BASE - 1) as usize];
-                (d.fk, d.flt) = crate::flt::coefs_steps(kind, p1 / 128.0, p2 / 128.0, rate, false);
+                (d.fk, d.flt) = (kind, crate::flt::coefs_steps(kind, p1 / 128.0, p2 / 128.0, rate, crate::flt::Forms::STEPS));
             }
         }
         d

@@ -16,10 +16,10 @@
 //! - An envelope ends at the end of a quadratic release, below 10⁻⁵ in a power release, or below `2⁻¹³/128` in any
 //!   exponential stage.
 //!
-//! Until the format switch (design D4, "Order of work") the mode picks law and curve together (seconds + quadratic,
-//! rate + power, frame + exponential), the slope field is the power exponent on the rate law and the sustain slope on
-//! the frame law, and the frame law is re-read every control segment and keeps the level at note-on. The other laws
-//! take their fields at note-on, like the original envelopes.
+//! The fields (v3 layout): law, curve ("by law": quadratic for seconds, power for rate, exponential for frame),
+//! curve slope (the power exponent), sustain slope, amplify. The frame law is re-read every control segment and keeps
+//! the level at note-on; the other laws take their fields at note-on, like the original envelopes. The power curve's
+//! code comes with `us-env-rate`, the exponential curve's, the sustain slope's and amplify's with `us-env-frame`.
 
 #[cfg(feature = "us-env-seconds")]
 use crate::law;
@@ -73,8 +73,8 @@ pub struct EnvP {
     /// 0..1, ½ keeps the held level.
     pub sustain_slope: f32,
     pub amp: f32,
-    /// Frame law, format versions below 2: 256-sample frames and the year-2000 laws (v2redux `DELTA_FRAME256`,
-    /// `DELTA_ENV_CURVES`; quirk candidate `coarse_env`).
+    /// Frame law with quirk `coarse_env`: 256-sample frames and the year-2000 laws (v2redux `DELTA_FRAME256`,
+    /// `DELTA_ENV_CURVES`).
     pub coarse: bool,
     /// A seconds-law attack of 0 is instant instead of 1 ms: a voice with a clocked slot sets it (the source has no
     /// attack; change add-cauldron-xm-import).
@@ -95,6 +95,26 @@ const fn of_mode(by_rate: bool) -> bool {
 pub fn check_frame(frame: bool) -> Result<(), synth_core::mix::LoadError> {
     if frame && !FRAME {
         return Err(synth_core::mix::LoadError::UnsupportedModule(crate::module::ENV_FRAME));
+    }
+    Ok(())
+}
+
+/// Fails with `UnsupportedModule` when the build lacks what envelope `i` of `p` uses: its law, its curve (power: the
+/// rate law's module, exponential: the frame law's), a sustain slope or an amplify (the frame law's module).
+pub fn check_settings(p: &[f32; pm::COUNT], i: usize) -> Result<(), synth_core::mix::LoadError> {
+    let lw = crate::law::choice(p[pm::env(i, e::LAW)], pm::env_law::COUNT);
+    let c = crate::law::choice(p[pm::env(i, e::CURVE)], pm::env_curve::COUNT);
+    let c = if c == pm::env_curve::BY_LAW { lw + 1 } else { c };
+    let frame_code = lw == pm::env_law::FRAME
+        || c == pm::env_curve::EXPONENTIAL
+        || p[pm::env(i, e::SUSTAIN_SLOPE)] != 0.5
+        || p[pm::env(i, e::AMPLIFY)] != 1.0;
+    check_frame(frame_code)?;
+    if lw != pm::env_law::FRAME {
+        check(lw == pm::env_law::RATE)?;
+    }
+    if c == pm::env_curve::POWER {
+        check(true)?;
     }
     Ok(())
 }
@@ -129,27 +149,33 @@ impl EnvP {
     };
 
     pub fn read(p: &[f32; pm::COUNT], i: usize) -> Self {
-        let mode = pm::env_mode::decode(p[pm::env(i, e::MODE)]);
-        let law = if FRAME && mode == pm::env_mode::V2 {
+        let lw = crate::law::choice(p[pm::env(i, e::LAW)], pm::env_law::COUNT);
+        let law = if FRAME && lw == pm::env_law::FRAME {
             time_law::FRAME
-        } else if of_mode(mode == pm::env_mode::RATE) {
+        } else if of_mode(lw == pm::env_law::RATE) {
             time_law::RATE
         } else {
             time_law::SECONDS
         };
-        let slope = p[pm::env(i, e::SLOPE)];
         let frame = law == time_law::FRAME;
+        // only the power and exponential curves' modules read the curve; without them it is the quadratic
+        let curve = if cfg!(any(feature = "us-env-rate", feature = "us-env-frame")) {
+            let c = crate::law::choice(p[pm::env(i, e::CURVE)], pm::env_curve::COUNT);
+            if c == pm::env_curve::BY_LAW { law } else { (c - 1) as u8 }
+        } else {
+            curve::QUADRATIC
+        };
         EnvP {
             law,
-            curve: [curve::QUADRATIC, curve::POWER, curve::EXPONENTIAL][law as usize],
+            curve,
             a: p[pm::env(i, e::ATTACK)],
             d: p[pm::env(i, e::DECAY)],
             s: p[pm::env(i, e::SUSTAIN)],
             r: p[pm::env(i, e::RELEASE)],
-            curve_slope: slope,
-            sustain_slope: if frame { slope } else { 0.5 },
-            amp: if FRAME { p[pm::env_amp(i)] } else { 1.0 },
-            coarse: frame && pm::era_settings(p).coarse_env,
+            curve_slope: p[pm::env(i, e::CURVE_SLOPE)],
+            sustain_slope: if FRAME { p[pm::env(i, e::SUSTAIN_SLOPE)] } else { 0.5 },
+            amp: if FRAME { p[pm::env(i, e::AMPLIFY)] } else { 1.0 },
+            coarse: frame && cfg!(feature = "us-quirk-coarse-env") && pm::quirk_on(p, pm::quirk::COARSE_ENV),
             instant: false,
         }
     }
@@ -916,15 +942,15 @@ mod gating {
 
     #[test]
     fn the_amplitude_envelope_always_counts() {
-        expect_rate(need(&[(pm::env(0, e::MODE), 1.0)]));
+        expect_rate(need(&[(pm::env(0, e::LAW), pm::env_law::encode(pm::env_law::RATE))]));
     }
 
     #[cfg(feature = "us-matrix")]
     #[test]
     fn another_envelope_counts_only_when_the_matrix_reads_it() {
-        assert!(need(&[(pm::env(2, e::MODE), 1.0)]).is_ok(), "not read: its mode is irrelevant");
+        assert!(need(&[(pm::env(2, e::LAW), pm::env_law::encode(pm::env_law::RATE))]).is_ok(), "not read: its mode is irrelevant");
         let read = [
-            (pm::env(2, e::MODE), 1.0),
+            (pm::env(2, e::LAW), pm::env_law::encode(pm::env_law::RATE)),
             (pm::modslot(5, pm::m::SOURCE), inv::inv_choice(source::ENV1 + 2, source::COUNT)),
             (pm::modslot(5, pm::m::TARGET), inv::inv_index(target::GAIN)),
         ];

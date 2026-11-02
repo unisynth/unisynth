@@ -77,9 +77,29 @@ fn env(rate: f64, tempo: i32) -> Env<'static> {
     Env { rate, tempo, bank: None }
 }
 
-/// Loads effect kind `k` with `vals` (`[mode, params…]`) and runs `f` on it.
+/// The v3 chunk of the old-layout effect values `vals` (`[mode as stored before the switch, params…]`): the tests
+/// keep their meaning across the format switch (change unify-v2-algorithms 6.5) and the effect golden pins it.
+pub(super) fn chunk(k: u8, vals: &[f32]) -> Vec<u8> {
+    let mut old: Vec<u8> = vals.iter().flat_map(|x| x.to_le_bytes()).collect();
+    old.extend((old.len() as i32 + 4).to_le_bytes());
+    crate::migrate::effect_chunk(k, &old).unwrap()
+}
+
+/// The old layout's stored value of mode `m` of kind `k` (the expanded choice).
+pub(super) fn old_mode_value(k: u8, m: usize) -> f32 {
+    let (old, later) = (mode_count(k), mode_total(k) - mode_count(k));
+    if later == 0 {
+        mode(m, old)
+    } else if old == 1 {
+        m as f32 / later as f32
+    } else {
+        crate::params::old::kinds::encode(m, old)
+    }
+}
+
+/// Loads effect kind `k` with old-layout `vals` (`[mode, params…]`, see [`chunk`]) and runs `f` on it.
 pub(super) fn with_fx<R>(k: u8, vals: &[f32], rate: f64, tempo: i32, f: impl FnOnce(&mut UFx) -> R) -> R {
-    let chunk = encode(vals);
+    let chunk = chunk(k, vals);
     let env = env(rate, tempo);
     let mut mem = vec![0u8; UFx::need(k, &chunk, &env).unwrap()];
     let mut pool = Pool::new(&mut mem);
@@ -154,23 +174,28 @@ pub(super) fn parity_at(
 #[test]
 fn the_mode_is_the_first_parameter_and_selects_by_choice() {
     assert_eq!(mode_count(kind::DISTORTION), 3);
-    assert_eq!(mode_of(kind::DISTORTION, &encode(&[1.0])), 2, "power keeps its stored value 1.0");
-    assert_eq!(mode_of(kind::DISTORTION, &encode(&[0.5])), 1);
+    assert_eq!(mode_of(kind::DISTORTION, &chunk(kind::DISTORTION, &[1.0])), 2, "power keeps its stored value 1.0");
+    assert_eq!(mode_of(kind::DISTORTION, &chunk(kind::DISTORTION, &[0.5])), 1);
     assert_eq!(mode_count(kind::REVERB), 3);
     assert_eq!(mode_count(kind::CRUSHER), 1);
     assert_eq!(mode_count(kind::INSTRUMENT), 0);
-    assert_eq!(mode_of(kind::REVERB, &encode(&[0.0])), 0);
-    assert_eq!(mode_of(kind::REVERB, &encode(&[0.5])), 1);
-    assert_eq!(mode_of(kind::REVERB, &encode(&[1.0])), 2);
-    assert_eq!(mode_of(kind::REVERB, &encode(&[])), 0, "no mode in the chunk = mode 0");
-    assert_eq!(mode_of(kind::CRUSHER, &encode(&[0.9])), 0);
+    assert_eq!(mode_of(kind::REVERB, &chunk(kind::REVERB, &[0.0])), 0);
+    assert_eq!(mode_of(kind::REVERB, &chunk(kind::REVERB, &[0.5])), 1);
+    assert_eq!(mode_of(kind::REVERB, &chunk(kind::REVERB, &[1.0])), 2);
+    assert_eq!(mode_of(kind::REVERB, &chunk(kind::REVERB, &[])), 0, "no mode in the chunk = mode 0");
+    assert_eq!(mode_of(kind::CRUSHER, &chunk(kind::CRUSHER, &[0.9])), 0);
     assert!(is_effect(65) && is_effect(73) && !is_effect(64) && !is_effect(74));
 }
 
 #[test]
 #[cfg(feature = "us-fx-crusher")]
 fn a_chunk_without_parameters_loads_with_the_defaults() {
-    for chunk in [vec![], vec![1, 2, 3], encode(&[])] {
+    // the tag alone (mode 0, defaults) and the mode alone load; an old chunk or a cut one does not
+    for (c, ok) in [(vec![], false), (vec![1, 2, 3], false), (encode(&[]), true), (encode(&[0.0]), true), (chunk(kind::CRUSHER, &[]), true)] {
+        let env = env(44100.0, 120);
+        assert_eq!(UFx::need(kind::CRUSHER, &c, &env).is_ok(), ok, "{c:?}");
+    }
+    for chunk in [encode(&[]), chunk(kind::CRUSHER, &[])] {
         let env = env(44100.0, 120);
         let mut mem = vec![0u8; UFx::need(kind::CRUSHER, &chunk, &env).unwrap()];
         let mut pool = Pool::new(&mut mem);
@@ -206,7 +231,7 @@ fn parameters_past_the_end_are_ignored_and_the_count_is_one_more_than_the_mode_h
 fn a_mode_the_build_lacks_is_named_at_load() {
     let env = env(44100.0, 120);
     for &(k, i, id) in MODES.iter() {
-        let chunk = encode(&[mode_value(k, i)]);
+        let chunk = chunk(k, &[old_mode_value(k, i)]);
         let r = UFx::need(k, &chunk, &env);
         let built = match id {
             m::FX_DISTORTION_SHAPER => cfg!(feature = "us-fx-distortion-shaper"),
@@ -247,7 +272,7 @@ fn a_mode_the_build_lacks_is_named_at_load() {
 fn effect_kinds_load_through_the_registry() {
     use crate::device::UDevice;
     let env = env(44100.0, 120);
-    let chunk = encode(&[0.0, 0.5, 0.5, 1.0]);
+    let chunk = chunk(kind::CRUSHER, &[0.0, 0.5, 0.5, 1.0]);
     let need = UDevice::need(kind::CRUSHER, &chunk, &env).unwrap();
     let mut mem = vec![0u8; need];
     let mut pool = Pool::new(&mut mem);
@@ -265,7 +290,7 @@ fn reset_restores_the_loaded_state_and_calls_do_not_matter() {
         let n = mode_count(k);
         let mut vals = vec![mode(i, n)];
         vals.extend(values(40 + i as u32, 14));
-        if UFx::need(k, &encode(&vals), &env(44100.0, 120)).is_err() {
+        if UFx::need(k, &chunk(k, &vals), &env(44100.0, 120)).is_err() {
             continue;
         }
         with_fx(k, &vals, 44100.0, 120, |fx| {
@@ -482,7 +507,7 @@ fn automating_a_parameter_is_loading_it() {
         a.extend(values(70 + i as u32, 14));
         let mut b = vec![mode(i, n)];
         b.extend(values(90 + i as u32, 14));
-        if UFx::need(k, &encode(&a), &env(44100.0, 120)).is_err() {
+        if UFx::need(k, &chunk(k, &a), &env(44100.0, 120)).is_err() {
             continue;
         }
         let want = with_fx(k, &b, 44100.0, 120, |fx| run(fx, 44100.0, 120, &l, &r, 500));
@@ -543,7 +568,7 @@ fn the_longest_echo_fits_the_pool_it_reports() {
     let rate = 44100.0;
     let mut v = vec![0.0];
     v.extend([1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 0.7, 0.3, 1.0]);
-    let chunk = encode(&v);
+    let chunk = chunk(kind::DELAY, &v);
     let env = env(rate, 60);
     let need = UFx::need(kind::DELAY, &chunk, &env).unwrap();
     assert!(need >= 2 * 4 * (4.2 * rate) as usize, "{need}");
@@ -656,7 +681,7 @@ fn odd_call_sizes_change_nothing_for_any_mode() {
         let n = mode_count(k);
         let mut v = vec![mode(i, n)];
         v.extend(values(300 + i as u32, 14));
-        if UFx::need(k, &encode(&v), &env(44100.0, 120)).is_err() {
+        if UFx::need(k, &chunk(k, &v), &env(44100.0, 120)).is_err() {
             continue;
         }
         let whole = with_fx(k, &v, 44100.0, 120, |fx| run(fx, 44100.0, 120, &l, &r, 6000));
@@ -720,7 +745,7 @@ fn the_sidechain_key_drives_the_compressor_and_is_never_written() {
     let level = |o: &[f32], from: usize, len: usize| rms(&o[from..from + len]);
     let run_it = |sidechain: f32| {
         let mut dev = {
-            let chunk = encode(&p(sidechain));
+            let chunk = chunk(kind::COMPRESSOR, &p(sidechain));
             let env = env(rate, 120);
             let mut mem = std::vec![0u8; UFx::need(kind::COMPRESSOR, &chunk, &env).unwrap()];
             let leaked: &'static mut [u8] = std::boxed::Box::leak(mem.into_boxed_slice());
@@ -796,19 +821,17 @@ fn the_random_parameter_sets_cover_the_range_of_each_parameter() {
 }
 
 #[test]
-fn v2_modes_sit_between_the_old_ones() {
-    // every old stored value keeps its mode; the V2 modes have their own values
-    for &(k, n) in OLD_MODES.iter() {
-        for i in 0..n {
-            assert_eq!(mode_of_value(k, mode(i, n)), i, "kind {k} mode {i}");
-            assert_eq!(mode_value(k, i).to_bits(), mode(i, n).to_bits(), "kind {k} mode {i}: same stored value");
-        }
-    }
+fn every_mode_is_a_plain_choice_and_its_old_value_migrates_to_it() {
+    // v3: the mode is `Choice(mode_total(k))`; the old expanded value of every mode migrates to it
     for &(k, i, _) in MODES.iter() {
-        assert_eq!(mode_of_value(k, mode_value(k, i)), i, "kind {k} mode {i}");
+        assert_eq!(mode_of_value(k, super::mode_value(k, i)), i, "kind {k} mode {i}");
+        assert_eq!(super::mode_value(k, i), mode(i, mode_total(k)));
+        assert_eq!(mode_of(k, &chunk(k, &[old_mode_value(k, i)])), i, "kind {k} mode {i}: the old value");
     }
+    // an old mode value read as v3 would be another mode: the tag keeps old chunks out
+    assert_ne!(mode_of_value(kind::DISTORTION, old_mode_value(kind::DISTORTION, 2)), 2);
     assert_eq!((mode_total(kind::REVERB), mode_count(kind::REVERB)), (4, 3));
-    assert_eq!(mode_of(kind::COMPRESSOR, &encode(&[1.0])), 1);
+    assert_eq!(mode_of(kind::COMPRESSOR, &chunk(kind::COMPRESSOR, &[1.0])), 1);
 }
 
 #[test]
@@ -816,7 +839,7 @@ fn v2_modes_sit_between_the_old_ones() {
 fn the_v2_reverb_has_no_low_cut_before_version_4() {
     let (l, r) = noise(9, 8000);
     let render = |lowcut: f32, era: u32| {
-        let p = [mode_value(kind::REVERB, 3), 64.0 / 128.0, 64.0 / 128.0, lowcut, 127.0 / 128.0, crate::law::host::inv_count(era, 0, 6)];
+        let p = [old_mode_value(kind::REVERB, 3), 64.0 / 128.0, 64.0 / 128.0, lowcut, 127.0 / 128.0, crate::law::host::inv_count(era, 0, 6)];
         with_fx(kind::REVERB, &p, 44100.0, 120, |fx| run(fx, 44100.0, 120, &l, &r, 512))
     };
     assert_eq!(render(0.0, 3), render(1.0, 3), "version 3: the low cut does nothing");
@@ -837,16 +860,16 @@ fn the_clocked_modes_take_free_positions_and_old_values_keep_their_modes() {
         (kind::FLANGER, 1.0, 1),
         (kind::FLANGER, 0.5, 2),
     ] {
-        assert_eq!(mode_of(k, &encode(&[v])), want, "kind {k} value {v}");
+        assert_eq!(mode_of(k, &chunk(k, &[v])), want, "kind {k} value {v}");
     }
-    assert_eq!((mode_value(kind::DISTORTION, 3), mode_value(kind::FLANGER, 2)), (0.25, 0.5));
+    assert_eq!((old_mode_value(kind::DISTORTION, 3), old_mode_value(kind::FLANGER, 2)), (0.25, 0.5));
     assert_eq!((module_of(kind::DISTORTION, 3), module_of(kind::FLANGER, 2)), (Some(m::FX_DISTORTION_WRAP), Some(m::FX_FLANGER_COMB)));
 }
 
 /// Comb parameters: delay `k` frames, amount, sweep rate (fraction per frame), restart.
 #[cfg(feature = "us-fx-flanger-comb")]
 fn comb(k: usize, g: f32, s: f32) -> [f32; 5] {
-    [mode_value(kind::FLANGER, 2), k as f32 / 16384.0, g, s / 0.01, 0.0]
+    [old_mode_value(kind::FLANGER, 2), k as f32 / 16384.0, g, s / 0.01, 0.0]
 }
 
 #[test]
@@ -929,7 +952,7 @@ fn the_sweep_is_the_original_doubler_delayed() {
 fn wrap_distortion_wraps_around_full_scale() {
     // drive p·4, offset 2p − 1
     let at = |drive: f32, offset: f32, x: f32| {
-        let v = [mode_value(kind::DISTORTION, 3), drive / 4.0, (offset + 1.0) / 2.0];
+        let v = [old_mode_value(kind::DISTORTION, 3), drive / 4.0, (offset + 1.0) / 2.0];
         with_fx(kind::DISTORTION, &v, 44100.0, 120, |fx| run(fx, 44100.0, 120, &[x; 2], &[x; 2], 2).0[1])
     };
     assert!((at(1.25, 0.0, 0.9) - -0.875).abs() < 1e-6, "1.125 wraps to -0.875");
@@ -949,14 +972,14 @@ fn quiet_after_is_the_memory_of_the_mode() {
         with_fx(k, &v, 44100.0, 120, |fx| synth_core::device::Device::quiet_after(fx))
     };
     let (dist, eq, delay, fl) = (kind::DISTORTION, kind::EQ, kind::DELAY, kind::FLANGER);
-    assert_eq!(q(dist, mode_value(dist, 0), &[0.2, 1.0, 0.0, 1.0]), Some(0), "shaper");
-    assert_eq!(q(eq, mode_value(eq, 1), &[0.5, 0.5, 0.5]), Some(0), "3-band");
-    let tempo = q(delay, mode_value(delay, 0), &[0.5, 0.5, 0.5, 0.5]).unwrap();
+    assert_eq!(q(dist, old_mode_value(dist, 0), &[0.2, 1.0, 0.0, 1.0]), Some(0), "shaper");
+    assert_eq!(q(eq, old_mode_value(eq, 1), &[0.5, 0.5, 0.5]), Some(0), "3-band");
+    let tempo = q(delay, old_mode_value(delay, 0), &[0.5, 0.5, 0.5, 0.5]).unwrap();
     // its whole line: at least the longest delay at 120 BPM, 16 eighths (1 s) + 200 ms
     assert!(tempo as f64 >= 1.2 * 44100.0, "the tempo delay's whole line: {tempo}");
-    assert_eq!(q(fl, mode_value(fl, 2), &[0.01, 1.0, 0.0, 0.0]), Some(16386), "comb: its line");
-    assert_eq!(q(dist, mode_value(dist, 3), &[0.25, 0.5]), Some(0), "wrap without offset");
-    assert_eq!(q(dist, mode_value(dist, 3), &[0.25, 0.7]), None, "wrap with an offset plays DC on silence");
+    assert_eq!(q(fl, old_mode_value(fl, 2), &[0.01, 1.0, 0.0, 0.0]), Some(16386), "comb: its line");
+    assert_eq!(q(dist, old_mode_value(dist, 3), &[0.25, 0.5]), Some(0), "wrap without offset");
+    assert_eq!(q(dist, old_mode_value(dist, 3), &[0.25, 0.7]), None, "wrap with an offset plays DC on silence");
     assert_eq!(q(kind::CRUSHER, 0.0, &[0.5, 0.5, 1.0]), None, "a mode without an answer");
 }
 
@@ -974,7 +997,7 @@ fn a_woken_three_band_ramps_as_if_it_had_run() {
         l
     };
     // awake: blocks at gain 0.1, then 0.3 (silent input), then the gain steps to 0.5 with sound
-    let want = with_fx(eq, &[mode_value(eq, 1), 0.1, 0.1, 0.1], 44100.0, 120, |fx| {
+    let want = with_fx(eq, &[old_mode_value(eq, 1), 0.1, 0.1, 0.1], 44100.0, 120, |fx| {
         block(fx, 0.0);
         for i in 1..=3 {
             synth_core::device::Device::set_param(fx, i, 0.3);
@@ -986,7 +1009,7 @@ fn a_woken_three_band_ramps_as_if_it_had_run() {
         block(fx, 1.0)
     });
     // asleep through the 0.3 block (no run), woken before the step to 0.5
-    let got = with_fx(eq, &[mode_value(eq, 1), 0.1, 0.1, 0.1], 44100.0, 120, |fx| {
+    let got = with_fx(eq, &[old_mode_value(eq, 1), 0.1, 0.1, 0.1], 44100.0, 120, |fx| {
         block(fx, 0.0);
         for i in 1..=3 {
             synth_core::device::Device::set_param(fx, i, 0.3);
@@ -1006,7 +1029,7 @@ fn a_woken_three_band_ramps_as_if_it_had_run() {
 fn a_woken_comb_sweeps_on_as_if_it_had_run() {
     let fl = kind::FLANGER;
     // k = 1000 frames, sweep 0.003 per frame (cap at k after 333 333 frames): silence for 5000 frames, then a tone
-    let vals = [mode_value(fl, 2), 1000.0 / 16384.0, 1.0, 0.3, 0.0];
+    let vals = [old_mode_value(fl, 2), 1000.0 / 16384.0, 1.0, 0.3, 0.0];
     let block = |fx: &mut UFx, x: &[f32]| {
         let (mut l, mut r, mut sl, mut sr) = (x.to_vec(), x.to_vec(), vec![0.0; x.len()], vec![0.0; x.len()]);
         let mut rng = Lcg(1);
@@ -1033,7 +1056,7 @@ fn a_woken_comb_sweeps_on_as_if_it_had_run() {
 #[test]
 fn a_freeverb_answers_its_memory() {
     let r = kind::REVERB;
-    let q = |freeze: f32| with_fx(r, &[mode_value(r, 0), freeze, 0.3, 0.5, 1.0, 0.0, 1.0, 0.12, 0.02], 44100.0, 120, |fx| synth_core::device::Device::quiet_after(fx));
+    let q = |freeze: f32| with_fx(r, &[old_mode_value(r, 0), freeze, 0.3, 0.5, 1.0, 0.0, 1.0, 0.12, 0.02], 44100.0, 120, |fx| synth_core::device::Device::quiet_after(fx));
     let n = q(0.0).expect("a known memory") as usize;
     assert!(n >= 8192 + super::law::ms_to_len(500.0, 44100.0), "{n}");
     assert_eq!(q(1.0), None, "frozen");

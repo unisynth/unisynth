@@ -3,7 +3,7 @@
 
 use super::osc_sample::{chunk_of, sh, with_bank};
 use super::*;
-use crate::params::{shape as sp, smp_source};
+use crate::params::old::{shape as sp, smp_source};
 
 const LEN: usize = 1200;
 /// Gain of a default slot at velocity 100 (as in `osc_sample`).

@@ -44,7 +44,7 @@ struct Flt {
 impl Flt {
     fn new(mode: u8, cut: f32, res: f32) -> Flt {
         let k = crate::flt::STEPS_KINDS[(mode - dmode::FLT_BASE - 1) as usize];
-        let (k, c) = crate::flt::coefs_steps(k, cut / 128.0, res / 128.0, 44_100.0, false);
+        let c = crate::flt::coefs_steps(k, cut / 128.0, res / 128.0, 44_100.0, crate::flt::Forms::STEPS);
         Flt { k, c, s: [0.0; crate::flt::NS] }
     }
     fn run(&mut self, x: f32) -> f32 {

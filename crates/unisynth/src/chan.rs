@@ -34,17 +34,17 @@ pub struct ChanP {
     pub chorus: ModDelP,
     pub comp: CompP,
     pub boost: BoostP,
-    /// Format version 6 (DC filters).
+    /// The strip's DC filters (`ch::DC_FILTER`).
     pub v6: bool,
 }
 
 impl ChanP {
     /// From the parameters (channel Adds already applied).
     pub fn new(p: &[f32; pm::COUNT], rate: f32) -> Self {
-        let era = pm::era_settings(p);
         let r = |i: usize| v2_raw(p[i]);
         let chgain = GAIN * (r(ch::VOL) / 128.0);
-        let v6 = era.dc_filters;
+        let v6 = crate::law::choice(p[ch::DC_FILTER], 2) == 1;
+        let exact = cfg!(feature = "us-quirk-exact-math") && pm::quirk_on(p, pm::quirk::EXACT_MATH);
         let d = ch::DIST;
         let c = ch::CHORUS;
         let k = ch::COMP;
@@ -58,7 +58,7 @@ impl ChanP {
             ],
             recv: [r(ch::RECV_AUXA) / 128.0, r(ch::RECV_AUXB) / 128.0],
             chorus_first: r(ch::FXROUTE) as i32 != 0,
-            dist: DistP::new(r(d), r(d + dist::GAIN), r(d + dist::P1), r(d + dist::P2), rate).native_atan(era.exact_math),
+            dist: DistP::new(r(d), r(d + dist::GAIN), r(d + dist::P1), r(d + dist::P2), rate).native_atan(exact),
             chorus: ModDelP::new(r(c), r(c + 1), r(c + 2), r(c + 3), r(c + 4), r(c + 5), r(c + 6), CHORUS_LEN, rate),
             comp: CompP::new(r(k), r(k + 1), r(k + 2), r(k + 3), r(k + 4), r(k + 5), r(k + 6), r(k + 7), r(k + 8), rate),
             boost: BoostP::new(r(ch::BOOST), rate),

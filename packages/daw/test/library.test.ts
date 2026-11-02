@@ -31,7 +31,7 @@ beforeAll(async () => {
     join(root, "project/music/.library.json"),
     JSON.stringify({
       format: "us-library/1",
-      tunefish: { "7": { devices: [{ kind: 64, values: { "osc1.type": 0.5, "filt1.type": 0.125, "filt1.cutoff": 0.3 } }, { kind: 68, values: { mode: 0 } }], warnings: ["fixture note"] } },
+      tunefish: { "7": { devices: [{ kind: 64, values: { "osc1.type": 2 / 12, "filt1.type": 1 / 10, "filt1.cutoff": 0.3 } }, { kind: 68, values: { mode: 0 } }], warnings: ["fixture note"] } },
       wavesabre: {},
     }),
   );

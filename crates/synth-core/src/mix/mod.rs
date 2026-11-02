@@ -28,6 +28,8 @@ pub enum LoadError {
     UnsupportedModule(u8),
     /// A device chunk the device cannot read.
     BadChunk,
+    /// A device chunk in a format version this player does not read (an older layout: migrate it on the host).
+    UnknownVersion,
     OutOfMemory,
 }
 

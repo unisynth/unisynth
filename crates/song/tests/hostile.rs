@@ -3,11 +3,11 @@
 
 fn demo_blob() -> Vec<u8> {
     let v = serde_json::json!({
-        "format": "song/1", "rate": 44100, "tempo": 120.0, "signature": [4, 4], "ticks_per_beat": 960, "length": 7680,
+        "format": "song/2", "rate": 44100, "tempo": 120.0, "signature": [4, 4], "ticks_per_beat": 960, "length": 7680,
         "clips": [{ "id": "a", "length": 3840, "notes": [[0, 480, 60, 100], [480, 960, 64, 90], [1920, 240, 67, 80]] }],
         "tracks": [
             { "id": "lead", "name": "Lead", "volume": 0.8, "mute": false, "receives": [],
-              "devices": [ { "kind": 64, "values": { "osc1.type": 0.25, "filt1.type": 0.125 } },
+              "devices": [ { "kind": 64, "values": { "osc1.type": 0.0833333358168602, "filt1.type": 0.10000000149011612 } },
                            { "kind": 68, "values": { "mode": 0.0, "feedback": 0.4 } } ],
               "placements": [{ "clip": "a", "start": 0, "length": 7680, "loop": true }],
               "lanes": [{ "device": 0, "param": "filt1.cutoff", "points": [[0, 0.2], [3840, 0.9]] }] },
@@ -83,10 +83,10 @@ fn automation_on_a_missing_device_is_an_error_not_a_panic() {
 #[test]
 fn hostile_json_is_rejected_without_panics() {
     for text in [
-        "", "{", "[]", "null", r#"{"format":"song/1"}"#,
-        r#"{"format":"song/1","rate":44100,"tempo":1e308,"signature":[4,4],"ticks_per_beat":960,"length":9223372036854775807,"clips":[],"tracks":[],"master":{"id":"m","name":"M","volume":1,"mute":false,"receives":[],"devices":[],"placements":[],"lanes":[]}}"#,
-        r#"{"format":"song/1","rate":0,"tempo":-5,"signature":[0,3],"ticks_per_beat":1,"length":-1,"clips":[{"id":"","length":-4,"notes":[[-1,-1,255,0]]}],"tracks":[],"master":{"id":"","name":"","volume":-1,"mute":false,"receives":[{"from":"x","channel":"side","volume":-1}],"devices":[{"kind":255,"values":{}},{"kind":64,"values":{"osc1.s8":1e9},"samples":["!!"]}],"placements":[{"clip":"z","start":-9,"length":0,"loop":true}],"lanes":[{"device":99,"param":"q","points":[[1e300,2]]}]}}"#,
-        r#"{"format":"song/1","rate":44100,"tempo":120,"signature":[4,4],"ticks_per_beat":960,"length":3840,"clips":[{"id":"a","length":9223372036854775807,"notes":[[0,9223372036854775807,60,100]]}],"tracks":[{"id":"t","name":"T","volume":1,"mute":false,"receives":[],"devices":[],"placements":[{"clip":"a","start":9223372036854775807,"length":9223372036854775807,"loop":true}],"lanes":[]}],"master":{"id":"m","name":"M","volume":1,"mute":false,"receives":[],"devices":[],"placements":[],"lanes":[]}}"#,
+        "", "{", "[]", "null", r#"{"format":"song/2"}"#,
+        r#"{"format":"song/2","rate":44100,"tempo":1e308,"signature":[4,4],"ticks_per_beat":960,"length":9223372036854775807,"clips":[],"tracks":[],"master":{"id":"m","name":"M","volume":1,"mute":false,"receives":[],"devices":[],"placements":[],"lanes":[]}}"#,
+        r#"{"format":"song/2","rate":0,"tempo":-5,"signature":[0,3],"ticks_per_beat":1,"length":-1,"clips":[{"id":"","length":-4,"notes":[[-1,-1,255,0]]}],"tracks":[],"master":{"id":"","name":"","volume":-1,"mute":false,"receives":[{"from":"x","channel":"side","volume":-1}],"devices":[{"kind":255,"values":{}},{"kind":64,"values":{"osc1.s8":1e9},"samples":["!!"]}],"placements":[{"clip":"z","start":-9,"length":0,"loop":true}],"lanes":[{"device":99,"param":"q","points":[[1e300,2]]}]}}"#,
+        r#"{"format":"song/2","rate":44100,"tempo":120,"signature":[4,4],"ticks_per_beat":960,"length":3840,"clips":[{"id":"a","length":9223372036854775807,"notes":[[0,9223372036854775807,60,100]]}],"tracks":[{"id":"t","name":"T","volume":1,"mute":false,"receives":[],"devices":[],"placements":[{"clip":"a","start":9223372036854775807,"length":9223372036854775807,"loop":true}],"lanes":[]}],"master":{"id":"m","name":"M","volume":1,"mute":false,"receives":[],"devices":[],"placements":[],"lanes":[]}}"#,
     ] {
         match song::parse(text) {
             Err(e) => assert!(!e.is_empty()),

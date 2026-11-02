@@ -27,13 +27,13 @@ const JOBS = Number(process.env.JOBS ?? 8);
 export type Item = { slug: string; file: string; json: string };
 export type Stored = { file: string; sha256: string; profile: Profile };
 
-/** A song that plays `patch` (us-patch/1) for one note (C4, one bar at 120 BPM) and one bar of tail. */
+/** A song that plays `patch` (us-patch/2) for one note (C4, one bar at 120 BPM) and one bar of tail. */
 export function patchSong(patch: { kind: number; values: Record<string, number>; samples?: string[]; speech?: string[] }): string {
   const dev: Record<string, unknown> = { kind: patch.kind, values: patch.values };
   if (patch.samples?.length) dev.samples = patch.samples;
   if (patch.speech?.length) dev.speech = patch.speech;
   return JSON.stringify({
-    format: "song/1", rate: 44100, tempo: 120, signature: [4, 4], ticks_per_beat: 960, length: 7680,
+    format: "song/2", rate: 44100, tempo: 120, signature: [4, 4], ticks_per_beat: 960, length: 7680,
     clips: [{ id: "c", length: 3840, notes: [[0, 3840, 60, 100]] }],
     tracks: [{ id: "p", name: "Patch", volume: 1, mute: false, receives: [], devices: [dev], placements: [{ clip: "c", start: 0, length: 3840, loop: false }], lanes: [] }],
     master: { id: "master", name: "Master", volume: 1, mute: false, receives: [{ from: "p", channel: "main", volume: 1 }], devices: [], placements: [], lanes: [] },

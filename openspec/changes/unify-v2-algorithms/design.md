@@ -613,6 +613,55 @@ and 256-frame event grid stay in the V2 converter (song events).
 
   Gate passed: no reference song grows in squishy. The code that reads the new settings is measured at 6.8 (D7.6).
 
+## The format switch (tasks 6.5–6.8, 2026-11-02)
+
+One commit, built on a side branch with checkpoints. What it does and what was decided on the way:
+
+- **Layouts.** `params.rs` is the frozen v3 layout (COUNT 294); the old one is `params::old` (host-only, with its host
+  names and laws, `kinds`, `era_settings`). `unisynth::migrate` (host-only) holds the value rules; it gives the same
+  pairs as `research/unify-v3-layout/layout.py` for all 4,820 instruments of the tracked songs.
+- **Converters build in the old layout and the writer migrates** (decision, against the task text "converters write
+  the new layout directly"): every converter keeps its patch code on `params::old` (`migrate::encode_old`,
+  `encode_old_fx`), and `SongM::write` migrates whatever is still old (instrument chunks 1/2 with their lanes,
+  untagged effects). So "each converter's output equals the migration of its old output" holds by construction, the
+  converter and the migration cannot disagree (design D4 asked for the same `era_settings` in both), and no output
+  carries `voice.era`. Cost: the old layout stays as host code. `synth-convert migrate` and `song migrate` expose it.
+- **Songs.** `song/2` and `us-patch/2`; `song::parse` migrates a `/1` file once (values by old or 1.3 names, lanes by
+  the whole-patch-per-point rule, effects), a `/2` file is never migrated and an old name in it is an error. The 385
+  tracked songs and patches are migrated in this commit (`song migrate`), as the song crate's tests compare the
+  tracked files with the tool's output; task 6.9 keeps the load-all check and the drift report. The DAW opens songs
+  through the engine's `song_migrate`; its templates and fixtures are v3; a preset or library load that would leave a
+  lane without a parameter is refused instead of moving the lane to `filt1.cutoff`.
+- **Player.** Settings come from the fields: voice settings, oscillator combine (every slot, `us-osc-combine`) and law
+  (the naive generators: 7-bit or semitone/Hz), filter form/oversample/law, envelope curve and slopes, LFO law/shape/
+  sync/phase/polarity/one-shot, quirks (each a module, checked first at load). Effects: plain modes, the 4-byte trailer
+  is the version tag `0xFFFF_FF03` (`UnknownVersion` without it), the 7-bit modes lost `era`. Chunk versions 3/4;
+  1/2 → `LoadError::UnknownVersion` (new in `synth-core`). The trusted path reads no version (D: Cycle 3).
+- **Decisions forced by the size gate** (below): the matrix without `us-matrix-add` is the ten one-byte slots (slots
+  11–16 need the module, as 13–16 did; the converters use at most 10; own-amount targets stay 1–12); "is Add" is false
+  without that module; the envelope curve is read only with a module that has a second curve; the all-pass and 4-pole
+  high-pass responses keep `us-flt-feedback` as their module (as when they were V2-only types); a build that cannot read
+  the two-byte block stores its defaults as zero (`chunk::PLAYER_DEFAULTS`, nothing there reads them).
+- **Review fixes** (an independent review of the switch, no blockers): the zeroed two-byte defaults keep the strip's
+  (a strip build reads chorus and compressor defaults); a lane on a mod operation that can reach Add needs
+  `us-matrix-add`; a song/1 lane on an effect's mode is re-encoded point by point; a lane that would move a quirk sets
+  the quirk on the patch instead of failing (quirks are per patch; the old player ran their code wherever it ran).
+- **Oscillator law** applies to the naive generators (spec "Naive oscillator generators"); other kinds ignore it.
+  The RBJ and resonator filters ignore form and law.
+- **Gates.** Workspace tests, JS tests, feature builds (incl. `us-osc-combine` and each quirk alone), bake 7/7;
+  goldens and effect goldens unchanged (the migrated patches render bit-identically); parity 49/49 and V2 18/18, both
+  with zero drift against the previous stage. Size (`songs-size.sh`, against the 6.4 probe's old-byte builds): every
+  reference song at its squishy size (eladamri 31,744, elysian 45,568, engage 38,912, global-groove 14,336, no-remorse
+  23,552, tf4testsong 22,016, turtles 28,672; xz +0 to +116, data included); V2 songs: brullwurfel and kkrieger equal,
+  candytron, debris, fr08, platinum +512. Before the size decisions above the gate failed (five reference songs +512):
+  the matrix's Add path and two index forms (+135 B in `eval`), the envelope curve read, and the larger defaults table.
+- **Speed** (render example, median of 3, interleaved, against 6.4; outputs byte-identical): elysian +2.9 %, eladamri
+  +0.5 %, no-remorse +2.3 %, tf4testsong +2.2 %, kkrieger +1.0 %, brullwurfel +2.1 %. Within the 5 % gate per stage;
+  cumulative against the pre-unify build no-remorse is +5.0 % (median of 5: 25.24 → 26.50 s), at the limit.
+- **Per-song drift** (task 6.9's report, against the 6.2 profiles, every tracked song, both patches, the DAW
+  templates): 387 items, none past the D7.3 thresholds; the largest are entroxion (+0.48 dB, +1.41 dB at 63 Hz) and
+  icefall subcelestial tranquility (+0.15 dB, +0.66 dB at 63 Hz), from the dropped denormal biases.
+
 ## Risks / Trade-offs
 
 - [Drift accumulates across stages until a song leaves tolerance] → D7.3 records drift per stage. A song near the

@@ -1,14 +1,15 @@
-//! Instrument chunk v1 (design D3), little endian, canonical:
+//! Instrument chunk v3 (change unify-v2-algorithms: the v3 layout; versions 1 and 2 held the old layout and are
+//! rejected with `LoadError::UnknownVersion`, the host migrates them: `crate::migrate`). Little endian, canonical:
 //!
 //! ```text
-//! u8 version = 1
+//! u8 version = 3
 //! count n, n × { index, f32 value }          values that differ from DEFAULTS, indices strictly increasing
 //! u8 s, s × { u32 size, GSM sample chunk }   header + WAVEFORMATEX + blocks, nothing after the blocks
 //! (end of chunk)
 //! ```
 //!
-//! Version 2 (change add-v2-import, design D8) is version 1 followed by `u16 len, len bytes` of Ronan speech text
-//! (`len ≥ 1`); a chunk without text is written as version 1.
+//! Version 4 is version 3 followed by `u16 len, len bytes` of speech text (`len ≥ 1`); a chunk without text is written
+//! as version 3.
 //!
 //! Escapes (change add-v2-import, design D4), like UTF-8 lead bytes; chunks without them are unchanged:
 //! a count byte `c < 0xFF` is `n = c`, `0xFF` is followed by a u16 `n ≥ 255`; an index byte `b < 0xF0` is the index,
@@ -21,9 +22,9 @@
 use crate::params::{self as pm, o, osc, osc_type, shape, COUNT, DEFAULTS};
 use synth_core::mix::LoadError;
 
-pub const VERSION: u8 = 1;
-/// Version 1 + a speech text section.
-pub const VERSION_TEXT: u8 = 2;
+pub const VERSION: u8 = 3;
+/// Version 3 + a speech text section.
+pub const VERSION_TEXT: u8 = 4;
 /// First index byte that is a bank prefix (design D4).
 pub const ESC: u8 = 0xF0;
 /// Indices below this are one byte.
@@ -92,6 +93,22 @@ impl<'a> Rd<'a> {
     }
 }
 
+/// What [`Chunk::values`] starts from: [`DEFAULTS`], with the two-byte block (indices 240 on) stored as zero in a
+/// build that cannot read it (no `us-chunk-wide`, `us-matrix-add` or `us-strip`): the strip, controllers 2–7, mod slots 11–16 and
+/// the speech come with those modules, so nothing such a build runs reads that block, and a zero run costs almost
+/// nothing packed (change unify-v2-algorithms, the size gate of the format switch).
+static PLAYER_DEFAULTS: [f32; COUNT] = {
+    let mut d = DEFAULTS;
+    if !cfg!(any(feature = "us-chunk-wide", feature = "us-matrix-add", feature = "us-strip")) {
+        let mut i = SHORT;
+        while i < COUNT {
+            d[i] = 0.0;
+            i += 1;
+        }
+    }
+    d
+};
+
 /// A validated chunk.
 #[derive(Clone, Copy, Debug)]
 pub struct Chunk<'a> {
@@ -124,7 +141,7 @@ impl<'a> Chunk<'a> {
         }
         let version = r.u8()?;
         if version != VERSION && version != VERSION_TEXT {
-            return Err(LoadError::BadChunk);
+            return Err(LoadError::UnknownVersion);
         }
         let n = r.count()?;
         let start = r.p;
@@ -191,7 +208,7 @@ impl<'a> Chunk<'a> {
 
     /// All parameter values: the defaults with the chunk's pairs applied.
     pub fn values(&self) -> [f32; COUNT] {
-        let mut v = DEFAULTS;
+        let mut v = PLAYER_DEFAULTS;
         for (i, x) in self.pairs() {
             v[i] = x;
         }
@@ -278,18 +295,7 @@ pub fn encode(values: &[f32; COUNT], samples: &[&[u8]]) -> std::vec::Vec<u8> {
 pub fn encode_text(values: &[f32; COUNT], samples: &[&[u8]], text: &[u8]) -> std::vec::Vec<u8> {
     assert!(text.len() <= u16::MAX as usize, "speech text longer than 65535 bytes");
     assert!(samples.len() <= MAX_SAMPLES, "a chunk holds at most {MAX_SAMPLES} samples");
-    let mut pairs = std::vec![];
-    let mut n = 0usize;
-    for (i, (&v, &d)) in values.iter().zip(DEFAULTS.iter()).enumerate() {
-        if v.to_bits() != d.to_bits() {
-            push_index(&mut pairs, i);
-            pairs.extend(v.to_le_bytes());
-            n += 1;
-        }
-    }
-    let mut c = std::vec![if text.is_empty() { VERSION } else { VERSION_TEXT }];
-    push_count(&mut c, n);
-    c.extend(pairs);
+    let mut c = encode_pairs(if text.is_empty() { VERSION } else { VERSION_TEXT }, values);
     c.push(samples.len() as u8);
     for s in samples {
         c.extend((s.len() as u32).to_le_bytes());
@@ -299,6 +305,24 @@ pub fn encode_text(values: &[f32; COUNT], samples: &[&[u8]], text: &[u8]) -> std
         c.extend((text.len() as u16).to_le_bytes());
         c.extend(text);
     }
+    c
+}
+
+/// The version byte, the count and the pairs (values that differ from the defaults) of a chunk (host side).
+#[cfg(any(test, feature = "std"))]
+pub fn encode_pairs(version: u8, values: &[f32; COUNT]) -> std::vec::Vec<u8> {
+    let mut pairs = std::vec![];
+    let mut n = 0usize;
+    for (i, (&v, &d)) in values.iter().zip(DEFAULTS.iter()).enumerate() {
+        if v.to_bits() != d.to_bits() {
+            push_index(&mut pairs, i);
+            pairs.extend(v.to_le_bytes());
+            n += 1;
+        }
+    }
+    let mut c = std::vec![version];
+    push_count(&mut c, n);
+    c.extend(pairs);
     c
 }
 

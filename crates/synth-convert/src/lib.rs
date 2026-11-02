@@ -128,7 +128,7 @@ pub fn convert(blob: &[u8]) -> Result<Converted, ConvError> {
         t.autos = out;
     }
     song.devices = devices;
-    Ok(Converted { blob: song.write(), warnings })
+    Ok(Converted { blob: song.write()?, warnings })
 }
 
 fn convert_device(d: &Dev) -> Result<Dev, ConvError> {
@@ -241,7 +241,7 @@ fn instrument(song: &SongM, di: usize, d: &Dev, warnings: &mut Vec<String>) -> R
     let cx = instr::Cx { automated, capacity: cap };
     let patch = instr::build(&leg, &cx).finish();
     let samples: Vec<&[u8]> = leg.sample.iter().map(|s| s.as_slice()).collect();
-    let chunk = unisynth::chunk::encode(&patch, &samples);
+    let chunk = unisynth::migrate::encode_old(&patch, &samples, &[]);
     // automation lanes
     let mut out: Lanes = vec![];
     let choices = instr::discrete_shapes(d.kind);

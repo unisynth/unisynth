@@ -50,8 +50,8 @@ impl Kind {
             osc_type::SAMPLER if cfg!(feature = "us-osc-sample") => Ok(Kind::Sampler),
             osc_type::BLIT if cfg!(feature = "us-osc-blit") => Ok(Kind::Blit),
             osc_type::BLIT => missing(module::OSC_BLIT),
-            osc_type::V2 if cfg!(feature = "us-osc-naive") => Ok(Kind::V2),
-            osc_type::V2 => missing(module::OSC_NAIVE),
+            t if osc_type::is_naive(t) && cfg!(feature = "us-osc-naive") => Ok(Kind::V2),
+            t if osc_type::is_naive(t) => missing(module::OSC_NAIVE),
             osc_type::CLOCKED if cfg!(feature = "us-osc-clocked") => Ok(Kind::Clocked),
             osc_type::CLOCKED => missing(module::OSC_CLOCKED),
             #[cfg(feature = "us-osc-wt")]
@@ -358,7 +358,7 @@ pub struct SlotT {
     pub layers: usize,
     /// Sampler: loop, interpolation and loop bounds.
     pub smp: smp::Cfg,
-    /// V2: waveform, ring, break point, noise filter and the format-version switches.
+    /// Naive generators: waveform, break point, noise filter and the quirks.
     pub v2: crate::v2::Opt<V2T>,
     /// Clocked: wave, voices, version and phrase clock.
     pub clk: ClockedT,
@@ -367,16 +367,15 @@ pub struct SlotT {
 }
 
 /// How a slot meets the running sum of the earlier slots (change unify-v2-algorithms 5.1): added (panned by the slot
-/// and voice pan), multiplied into it (ring) or replacing it (both on both channels). Until the format switch every
-/// slot adds except the naive generators: ring multiplies, FM and aux in replace (design D4, "Order of work").
+/// and voice pan), multiplied into it (ring) or replacing it (both on both channels): `o::COMBINE` of every slot.
 pub mod combine {
     pub const ADD: u8 = 0;
     pub const MUL: u8 = 1;
     pub const SET: u8 = 2;
 }
 
-/// Multiply and replace are built with the naive generators until the format switch.
-pub const COMBINE: bool = cfg!(feature = "us-osc-naive");
+/// Multiply and replace are built with `us-osc-combine`.
+pub const COMBINE: bool = cfg!(feature = "us-osc-combine");
 
 /// A slot's output `(a, b)` (before the pan) into the running sum `(left, right, mono)`: added panned by `(pl, pr)`,
 /// multiplied, or replacing it. The mono sum stays unpanned (the FM and ring input of a later naive generator).
@@ -393,18 +392,17 @@ pub fn mix_in(s: (f32, f32, f32), mode: u8, a: f32, b: f32, pl: f32, pr: f32) ->
 /// A V2 slot's settings for a control segment (V2 keeps them for a frame; they are not ramped).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct V2T {
-    /// V2 mode 0..7 (`V2Osc::Mode`).
+    /// V2 mode 1..7 (`V2Osc::Mode`, [`naive_mode`]).
     pub mode: u8,
-    pub ring: bool,
     /// Break point (colour) as 0.32 fixed point.
     pub brpt: u32,
     pub nffrq: f32,
     pub nfres: f32,
-    /// Format version below 6: native sine for the sine and FM modes.
+    /// Quirk `exact_math`: native sine for the sine and FM modes.
     pub native_sin: bool,
-    /// [`crate::params::EraSettings::integer_fm`].
+    /// Quirk `integer_fm`.
     pub integer_fm: bool,
-    /// Format version below 5: the older noise (MSVC LCG, its own filter recurrence; `DELTA_NOISE_LCG_MSVC`).
+    /// Quirk `lcg_noise`: the older noise (MSVC LCG, its own filter recurrence; `DELTA_NOISE_LCG_MSVC`).
     pub old_noise: bool,
 }
 
@@ -420,13 +418,17 @@ pub mod v2mode {
     pub const AUX_B: u8 = 7;
 }
 
-/// Whether oscillator slot `i` of patch `p` is a V2 aux oscillator (mode aux A or aux B, format version 6): it reads
-/// the aux buses through the instrument's extra input pairs, which only the channel stage's build has (`us-strip`).
+/// The V2 mode of naive oscillator type `t` (`osc_type::NAIVE_SAW..=AUX_B` → 1..=7).
+#[inline]
+pub const fn naive_mode(t: usize) -> u8 {
+    (t - crate::params::osc_type::NAIVE_SAW + 1) as u8
+}
+
+/// Whether oscillator slot `i` of patch `p` is an aux-in generator: it reads the aux buses through the instrument's
+/// extra input pairs, which only the channel stage's build has (`us-strip`).
 pub fn v2_aux(p: &[f32; crate::params::COUNT], i: usize) -> bool {
     use crate::params as pm;
-    pm::osc_type::decode(p[pm::osc(i, pm::o::TYPE)]) == pm::osc_type::V2
-        && (pm::v2_raw(p[pm::osc(i, pm::o::SHAPE + pm::shape::V2_MODE)]) as i32 & 7) as u8 >= v2mode::AUX_A
-        && pm::era_settings(p).aux_osc
+    matches!(pm::osc_type::decode(p[pm::osc(i, pm::o::TYPE)]), pm::osc_type::AUX_A | pm::osc_type::AUX_B)
 }
 
 /// The ramps that carry a slot's control values across a segment.
@@ -1058,7 +1060,7 @@ mod tests {
             Kind::all(&v)
         };
         for (ty, want, on, id) in [
-            (osc_type::V2, Kind::V2, cfg!(feature = "us-osc-naive"), module::OSC_NAIVE),
+            (osc_type::SINE, Kind::V2, cfg!(feature = "us-osc-naive"), module::OSC_NAIVE),
             (osc_type::CLOCKED, Kind::Clocked, cfg!(feature = "us-osc-clocked"), module::OSC_CLOCKED),
         ] {
             match later(ty) {

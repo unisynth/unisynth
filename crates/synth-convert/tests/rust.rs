@@ -26,7 +26,7 @@ fn sample() -> Vec<u8> {
     let ins = synth_convert::model::Dev { kind: unisynth::kind::INSTRUMENT, chunk: unisynth::chunk::encode(&p, &[]) };
     let mut t = track(&[0], 0);
     t.autos = vec![auto(0, pm::filt(0, pm::f::CUTOFF), &[(-100, 10), (20000, 250)])];
-    song(vec![ins], vec![MELODY.to_vec()], vec![t]).write()
+    song(vec![ins], vec![MELODY.to_vec()], vec![t]).write().unwrap()
 }
 
 /// Renders `song` with every module from frame 0, then again after seeking into the middle of a sub-block.
@@ -75,15 +75,15 @@ fn the_module_list_is_the_feature_list_and_the_source_asserts_it() {
 fn a_song_the_player_would_refuse_is_refused() {
     // garbage, a legacy device, an automation of a parameter the device lacks, a receive cycle
     assert!(matches!(bake(&[1, 2, 3], None), Err(ConvError::Input(_))));
-    let legacy = song(vec![dev(wavesabre::kind::SCISSOR, &[0.5; 4])], vec![vec![]], vec![track(&[0], 0)]).write();
+    let legacy = song(vec![dev(wavesabre::kind::SCISSOR, &[0.5; 4])], vec![vec![]], vec![track(&[0], 0)]).write().unwrap();
     assert!(bake(&legacy, None).is_err());
     let mut s = SongM::read(&sample()).unwrap();
     s.tracks[0].autos[0].param = 9999;
-    assert!(bake(&s.write(), None).is_err());
+    assert!(bake(&s.write().unwrap(), None).is_err());
     let mut s = SongM::read(&sample()).unwrap();
     let mut t2 = track(&[], 0);
     t2.receives = vec![(1, 0, 1.0)];
     s.tracks[0].receives = vec![(0, 0, 1.0)];
     s.tracks.push(t2);
-    assert!(bake(&s.write(), None).is_err());
+    assert!(bake(&s.write().unwrap(), None).is_err());
 }

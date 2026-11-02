@@ -1,5 +1,5 @@
 // DAW editing tests (change add-synth-daw, tasks 5.4a–5.4f, 5.6a, 5.6b): the reviewed mockup interactions on the
-// real model, checked through the song/1 source the editor would save (DAW.debug.song()).
+// real model, checked through the song/2 source the editor would save (DAW.debug.song()).
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -54,6 +54,9 @@ function noOverlap(t: any) {
   const ps = [...t.placements].sort((a: any, b: any) => a.start - b.start);
   for (let i = 1; i < ps.length; i++) expect(ps[i - 1].start + ps[i - 1].length).toBeLessThanOrEqual(ps[i].start);
 }
+
+/** The sampler's stored oscillator type (`Choice(13)`, option 4). */
+const SAMPLER = 4 / 12;
 
 test("5.4a paste trims what it covers (no overlapping clips) and undo restores", async () => {
   await open();
@@ -161,7 +164,7 @@ test("5.6a fixed slots: clear in place keeps other slots and their mod targets; 
   await page.locator('#device select[aria-label$=" mod1.target"]').selectOption({ label: "filt1.cutoff" });
   await page.locator('#device button[aria-label="Swap Filter 1 and Filter 2"]').click();
   d = await vals();
-  expect([d["filt1.type"] ?? 0, d["filt2.type"]]).toEqual([0, 0.625]);
+  expect([d["filt1.type"] ?? 0, d["filt2.type"]]).toEqual([0, 0.5]); // the 4-pole low-pass (Choice(11))
   expect(await lanes()).toEqual(["filt2.cutoff"]);
   expect(names[Math.round(d["mod1.target"] * 255)]).toBe("filt2.cutoff");
   // no add/move buttons for other groups
@@ -348,7 +351,7 @@ test("Import sample encodes a GSM sample into the instrument; Remove unused drop
   await page.locator(".sampler .gsmclean").click();
   d = track(await song(), "lead").devices[0];
   expect(d.samples).toHaveLength(1);
-  const slot = [1, 2, 3].find((i) => d.values[`osc${i}.type`] === 1)!;
+  const slot = [1, 2, 3].find((i) => d.values[`osc${i}.type`] === SAMPLER)!;
   expect([d.values[`osc${slot}.s7`], d.values[`osc${slot}.sample`]]).toEqual([0, 1]);
   expect(await page.evaluate(() => (window as any).DAW.engine.validate(JSON.stringify((window as any).DAW.debug.song())))).toEqual([]);
   // the imported sample sounds on the Lead
@@ -405,7 +408,7 @@ test("envelope curves redraw from their knobs; sampler settings are named contro
   const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.locator(".devbox .impsmp").first().click()]);
   await chooser.setFiles(file);
   await page.waitForTimeout(600);
-  const d = track(await song(), "pad").devices[0], i = [1, 2, 3].find((k) => d.values[`osc${k}.type`] === 1)!;
+  const d = track(await song(), "pad").devices[0], i = [1, 2, 3].find((k) => d.values[`osc${k}.type`] === SAMPLER)!;
   const grp = page.locator(`.grp[aria-label="Osc ${i}"]`);
   expect(await grp.locator(".knob").evaluateAll((ks) => ks.map((k) => k.getAttribute("aria-label")).filter((x) => /start|loop/.test(x!)))).toEqual(["start"]);
   await page.locator(`select[aria-label="Osc ${i} loop"]`).selectOption("1");

@@ -255,7 +255,7 @@ impl Ambience {
     /// BPM, and the track volume factor that keeps the dry signal at its level (each mixes dry at `1 − wet`). The
     /// delay has no feedback: each side plays its tap once, at `gain` (wet `gain/(1 + gain)`).
     pub fn devices(&self, tempo: i32) -> (Vec<(u8, Vec<f32>)>, f64) {
-        use unisynth::fx::mode_value;
+        use unisynth::migrate::old_fx_mode_value as mode_value;
         use unisynth::kind::{DELAY, REVERB as KIND};
         let (mut out, mut volume) = (vec![], 1.0);
         if let Some(e) = self.echo {
@@ -305,7 +305,7 @@ pub fn slim_lowpass(chain: &mut crate::cauldron::Chain, hz: f64, slides: bool) {
 /// The chain's clips (shaper clippers) as (track-local device index, threshold): device `i` of the chain is track
 /// device `1 + i`.
 pub fn clips(chain: &crate::cauldron::Chain) -> Vec<(usize, f64)> {
-    use unisynth::{fx::mode_value, kind::DISTORTION};
+    use unisynth::{migrate::old_fx_mode_value as mode_value, kind::DISTORTION};
     chain.devices.iter().enumerate().filter(|(_, (k, v))| *k == DISTORTION && v[0] == mode_value(DISTORTION, 0)).map(|(i, (_, v))| (1 + i, v[2] as f64)).collect()
 }
 
@@ -325,7 +325,7 @@ pub fn input_peak(devs: &[crate::model::Dev], autos: &[crate::model::Auto], lane
         lanes: vec![lane.to_vec()],
         tracks: vec![Trk { volume: 1.0, receives: vec![], devices: (0..upto).collect(), lane: 0, autos }],
     };
-    let blob = solo.write();
+    let blob = solo.write().expect("a converted track migrates");
     let song = Song::parse(&blob).expect("a converted track parses");
     let env = Env::for_song(&song, None);
     let need = Player::<UDevice, Xorshift>::required_pool(&song, &env, DEFAULT_SUB).expect("a converted track loads");
@@ -608,7 +608,7 @@ mod tests {
         use synth_core::mix::{Env, Player, Song, DEFAULT_SUB};
         use synth_core::pool::Pool;
         use unisynth::{device::UDevice, rng::Xorshift};
-        let blob = song.write();
+        let blob = song.write().unwrap();
         let s = Song::parse(&blob).unwrap();
         let env = Env::for_song(&s, None);
         let mut mem = vec![0u8; Player::<UDevice, Xorshift>::required_pool(&s, &env, DEFAULT_SUB).unwrap()];

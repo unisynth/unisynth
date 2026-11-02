@@ -1,7 +1,7 @@
 //! The band-limited saw/pulse (Slaughter's integrated BLIT).
 
 use super::*;
-use crate::params::shape;
+use crate::params::old::shape;
 use synth_core::voice::VoiceState;
 
 fn dft(x: &[f32], from: usize, n: usize, hz: f64, rate: f64) -> f64 {

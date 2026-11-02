@@ -6,8 +6,8 @@ use crate::law;
 use crate::params as pm;
 use crate::tables::sin_turns;
 
-/// Shapes. The Hz law's choice is the first five (`choice(p, COUNT)` of `l::SHAPE`); the frame law's waveforms map into
-/// the union ([`FRAME_SHAPES`]).
+/// Shapes (`Choice(ALL)` of `l::SHAPE` on every law). The first five are the plain LFO's; the others need the settings
+/// (`us-lfo-frame`).
 pub mod shape {
     pub const SINE: usize = 0;
     pub const RAMP_UP: usize = 1;
@@ -16,16 +16,19 @@ pub mod shape {
     pub const SQUARE: usize = 3;
     /// Stepped random: 256 steps per cycle from a fixed hash (the same for every voice).
     pub const RANDOM: usize = 4;
-    pub const COUNT: usize = 5;
+    /// Shapes of the old layout's Hz law (the migration decodes old values with it).
+    pub const COUNT_V1: usize = 5;
     /// Rises from 0 for the first half-turn.
     pub const TRIANGLE: usize = 5;
     /// A new value at every cycle start, from the LFO's own seed (drawn at key sync).
     pub const SAMPLE_HOLD: usize = 6;
     /// Low for the first half-turn (a square starting low).
     pub const PULSE: usize = 7;
+    pub const ALL: usize = 8;
 }
 
-/// The frame law's waveforms in order (V2's saw, triangle, pulse, sine, sample-and-hold); other values are the saw.
+/// The old frame law's waveforms in order (V2's saw, triangle, pulse, sine, sample-and-hold); other values were the saw.
+/// The migration maps old values with it.
 pub const FRAME_SHAPES: [usize; 5] = [shape::RAMP_UP, shape::TRIANGLE, shape::PULSE, shape::SINE, shape::SAMPLE_HOLD];
 
 /// What a note-on does to an LFO.
@@ -91,27 +94,27 @@ impl LfoP {
         LfoP { shape: Self::shape_of(p, k), rate: Self::rate_of(p, k), one_shot: Self::one_shot_of(p, k), gain, dc, phase0, sync, reseed }
     }
 
-    /// Until the format switch (design D4, "Order of work") `lx::MODE` picks the law: the frame law reads shape, rate
-    /// and sync as 7-bit steps.
+    /// Whether LFO `k` of `p` uses a setting beyond the plain Hz-law LFO (`us-lfo-frame`): the frame law, a later
+    /// shape, polarity, one-shot, a start phase, or the sync "continue".
+    pub fn uses_settings(p: &[f32; pm::COUNT], k: usize) -> bool {
+        let c = |f: usize, n: usize| law::choice(p[pm::lfo(k, f)], n);
+        c(pm::l::LAW, 2) == 1
+            || c(pm::l::SHAPE, shape::ALL) >= shape::COUNT_V1
+            || c(pm::l::POLARITY, 3) != 0
+            || c(pm::l::ONE_SHOT, 2) == 1
+            || p[pm::lfo(k, pm::l::PHASE)] != 0.0
+            || c(pm::l::SYNC, pm::lfo_sync::COUNT) == pm::lfo_sync::CONTINUE
+    }
+
+    /// The frame law (`l::LAW`): rate in per-frame steps, a restart always draws a new sample-and-hold seed.
     #[inline(always)]
     fn frame(p: &[f32; pm::COUNT], k: usize) -> bool {
-        SETTINGS && law::choice(p[pm::lfo_ext(k, pm::lx::MODE)], 2) == 1
+        SETTINGS && law::choice(p[pm::lfo(k, pm::l::LAW)], 2) == 1
     }
 
-    #[inline]
-    fn step(v: f32) -> i32 {
-        (v * 128.0) as i32
-    }
-
-    /// The shape: the Hz law's choice of five, or the frame law's waveform ([`FRAME_SHAPES`]).
     #[inline(always)]
     pub fn shape_of(p: &[f32; pm::COUNT], k: usize) -> usize {
-        let v = p[pm::lfo(k, pm::l::SHAPE)];
-        if Self::frame(p, k) {
-            FRAME_SHAPES.get(Self::step(v).clamp(0, 7) as usize).copied().unwrap_or(shape::RAMP_UP)
-        } else {
-            law::choice(v, shape::COUNT)
-        }
+        law::choice(p[pm::lfo(k, pm::l::SHAPE)], shape::ALL)
     }
 
     /// Turns per second: `law::lfo_rate`, or `¼·calcfreq(p)` turns per frame on the frame law.
@@ -127,7 +130,7 @@ impl LfoP {
 
     #[inline(always)]
     pub fn one_shot_of(p: &[f32; pm::COUNT], k: usize) -> bool {
-        SETTINGS && Self::step(p[pm::lfo_ext(k, pm::lx::EG)]) != 0
+        SETTINGS && law::choice(p[pm::lfo(k, pm::l::ONE_SHOT)], 2) == 1
     }
 
     /// `(gain, dc)` of the Add view for the polarity.
@@ -137,31 +140,26 @@ impl LfoP {
         if !SETTINGS {
             return (depth, 0.0);
         }
-        match Self::step(p[pm::lfo_ext(k, pm::lx::POLARITY)]) {
+        match law::choice(p[pm::lfo(k, pm::l::POLARITY)], 3) {
             1 => (-depth, 0.0),
             2 => (depth, -0.5 * depth),
             _ => (depth, 0.0),
         }
     }
 
-    /// `(sync, phase0, reseed)`: the Hz law restarts at phase 0 or runs on song time, the frame law restarts (drawing
-    /// a seed) or continues.
+    /// `(sync, phase0, reseed)` from `l::SYNC` (`params::lfo_sync`) and the start phase.
     #[inline(always)]
     pub fn sync_of(p: &[f32; pm::COUNT], k: usize) -> (u8, f64, bool) {
-        let v = p[pm::lfo(k, pm::l::SYNC)];
-        let frame = Self::frame(p, k);
-        let sync = if frame {
-            if pm::v2_raw(v) as i32 != 0 { sync::RESTART } else { sync::CONTINUE }
-        } else if law::choice(v, 2) == 1 {
-            sync::RESTART
-        } else {
-            sync::SONG_TIME
+        let sync = match law::choice(p[pm::lfo(k, pm::l::SYNC)], pm::lfo_sync::COUNT) {
+            pm::lfo_sync::SONG_TIME => sync::SONG_TIME,
+            pm::lfo_sync::CONTINUE if SETTINGS => sync::CONTINUE,
+            _ => sync::RESTART,
         };
         if !SETTINGS {
             return (sync, 0.0, false);
         }
-        let phase0 = crate::v2::ftou32(p[pm::lfo_ext(k, pm::lx::PHASE)]) as f64 / 4_294_967_296.0;
-        (sync, phase0, frame || Self::shape_of(p, k) == shape::SAMPLE_HOLD)
+        let phase0 = crate::v2::ftou32(p[pm::lfo(k, pm::l::PHASE)]) as f64 / 4_294_967_296.0;
+        (sync, phase0, Self::frame(p, k) || Self::shape_of(p, k) == shape::SAMPLE_HOLD)
     }
 }
 
@@ -324,13 +322,13 @@ mod tests {
     #[cfg(feature = "us-lfo-frame")]
     fn frame_law(shape: usize, rate: f32, one_shot: bool, phase: f32) -> [f32; pm::COUNT] {
         let mut v = pm::DEFAULTS;
-        v[pm::lfo_ext(0, pm::lx::MODE)] = crate::law::host::inv_choice(1, 2);
-        v[pm::lfo(0, pm::l::SHAPE)] = shape as f32 / 128.0;
+        // the old frame-law LFO with V2 waveform `shape`, as the migration writes it
+        v[pm::lfo(0, pm::l::LAW)] = 1.0;
+        v[pm::lfo(0, pm::l::SHAPE)] = pm::choice_value(FRAME_SHAPES[shape], shape::ALL);
         v[pm::lfo(0, pm::l::RATE)] = rate;
-        v[pm::lfo(0, pm::l::SYNC)] = 1.0 / 128.0;
         v[pm::lfo(0, pm::l::DEPTH)] = 1.0;
-        v[pm::lfo_ext(0, pm::lx::EG)] = if one_shot { 1.0 / 128.0 } else { 0.0 };
-        v[pm::lfo_ext(0, pm::lx::PHASE)] = phase;
+        v[pm::lfo(0, pm::l::ONE_SHOT)] = if one_shot { 1.0 } else { 0.0 };
+        v[pm::lfo(0, pm::l::PHASE)] = phase;
         v
     }
 
@@ -364,7 +362,7 @@ mod tests {
             }
         }
         // the Hz law is unchanged, sample for sample
-        for k in 0..shape::COUNT {
+        for k in 0..shape::COUNT_V1 {
             let q = LfoP { shape: k, rate: 3.7f32 as f64, ..Default::default() }; // `law::lfo_rate` is f32
             let mut l = Lfo::new(0.1);
             let mut ph = 0.1f64;

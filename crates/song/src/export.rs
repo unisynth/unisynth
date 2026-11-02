@@ -20,8 +20,8 @@ pub fn sample_to_tick(s: &Song, sample: f64) -> f64 {
     sample * s.tempo * TICKS_PER_BEAT as f64 / (60.0 * s.rate as f64)
 }
 
-/// The chunk a device exports: kind 64 = unisynth chunk v1 (canonical), effects = `[mode, every parameter]` +
-/// trailer (the imported one if it differed, else the byte size).
+/// The chunk a device exports: kind 64 = unisynth chunk v3/v4 (canonical), effects = `[mode, every parameter]` + the
+/// version tag.
 pub fn chunk(d: &Device) -> Vec<u8> {
     let Some(t) = tables::of_device(d) else { return vec![] };
     if d.kind == kind::INSTRUMENT {
@@ -37,12 +37,7 @@ pub fn chunk(d: &Device) -> Vec<u8> {
         return chunk::encode_text(&v, &refs, text.as_bytes());
     }
     let vals: Vec<f32> = t.params.iter().map(|p| d.values.get(&p.name).unwrap_or(p.default)).collect();
-    let mut c = fx::encode(&vals);
-    if let Some(tr) = d.trailer {
-        let n = c.len();
-        c[n - 4..].copy_from_slice(&tr.to_le_bytes());
-    }
-    c
+    fx::encode(&vals)
 }
 
 /// A track's notes as `(start, end, pitch, velocity)` in ticks: every placement flattened (loops repeated, cut at

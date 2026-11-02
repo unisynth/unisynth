@@ -56,13 +56,6 @@ fn device(k: u8, c: &[u8]) -> Result<Device, String> {
             d.values.set(&p.name, unit_snap(f(i)));
         }
     }
-    if c.len() >= 4 {
-        let tr = i32::from_le_bytes([c[c.len() - 4], c[c.len() - 3], c[c.len() - 2], c[c.len() - 1]]);
-        let canonical = (4 * t.params.len() + 4) as i32;
-        if tr != canonical || n != t.params.len() {
-            d.trailer = Some(tr);
-        }
-    }
     Ok(d)
 }
 

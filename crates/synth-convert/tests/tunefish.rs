@@ -65,7 +65,7 @@ fn legacy_song_of(p: &[f32; COUNT], events: &[(usize, u8, u8)], blocks: usize) -
         .collect();
     let mut s = song(vec![dev(kind::INSTRUMENT, p)], vec![lane], vec![track(&[0], 0)]);
     s.length = (blocks as f64 + 60.0) * 512.0 / 44100.0;
-    s.write()
+    s.write().unwrap()
 }
 
 fn parity(name: &str, p: &[f32; COUNT]) -> (f64, f64) {
@@ -456,7 +456,7 @@ fn without_a_routed_envelope_the_note_gates_at_key_up() {
     let (s, _) = convert_one(&p);
     let u = patch_of(&s, 0);
     // envelope 1: instant attack/decay, sustain 1, a third-of-a-block release, in timed mode; it does not scale the output
-    assert_eq!(law::choice(u[pm::env(0, e::MODE)], 2), 0);
+    assert_eq!(law::choice(u[pm::env(0, e::LAW)], pm::env_law::COUNT), 0);
     near(u[pm::env(0, e::SUSTAIN)], 1.0, "sustain");
     near(law::env_ms(u[pm::env(0, e::RELEASE)]), 512.0 / 44.1 / 3.0, "release: the key-up block's fade, as a cut");
     assert_eq!(law::choice(u[v::ENV1_AT_OUTPUT], 2), 0);
@@ -468,9 +468,9 @@ fn without_a_routed_envelope_the_note_gates_at_key_up() {
     let gate = law::env_ms(u[pm::env(0, e::RELEASE)]);
     assert!((gate - synth_convert::tf::gate_ms(&p)).abs() < 1.0 && gate > 200.0, "{gate} ms");
     // ADSR 2 is envelope 3 of the unified patch (envelope 1 is the gate, envelope 2 is ADSR 1), in rate mode, with its own curve values
-    assert_eq!(law::choice(u[pm::env(2, e::MODE)], 2), 1);
+    assert_eq!(law::choice(u[pm::env(2, e::LAW)], pm::env_law::COUNT), 1);
     near(u[pm::env(2, e::RELEASE)], 0.6, "release");
-    near(u[pm::env(2, e::SLOPE)], 0.5, "slope");
+    near(u[pm::env(2, e::CURVE_SLOPE)], 0.5, "slope");
 }
 
 #[test]
@@ -486,7 +486,7 @@ fn the_envelope_routed_to_volume_is_envelope_one_and_ends_the_voice() {
     let u = patch_of(&s, 0);
     near(u[pm::env(0, e::ATTACK)], 0.7, "envelope 1 is ADSR 2");
     near(u[pm::env(1, e::ATTACK)], 0.2, "envelope 2 is ADSR 1");
-    assert_eq!(law::choice(u[pm::env(0, e::MODE)], 2), 1);
+    assert_eq!(law::choice(u[pm::env(0, e::LAW)], pm::env_law::COUNT), 1);
     assert_eq!(route(&u, 0), (source::ENV1, target::osc(0, target::OSC_GAIN), 0.5, 0));
     assert_eq!(route(&u, 1), (source::ENV1 + 1, target::filter_cutoff(0), 0.7, 0));
     assert_eq!(route(&u, 2), (source::ENV1, target::ENV_DECAY + 1, 0.5, 0));
@@ -548,7 +548,7 @@ fn the_parameters_decode_to_the_same_physical_values() {
     near(shp(shape::WT_MOD), 0.6, "mod");
     near(shp(shape::WT_DRIVE), 0.45, "drive");
     near(law::gain(u[v::NOISE_LEVEL]), 0.4 * 2f32.sqrt(), "noise level");
-    assert_eq!(u[pm::ext::NOISE_WIDTH], 1.0, "Tunefish's noise has its own signal on each channel");
+    assert_eq!(u[pm::NOISE + n::WIDTH], 1.0, "Tunefish's noise has its own signal on each channel");
     // noise band: ladder low-pass at f + bw, RBJ high-pass at f − bw
     let nz = |k| u[pm::NOISE + k];
     assert_eq!(law::choice(nz(n::BAND_ON), 2), 1);
@@ -563,7 +563,7 @@ fn the_parameters_decode_to_the_same_physical_values() {
     }
     // the four filters in Tunefish's order
     let ft = |i| law::choice(u[pm::filt(i, f::TYPE)], filter_type::COUNT);
-    assert_eq!((ft(0), ft(1), ft(2), ft(3)), (filter_type::LADDER_LP, filter_type::RBJ_HP, filter_type::OFF, filter_type::NOTCH));
+    assert_eq!((ft(0), ft(1), ft(2), ft(3)), (filter_type::P4_LP, filter_type::RBJ_HP, filter_type::OFF, filter_type::NOTCH));
     near(law::cutoff(u[pm::filt(0, f::CUTOFF)]), 30.0 + 20000.0 * 0.25, "ladder cutoff");
     near(law::cutoff(u[pm::filt(1, f::CUTOFF)]), 30.0 + 10000.0 * 0.25, "RBJ high-pass cutoff");
     near(law::cutoff(u[pm::filt(3, f::CUTOFF)]), 30.0 + 20000.0 * 0.25, "notch cutoff");
@@ -571,11 +571,11 @@ fn the_parameters_decode_to_the_same_physical_values() {
     near(u[pm::filt(3, f::RESONANCE)], 0.4, "notch q");
     // LFOs: 50·p²/2π Hz, same shapes, key sync from 0.5 up
     near(law::lfo_rate(u[pm::lfo(0, l::RATE)]), 50.0 * 0.36 / std::f32::consts::TAU, "LFO 1 rate");
-    assert_eq!(law::choice(u[pm::lfo(0, l::SHAPE)], 5), 1);
-    assert_eq!(law::choice(u[pm::lfo(0, l::SYNC)], 2), 0, "free running");
+    assert_eq!(law::choice(u[pm::lfo(0, l::SHAPE)], unisynth::lfo::shape::ALL), 1);
+    assert_eq!(law::choice(u[pm::lfo(0, l::SYNC)], pm::lfo_sync::COUNT), pm::lfo_sync::SONG_TIME, "free running");
     near(u[pm::lfo(0, l::DEPTH)], 0.7, "LFO 1 depth");
-    assert_eq!(law::choice(u[pm::lfo(1, l::SHAPE)], 5), 3);
-    assert_eq!(law::choice(u[pm::lfo(1, l::SYNC)], 2), 1, "synced");
+    assert_eq!(law::choice(u[pm::lfo(1, l::SHAPE)], unisynth::lfo::shape::ALL), 3);
+    assert_eq!(law::choice(u[pm::lfo(1, l::SYNC)], pm::lfo_sync::COUNT), pm::lfo_sync::RESTART, "synced");
     near(law::lfo_rate(u[pm::lfo(1, l::RATE)]), 0.01, "rate 0 is the slowest unified LFO");
     // velocity scales the generator and the noise; nothing else is routed
     assert_eq!(route(&u, 8), (source::VELOCITY, target::osc(0, target::OSC_GAIN), 0.5, 0));
@@ -717,7 +717,7 @@ fn a_tunefish_instrument_in_a_song_gets_its_effects_as_track_devices() {
         vec![track(&[0, 1], 0), track(&[0], 1), track(&[], 1)],
     );
     s.tracks[2].receives = vec![(0, 0, 1.0), (1, 0, 1.0)];
-    let c = synth_convert::convert(&s.write()).unwrap();
+    let c = synth_convert::convert(&s.write().unwrap()).unwrap();
     let out = unified_song(&c.blob);
     // song devices: the converted ones in place, then the inserts
     assert_eq!(out.devices[0].kind, unisynth::kind::INSTRUMENT);
@@ -749,7 +749,7 @@ fn automation_of_the_instrument_and_of_its_effects_lands_on_the_right_devices() 
         common::auto(0, 111 + 5, &[(0, 0)]),       // past the 112 values the device reads: nothing to drive
     ];
     s.tracks[1].receives = vec![(0, 0, 1.0)];
-    let c = synth_convert::convert(&s.write()).unwrap();
+    let c = synth_convert::convert(&s.write().unwrap()).unwrap();
     let out = unified_song(&c.blob);
     let t = &out.tracks[0];
     assert_eq!(t.devices.len(), 3, "instrument, chorus, reverb");
@@ -770,14 +770,14 @@ fn automating_the_routing_of_a_tunefish_instrument_is_rejected() {
     for (what, param) in [("an effect slot's kind", EFFECT_FIRST + 3), ("a mod slot's source", MM_FIRST + 3 * 2), ("a mod slot's target", MM_FIRST + 3 * 7 + 2)] {
         let mut s = song(vec![device32(&p)], vec![lane(&[(0, 60, Some(100))])], vec![track(&[0], 0)]);
         s.tracks[0].autos = vec![common::auto(0, param, &[(0, 0), (1000, 255)])];
-        let e = synth_convert::convert(&s.write()).err().unwrap_or_else(|| panic!("{what} was accepted"));
+        let e = synth_convert::convert(&s.write().unwrap()).err().unwrap_or_else(|| panic!("{what} was accepted"));
         assert!(e.to_string().contains(&format!("parameter {param}")) && e.to_string().contains("routing"), "{what}: {e}");
     }
     // the amount of a slot, and the (never evaluated) slots 9 and 10, may move
     for param in [MM_FIRST + 1, MM_FIRST + 3 * 7 + 1, MM_FIRST + 3 * 8, MM_FIRST + 3 * 9 + 2] {
         let mut s = song(vec![device32(&p)], vec![lane(&[(0, 60, Some(100))])], vec![track(&[0], 0)]);
         s.tracks[0].autos = vec![common::auto(0, param, &[(0, 0), (1000, 255)])];
-        synth_convert::convert(&s.write()).unwrap_or_else(|e| panic!("parameter {param}: {e}"));
+        synth_convert::convert(&s.write().unwrap()).unwrap_or_else(|e| panic!("parameter {param}: {e}"));
     }
 }
 
@@ -789,7 +789,7 @@ fn automated_tunefish_parameters_follow_the_legacy_curves() {
     p[LP_CUT] = 0.2;
     let mut s = song(vec![device32(&p)], vec![lane(&[(0, 60, Some(100))])], vec![track(&[0], 0)]);
     s.tracks[0].autos = vec![common::auto(0, LP_CUT, &[(0, 0), (44100, 255)])];
-    let c = synth_convert::convert(&s.write()).unwrap();
+    let c = synth_convert::convert(&s.write().unwrap()).unwrap();
     let out = unified_song(&c.blob);
     let a = out.tracks[0].autos.iter().find(|a| a.param == pm::filt(0, f::CUTOFF)).expect("a cutoff lane");
     let mut t = 0i32;
@@ -812,12 +812,12 @@ fn automated_tunefish_parameters_follow_the_legacy_curves() {
     // the filter switch (on above 0.5) steps instead of ramping
     let mut s = song(vec![device32(&p)], vec![lane(&[(0, 60, Some(100))])], vec![track(&[0], 0)]);
     s.tracks[0].autos = vec![common::auto(0, LP_ON, &[(0, 0), (44100, 255)])];
-    let out = unified_song(&synth_convert::convert(&s.write()).unwrap().blob);
+    let out = unified_song(&synth_convert::convert(&s.write().unwrap()).unwrap().blob);
     let a = out.tracks[0].autos.iter().find(|a| a.param == pm::filt(0, f::TYPE)).expect("a type lane");
     let mut t = 0i32;
     let pts: Vec<(i32, u8)> = a.points.iter().map(|&(d, b)| { t += d; (t, b) }).collect();
     let v = synth_convert::auto::read_lane(&pts, 440);
-    let first_on = v.iter().position(|x| law::choice(*x, filter_type::COUNT) == filter_type::LADDER_LP).unwrap();
+    let first_on = v.iter().position(|x| law::choice(*x, filter_type::COUNT) == filter_type::P4_LP).unwrap();
     assert!((first_on as i64 * 100 - 22050).abs() <= 200, "switches on at {}", first_on * 100);
     assert!(v[..first_on].iter().all(|x| law::choice(*x, filter_type::COUNT) == filter_type::OFF));
 }
@@ -835,7 +835,7 @@ fn the_voice_limit_is_the_capacity() {
     p[GEN_POLY] = 0.2;
     let mut s = song(vec![device32(&p)], vec![lane(&[(0, 60, Some(100))])], vec![track(&[0], 0)]);
     s.tracks[0].autos = vec![common::auto(0, GEN_POLY, &[(0, 0), (1000, 255)])];
-    let out = unified_song(&synth_convert::convert(&s.write()).unwrap().blob);
+    let out = unified_song(&synth_convert::convert(&s.write().unwrap()).unwrap().blob);
     assert_eq!(law::count(patch_of(&out, 0)[v::CAPACITY], 1, 64), 16);
     assert!(out.tracks[0].autos.iter().all(|a| a.param != v::CAPACITY), "structural: never automated");
 }

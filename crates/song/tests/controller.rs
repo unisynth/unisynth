@@ -9,12 +9,12 @@ use song::{export, export_model, parse, Song};
 /// One phase-mod sine voice, 4 bars at 120 BPM; `clips` and `placements` filled in by each test.
 fn song(clips: serde_json::Value, placements: serde_json::Value) -> Song {
     let v = serde_json::json!({
-        "format": "song/1", "rate": 44100, "tempo": 120.0, "signature": [4, 4], "ticks_per_beat": 960,
+        "format": "song/2", "rate": 44100, "tempo": 120.0, "signature": [4, 4], "ticks_per_beat": 960,
         "length": 15360,
         "clips": clips,
         "tracks": [
             { "id": "lead", "name": "Lead", "volume": 1.0, "mute": false, "receives": [],
-              "devices": [ { "kind": 64, "values": { "osc1.type": 0.25 } } ], "placements": placements, "lanes": [] }
+              "devices": [ { "kind": 64, "values": { "osc1.type": 0.0833333358168602 } } ], "placements": placements, "lanes": [] }
         ],
         "master": { "id": "master", "name": "Master", "volume": 1.0, "mute": false, "receives": [
             { "from": "lead", "channel": "main", "volume": 1.0 } ], "devices": [], "placements": [], "lanes": [] }

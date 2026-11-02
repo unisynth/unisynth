@@ -1,7 +1,32 @@
 use super::*;
-use crate::chunk::encode;
 use crate::law::host as inv;
-use crate::params::{o, osc, osc_type};
+// test patches are built in the old layout and migrated: the tests keep their meaning across the format switch and the
+// self-goldens pin it (change unify-v2-algorithms 6.5); `set_param` and the instrument's values use v3 indices (`v3`)
+use crate::params as v3;
+use crate::params::old as pm;
+use crate::params::old::v;
+
+/// Encodes an old-layout patch as a v3 chunk (the migration).
+fn encode(vals: &[f32; pm::COUNT], samples: &[&[u8]]) -> Vec<u8> {
+    crate::chunk::encode(&crate::migrate::values(vals).unwrap(), samples)
+}
+
+/// Old-layout stored values of a mod source and operation (expanded choices; the matrix tests).
+#[allow(dead_code)]
+fn source_old(id: usize) -> f32 {
+    pm::kinds::encode(id, crate::modmx::source::COUNT_V1)
+}
+#[allow(dead_code)]
+fn op_old(id: usize) -> f32 {
+    pm::kinds::encode(id, crate::modmx::op::COUNT_V1)
+}
+
+/// The v3 index of old-layout parameter `i` (same name).
+fn v3i(i: usize) -> usize {
+    let name = pm::name(i);
+    (0..v3::COUNT).find(|&j| v3::name(j) == name).unwrap_or_else(|| panic!("{name} has no v3 index"))
+}
+use crate::params::old::{o, osc, osc_type};
 use synth_core::device::{Ctx, Device, Io};
 use synth_core::mix::Kinds;
 
@@ -191,7 +216,7 @@ fn a_legato_note_keeps_the_clocked_phase() {
 fn a_legato_note_keeps_the_clocked_filter_rising() {
     // a rising clocked filter (decay 1.0001 per phrase frame, one phrase frame per output frame): across a legato
     // note its envelope part keeps growing from the first note-on; a note after a release restarts it at the amount
-    use crate::params::shape as sp;
+    use crate::params::old::shape as sp;
     let sh = |i| osc(0, o::SHAPE + i);
     let edits = [
         (osc(0, o::TYPE), osc_type::encode(osc_type::CLOCKED)),
@@ -222,7 +247,7 @@ fn a_clocked_restart_fades_the_cut_note_out() {
     // one mono voice, a note cut by the next one in the same frame (the converter's ping-pong joints): the restart
     // zeroes the filter's output, so the old note dropped to 0 in one frame (a click, multiplied by the chain's comb
     // and doubler). Now the step at the restart is carried and faded out over 1 ms
-    use crate::params::shape as sp;
+    use crate::params::old::shape as sp;
     let sh = |i| osc(0, o::SHAPE + i);
     let edits = [
         (osc(0, o::TYPE), osc_type::encode(osc_type::CLOCKED)),
@@ -248,7 +273,7 @@ fn a_clocked_restart_fades_the_cut_note_out() {
 fn transpose_and_bend_resample_the_clocked_phrase() {
     // an octave of transpose (or bend) is a playback twice as fast: the phrase clock doubles with the pitch, so the
     // rising filter envelope (per phrase frame) has grown twice as many frames after 1100 output frames
-    use crate::params::{ctl, shape as sp};
+    use crate::params::old::{ctl, shape as sp};
     let sh = |i| osc(0, o::SHAPE + i);
     let base = [
         (osc(0, o::TYPE), osc_type::encode(osc_type::CLOCKED)),
@@ -342,16 +367,16 @@ fn bend_shifts_every_voice_by_its_range() {
     with_ins(&patch(&[(pm::ctl::BEND_RANGE, range2)]), r, |ins| {
         let (a, _) = render(ins, r, &[on(0, 69)], 22050, 4096);
         assert!((hz_of(&a, 4000, 16000, r) - 440.0).abs() < 2.0, "{}", hz_of(&a, 4000, 16000, r));
-        ins.set_param(pm::ctl::BEND, 1.0);
+        ins.set_param(v3::ctl::BEND, 1.0);
         let (b, _) = render(ins, r, &[], 22050, 4096);
         let want = 440.0 * 2f64.powf(2.0 / 12.0);
         assert!((hz_of(&b, 4000, 16000, r) - want).abs() < 3.0, "{} vs {want}", hz_of(&b, 4000, 16000, r));
         // down by the range, and back to the centre
-        ins.set_param(pm::ctl::BEND, 0.0);
+        ins.set_param(v3::ctl::BEND, 0.0);
         let (c, _) = render(ins, r, &[], 22050, 4096);
         let want = 440.0 * 2f64.powf(-2.0 / 12.0);
         assert!((hz_of(&c, 4000, 16000, r) - want).abs() < 3.0, "{} vs {want}", hz_of(&c, 4000, 16000, r));
-        ins.set_param(pm::ctl::BEND, 0.5);
+        ins.set_param(v3::ctl::BEND, 0.5);
         let (d, _) = render(ins, r, &[], 22050, 4096);
         assert!((hz_of(&d, 4000, 16000, r) - 440.0).abs() < 2.0);
     });
@@ -374,7 +399,7 @@ fn bend_moves_a_released_voice_too_and_the_default_changes_nothing() {
     with_ins(&patch(&long), r, |ins| {
         let (a, _) = render(ins, r, &[on(0, 57), off(2000, 57)], 8000, 1000);
         assert!((hz_of(&a, 3000, 4000, r) - 220.0).abs() < 6.0);
-        ins.set_param(pm::ctl::BEND, 1.0);
+        ins.set_param(v3::ctl::BEND, 1.0);
         let (b, _) = render(ins, r, &[], 12000, 1000);
         assert!((hz_of(&b, 4000, 4000, r) - 440.0).abs() < 12.0, "{}", hz_of(&b, 4000, 4000, r));
     });
@@ -401,18 +426,18 @@ fn the_wheel_parameter_is_the_live_wheel_and_a_reset_restores_the_loaded_control
         })
     };
     let live = level(&|ins| ins.mod_wheel(0.5));
-    let param = level(&|ins| ins.set_param(pm::ctl::WHEEL, 0.5));
+    let param = level(&|ins| ins.set_param(v3::ctl::WHEEL, 0.5));
     assert_eq!(live, param, "mod_wheel writes the same parameter");
-    assert!((param / level(&|ins| ins.set_param(pm::ctl::WHEEL, 1.0)) - 0.5).abs() < 0.02);
+    assert!((param / level(&|ins| ins.set_param(v3::ctl::WHEEL, 1.0)) - 0.5).abs() < 0.02);
     // seek: a reset puts wheel, bend and range back to the loaded values (the chunk's, not the defaults')
     let chunk = patch(&[(pm::ctl::WHEEL, 0.25), (pm::ctl::BEND, 0.75), (pm::ctl::BEND_RANGE, 0.5)]);
     with_ins(&chunk, 44100.0, |ins| {
-        ins.set_param(pm::ctl::WHEEL, 1.0);
-        ins.set_param(pm::ctl::BEND, 0.0);
-        ins.set_param(pm::ctl::BEND_RANGE, 0.0);
+        ins.set_param(v3::ctl::WHEEL, 1.0);
+        ins.set_param(v3::ctl::BEND, 0.0);
+        ins.set_param(v3::ctl::BEND_RANGE, 0.0);
         ins.mod_wheel(0.9);
         ins.reset();
-        assert_eq!((ins.p[pm::ctl::WHEEL], ins.p[pm::ctl::BEND], ins.p[pm::ctl::BEND_RANGE]), (0.25, 0.75, 0.5));
+        assert_eq!((ins.p[v3::ctl::WHEEL], ins.p[v3::ctl::BEND], ins.p[v3::ctl::BEND_RANGE]), (0.25, 0.75, 0.5));
     });
 }
 
@@ -453,9 +478,9 @@ fn structural_and_bad_parameters_are_ignored() {
     with_ins(&patch(&[]), 44100.0, |ins| {
         let before = ins.p;
         ins.set_param(v::CAPACITY, 1.0);
-        ins.set_param(osc(0, o::TYPE), 0.0);
-        ins.set_param(pm::smp_index(1), 5.0);
-        ins.set_param(osc(2, o::SHAPE + pm::shape::SMP_SOURCE), 1.0);
+        ins.set_param(v3::osc(0, v3::o::TYPE), 0.0);
+        ins.set_param(v3::smp_index(1), 5.0);
+        ins.set_param(v3::osc(2, v3::o::SHAPE + v3::shape::SMP_SOURCE), 1.0);
         ins.set_param(v::MASTER, f32::NAN);
         ins.set_param(v::MASTER, f32::INFINITY);
         ins.set_param(COUNT, 0.5);
@@ -466,7 +491,7 @@ fn structural_and_bad_parameters_are_ignored() {
         assert_eq!(ins.p[v::MASTER], 1.0, "out of range clamps");
         ins.set_param(v::MASTER, -3.0);
         assert_eq!(ins.p[v::MASTER], 0.0);
-        assert_eq!(ins.param_count(), pm::COUNT);
+        assert_eq!(ins.param_count(), v3::COUNT);
     });
 }
 
@@ -477,14 +502,14 @@ fn every_oscillator_shape_value_is_automatable_and_the_sample_index_is_not() {
     with_ins(&patch(&[]), 44100.0, |ins| {
         for slot in 0..3 {
             for k in 0..9 {
-                let i = osc(slot, o::SHAPE + k);
+                let i = v3::osc(slot, v3::o::SHAPE + k);
                 if k == pm::shape::SMP_SOURCE {
                     continue; // structural
                 }
                 ins.set_param(i, 0.29);
                 assert_eq!(ins.p[i], 0.29, "osc{} s{k}", slot + 1);
             }
-            let i = pm::smp_index(slot);
+            let i = v3::smp_index(slot);
             ins.set_param(i, 5.0);
             assert_eq!(ins.p[i], 0.0, "the sample index is read from the chunk only");
         }
@@ -496,7 +521,7 @@ fn automation_of_a_structural_parameter_changes_nothing() {
     with_ins(&patch(&[]), 44100.0, |ins| {
         let (a, _) = render(ins, 44100.0, &[on(0, 69)], 500, 500);
         ins.reset();
-        ins.set_param(osc(0, o::TYPE), 1.0); // would switch the slot to a sampler
+        ins.set_param(v3::osc(0, v3::o::TYPE), v3::osc_type::encode(v3::osc_type::SAMPLER)); // would switch the slot to a sampler
         let (b, _) = render(ins, 44100.0, &[on(0, 69)], 500, 500);
         assert_eq!(a, b);
     });
@@ -513,8 +538,9 @@ fn registry_builds_the_instrument_and_rejects_other_kinds() {
     let mut mem = vec![0u8; 1 << 16];
     let mut pool = Pool::new(&mut mem);
     let d = UDevice::load(64, &chunk, &env, &mut pool, &mut Lcg(1)).unwrap();
-    assert_eq!((d.param_count(), d.event_lookahead()), (pm::COUNT, 0));
-    assert_eq!(UDevice::need(64, &[1, 0, 0, 7], &env).err(), Some(LoadError::BadChunk)); // a trailing byte
+    assert_eq!((d.param_count(), d.event_lookahead()), (v3::COUNT, 0));
+    assert_eq!(UDevice::need(64, &[3, 0, 0, 7], &env).err(), Some(LoadError::BadChunk)); // a trailing byte
+    assert_eq!(UDevice::need(64, &[1, 0, 0], &env).err(), Some(LoadError::UnknownVersion)); // the old layout
 }
 
 // ---- 2.2: the control grid ----
@@ -699,7 +725,7 @@ fn an_automated_wheel_opens_a_route_and_seeking_gives_what_playing_gives() {
     // the wheel drives the gain; its lane rises over the held note
     let chunk = patch(&route(0, source::WHEEL, target::GAIN, true, 1.0));
     let mut t = Track::new(&[0], 0);
-    t.autos = vec![(0, pm::ctl::WHEEL as i32, vec![(0, 0), (8000, 255)])];
+    t.autos = vec![(0, v3::ctl::WHEEL as i32, vec![(0, 0), (8000, 255)])];
     let bytes = song(44100, 0.3, &[(64, chunk)], &[vec![(0, 69, Some(100))]], &[t]);
     with_player(&bytes, 100, |p| {
         let a = play(p, 8000, 8000);
@@ -834,7 +860,7 @@ fn route(i: usize, src: usize, tgt: u8, scale: bool, amount: f32) -> Vec<(usize,
     let amount_p =
         if scale { inv::inv_scale_amount(amount) } else { inv::inv_offset_amount(amount, target::offset_range(tgt)) };
     vec![
-        (pm::modslot(i, pm::m::SOURCE), inv::inv_choice(src, source::COUNT)),
+        (pm::modslot(i, pm::m::SOURCE), inv::inv_choice(src, source::COUNT_V1)),
         (pm::modslot(i, pm::m::TARGET), inv::inv_index(tgt)),
         (pm::modslot(i, pm::m::OPERATION), inv::inv_choice(if scale { 0 } else { 1 }, 2)),
         (pm::modslot(i, pm::m::AMOUNT), amount_p),
@@ -1038,7 +1064,7 @@ fn an_aux_oscillator_needs_the_channel_stage_build() {
     let mut p = pm::DEFAULTS;
     p[pm::osc(0, o::TYPE)] = osc_type::encode(osc_type::V2);
     p[pm::osc(0, o::SHAPE + pm::shape::V2_MODE)] = 7.0 / 128.0;
-    let c = crate::chunk::encode(&p, &[]);
+    let c = encode(&p, &[]);
     assert_eq!(UInstrument::need(&c).err(), Some(LoadError::UnsupportedModule(crate::module::STRIP)));
 }
 
@@ -1094,7 +1120,7 @@ fn a_few_millisecond_envelope_keeps_its_energy() {
         let ep = crate::env::EnvP::read(&{
             let mut v = pm::DEFAULTS;
             shape(decay, 0.0).iter().for_each(|&(i, x)| v[i] = x);
-            v
+            crate::migrate::values(&v).unwrap()
         }, 0);
         let mut e = crate::env::Env::new();
         e.trigger(false);

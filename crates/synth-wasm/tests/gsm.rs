@@ -13,10 +13,10 @@ fn an_encoded_chunk_decodes_back_and_loads_in_an_instrument() {
     assert!(10.0 * (sig / err).log10() > 5.0, "lossy but close");
     // a sampler instrument with this chunk as GSM sample 1 is a valid song device, and it sounds
     let song = serde_json::json!({
-        "format": "song/1", "rate": 44100, "tempo": 120.0, "signature": [4, 4], "ticks_per_beat": 960, "length": 3840,
+        "format": "song/2", "rate": 44100, "tempo": 120.0, "signature": [4, 4], "ticks_per_beat": 960, "length": 3840,
         "clips": [{ "id": "c", "length": 3840, "notes": [[0, 1920, 60, 100]] }],
         "tracks": [{ "id": "s", "name": "Sampler", "volume": 1.0, "mute": false, "receives": [],
-            "devices": [{ "kind": 64, "values": { "osc1.type": 1.0, "osc1.s7": 0.0, "osc1.sample": 1.0, "env1.sustain": 1.0 },
+            "devices": [{ "kind": 64, "values": { "osc1.type": 0.3333333432674408, "osc1.s7": 0.0, "osc1.sample": 1.0, "env1.sustain": 1.0 },
                 "samples": [song::b64::encode(&c)] }],
             "placements": [{ "clip": "c", "start": 0, "length": null, "loop": false }], "lanes": [] }],
         "master": { "id": "master", "name": "Master", "volume": 1.0, "mute": false, "receives": [{ "from": "s", "channel": "main", "volume": 1.0 }],

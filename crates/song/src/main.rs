@@ -2,12 +2,14 @@
 //!
 //! ```text
 //! song export <song.json> -o <blob>           validate + export the synth-mix blob
-//! song import <blob> -o <song.json> [--meta <meta.json>] [--one-clip]   blob → song/1 (lanes cut into patterns, or
+//! song import <blob> -o <song.json> [--meta <meta.json>] [--one-clip]   blob → song/2 (lanes cut into patterns, or
 //!                                             one clip per lane), with authorship, track names and descriptions
 //! song render <song.json|blob> -o <wav> [--f32] [--bank gm.dls] [--threads <n>]   through the song player (16-bit
 //!                                             default); n ≥ 2 renders independent tracks on n threads, same output
 //! song info <song.json|blob>                  tracks, devices, length, required cargo features
 //! song check <song.json>                      validate only (exit 0 = valid)
+//! song migrate <song.json|patch.json> [-o <out>]   a song/1 or us-patch/1 file saved as song/2 or us-patch/2 (in
+//!                                             place without -o); a /2 file is written back unchanged
 //! ```
 //! Errors print as `<json pointer>: <reason>` on stderr; any failure exits non-zero and writes no output.
 
@@ -51,9 +53,9 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let opt = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).cloned();
     let flag = |name: &str| args.iter().any(|a| a == name);
-    let cmd = args.first().map(String::as_str).filter(|c| ["export", "import", "render", "info", "check"].contains(c));
+    let cmd = args.first().map(String::as_str).filter(|c| ["export", "import", "render", "info", "check", "migrate"].contains(c));
     if cmd.is_none() {
-        eprintln!("usage: song export|import|render|info|check <file> [-o <out>] [--meta meta.json] [--one-clip] [--f32] [--bank gm.dls] [--threads n]");
+        eprintln!("usage: song export|import|render|info|check|migrate <file> [-o <out>] [--meta meta.json] [--one-clip] [--f32] [--bank gm.dls] [--threads n]");
         exit(if matches!(args.first().map(String::as_str), Some("help" | "--help" | "-h")) { 0 } else { 2 });
     }
     let input = args.get(1).cloned().unwrap_or_else(|| die("missing input file (see `song help`)"));
@@ -121,8 +123,21 @@ fn main() {
             load_song(&input);
             println!("{input}: valid");
         }
+        Some("migrate") => {
+            let text = if input.ends_with(".patch.json") {
+                let t = String::from_utf8(read(&input)).unwrap_or_else(|_| die(format!("{input}: not UTF-8")));
+                let p = song::preset::parse(&t).unwrap_or_else(|issues| {
+                    issues.iter().for_each(|i| eprintln!("{input}: {i}"));
+                    exit(1)
+                });
+                song::preset::to_json(&p)
+            } else {
+                song::to_json(&load_song(&input))
+            };
+            write(&opt("-o").unwrap_or_else(|| input.clone()), text.as_bytes());
+        }
         _ => {
-            eprintln!("usage: song export|import|render|info|check <file> [-o <out>] [--f32] [--bank gm.dls] [--threads n]");
+            eprintln!("usage: song export|import|render|info|check|migrate <file> [-o <out>] [--f32] [--bank gm.dls] [--threads n]");
             exit(2)
         }
     }

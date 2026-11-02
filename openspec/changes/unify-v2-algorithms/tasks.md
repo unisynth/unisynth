@@ -57,21 +57,21 @@ separate commits; 6.5–6.8 are checkpoints of one switch commit (each needs a p
   filter, slope by the law at each lane point), the effect-chunk version marker. Gate: a prototype build of the layout
   passes the squishy probe of the reference songs (no growth); pair counts per tracked song recorded. Verify:
   index map and pair-count table in design.md; probe table
-- [ ] 6.5 (switch commit) Frozen old layout host-side (old `COUNT`, `DEFAULTS`, decoders, indices, `era_settings`
+- [x] 6.5 (switch commit) Frozen old layout host-side (old `COUNT`, `DEFAULTS`, decoders, indices, `era_settings`
   over the old layout, old effect modes) and the migration `old → new` for instrument and effect chunks, lanes (one
   lane per changed setting at the old lane's times, merged into an existing lane on the same setting; a lane or route
   on a naive slot's mode or ring is a named error) and mod routes. Verify:
   a unit test per value rule; "Lanes across a split"
-- [ ] 6.6 (switch commit) `song/2` and `us-patch/2`: `/1` files migrate on load (values and names) and save as `/2`;
+- [x] 6.6 (switch commit) `song/2` and `us-patch/2`: `/1` files migrate on load (values and names) and save as `/2`;
   `/2` is never migrated and rejects old names. The DAW migrates on open through synth-wasm; its templates, fixtures,
   option sniffing, its lane fallback (an unknown lane is an error, not `filt1.cutoff`) and the schema move to the new
   layout. Verify: "Old song file", "Migrated once", "New file with an old name"; a `/1` file opened
   in the DAW plays the same as its migrated `/2`
-- [ ] 6.7 (switch commit) Converters write the new layout directly: `Patch` at the new `COUNT`, `ws`, `tfm`/`tf4m`,
+- [x] 6.7 (switch commit) Converters write the new layout directly: `Patch` at the new `COUNT`, `ws`, `tfm`/`tf4m`,
   `v2m`, `xm`/`xm-phrase`, `legacy`, `instr`, `fx`, `tf`, `cauldron`, `capacity`, `rust` (bake), `auto.rs`, `features`/`needs` (new settings, quirk modules and features, `us-chunk-wide`
   reach), song tables. No converter writes `voice.era`. Verify: each converter's output equals the migration of its
   old output
-- [ ] 6.8 (switch commit) The player reads chunk versions 3/4 and the effect-chunk marker, rejects versions 1/2 and
+- [x] 6.8 (switch commit) The player reads chunk versions 3/4 and the effect-chunk marker, rejects versions 1/2 and
   unmarked or truncated effect chunks with `LoadError::UnknownVersion` / an error, and no longer derives settings from era/type; quirk
   parameters are structural, each behind its module id and feature; `is_channel` and the other index-order checks
   follow the new strides. The trusted (baked) path stays unchecked by design (documented). Verify: "Device kind and

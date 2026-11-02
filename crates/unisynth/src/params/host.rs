@@ -8,7 +8,7 @@ use std::format;
 use std::string::String;
 
 /// How a normalized value maps to its physical value. `Shape`, `ModAmount` and `EnvTime` depend on a sibling value
-/// (oscillator type, mod operation, envelope mode); [`Law::map`] returns `p` for them and the module resolves them.
+/// (oscillator type, mod operation, envelope law); [`Law::map`] returns `p` for them and the module resolves them.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Law {
     Unit,
@@ -31,7 +31,7 @@ pub enum Law {
     Choice(usize),
     Count(u32, u32),
     Index,
-    /// Envelope time: ms in timed mode, rate-based in rate mode.
+    /// Envelope time: ms on the seconds law, rate-based on the rate law, 7-bit step on the frame law.
     EnvTime,
     /// Meaning depends on the oscillator type ([`shape`]).
     Shape,
@@ -39,10 +39,8 @@ pub enum Law {
     ModAmount,
     /// Stored as is (sample index).
     Raw,
-    /// An expanded choice (`params::kinds`): `old` kinds of chunk v1, `all` kinds now; the value is the kind id.
-    Kinds { old: usize, all: usize },
-    /// A V2 field: `raw = 128·p` (design D4a).
-    V2Raw,
+    /// A 7-bit step: `step = 128·p`.
+    Steps,
 }
 
 impl Law {
@@ -66,8 +64,7 @@ impl Law {
             Law::Choice(n) => law::choice(p, n) as f32,
             Law::Count(lo, hi) => law::count(p, lo, hi) as f32,
             Law::Index => law::index(p) as f32,
-            Law::Kinds { old, all } => kinds::decode(p, old, all - old, 0) as f32,
-            Law::V2Raw => v2_raw(p),
+            Law::Steps => v2_raw(p),
             Law::Pan | Law::Unit | Law::EnvTime | Law::Shape | Law::ModAmount | Law::Raw => p,
         }
     }
@@ -91,13 +88,7 @@ impl Law {
             Law::Choice(n) => inv::inv_choice(v as usize, n),
             Law::Count(lo, hi) => inv::inv_count(v as u32, lo, hi),
             Law::Index => inv::inv_index(v as u8),
-            Law::Kinds { old, all } => {
-                if v as usize >= all {
-                    return None;
-                }
-                kinds::encode(v as usize, old)
-            }
-            Law::V2Raw => v / 128.0,
+            Law::Steps => v / 128.0,
             Law::Unit => v,
             Law::RatioFine | Law::Pan | Law::EnvTime | Law::Shape | Law::ModAmount | Law::Raw => return None,
         })
@@ -122,10 +113,19 @@ pub fn law_of(i: usize) -> Law {
             _ => Unit,
         };
     }
+    if i >= VS && i < VS + vs::LEN {
+        return match i {
+            vs::KEYSYNC => Choice(vs::keysync::COUNT),
+            vs::BALANCE => Steps,
+            _ => Choice(2),
+        };
+    }
     if let Some(fld) = group(OSC, o::LEN, OSC_SLOTS) {
         return match fld {
-            o::TYPE => Kinds { old: osc_type::COUNT, all: osc_type::ALL },
-            o::TRACKING => Choice(2),
+            o::TYPE => Choice(osc_type::COUNT),
+            o::TRACKING | o::LAW => Choice(2),
+            o::COMBINE => Choice(combine::COUNT),
+            o::SAMPLE => Raw,
             o::COARSE => Coarse,
             o::FINE => Fine,
             o::OCTAVE => Octave,
@@ -137,35 +137,41 @@ pub fn law_of(i: usize) -> Law {
             o::PM_OUT => PmOut,
             o::FEEDBACK => Feedback,
             o::MIX => Unit,
-            o::LEN.. => Unit,
             _ => Shape,
         };
     }
     if let Some(fld) = group(NOISE, n::LEN, 1) {
         return match fld {
             n::BAND_ON => Choice(2),
+            n::WIDTH => Unit,
             _ => Cutoff,
         };
     }
     if let Some(fld) = group(FILT, f::LEN, FILT_SLOTS) {
         return match fld {
-            f::TYPE => Kinds { old: filter_type::COUNT, all: filter_type::ALL },
+            f::TYPE => Choice(filter_type::COUNT),
             f::CUTOFF => Cutoff,
-            _ => Unit,
+            f::RESONANCE => Unit,
+            _ => Choice(2),
         };
     }
     if let Some(fld) = group(ENV, e::LEN, ENV_SLOTS) {
         return match fld {
-            e::MODE => Kinds { old: env_mode::COUNT, all: env_mode::ALL },
+            e::LAW => Choice(env_law::COUNT),
+            e::CURVE => Choice(env_curve::COUNT),
             e::ATTACK | e::DECAY | e::RELEASE => EnvTime,
+            e::SUSTAIN_SLOPE | e::AMPLIFY => Steps,
             _ => Unit,
         };
     }
     if let Some(fld) = group(LFO, l::LEN, LFO_SLOTS) {
         return match fld {
-            l::SHAPE => Choice(5),
+            l::SHAPE => Choice(crate::lfo::shape::ALL),
             l::RATE => LfoRate,
-            l::SYNC => Choice(2),
+            l::SYNC => Choice(lfo_sync::COUNT),
+            l::LAW | l::ONE_SHOT => Choice(2),
+            l::POLARITY => Choice(3),
+            l::PHASE => Steps,
             _ => Unit,
         };
     }
@@ -173,26 +179,23 @@ pub fn law_of(i: usize) -> Law {
     if let Some(fld) = modfld {
         use crate::modmx::{op, source};
         return match fld {
-            m::SOURCE => Kinds { old: source::COUNT, all: source::ALL },
+            m::SOURCE => Choice(source::COUNT),
             m::TARGET => Index,
             m::AMOUNT => ModAmount,
-            _ => Kinds { old: op::COUNT, all: op::ALL },
+            _ => Choice(op::COUNT),
         };
-    }
-    if i == v2::VOICE || i == ch::ON || i == ch::SPEECH || i == lfo_ext(0, lx::MODE) || i == lfo_ext(1, lx::MODE) {
-        return Choice(2);
-    }
-    if i == v2::ERA {
-        return Kinds { old: 7, all: 8 };
-    }
-    if i >= V2G && i < COUNT {
-        return V2Raw;
-    }
-    if is_raw(i) {
-        return Raw;
     }
     if i == ctl::BEND_RANGE {
         return BendRange;
+    }
+    if i >= CTL && i < CTL + ctl::LEN {
+        return Unit;
+    }
+    if (i >= QUIRK && i < QUIRK + quirk::LEN) || i == ch::ON || i == ch::DC_FILTER || i == speech::ON {
+        return Choice(2);
+    }
+    if i < COUNT {
+        return Steps;
     }
     Unit
 }
@@ -203,21 +206,30 @@ pub fn name(i: usize) -> String {
         "master", "pan", "capacity", "steal", "unison", "uni_detune", "uni_spread", "mode", "slide", "glide",
         "transpose", "velocity", "start_spread", "one_shot", "noise_level", "env1_at_output",
     ];
+    const VSN: [&str; vs::LEN] =
+        ["voice.amp_source", "voice.pan_stage", "voice.dc_filter", "voice.law", "voice.keysync", "voice.routing", "voice.balance"];
     const O: [&str; o::LEN] = [
         "type", "tracking", "coarse", "fine", "octave", "ratio", "ratio_fine", "fixed_hz", "gain", "mix", "pan",
-        "pm_out", "feedback", "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8",
+        "pm_out", "feedback", "s0", "s1", "s2", "s3", "s4", "s5", "s6", "s7", "s8", "sample", "combine", "law",
     ];
-    const N: [&str; n::LEN] = ["band_on", "hp", "lp"];
-    const F: [&str; f::LEN] = ["type", "cutoff", "resonance"];
-    const E: [&str; e::LEN] = ["law", "attack", "decay", "sustain", "release", "curve_slope"];
-    const L: [&str; l::LEN] = ["shape", "rate", "depth", "sync"];
+    const N: [&str; n::LEN] = ["band_on", "hp", "lp", "width"];
+    const F: [&str; f::LEN] = ["type", "cutoff", "resonance", "form", "oversample", "law"];
+    const E: [&str; e::LEN] = ["law", "attack", "decay", "sustain", "release", "curve", "curve_slope", "sustain_slope", "amplify"];
+    const L: [&str; l::LEN] = ["shape", "rate", "depth", "sync", "law", "phase", "polarity", "one_shot"];
     const M: [&str; m::LEN] = ["source", "target", "amount", "operation"];
+    const Q: [&str; quirk::LEN] = ["exact_math", "integer_fm", "fixed_seed", "lcg_noise", "coarse_env"];
+    const S: [&str; 15] = [
+        "on", "volume", "drive_mode", "drive_gain", "drive_p1", "drive_p2", "send_reverb", "send_delay", "boost",
+        "order", "send_aux_a", "send_aux_b", "recv_aux_a", "recv_aux_b", "dc_filter",
+    ];
     let slot = |base: usize, stride: usize, names: &[&str], group: &str| {
         let r = i - base;
         format!("{group}{}.{}", r / stride + 1, names[r % stride])
     };
     if i < v::LEN {
         String::from(V[i])
+    } else if i < OSC {
+        String::from(VSN[i - VS])
     } else if i < NOISE {
         slot(OSC, o::LEN, &O, "osc")
     } else if i < FILT {
@@ -228,44 +240,29 @@ pub fn name(i: usize) -> String {
         slot(ENV, e::LEN, &E, "env")
     } else if i < MOD {
         slot(LFO, l::LEN, &L, "lfo")
-    } else if i < SMP {
-        slot(MOD, m::LEN, &M, "mod")
     } else if i < CTL {
-        format!("osc{}.sample", i - SMP + 1)
-    } else if i < EXT {
+        slot(MOD, m::LEN, &M, "mod")
+    } else if i < DRIVE {
         String::from(["ctl.wheel", "ctl.bend", "ctl.bend_range"][i - CTL])
-    } else if i == ext::NOISE_WIDTH {
-        String::from("noise.width")
-    } else if i < VDIST {
-        // `voice.stage` and `voice.era` leave the layout at the format switch (change unify-v2-algorithms D4)
-        String::from(["voice.stage", "voice.keysync", "voice.era", "voice.routing", "voice.balance"][i - V2G])
-    } else if i < ENV_AMP {
-        format!("drive.{}", ["mode", "gain", "p1", "p2"][i - VDIST])
-    } else if i < LFO_EXT {
-        format!("env{}.amplify", i - ENV_AMP + 1)
-    } else if i < MOD2 {
-        let r = i - LFO_EXT;
-        format!("lfo{}.{}", r / lx::LEN + 1, ["law", "phase", "polarity", "one_shot"][r % lx::LEN])
-    } else if i < CC {
-        slot(MOD2 - MOD_SLOTS1 * m::LEN, m::LEN, &M, "mod")
-    } else if i < CH {
-        format!("ctl.cc{}", i - CC + 2)
-    } else if i < CH + ch::LEN {
-        String::from(
-            [
-                "strip.on", "strip.volume", "strip.boost", "strip.order", "strip.send_reverb", "strip.send_delay", "strip.send_aux_a", "strip.send_aux_b",
-                "strip.recv_aux_a", "strip.recv_aux_b", "speech.on", "speech.select", "speech.pitch",
-            ][i - CH],
-        )
-    } else if i >= ch::DIST && i < ch::CHORUS {
-        format!("strip.drive_{}", ["mode", "gain", "p1", "p2"][i - ch::DIST])
-    } else if i >= ch::CHORUS && i < ch::COMP {
+    } else if i < QUIRK {
+        format!("drive.{}", ["mode", "gain", "p1", "p2"][i - DRIVE])
+    } else if i < STRIP {
+        format!("quirk.{}", Q[i - QUIRK])
+    } else if i < ch::CHORUS {
+        format!("strip.{}", S[i - STRIP])
+    } else if i < ch::COMP {
         format!("strip.chorus_{}", ["amount", "feedback", "delay_l", "delay_r", "rate", "depth", "phase"][i - ch::CHORUS])
-    } else if i >= ch::COMP && i < COUNT {
+    } else if i < MOD2 {
         format!(
             "strip.comp_{}",
             ["mode", "couple", "auto_gain", "lookahead", "threshold", "ratio", "attack", "release", "out_gain"][i - ch::COMP]
         )
+    } else if i < CC {
+        slot(MOD2 - MOD_SLOTS1 * m::LEN, m::LEN, &M, "mod")
+    } else if i < SPEECH {
+        format!("ctl.cc{}", i - CC + 2)
+    } else if i < COUNT {
+        format!("speech.{}", ["on", "select", "pitch"][i - SPEECH])
     } else {
         format!("param{i}")
     }

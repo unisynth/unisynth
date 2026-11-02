@@ -10,20 +10,20 @@ use crate::patch::Patch;
 use std::f32::consts::TAU;
 use unisynth::law::host as inv;
 use unisynth::modmx::{source, target};
-use unisynth::params::{filter_type, osc_type, shape, v};
+use unisynth::params::old::{filter_type, osc_type, shape, v};
 use wavesabre::kind as w;
 
 /// Unified parameters that are a choice among `n` although their law says `Shape` (the sampler's loop mode, loop
 /// boundary, reverse and interpolation), for the automation converter.
 pub fn discrete_shapes(kind: u8) -> Vec<(usize, usize)> {
-    use unisynth::params::osc;
+    use unisynth::params::old::osc;
     if kind == tfsynth::device::kind::INSTRUMENT {
         return crate::tf::discrete_shapes();
     }
     if !matches!(kind, w::SPECIMEN | w::ADULTERY) {
         return vec![];
     }
-    let s = |k| osc(0, unisynth::params::o::SHAPE + k);
+    let s = |k| osc(0, unisynth::params::old::o::SHAPE + k);
     vec![(s(shape::SMP_LOOP_MODE), 3), (s(shape::SMP_BOUNDARY), 2), (s(shape::SMP_REVERSE), 2), (s(shape::SMP_INTERP), 2)]
 }
 
@@ -122,7 +122,7 @@ fn svf_with_mod_env(p: &mut Patch, ty: f32, cutoff: f32, res: f32, m: f32, m_idx
 // ---- Falcon ----
 
 fn falcon(l: &[f32], cx: &Cx) -> Patch {
-    use unisynth::params::o;
+    use unisynth::params::old::o;
     let mut p = Patch::new();
     p.set(v::ENV1_AT_OUTPUT, 0.0);
     p.set(v::VELOCITY, 0.0);
@@ -178,7 +178,7 @@ fn slaughter(l: &[f32], cx: &Cx) -> Patch {
         if !cx.keep(l[b + 2] == 0.0, b + 2) {
             continue;
         }
-        use unisynth::params::o;
+        use unisynth::params::old::o;
         p.osc_type(i, osc_type::BLIT);
         p.osc(i, o::COARSE, inv::inv_coarse((l[b + 3] * 24.99).floor()));
         p.osc(i, o::FINE, inv::inv_fine(l[b + 4]));
@@ -187,7 +187,7 @@ fn slaughter(l: &[f32], cx: &Cx) -> Patch {
         p.shape(i, shape::BLIT_PULSE_WIDTH, 1.0 - l[b + 1]);
     }
     p.set(v::NOISE_LEVEL, inv::inv_gain(l[15] * l[15]));
-    p.set(unisynth::params::ext::NOISE_WIDTH, 0.0); // WaveSabre's noise is one signal on both channels
+    p.set(unisynth::params::old::ext::NOISE_WIDTH, 0.0); // WaveSabre's noise is one signal on both channels
     svf_with_mod_env(&mut p, l[16], l[17], l[18], l[19], 19, cx);
     p.env(0, l[20], l[21], l[22], l[23]);
     p.env(1, l[24], l[25], l[26], l[27]);
@@ -236,7 +236,7 @@ const ADULTERY: SmpMap = SmpMap {
 };
 
 fn sampler(le: &Legacy, cx: &Cx, m: &SmpMap) -> Patch {
-    use unisynth::params::o;
+    use unisynth::params::old::o;
     let l = &le.params;
     let mut p = Patch::new();
     p.set(v::MASTER, master_p(l[m.master], 1.0));
@@ -285,7 +285,7 @@ fn sampler(le: &Legacy, cx: &Cx, m: &SmpMap) -> Patch {
 
 /// Plays its sample once from the start at unity pitch, mono to both sides, no envelope; note-off does nothing.
 fn thunder(le: &Legacy, cx: &Cx) -> Patch {
-    use unisynth::params::o;
+    use unisynth::params::old::o;
     let mut p = Patch::new();
     p.set(v::VELOCITY, 0.0);
     p.set(v::ONE_SHOT, 1.0);

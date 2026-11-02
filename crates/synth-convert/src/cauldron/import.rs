@@ -390,7 +390,7 @@ pub(crate) fn post_value(g: f64) -> f32 {
 
 /// The post-chain gain device's values: EQ 3band, all bands at 0 (the song's automation sets them).
 fn post_gain() -> Vec<f32> {
-    vec![unisynth::fx::mode_value(unisynth::kind::EQ, 1), 0.0, 0.0, 0.0]
+    vec![unisynth::migrate::old_fx_mode_value(unisynth::kind::EQ, 1), 0.0, 0.0, 0.0]
 }
 
 /// The largest pitch bend (semitones) a track may use: the instrument's bend range.
@@ -511,7 +511,7 @@ fn controls_of(r: &crate::xm::replay::Replay, triggers: &[usize], label: &str, r
 /// pan), gate envelope (instant sustain, a short release: an XM note sounds until cut).
 #[derive(Clone, Debug)]
 pub struct Stored {
-    pub values: [f32; unisynth::params::COUNT],
+    pub values: [f32; unisynth::params::old::COUNT],
     pub gsm: Vec<u8>,
     /// Unisynth note = XM note + `shift`.
     pub shift: i32,
@@ -528,7 +528,7 @@ impl Stored {
 pub fn sampler(s: &crate::xm::Sample, rate: u32) -> Stored {
     use crate::patch::Patch;
     use unisynth::law::host as inv;
-    use unisynth::params::{o, osc_type, shape as sp, v};
+    use unisynth::params::old::{o, osc_type, shape as sp, v};
     let mut p = Patch::new();
     p.osc_type(0, osc_type::SAMPLER);
     p.sampler_source(0, false, 1.0);
@@ -780,7 +780,7 @@ pub fn convert_with(p: &Patches, xm: &Xm, rate: i32, opts: Options) -> Result<Co
     use crate::model::{Auto, Dev, SongM, Trk};
     use crate::xm::replay::replay;
     use unisynth::law::host as inv;
-    use unisynth::params::{ctl, osc, shape as sp, v};
+    use unisynth::params::old::{ctl, osc, shape as sp, v};
     let call = pick_call(p, xm)?;
     let ids = identify(call, xm)?;
     let mut r = replay(xm, rate as u32)?;
@@ -894,7 +894,7 @@ pub fn convert_with(p: &Patches, xm: &Xm, rate: i32, opts: Options) -> Result<Co
     // sub-block after the player's step, so a gain stepping up at a note-on must land a sub-block before it (centred
     // on the step, a drum hit's first 100 frames rose from the previous hit's tail: −3 dB)
     // `post`: the track's post-chain gain device (phrases): the voice takes `master`, the device `post`
-    let levels = |c: &Controls, latency: i64, values: &mut [f32; unisynth::params::COUNT], autos: &mut Vec<Auto>, post: Option<usize>| {
+    let levels = |c: &Controls, latency: i64, values: &mut [f32; unisynth::params::old::COUNT], autos: &mut Vec<Auto>, post: Option<usize>| {
         // the shift as transpose + bend (split_shift); a track within ±MAX_BEND keeps bend alone
         let lane_t = c.bend.iter().any(|&(_, b)| split_shift(b, false).0 != 0.0);
         let parts: Vec<(u64, (f64, f64))> = c.bend.iter().map(|&(f, b)| (f, split_shift(b, lane_t))).collect();
@@ -994,11 +994,11 @@ pub fn convert_with(p: &Patches, xm: &Xm, rate: i32, opts: Options) -> Result<Co
         if let Some(k) = chain.restart {
             autos.push(Auto { device: 1 + k, param: 4, points: byte_lane(0, &restarts) });
         }
-        let mut devs = vec![Dev { kind: unisynth::kind::INSTRUMENT, chunk: unisynth::chunk::encode(&values, &[]) }];
-        devs.extend(chain.devices.iter().map(|(k, v)| Dev { kind: *k, chunk: unisynth::fx::encode(v) }));
-        devs.push(Dev { kind: unisynth::kind::EQ, chunk: unisynth::fx::encode(&post_gain()) });
+        let mut devs = vec![Dev { kind: unisynth::kind::INSTRUMENT, chunk: unisynth::migrate::encode_old(&values, &[], &[]) }];
+        devs.extend(chain.devices.iter().map(|(k, v)| Dev { kind: *k, chunk: unisynth::migrate::encode_old_fx(v) }));
+        devs.push(Dev { kind: unisynth::kind::EQ, chunk: unisynth::migrate::encode_old_fx(&post_gain()) });
         let (extra, make_up) = ambience.devices(tempo);
-        devs.extend(extra.iter().map(|(k, v)| Dev { kind: *k, chunk: unisynth::fx::encode(v) }));
+        devs.extend(extra.iter().map(|(k, v)| Dev { kind: *k, chunk: unisynth::migrate::encode_old_fx(v) }));
         let halve = if call.version == Version::V1 && plan.record == 7 { 0.5 } else { 1.0 };
         let clips = if opts.exact_chain { vec![] } else { compact::clips(chain) };
         built.push((devs, autos, lane, (XM_GAIN * halve / chain.level * make_up) as f32, clips));
@@ -1057,14 +1057,14 @@ pub fn convert_with(p: &Patches, xm: &Xm, rate: i32, opts: Options) -> Result<Co
         let mut autos = vec![];
         levels(&c, 0, &mut values, &mut autos, None);
         if starts.iter().any(|x| x.1 != 0) {
-            let id = osc(0, unisynth::params::o::SHAPE + sp::SMP_START);
+            let id = osc(0, unisynth::params::old::o::SHAPE + sp::SMP_START);
             values[id] = starts[0].1 as f32 / 255.0;
             autos.push(Auto { device: 0, param: id, points: byte_lane(starts[0].1, &starts) });
         }
         let base = song.devices.len();
-        song.devices.push(Dev { kind: unisynth::kind::INSTRUMENT, chunk: unisynth::chunk::encode(&values, &[&st.gsm]) });
+        song.devices.push(Dev { kind: unisynth::kind::INSTRUMENT, chunk: unisynth::migrate::encode_old(&values, &[&st.gsm], &[]) });
         let (extra, make_up) = ambience.devices(tempo);
-        song.devices.extend(extra.iter().map(|(k, v)| Dev { kind: *k, chunk: unisynth::fx::encode(v) }));
+        song.devices.extend(extra.iter().map(|(k, v)| Dev { kind: *k, chunk: unisynth::migrate::encode_old_fx(v) }));
         let devices = (base..song.devices.len()).collect();
         song.tracks.push(Trk { volume: (XM_GAIN * make_up) as f32, receives: vec![], devices, lane: song.lanes.len(), autos });
         song.lanes.push(lane);

@@ -6,7 +6,9 @@ use synth_core::device::{Ctx, Device, Io};
 use synth_core::mix::{Env, Kinds};
 use synth_core::pool::Pool;
 use synth_core::rng::Rng;
-use unisynth::fx::{encode, mode_count, UFx};
+use unisynth::fx::{mode_count, UFx};
+// the legacy chunk layout (values + WaveSabre's size trailer); the unified side migrates it (change unify-v2-algorithms)
+use unisynth::migrate::encode_old_fx as encode;
 use unisynth::kind;
 
 struct Lcg(u32);
@@ -56,9 +58,10 @@ fn env(rate: f64, tempo: i32) -> Env<'static> {
     Env { rate, tempo, bank: None }
 }
 
-/// Loads unified effect kind `k` with `vals` (`[mode, params…]`) and runs `f` on it.
+/// Loads unified effect kind `k` with old-layout `vals` (`[mode as stored before the switch, params…]`, migrated) and
+/// runs `f` on it.
 fn with_fx<R>(k: u8, vals: &[f32], rate: f64, tempo: i32, f: impl FnOnce(&mut UFx) -> R) -> R {
-    let chunk = encode(vals);
+    let chunk = unisynth::migrate::effect_chunk(k, &encode(vals)).unwrap();
     let env = env(rate, tempo);
     let mut mem = vec![0u8; UFx::need(k, &chunk, &env).unwrap()];
     let mut pool = Pool::new(&mut mem);

@@ -82,7 +82,7 @@ mod instrument {
     use super::data;
     use unisynth::law;
     use unisynth::osc::ClockedT;
-    use unisynth::params::{self as pm, o, shape as sp, v};
+    use unisynth::params::old::{self as pm, o, shape as sp, v};
 
     fn all() -> Vec<(Version, Record)> {
         let mut out = vec![];
@@ -163,7 +163,7 @@ mod instrument {
 mod effects {
     use super::super::*;
     use super::data;
-    use unisynth::fx::mode_value;
+    use unisynth::migrate::old_fx_mode_value as mode_value;
     use unisynth::kind;
 
     const RATE: f64 = 44100.0;
@@ -303,9 +303,9 @@ mod phrase {
 
     /// The frequency a (note, coarse, fine) plays on `t`'s instrument (its octave and ratio, through the laws).
     fn hz_of(t: &Tuning, (note, coarse, fine, _): (u8, u8, u8, u8)) -> f64 {
-        use unisynth::{law, params::{osc, o}};
+        use unisynth::{law, params::old::{osc, o}};
         let p = |v: f32| v as f64;
-        let mut v = [0.0f32; unisynth::params::COUNT];
+        let mut v = [0.0f32; unisynth::params::old::COUNT];
         t.set(&mut v);
         let semis = note as f64 + p(law::coarse(coarse as f32 / 255.0)) + p(law::fine(fine as f32 / 255.0)) + 12.0 * p(law::octave(v[osc(0, o::OCTAVE)]));
         let ratio = p(law::ratio(v[osc(0, o::RATIO)])) + p(law::ratio_fine(v[osc(0, o::RATIO_FINE)]));
@@ -377,10 +377,10 @@ mod phrase {
         // the instrument's octave and ratio are the tuning's
         let c = jizz();
         let p = instrument(c.version, &c.records[0], 1.0);
-        let mut v = [0.0f32; unisynth::params::COUNT];
+        let mut v = [0.0f32; unisynth::params::old::COUNT];
         Tuning::of(&c.records[0].pitch, 1.0).set(&mut v);
-        for f in [unisynth::params::o::OCTAVE, unisynth::params::o::RATIO, unisynth::params::o::RATIO_FINE] {
-            assert_eq!(p[unisynth::params::osc(0, f)], v[unisynth::params::osc(0, f)]);
+        for f in [unisynth::params::old::o::OCTAVE, unisynth::params::old::o::RATIO, unisynth::params::old::o::RATIO_FINE] {
+            assert_eq!(p[unisynth::params::old::osc(0, f)], v[unisynth::params::old::osc(0, f)]);
         }
     }
 

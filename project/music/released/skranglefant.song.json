@@ -1,5 +1,5 @@
 {
-  "format": "song/1",
+  "format": "song/2",
   "meta": {
     "title": "Skranglefant",
     "author": "Eladamri",
@@ -4296,18 +4296,18 @@
             "master": 0.10000000149011612,
             "capacity": 0.2063492089509964,
             "unison": 0.4000000059604645,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.s1": 0.0,
             "osc1.s2": 1.0,
             "osc1.s4": 1.0,
             "osc1.s6": 1.0,
-            "filt1.type": 0.125,
+            "osc1.sample": 1.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.0,
             "env1.release": 0.08500000089406967,
             "env2.decay": 0.02828427031636238,
-            "env2.release": 0.009999999776482582,
-            "osc1.sample": 1.0
+            "env2.release": 0.009999999776482582
           },
           "samples": ["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"]
         }
@@ -4413,18 +4413,18 @@
             "master": 0.10000000149011612,
             "capacity": 0.2063492089509964,
             "unison": 0.4000000059604645,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.s1": 0.0,
             "osc1.s2": 1.0,
             "osc1.s4": 1.0,
             "osc1.s6": 1.0,
-            "filt1.type": 0.125,
+            "osc1.sample": 1.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.0,
             "env1.release": 0.11999999731779099,
             "env2.decay": 0.02828427031636238,
-            "env2.release": 0.009999999776482582,
-            "osc1.sample": 1.0
+            "env2.release": 0.009999999776482582
           },
           "samples": ["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"]
         }
@@ -4458,18 +4458,18 @@
             "master": 0.10000000149011612,
             "capacity": 0.2063492089509964,
             "unison": 0.4000000059604645,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.s1": 0.0,
             "osc1.s2": 1.0,
             "osc1.s4": 1.0,
             "osc1.s6": 1.0,
-            "filt1.type": 0.125,
+            "osc1.sample": 1.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.0,
             "env1.release": 0.10499999672174454,
             "env2.decay": 0.02828427031636238,
-            "env2.release": 0.009999999776482582,
-            "osc1.sample": 1.0
+            "env2.release": 0.009999999776482582
           },
           "samples": ["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"]
         }
@@ -4605,18 +4605,18 @@
             "master": 0.10000000149011612,
             "capacity": 0.2063492089509964,
             "unison": 0.4000000059604645,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.s1": 0.0,
             "osc1.s2": 1.0,
             "osc1.s4": 1.0,
             "osc1.s6": 1.0,
-            "filt1.type": 0.125,
+            "osc1.sample": 1.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.0,
             "env1.release": 0.1850000023841858,
             "env2.decay": 0.02828427031636238,
-            "env2.release": 0.009999999776482582,
-            "osc1.sample": 1.0
+            "env2.release": 0.009999999776482582
           },
           "samples": ["DAMAACocAAAxAAEARKwAAP0iAABBAAAAAgBAAWp6HVuDQnXrpsy4oBLYI9ty8JrLNgy1iWebyjY7u1YgtaraJW3fSD1MbqQzvlLNj95CZr5Smy0eL/GsQrNvHkkKbKqfEjPNUeoGNeQ57vGdtAzWCQ/TmGjJLBvLclZ8sCPIohqecbhkpxNUtJK1Kst7m8LY4iwzbP5mufZAY4ibuYXrqaMWpc1zKruz68qucVvXDYSBzdLYRJmi44oS9RRyYqei22lR9D5Lvub0KWItxYCkEEPAIpet01Wd8ATzwaZpcKu5m1q1y5H6Zqu/4A0wj9jLXfMrUU+gghS4LY8slVtHrKpb5nHtID/TTDZSsjqH0tIm1SwV16MdhRjaECf36nRrasqjGpfN8tSpbWf01ZCca21K4crRkei5EPtKk5xATey2olmqUdYQ/cXTpbCpDsuHj5jQwQCFraibKPH0bq3la1lqqmUXE0yQIiqSDWMtkFm9i5ZoTXCioXEsEW6PIUyki6+mWuZNzQZzluI4Z7bcHpZCA2nw4NCupuIvtNayXDM67+m6oRpHNk+MK/qcBJSwV7mRHauVLSYFQrNmrY1iNg+yqqL5pVXK8kxDXRfO9RRL7xS7bebCtFMTRDjl4iZeYkeWK+pfHjXrbVzVm5RF6ywGx9VWtUwsNLOnMwQOr8OmSFm1ljymUVTPsC7cO9bzwM6Z3hpK9cRWU32pbvXMxpTYJq6r2eMio2uK7P72cn/saO3fFuxEb6zTRsjZwm5s22ZGJraeHaJRvLw6sd5b9sPEqvGRSoX1pFIBw6bQ6Hogq3niDyrKYR4Vz+gsr6k6F0zJLP1ik5ayqB43ZWdWL0kDGZXrpqbaqXHawEauFD+X6owWSl2Tt99UmAr1omvdZjYB02Y+qaphGrXOxc1bqdW7jQTi7ISX/i3k6CRmSpjNhbozkuTColmqceEqmGmVXsLNNuJVEs2LdirKkFAXru4c+jJR14bpeucWM8bApL2vpGpFgKWp1mQLBqBs27ZseSeALVu2bCtsc2FNRAJIktu2bSgASJIkSZIoAEiSJEmScgBIkiRJkg=="]
         }
@@ -4722,18 +4722,18 @@
             "master": 0.10000000149011612,
             "capacity": 0.6507936716079712,
             "unison": 0.4000000059604645,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.s1": 0.0,
             "osc1.s2": 1.0,
             "osc1.s4": 1.0,
             "osc1.s6": 1.0,
-            "filt1.type": 0.125,
+            "osc1.sample": 1.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.0,
             "env1.release": 0.09999999403953552,
             "env2.decay": 0.02828427031636238,
-            "env2.release": 0.009999999776482582,
-            "osc1.sample": 1.0
+            "env2.release": 0.009999999776482582
           },
           "samples": ["DAMAANAbAAAxAAEARKwAAP0iAABBAAAAAgBAAR8oIc6ConDy8iohC5O121FmJZtidcMkkmTLhdE13zJDUI6R4Sg+NwXMCxx9yyyveZEs1dQyCVbpp9s9P0mLZiQZZIkb0rQrcqFZ09MjlPPjuiZbJMz048Z2NLestUOp1eF2orgdLbNUNbI/J07SIEWrbAI+yEx1mWC7jsJURYgtaYEnqlfW9FZ05OJ2g7isk6U76UwFLvHlwCIw+OuSZUS+66WaF6JtuzIJVZ7IFqskC9ImCSrdIMGRUcl17UJJvcrCjuqZo9Y0TNIZMfez5y102tlp3HivEcVYIp0YzvCiV3wjhZ6Z5Y1FK5uRpHSy4iQZrudHTeIUhbLgCMnLEtOGIzG355mfGpOMLSpHKj1/De6U1Vw1No5Sizhu0HhMzmd90rKcohjqUdryzq0Tmb3m4m4U9EAWxPgqQFVfpjgFY5CilFYniuFadQyvMDjZn9JKEFnbUaPyq46qdYIVqlOv3eVxPI2a+uUx4RZHignGbdv2ILIqZ1nZ4hi+I5WPxgJHquTQkqZ6ndqkFA9bqoQd6utOWrjXP4Utjss9OypTLKzMw23Hi5r6pU3E2jhWEyFawfIYghQptrnYzJA9XQ671pgrI0LV6Xkj1hQL6zinsRvYLIwa1PL0Ri4sY/GZocMMrZFrj0ViphmiaeDSTG0hVCrorHgWpa95xcbEkeA41tigNJ2hTAfomR/WhK1sk9CRa6FLbLvbblm1K6wU26LJusrpYsGAnpWeOOZN88RAclRLvcOkoKjUni29nHqeZbue3brIjBtBcWh6ndoWrooTTMkcWbancAvi21auipTetemGTekuq2Vae6La5THWnDASUrWu94xYgh5HjrliUshk35DmcsLK2yRQZpqfFlNNhxskilxLTuOT8bjbaqyDM0OrhHStYxXKasJ2lji2NassyNNa4ZHHKrhgdSlrbRg499MWtXAMWG2f1prsCUkRUUfAbDe2KscGYCzZbiS5BYAcSZIkCSeAJEmSJClsc2FNMgJGkiRJcigASJIkSZJHAEiSJEmSKABIkiRJkg=="]
         }
@@ -4874,7 +4874,6 @@
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -4889,8 +4888,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [],
@@ -4938,13 +4936,13 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.ratio": 0.7350000143051147,
             "osc1.ratio_fine": 0.8450000286102295,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.s0": 0.3349999785423279,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio": 0.09793980419635773,
             "osc2.ratio_fine": 0.38248294591903687,
             "osc2.s0": 0.32499998807907104,
@@ -4957,14 +4955,14 @@
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
             "lfo1.rate": 0.7266791462898254,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.5270031094551086,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.2222222238779068,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.125,
             "mod2.target": 0.019607843831181526,
             "mod2.amount": 0.5,
-            "mod3.source": 0.1111111119389534,
+            "mod3.source": 0.0625,
             "mod3.target": 0.0784313753247261,
             "mod3.amount": 0.5
           }
@@ -4972,7 +4970,6 @@
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.14670439064502716,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -4987,8 +4984,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 0.6508875489234924
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -5229,11 +5225,11 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.s0": 0.19499999284744263,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.s0": 0.28999999165534973,
             "env1.decay": 0.02828427031636238,
             "env1.sustain": 0.75,
@@ -5243,10 +5239,10 @@
             "env3.decay": 0.02828427031636238,
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5
           }
@@ -5254,7 +5250,6 @@
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.0,
             "peak1_freq": 0.0364702008664608,
@@ -5269,8 +5264,7 @@
             "high_cut": 0.14500001072883606,
             "high_cut_q": 0.2549999952316284,
             "master": 0.5299999713897705
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -5463,7 +5457,7 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.ratio": 0.18999996781349182,
             "osc1.ratio_fine": 0.22499999403953552,
             "osc1.gain": 0.910013735294342,
@@ -5471,7 +5465,7 @@
             "osc1.pm_out": 0.1550000011920929,
             "osc1.feedback": 0.03874999284744263,
             "osc1.s0": 0.45499998331069946,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio": 0.185956209897995,
             "osc2.ratio_fine": 0.16438356041908264,
             "osc2.feedback": 0.4095061719417572,
@@ -5487,14 +5481,14 @@
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
             "lfo1.rate": 0.7599341869354248,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.5399652719497681,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.2222222238779068,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.125,
             "mod2.target": 0.019607843831181526,
             "mod2.amount": 0.5,
-            "mod3.source": 0.1111111119389534,
+            "mod3.source": 0.0625,
             "mod3.target": 0.0784313753247261,
             "mod3.amount": 0.5
           }
@@ -5575,20 +5569,21 @@
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
             "noise_level": 0.07499999552965164,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.fine": 0.5425000190734863,
             "osc1.s0": 0.5649999976158142,
             "osc1.s1": 0.18000000715255737,
-            "osc2.type": 0.5,
+            "osc2.type": 0.1666666716337204,
             "osc2.fine": 0.550000011920929,
             "osc2.gain": 0.1824999898672104,
             "osc2.s0": 1.0,
             "osc2.s1": 0.23500001430511475,
-            "osc3.type": 0.5,
+            "osc3.type": 0.1666666716337204,
             "osc3.gain": 0.19499999284744263,
             "osc3.s0": 0.23999999463558197,
             "osc3.s1": 0.3799999952316284,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.1882842481136322,
             "env1.sustain": 0.0,
@@ -5597,14 +5592,12 @@
             "env2.release": 0.009999999776482582,
             "env3.decay": 0.02828427031636238,
             "env3.sustain": 0.5,
-            "env3.release": 0.0,
-            "noise.width": 0.0
+            "env3.release": 0.0
           }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.25,
             "left_fine": 0.0,
             "right_coarse": 0.25,
@@ -5614,13 +5607,11 @@
             "feedback": 0.33000001311302185,
             "cross": 0.2149999886751175,
             "dry_wet": 0.03500000014901161
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -5635,8 +5626,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 0.7675148844718933
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -5976,13 +5966,13 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.ratio_fine": 0.5649999976158142,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.4049999713897705,
             "osc1.s0": 0.45499998331069946,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio": 0.14499999582767487,
             "osc2.ratio_fine": 0.38499999046325684,
             "osc2.feedback": 0.5414581298828125,
@@ -5996,14 +5986,14 @@
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
             "lfo1.rate": 0.7145562767982483,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.548947274684906,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.2222222238779068,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.125,
             "mod2.target": 0.019607843831181526,
             "mod2.amount": 0.5,
-            "mod3.source": 0.1111111119389534,
+            "mod3.source": 0.0625,
             "mod3.target": 0.0784313753247261,
             "mod3.amount": 0.5
           }
@@ -6011,20 +6001,17 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.3149999976158142,
             "threshold": 0.8299999833106995,
             "foldover": 0.7699999809265137,
             "dry_wet": 1.0,
             "shaper": 0.5,
             "oversampling": 0.5
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.07147020101547241,
@@ -6039,8 +6026,7 @@
             "high_cut": 0.7300000190734863,
             "high_cut_q": 0.5249999761581421,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -6109,20 +6095,21 @@
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
             "noise_level": 0.04625000059604645,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.s0": 0.10499998927116394,
             "osc1.s1": 0.8300000429153442,
-            "osc2.type": 0.5,
+            "osc2.type": 0.1666666716337204,
             "osc2.fine": 0.5074999928474426,
             "osc2.gain": 0.1274999976158142,
             "osc2.s0": 0.21000000834465027,
             "osc2.s1": 0.25999999046325684,
-            "osc3.type": 0.5,
+            "osc3.type": 0.1666666716337204,
             "osc3.fine": 0.5024999976158142,
             "osc3.gain": 0.11749999225139618,
             "osc3.s0": 0.8450000286102295,
             "osc3.s1": 0.12999999523162842,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.attack": 0.019999995827674866,
             "env1.decay": 0.02828427031636238,
@@ -6135,17 +6122,15 @@
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
             "lfo1.rate": 0.7133126854896545,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.5204124450683594,
-            "mod1.operation": 1.0,
-            "noise.width": 0.0
+            "mod1.operation": 0.5
           }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.10999999940395355,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -6160,8 +6145,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -6255,22 +6239,23 @@
             "mode": 1.0,
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.fine": 0.5649999976158142,
             "osc1.gain": 0.12999999523162842,
             "osc1.s0": 0.35499998927116394,
             "osc1.s1": 0.7849999666213989,
-            "osc2.type": 0.5,
+            "osc2.type": 0.1666666716337204,
             "osc2.fine": 0.5400000214576721,
             "osc2.gain": 0.1287499964237213,
             "osc2.s0": 0.7199999690055847,
             "osc2.s1": 0.10000002384185791,
-            "osc3.type": 0.5,
+            "osc3.type": 0.1666666716337204,
             "osc3.fine": 0.5525000095367432,
             "osc3.gain": 0.125,
             "osc3.s0": 0.6200000047683716,
             "osc3.s1": 0.7200000286102295,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.31000006198883057,
             "env1.sustain": 0.20499999821186066,
@@ -6282,17 +6267,15 @@
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
             "lfo1.rate": 0.5117295384407043,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.5338501930236816,
-            "mod1.operation": 1.0,
-            "noise.width": 0.0
+            "mod1.operation": 0.5
           }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -6307,8 +6290,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -6565,7 +6547,6 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.5,
             "damp": 0.0,
@@ -6574,8 +6555,7 @@
             "high_cut": 0.9994993805885315,
             "dry_wet": 0.25,
             "pre_delay": 0.0
-          },
-          "trailer": 36
+          }
         }
       ],
       "placements": [],
@@ -6637,7 +6617,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.1875,
             "left_fine": 0.0,
             "right_coarse": 0.25,
@@ -6647,8 +6626,7 @@
             "feedback": 0.5,
             "cross": 0.0,
             "dry_wet": 0.5
-          },
-          "trailer": 40
+          }
         }
       ],
       "placements": [],

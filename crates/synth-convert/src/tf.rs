@@ -22,7 +22,7 @@ use tfsynth::modmx::{dst, LIVE};
 use tfsynth::params as tp;
 use unisynth::law::host as inv;
 use unisynth::modmx::{source, target};
-use unisynth::params::{filter_type, o, osc_type, shape, v, MOD_SLOTS};
+use unisynth::params::old::{filter_type, o, osc_type, shape, v, MOD_SLOTS};
 
 /// The `GenUnis` unison layers of the wavetable slot (1..=10).
 const LAYERS: usize = 10;
@@ -36,7 +36,7 @@ const GATE_MAX_MS: f32 = 5001.0;
 /// Unified parameters that are a choice among `n` although their law says `Shape` or `Ratio`, for the automation
 /// converter: the wavetable's unison layers and the oscillator octave.
 pub fn discrete_shapes() -> Vec<(usize, usize)> {
-    vec![(unisynth::params::osc(0, o::SHAPE + shape::WT_LAYERS), LAYERS), (unisynth::params::osc(0, o::OCTAVE), 9)]
+    vec![(unisynth::params::old::osc(0, o::SHAPE + shape::WT_LAYERS), LAYERS), (unisynth::params::old::osc(0, o::OCTAVE), 9)]
 }
 
 /// Which Tunefish ADSR a live mod slot reads, `None` for other sources.
@@ -203,9 +203,9 @@ pub fn build(p: &[f32], cx: &Cx) -> Patch {
     // noise and its band (a ladder low-pass at f + bw, then an RBJ high-pass at f − bw)
     u.set(v::NOISE_LEVEL, inv::inv_gain(SQRT_2 * p[tp::NOISE_AMOUNT]));
     let (nf, bw) = (p[tp::NOISE_FREQ], p[tp::NOISE_BW]);
-    u.set(unisynth::params::NOISE + unisynth::params::n::BAND_ON, if bw < 0.99 { 1.0 } else { 0.0 });
-    u.set(unisynth::params::NOISE + unisynth::params::n::HP, cutoff_p(hz(nf - bw, 10_000.0)));
-    u.set(unisynth::params::NOISE + unisynth::params::n::LP, cutoff_p(hz(nf + bw, 20_000.0)));
+    u.set(unisynth::params::old::NOISE + unisynth::params::old::n::BAND_ON, if bw < 0.99 { 1.0 } else { 0.0 });
+    u.set(unisynth::params::old::NOISE + unisynth::params::old::n::HP, cutoff_p(hz(nf - bw, 10_000.0)));
+    u.set(unisynth::params::old::NOISE + unisynth::params::old::n::LP, cutoff_p(hz(nf + bw, 20_000.0)));
     // filters, in Tunefish's order, each on above 0.5
     let filters = [
         (tp::LP_ON, filter_type::LADDER_LP, tp::LP_CUT, 20_000.0, tp::LP_RES),
@@ -219,22 +219,22 @@ pub fn build(p: &[f32], cx: &Cx) -> Patch {
     // LFOs: 50·p²/2π Hz, shapes in the same order, key sync from 0.5 up
     for k in 0..2 {
         let b = if k == 0 { tp::LFO1 } else { tp::LFO2 };
-        let at = |f: usize| unisynth::params::lfo(k, f);
-        u.set(at(unisynth::params::l::SHAPE), p[b + 2]);
-        u.set(at(unisynth::params::l::RATE), inv::inv_lfo_rate(50.0 * p[b] * p[b] / TAU));
-        u.set(at(unisynth::params::l::DEPTH), p[b + 1]);
-        u.set(at(unisynth::params::l::SYNC), if p[b + 3] >= 0.5 { 1.0 } else { 0.0 });
+        let at = |f: usize| unisynth::params::old::lfo(k, f);
+        u.set(at(unisynth::params::old::l::SHAPE), p[b + 2]);
+        u.set(at(unisynth::params::old::l::RATE), inv::inv_lfo_rate(50.0 * p[b] * p[b] / TAU));
+        u.set(at(unisynth::params::old::l::DEPTH), p[b + 1]);
+        u.set(at(unisynth::params::old::l::SYNC), if p[b + 3] >= 0.5 { 1.0 } else { 0.0 });
     }
     // envelopes
     for k in 0..2 {
         let b = if k == 0 { tp::ENV1 } else { tp::ENV2 };
-        let at = |f: usize| unisynth::params::env(env[k], f);
-        u.set(at(unisynth::params::e::MODE), 1.0);
-        u.set(at(unisynth::params::e::ATTACK), p[b]);
-        u.set(at(unisynth::params::e::DECAY), p[b + 1]);
-        u.set(at(unisynth::params::e::SUSTAIN), p[b + 2]);
-        u.set(at(unisynth::params::e::RELEASE), p[b + 3]);
-        u.set(at(unisynth::params::e::SLOPE), p[b + 4]);
+        let at = |f: usize| unisynth::params::old::env(env[k], f);
+        u.set(at(unisynth::params::old::e::MODE), 1.0);
+        u.set(at(unisynth::params::old::e::ATTACK), p[b]);
+        u.set(at(unisynth::params::old::e::DECAY), p[b + 1]);
+        u.set(at(unisynth::params::old::e::SUSTAIN), p[b + 2]);
+        u.set(at(unisynth::params::old::e::RELEASE), p[b + 3]);
+        u.set(at(unisynth::params::old::e::SLOPE), p[b + 4]);
     }
     if volume_adsr(p).is_none() {
         // the organ gate: instant attack, sustain 1, release as long as the longest envelope in use
@@ -281,7 +281,7 @@ pub fn insert_chain(p: &[f32]) -> Vec<(u8, Dev)> {
 pub fn instrument_device(p: &[f32], capacity: u32) -> Dev {
     let cx = Cx { automated: vec![false; tp::COUNT], capacity };
     let patch = build(p, &cx).finish();
-    Dev { kind: unisynth::kind::INSTRUMENT, chunk: unisynth::chunk::encode(&patch, &[]) }
+    Dev { kind: unisynth::kind::INSTRUMENT, chunk: unisynth::migrate::encode_old(&patch, &[], &[]) }
 }
 
 /// The voice capacity of a patch: `GenPoly`, 1..=16.

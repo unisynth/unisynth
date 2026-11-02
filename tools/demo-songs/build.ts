@@ -1,4 +1,4 @@
-// Builds the demo songs: converts the reference songs with synth-convert and saves them as song/1 in project/music with
+// Builds the demo songs: converts the reference songs with synth-convert and saves them as song files in project/music with
 // authorship metadata (author, description, copyright, license, url) that says they are adapted works.
 //   WS_SONG_DIR=<dir with elysian.bin ...> TF_SONGS=<dir with *.tfm> ES4_SONGS=<Enigma-Studio-4/demos/zoom> bun tools/demo-songs/build.ts [name ...]
 // Songs whose source is missing are skipped (the originals are not in the repository). `meta/<name>.json` (optional)

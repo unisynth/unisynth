@@ -12,7 +12,7 @@
 
 use synth_core::math::mix;
 use synth_core::mix::DEFAULT_SUB;
-use unisynth::params::{self as pm, law_of, Law, COUNT};
+use unisynth::params::old::{self as pm, law_of, Law, COUNT};
 
 const SUB: i64 = DEFAULT_SUB as i64;
 

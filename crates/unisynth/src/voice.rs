@@ -50,8 +50,7 @@ fn tuning(p: &[f32; pm::COUNT]) -> f32 {
     tr + law::bend_semitones(p[pm::ctl::BEND], p[pm::ctl::BEND_RANGE])
 }
 
-/// The voice output settings (design D6, change unify-v2-algorithms 5.2). Until the format switch they come from
-/// `voice.stage` (`us-voice-out`): on sets all four, the DC filter from version 6 (`EraSettings::dc_filters`).
+/// The voice output settings (design D6): `vs::AMP_SOURCE`, `PAN_STAGE`, `DC_FILTER`, `LAW` (`us-voice-out`).
 #[derive(Clone, Copy)]
 struct VoiceSet {
     /// The amplitude is envelope 1 alone (not master × velocity × envelope 1).
@@ -67,12 +66,12 @@ struct VoiceSet {
 impl VoiceSet {
     #[inline]
     fn of(p: &[f32; pm::COUNT]) -> VoiceSet {
-        let on = cfg!(feature = "us-voice-out") && law::choice(p[pm::v2::VOICE], 2) == 1;
-        VoiceSet { env_amp: on, pan_after: on, dc: on && pm::era_settings(p).dc_filters, steps: on }
+        let on = |i: usize| cfg!(feature = "us-voice-out") && law::choice(p[i], 2) == 1;
+        VoiceSet { env_amp: on(pm::vs::AMP_SOURCE), pan_after: on(pm::vs::PAN_STAGE), dc: on(pm::vs::DC_FILTER), steps: on(pm::vs::LAW) }
     }
 }
 
-/// V2's noise seeds of the three oscillators (format version 6; earlier versions seed 0).
+/// V2's noise seeds of the three oscillators (quirk `fixed_seed`: 0).
 const V2_SEEDS: [u32; 3] = [0xdead_beef, 0xbaad_f00d, 0xd3ad_c0de];
 
 /// What every voice call sees of its instrument.
@@ -530,8 +529,8 @@ impl<'a> Voice<'a> {
                     if n > 0 { (self.slots[i].smp.pos() / n as f64) as f32 } else { 0.0 }
                 })
             }),
-            cutoff: core::array::from_fn(|i| match pm::filter_type::decode(p[pm::filt(i, pm::f::TYPE)]) {
-                ty if flt::Kind::of(ty) == flt::Kind::Off || flt::steps(ty) => None,
+            cutoff: core::array::from_fn(|i| match flt::Kind::of(pm::filter_type::decode(p[pm::filt(i, pm::f::TYPE)]), flt::Forms::of(p, i)) {
+                k if k == flt::Kind::Off || (flt::Forms::of(p, i).steps && flt::has_steps(k)) => None,
                 _ => {
                     // normalized cutoff after the Scale routes and the Offset routes in Hz: `law::cutoff` is applied by
                     // the reader (`probe::cutoff_hz`), so the render path's call of it stays the only one
@@ -545,9 +544,7 @@ impl<'a> Voice<'a> {
     /// Applies this voice's channel Add routes to `v` (the channel stage of the newest voice, V2's
     /// `storeChanValues`).
     pub fn apply_channel(&self, v: &mut [f32; pm::COUNT]) {
-        // before format version 5 the channel routes read only velocity and the controllers (v2redux
-        // `DELTA_CHANMOD_NO_VOICE_SRC`)
-        self.end.mm.apply_from(v, true, pm::era_settings(v).chan_voice_sources);
+        self.end.mm.apply_from(v, true, true);
     }
 
     pub fn velocity(&self) -> f32 {
@@ -570,7 +567,7 @@ impl<'a> Voice<'a> {
         let env1 = if law::choice(p[v::ENV1_AT_OUTPUT], 2) == 1 { c.env[0].value() } else { 1.0 };
         let gain = (law::gain(p[v::MASTER]) * mm.scale(target::GAIN) + mm.offset(target::GAIN)).max(0.0);
         let vs = VoiceSet::of(p);
-        let era = pm::era_settings(p);
+        let exact = cfg!(feature = "us-quirk-exact-math") && pm::quirk_on(p, pm::quirk::EXACT_MATH);
         let amp = if vs.env_amp { c.env[0].value() } else { gain * (1.0 - sens + sens * self.vel) * env1 };
         let vpan = p[v::PAN] * mm.scale(target::PAN) + mm.offset(target::PAN);
         // the unison pan and the voice pan move every slot, unless the pan comes after the drive
@@ -582,15 +579,15 @@ impl<'a> Voice<'a> {
             None
         };
         let raw = |i: usize| pm::v2_raw(p[i]);
-        let par = if cfg!(feature = "us-flt-parallel") && raw(pm::v2::ROUTING) as i32 == 2 {
-            let x = (raw(pm::v2::BALANCE) - 64.0) / 64.0;
+        let par = if cfg!(feature = "us-flt-parallel") && law::choice(p[pm::vs::ROUTING], 2) == 1 {
+            let x = (raw(pm::vs::BALANCE) - 64.0) / 64.0;
             Some(if x >= 0.0 { (1.0 - x, 1.0) } else { (1.0, 1.0 + x) })
         } else {
             None
         };
         let dist = if cfg!(feature = "us-drive") {
-            let d = pm::VDIST;
-            crate::v2::DistP::new(raw(d), raw(d + pm::dist::GAIN), raw(d + pm::dist::P1), raw(d + pm::dist::P2), sh.rate).native_atan(era.exact_math)
+            let d = pm::DRIVE;
+            crate::v2::DistP::new(raw(d), raw(d + pm::dist::GAIN), raw(d + pm::dist::P1), raw(d + pm::dist::P2), sh.rate).native_atan(exact)
         } else {
             crate::v2::DistP::default()
         };
@@ -606,45 +603,61 @@ impl<'a> Voice<'a> {
         let cut = |base: f32, t: u8| cut_hz(mm, base, t);
         let band_p = |k: usize| p[pm::NOISE + k];
         let noise_band = law::choice(band_p(pm::n::BAND_ON), 2) == 1;
-        let band = |kind, k, t| if noise_band { flt::coefs(kind, cut(band_p(k), t), noise::BAND_RES, sh.rate) } else { [0.0; flt::NC] };
+        let band = |kind, k, t| if noise_band { flt::coefs(kind, cut(band_p(k), t), noise::BAND_RES, sh.rate, flt::Forms::PLAIN) } else { [0.0; flt::NC] };
         let noise_lp = band(noise::LP, pm::n::LP, target::NOISE_LP);
         let noise_hp = band(noise::HP, pm::n::HP, target::NOISE_HP);
         // filter slots: cutoff (Scale on the normalized value, Offset in Hz) and resonance
         let flt = core::array::from_fn(|i| {
-            let ty = pm::filter_type::decode(p[pm::filt(i, pm::f::TYPE)]);
-            let kind = flt::Kind::of(ty);
+            let forms = flt::Forms::of(p, i);
+            let kind = flt::Kind::of(pm::filter_type::decode(p[pm::filt(i, pm::f::TYPE)]), forms);
             if kind == flt::Kind::Off {
                 return (kind, [0.0; flt::NC], false);
             }
             #[cfg(feature = "us-flt-feedback")]
-            if flt::steps(ty) {
+            if forms.steps && flt::has_steps(kind) {
                 // 7-bit step laws on the stored values (after the Add routes); a Scale route still multiplies them
                 let (tc, tr) = (target::filter_cutoff(i), target::filter_resonance(i));
                 let cut = (p[pm::filt(i, pm::f::CUTOFF)] * mm.scale(tc)).max(0.0).min(1.0);
                 let res = (p[pm::filt(i, pm::f::RESONANCE)] * mm.scale(tr)).max(0.0).min(1.0);
-                let (k, c) = flt::coefs_steps(kind, cut, res, sh.rate, !era.four_pole);
-                return (k, c, false);
+                return (kind, flt::coefs_steps(kind, cut, res, sh.rate, forms), false);
             }
             let hz = cut(p[pm::filt(i, pm::f::CUTOFF)], target::filter_cutoff(i));
             let tr = target::filter_resonance(i);
             let res = (p[pm::filt(i, pm::f::RESONANCE)] * mm.scale(tr) + mm.offset(tr)).max(0.0).min(1.0);
-            (kind, flt::coefs(kind, hz, res, sh.rate), flt::transparent(kind, hz, res))
+            (kind, flt::coefs(kind, hz, res, sh.rate, forms), forms.plain() && flt::transparent(kind, hz, res))
         });
-        let noise_width = sh.p[pm::ext::NOISE_WIDTH];
+        let noise_width = sh.p[pm::NOISE + pm::n::WIDTH];
         Targets { amp, slot, noise_level: level, noise_pan, noise_band, noise_width, noise_lp, noise_hp, flt, par: Opt::new(par), dist: Opt::new(dist), v2out: Opt::new(v2out) }
     }
 
     /// Control values of oscillator slot `i`. `key` is the voice pitch in semitones, `shift` the voice's pan offset.
     /// One path for every slot kind (change unify-v2-algorithms 5.1): the oscillator law sets transpose, detune and
-    /// volume, the pan is shared, the kind adds its own fields. Until the format switch the naive generators are on the
-    /// 7-bit step law and every other kind on the semitone/Hz laws.
+    /// volume, the pan and the combine are shared, the kind adds its own fields. The 7-bit step law (`o::LAW`) is the
+    /// naive generators'; the other kinds are on the semitone/Hz laws.
     fn slot_targets(&self, _c: &Ctl, mm: &impl Query, sh: &Shared, i: usize, key: f32, shift: f32) -> SlotT {
         let p = sh.p;
         let f = |fld: usize| pm::osc(i, fld);
         let t = |fld: u8| target::osc(i, fld);
-        let steps = cfg!(feature = "us-osc-naive") && self.slots[i].kind == Kind::V2;
+        let naive = cfg!(feature = "us-osc-naive") && self.slots[i].kind == Kind::V2;
+        let steps = naive && law::choice(p[f(pm::o::LAW)], 2) == 1;
+        let combine = if osc::COMBINE { law::choice(p[f(pm::o::COMBINE)], pm::combine::COUNT) as u8 } else { osc::combine::ADD };
+        // the naive generator's waveform and settings; `pitch` is the slot's own transpose + detune in semitones
+        let naive_t = |pitch: f32| {
+            use crate::v2::{calcfreq, ftou32, linfreq};
+            let col = self.shape_value(mm, sh, i, pm::shape::NAIVE_COLOR);
+            let quirk = |q: usize, built: bool| built && pm::quirk_on(p, q);
+            crate::osc::V2T {
+                mode: osc::naive_mode(pm::osc_type::decode(p[f(pm::o::TYPE)])),
+                brpt: ftou32(col),
+                nffrq: linfreq(sh.rate) * calcfreq((pitch + 64.0) / 128.0),
+                nfres: 1.0 - libm::sqrtf(col),
+                native_sin: quirk(pm::quirk::EXACT_MATH, cfg!(feature = "us-quirk-exact-math")),
+                integer_fm: quirk(pm::quirk::INTEGER_FM, cfg!(feature = "us-quirk-integer-fm")),
+                old_noise: quirk(pm::quirk::LCG_NOISE, cfg!(feature = "us-quirk-lcg-noise")),
+            }
+        };
         // per slot, or (a naive generator with the pan after the drive) once on the voice's mono sum
-        let (pan_l, pan_r) = if steps && VoiceSet::of(p).pan_after {
+        let (pan_l, pan_r) = if naive && VoiceSet::of(p).pan_after {
             (1.0, 1.0)
         } else {
             law::pan((p[f(pm::o::PAN)] * mm.scale(t(target::OSC_PAN)) + mm.offset(t(target::OSC_PAN)) + shift).max(0.0).min(1.0))
@@ -653,40 +666,13 @@ impl<'a> Voice<'a> {
         if steps {
             // the 7-bit step law (`V2Osc::set` / `chgPitch`): transpose `step − 64`, detune `(step − 64)/128`
             // semitones, volume `step/128`, note 60 = 130.8 Hz
-            use crate::v2::{calcfreq, ftou32, linfreq, OSC_BASE_HZ};
             let raw = |x: f32| x * 128.0;
             let pitch = (raw(p[f(pm::o::COARSE)]) - 64.0) + (raw(p[f(pm::o::FINE)]) - 64.0) / 128.0;
             let semis = key + pitch + mm.offset(t(target::OSC_PITCH));
-            let hz = OSC_BASE_HZ * crate::fm::exp2f((semis - 60.0) / 12.0) * hz_scale;
+            let hz = crate::v2::OSC_BASE_HZ * crate::fm::exp2f((semis - 60.0) / 12.0) * hz_scale;
             let gain = (p[f(pm::o::GAIN)] * mm.scale(t(target::OSC_GAIN)) + mm.offset(t(target::OSC_GAIN))).max(0.0);
             let mix = (p[f(pm::o::MIX)] * mm.scale(t(target::OSC_MIX)) + mm.offset(t(target::OSC_MIX))).max(0.0).min(1.0);
-            let col = self.shape_value(mm, sh, i, pm::shape::V2_COLOR);
-            let era = pm::era_settings(p);
-            let mut mode = (raw(self.shape_value(mm, sh, i, pm::shape::V2_MODE)) as i32 & 7) as u8;
-            if !era.aux_osc && mode >= crate::osc::v2mode::AUX_A {
-                mode = crate::osc::v2mode::OFF; // no aux busses before version 6
-            }
-            if !era.fm_osc && mode == crate::osc::v2mode::FM {
-                mode = crate::osc::v2mode::OFF; // no FM oscillator before version 4 (v2redux `DELTA_NO_FM_OSC`)
-            }
-            let ring = raw(self.shape_value(mm, sh, i, pm::shape::V2_RING)) as i32 & 1 != 0;
-            let combine = match mode {
-                crate::osc::v2mode::OFF => osc::combine::ADD,
-                _ if ring => osc::combine::MUL,
-                crate::osc::v2mode::FM | crate::osc::v2mode::AUX_A | crate::osc::v2mode::AUX_B => osc::combine::SET,
-                _ => osc::combine::ADD,
-            };
-            let v2 = crate::osc::V2T {
-                mode,
-                ring,
-                brpt: ftou32(col),
-                nffrq: linfreq(sh.rate) * calcfreq((pitch + 64.0) / 128.0),
-                nfres: 1.0 - libm::sqrtf(col),
-                native_sin: era.exact_math,
-                integer_fm: era.integer_fm,
-                old_noise: era.lcg_noise,
-            };
-            return SlotT { inc: hz / sh.rate, gain, mix, pan_l, pan_r, v2: Opt::new(v2), combine, ..SlotT::default() };
+            return SlotT { inc: hz / sh.rate, gain, mix, pan_l, pan_r, v2: Opt::new(naive_t(pitch)), combine, ..SlotT::default() };
         }
         let semis = key
             + law::coarse(p[f(pm::o::COARSE)])
@@ -704,6 +690,11 @@ impl<'a> Voice<'a> {
         let norm = |fld: u8, v: f32| (v * mm.scale(t(fld))).max(0.0).min(1.0);
         let gain = (law::gain(p[f(pm::o::GAIN)]) * mm.scale(t(target::OSC_GAIN)) + mm.offset(t(target::OSC_GAIN))).max(0.0);
         let mix = (norm(target::OSC_MIX, p[f(pm::o::MIX)]) + mm.offset(t(target::OSC_MIX))).max(0.0).min(1.0);
+        if naive {
+            // a naive generator on the semitone/Hz laws
+            let pitch = law::coarse(p[f(pm::o::COARSE)]) + law::fine(p[f(pm::o::FINE)]) + 12.0 * law::octave(p[f(pm::o::OCTAVE)]);
+            return SlotT { inc: hz / sh.rate, gain, mix, pan_l, pan_r, v2: Opt::new(naive_t(pitch)), combine, ..SlotT::default() };
+        }
         let pm_out = (law::pm_out(norm(target::OSC_PM_OUT, p[f(pm::o::PM_OUT)])) + mm.offset(t(target::OSC_PM_OUT))).max(0.0);
         let feedback = (law::feedback(norm(target::OSC_FEEDBACK, p[f(pm::o::FEEDBACK)])) + mm.offset(t(target::OSC_FEEDBACK))).max(0.0);
         let wf = self.shape_value(mm, sh, i, pm::shape::PM_WAVEFORM);
@@ -742,7 +733,7 @@ impl<'a> Voice<'a> {
         } else {
             osc::ClockedT::default()
         };
-        SlotT { inc, gain, mix, pan_l, pan_r, pm_out, feedback, wf, pw, leak, det, spread, drive, layers: layers as usize, smp, v2: Opt::default(), clk, combine: osc::combine::ADD }
+        SlotT { inc, gain, mix, pan_l, pan_r, pm_out, feedback, wf, pw, leak, det, spread, drive, layers: layers as usize, smp, v2: Opt::default(), clk, combine }
     }
 
 
@@ -1124,16 +1115,16 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
         };
         // V2: key sync none keeps the counters, 1 zeros them, 2 (version 6) also resets the voice's state
         let p = sh.p;
-        let sync = if cfg!(feature = "us-osc-naive") || cfg!(feature = "us-voice-out") { (pm::v2_raw(p[pm::v2::KEYSYNC]) as i32).clamp(0, 2) } else { 0 };
-        let era = pm::era_settings(p);
-        let full = cfg!(feature = "us-voice-out") && sync == 2 && era.full_keysync;
+        let sync = if cfg!(feature = "us-osc-naive") || cfg!(feature = "us-voice-out") { law::choice(p[pm::vs::KEYSYNC], pm::vs::keysync::COUNT) } else { 0 };
+        let full = cfg!(feature = "us-voice-out") && sync == pm::vs::keysync::RESET;
+        let fixed_seed = cfg!(feature = "us-quirk-fixed-seed") && pm::quirk_on(p, pm::quirk::FIXED_SEED);
         for (i, s) in self.slots.iter_mut().enumerate() {
             if !cfg!(feature = "us-osc-naive") || s.kind != Kind::V2 {
                 continue;
             }
             s.v2s.with(|s| {
                 if !s.init || full {
-                    s.nseed = if era.fixed_seed { 0 } else { V2_SEEDS[i] };
+                    s.nseed = if fixed_seed { 0 } else { V2_SEEDS[i] };
                     s.nf = crate::v2::Lrc::default();
                     s.init = true;
                 }
@@ -1165,7 +1156,7 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
             }
             if !cfg!(feature = "us-lfo-frame") {
                 // without the LFO settings: restart at 0 or song time (what `sync_of` gives then)
-                let synced = law::choice(p[pm::lfo(k, pm::l::SYNC)], 2) == 1;
+                let synced = law::choice(p[pm::lfo(k, pm::l::SYNC)], pm::lfo_sync::COUNT) != pm::lfo_sync::SONG_TIME;
                 return Lfo::new(if synced { 0.0 } else { LfoP::rate_of(p, k) * cx.frame as f64 / sh.rate as f64 });
             }
             let (sync, phase0, reseed) = LfoP::sync_of(p, k);

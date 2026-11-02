@@ -4,7 +4,7 @@
 
 use unisynth::law::host as inv;
 use unisynth::modmx::{source, target};
-use unisynth::params::{self as pm, e, f, l, m, o, osc_type, shape, COUNT, DEFAULTS};
+use unisynth::params::old::{self as pm, e, f, l, m, o, osc_type, shape, COUNT, DEFAULTS};
 
 #[derive(Clone, Debug)]
 pub struct Patch {
@@ -63,7 +63,7 @@ impl Patch {
 
     /// LFO `slot`: sine, rate in Hz, full depth, restarting at every note.
     pub fn lfo_sine(&mut self, slot: usize, hz: f32) {
-        self.v[pm::lfo(slot, l::SHAPE)] = inv::inv_choice(unisynth::lfo::shape::SINE, unisynth::lfo::shape::COUNT);
+        self.v[pm::lfo(slot, l::SHAPE)] = inv::inv_choice(unisynth::lfo::shape::SINE, unisynth::lfo::shape::COUNT_V1);
         self.v[pm::lfo(slot, l::RATE)] = inv::inv_lfo_rate(hz);
         self.v[pm::lfo(slot, l::DEPTH)] = 1.0;
         self.v[pm::lfo(slot, l::SYNC)] = 1.0;
@@ -74,7 +74,7 @@ impl Patch {
         let s = self.slots;
         assert!(s < pm::MOD_SLOTS, "more than {} mod slots", pm::MOD_SLOTS);
         self.slots += 1;
-        self.v[pm::modslot(s, m::SOURCE)] = inv::inv_choice(src, source::COUNT);
+        self.v[pm::modslot(s, m::SOURCE)] = pm::kinds::encode(src, source::COUNT_V1);
         self.v[pm::modslot(s, m::TARGET)] = inv::inv_index(tgt);
         self.v[pm::modslot(s, m::AMOUNT)] = amount_p;
         self.v[pm::modslot(s, m::OPERATION)] = inv::inv_choice((op == Op::Offset) as usize, 2);

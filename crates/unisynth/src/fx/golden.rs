@@ -4,7 +4,7 @@
 //! build lacks are skipped.
 #![allow(unused_imports)]
 
-use super::tests::{mode, noise, run, sine, values, with_fx};
+use super::tests::{chunk, mode, noise, old_mode_value, run, sine, values, with_fx};
 use super::*;
 
 fn fnv(x: &[f32]) -> u64 {
@@ -13,7 +13,7 @@ fn fnv(x: &[f32]) -> u64 {
 
 /// Parameter sets: a few settings that make each mode audible, by seed.
 fn params(k: u8, i: usize) -> Vec<f32> {
-    let mut p = vec![mode_value(k, i)];
+    let mut p = vec![old_mode_value(k, i)];
     p.extend(values(500 + 10 * (k as u32 - 65) + i as u32, 14));
     p
 }
@@ -24,7 +24,7 @@ fn golden() {
     let mut got = vec![];
     for &(k, i, id) in MODES.iter() {
         let p = params(k, i);
-        let chunk = encode(&p);
+        let chunk = chunk(k, &p);
         let ok = |rate, tempo| UFx::need(k, &chunk, &Env { rate, tempo, bank: None }).is_ok();
         for (rate, tempo) in [(44100.0, 120), (48000.0, 90)] {
             if !ok(rate, tempo) {

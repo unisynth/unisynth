@@ -44,19 +44,22 @@ pub(crate) fn check_modules(values: &[f32; COUNT]) -> Result<(), LoadError> {
     if cfg!(feature = "us-trusted") {
         return Ok(());
     }
+    // the quirks first: structural, each its own module (spec "Quirk disabled")
+    for q in pm::QUIRK..pm::QUIRK + pm::quirk::LEN {
+        let id = crate::module::quirk_module(q);
+        if pm::quirk_on(values, q) && !crate::module::compiled(id) {
+            return Err(LoadError::UnsupportedModule(id));
+        }
+    }
     for i in 0..pm::FILT_SLOTS {
-        flt::Kind::check(pm::filter_type::decode(values[pm::filt(i, pm::f::TYPE)]))?;
+        flt::Kind::check(pm::filter_type::decode(values[pm::filt(i, pm::f::TYPE)]), flt::Forms::read(values, i))?;
     }
     // envelope 1 always runs; the others when a matrix slot reads them
     for i in 0..pm::ENV_SLOTS {
         let read = (0..pm::MOD_SLOTS)
             .any(|s| crate::modmx::source::decode(values[pm::modslot(s, pm::m::SOURCE)]) == crate::modmx::source::ENV1 + i);
         if i == 0 || read {
-            let mode = pm::env_mode::decode(values[pm::env(i, pm::e::MODE)]);
-            crate::env::check_frame(mode == pm::env_mode::V2)?;
-            if mode != pm::env_mode::V2 {
-                crate::env::check(mode == pm::env_mode::RATE)?;
-            }
+            crate::env::check_settings(values, i)?;
         }
     }
     let routed = (0..pm::MOD_SLOTS).any(|i| {
@@ -108,16 +111,20 @@ fn check_v2(values: &[f32; COUNT]) -> Result<(), LoadError> {
     let raw = |i: usize| pm::v2_raw(values[i]) as i32;
     if !cfg!(feature = "us-lfo-frame") {
         let read = |k: usize| (0..pm::MOD_SLOTS).any(|s| crate::modmx::source::decode(values[pm::modslot(s, pm::m::SOURCE)]) == crate::modmx::source::LFO1 + k);
-        uses((0..pm::LFO_SLOTS).any(|k| read(k) && law::choice(values[pm::lfo_ext(k, pm::lx::MODE)], 2) == 1), m::LFO_FRAME)?;
+        uses((0..pm::LFO_SLOTS).any(|k| read(k) && crate::lfo::LfoP::uses_settings(values, k)), m::LFO_FRAME)?;
     }
     if !cfg!(feature = "us-drive") {
-        uses(raw(pm::VDIST + pm::dist::MODE) != 0, m::DRIVE)?;
+        uses(raw(pm::DRIVE + pm::dist::MODE) != 0, m::DRIVE)?;
     }
     if !cfg!(feature = "us-flt-parallel") {
-        uses(raw(pm::v2::ROUTING) == 2, m::FILTER_PARALLEL)?;
+        uses(law::choice(values[pm::vs::ROUTING], 2) == 1, m::FILTER_PARALLEL)?;
     }
     if !cfg!(feature = "us-voice-out") {
-        uses(law::choice(values[pm::v2::VOICE], 2) == 1, m::VOICE_OUT)?;
+        uses([pm::vs::AMP_SOURCE, pm::vs::PAN_STAGE, pm::vs::DC_FILTER, pm::vs::LAW].iter().any(|&i| law::choice(values[i], 2) == 1), m::VOICE_OUT)?;
+    }
+    if !cfg!(feature = "us-osc-combine") {
+        let slot = |i: usize| pm::osc_type::decode(values[pm::osc(i, pm::o::TYPE)]) != pm::osc_type::OFF && law::choice(values[pm::osc(i, pm::o::COMBINE)], pm::combine::COUNT) != pm::combine::ADD;
+        uses((0..pm::OSC_SLOTS).any(slot), m::OSC_COMBINE)?;
     }
     if !cfg!(feature = "us-strip") {
         uses(law::choice(values[pm::ch::ON], 2) == 1 || (0..pm::OSC_SLOTS).any(|i| crate::osc::v2_aux(values, i)), m::STRIP)?;
@@ -228,7 +235,7 @@ impl<'a> UInstrument<'a> {
     pub fn probe(&self) -> crate::probe::Probe {
         let sh = Shared { p: &self.p, rate: self.rate };
         let voices = self.voices.voices().iter().filter(|v| v.is_on()).map(|v| v.snap(&sh)).collect();
-        let on = |s: usize| crate::flt::Kind::of(pm::filter_type::decode(self.p[pm::filt(s, pm::f::TYPE)])) != crate::flt::Kind::Off;
+        let on = |s: usize| crate::flt::Kind::of(pm::filter_type::decode(self.p[pm::filt(s, pm::f::TYPE)]), crate::flt::Forms::of(&self.p, s)) != crate::flt::Kind::Off;
         let taps = core::array::from_fn(|s| self.taps.as_ref().filter(|_| on(s)).map(|t| t.read(s)));
         crate::probe::Probe { voices, taps }
     }
@@ -259,13 +266,13 @@ impl<'a> UInstrument<'a> {
 /// The speech stage of a patch: on, with text.
 #[cfg(feature = "us-speech")]
 fn speech_of<'a>(p: &[f32; COUNT], text: &'a [u8], rate: f32) -> Option<crate::speech::Ronan<'a>> {
-    (law::choice(p[pm::ch::SPEECH], 2) == 1 && !text.is_empty()).then(|| crate::speech::Ronan::new(text, rate))
+    (law::choice(p[pm::speech::ON], 2) == 1 && !text.is_empty()).then(|| crate::speech::Ronan::new(text, rate))
 }
 
 /// The speech controllers 4 and 5 (raw values).
 #[cfg(feature = "us-speech")]
 fn speech_ctl(p: &[f32; COUNT]) -> [i32; 2] {
-    [libm::rintf(pm::v2_raw(p[pm::ch::SPEECH_CTL4])) as i32, libm::rintf(pm::v2_raw(p[pm::ch::SPEECH_CTL5])) as i32]
+    [libm::rintf(pm::v2_raw(p[pm::speech::SELECT])) as i32, libm::rintf(pm::v2_raw(p[pm::speech::PITCH])) as i32]
 }
 
 /// V2's frame at `rate` (128 samples at 44.1 kHz).
@@ -397,7 +404,7 @@ impl Device for UInstrument<'_> {
         let max = if pm::is_raw(i) { crate::chunk::MAX_SAMPLE_INDEX } else { 1.0 };
         self.p[i] = value.max(0.0).min(max);
         #[cfg(feature = "us-speech")]
-        if i == pm::ch::SPEECH_CTL4 || i == pm::ch::SPEECH_CTL5 {
+        if i == pm::speech::SELECT || i == pm::speech::PITCH {
             // a change of a speech controller is V2's controller message on the speech channel
             let now = speech_ctl(&self.p);
             if let Some(sp) = self.speech.as_mut() {

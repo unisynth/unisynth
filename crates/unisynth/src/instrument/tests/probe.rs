@@ -3,7 +3,7 @@
 use super::osc_sample::{bank, chunk_of, dls_slot, with_bank};
 use super::*;
 use crate::env::Stage;
-use crate::params::{e, env as penv, f as fp, filt, filter_type as ft, l, lfo};
+use crate::params::old::{e, env as penv, f as fp, filt, filter_type as ft, l, lfo};
 
 const RATE: f64 = 44100.0;
 

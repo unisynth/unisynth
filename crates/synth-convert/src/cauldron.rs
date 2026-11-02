@@ -269,10 +269,10 @@ pub fn velocity(phrase_frame: f64) -> u8 {
 /// energy of the original's linear note-end fade, and a voice master of √2 (the centred slot pans at √½ per channel).
 /// The 16-bit clamp is the first effect of the chain ([`effects`]): the original fades before it clamps. The per-note
 /// values (retrigger byte, phrase frame as the velocity) and the levels are the song's.
-pub fn instrument(version: Version, r: &Record, ratio: f64) -> [f32; unisynth::params::COUNT] {
+pub fn instrument(version: Version, r: &Record, ratio: f64) -> [f32; unisynth::params::old::COUNT] {
     use crate::patch::Patch;
     use unisynth::law::host as inv;
-    use unisynth::params::{o, osc_type, shape as sp, v};
+    use unisynth::params::old::{o, osc_type, shape as sp, v};
     let clock = R * ratio;
     let mut p = Patch::new();
     p.osc(0, o::TYPE, osc_type::encode(osc_type::CLOCKED));
@@ -360,7 +360,7 @@ const DOUBLER_END: f64 = 58000.0;
 /// → decimation, which becomes a low-pass at the stored Nyquist frequency (D6). The clamp is the shaper's clipper at
 /// full scale: after the voice's note-end release, as the original fades before it clamps.
 pub fn effects(call: &Call, record: usize, ratio: f64, rate: f64, tempo: i32) -> Chain {
-    use unisynth::fx::mode_value;
+    use unisynth::migrate::old_fx_mode_value as mode_value;
     use unisynth::kind::{DELAY, DISTORTION, FLANGER};
     let r = &call.records[record];
     let kappa = R * ratio / rate; // phrase frames per output frame
@@ -428,7 +428,7 @@ pub fn effects(call: &Call, record: usize, ratio: f64, rate: f64, tempo: i32) ->
 
 /// The band-limiting low-pass device (the tempo delay's SVF high cut) at `hz`, open (20 kHz) past 20 kHz.
 fn lowpass_device(hz: f64) -> (u8, Vec<f32>) {
-    use unisynth::fx::mode_value;
+    use unisynth::migrate::old_fx_mode_value as mode_value;
     (unisynth::kind::DELAY, vec![mode_value(unisynth::kind::DELAY, 0), 0.0, 0.0, 0.0, 0.0, 0.0, lowpass_p(hz), 0.0, 0.0, 1.0])
 }
 
@@ -483,8 +483,8 @@ impl Tuning {
     }
 
     /// Writes the slot's octave and ratio into instrument values.
-    pub fn set(&self, values: &mut [f32; unisynth::params::COUNT]) {
-        use unisynth::params::{o, osc};
+    pub fn set(&self, values: &mut [f32; unisynth::params::old::COUNT]) {
+        use unisynth::params::old::{o, osc};
         values[osc(0, o::OCTAVE)] = self.octave;
         values[osc(0, o::RATIO)] = 0.0;
         values[osc(0, o::RATIO_FINE)] = self.ratio_fine;
@@ -645,9 +645,9 @@ pub fn phrase_events(call: &Call, record: usize, variant: usize, ratio: f64) -> 
 /// The note lane and the instrument's per-note byte lanes (device 0) for `evs` at song frames, in time order: each
 /// note's retrigger, coarse, fine, word and phase bytes stepped `LANE_LEAD` frames before it, the v2 glide window as
 /// the version lane; `values` get each lane's first byte.
-pub fn note_lanes(evs: impl Iterator<Item = (i64, PEv)>, values: &mut [f32; unisynth::params::COUNT]) -> (Vec<(i32, u8, Option<u8>)>, Vec<crate::model::Auto>) {
+pub fn note_lanes(evs: impl Iterator<Item = (i64, PEv)>, values: &mut [f32; unisynth::params::old::COUNT]) -> (Vec<(i32, u8, Option<u8>)>, Vec<crate::model::Auto>) {
     use crate::model::Auto;
-    use unisynth::params::{self as pm, o, shape as sp};
+    use unisynth::params::old::{self as pm, o, shape as sp};
     let (mut retrig, mut fine, mut phase, mut coarse, mut glide, mut word, mut age) = (vec![], vec![], vec![], vec![], vec![], vec![], vec![]);
     let mut lane: Vec<(i32, u8, Option<u8>)> = vec![];
     let (mut t, mut held) = (0i64, 0u8);
@@ -874,8 +874,8 @@ pub fn phrase_song(call: &Call, record: usize, variant: usize, rate: i32) -> (cr
     if let Some(i) = chain.restart {
         autos.push(Auto { device: 1 + i, param: 4, points: byte_lane(0, &[(lead, 255)]) });
     }
-    let mut devices = vec![Dev { kind: unisynth::kind::INSTRUMENT, chunk: unisynth::chunk::encode(&values, &[]) }];
-    devices.extend(chain.devices.iter().map(|(k, v)| Dev { kind: *k, chunk: unisynth::fx::encode(v) }));
+    let mut devices = vec![Dev { kind: unisynth::kind::INSTRUMENT, chunk: unisynth::migrate::encode_old(&values, &[], &[]) }];
+    devices.extend(chain.devices.iter().map(|(k, v)| Dev { kind: *k, chunk: unisynth::migrate::encode_old_fx(v) }));
     // the echo mix's level, and Jizz's record 7, which the original halves after rendering
     let halve = if call.version == Version::V1 && record == 7 { 0.5 } else { 1.0 };
     let track = Trk { volume: (halve / chain.level) as f32, receives: vec![], devices: (0..devices.len()).collect(), lane: 0, autos };

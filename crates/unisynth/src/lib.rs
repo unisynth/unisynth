@@ -17,6 +17,8 @@ pub mod fx;
 pub mod instrument;
 pub mod law;
 pub mod lfo;
+#[cfg(any(test, feature = "std"))]
+pub mod migrate;
 pub mod modmx;
 #[cfg(feature = "std")]
 pub mod needs;

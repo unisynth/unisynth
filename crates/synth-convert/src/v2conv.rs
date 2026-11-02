@@ -9,7 +9,7 @@ use crate::{ConvError, Converted};
 use std::collections::BTreeMap;
 use unisynth::law::host as inv;
 use unisynth::modmx::{op, source, target};
-use unisynth::params::{self as pm, ch, dist, e, env_mode, f, filter_type as ft, l, lx, o, osc_type, shape, v, v2, COUNT};
+use unisynth::params::old::{self as pm, ch, dist, e, env_mode, f, filter_type as ft, l, lx, o, osc_type, shape, v, v2, COUNT};
 
 /// The song rate of converted songs.
 pub const RATE: u32 = 44_100;
@@ -49,7 +49,7 @@ fn source_of(s: u8) -> usize {
         9 => source::ENV1 + 1,
         10 => source::LFO1,
         11 => source::LFO1 + 1,
-        _ => source::V2_NOTE,
+        _ => source::NOTE_CENTRED,
     }
 }
 
@@ -202,9 +202,9 @@ pub fn patch_with(p: &Patch, version: u8, profile: Profile, warnings: &mut Vec<S
         mods.retain(|(i, _)| !drop.contains(i));
     }
     for (slot, (_, m)) in mods.iter().enumerate() {
-        u[pm::modslot(slot, pm::m::SOURCE)] = source::encode(source_of(m.0));
+        u[pm::modslot(slot, pm::m::SOURCE)] = pm::kinds::encode(source_of(m.0), source::COUNT_V1);
         u[pm::modslot(slot, pm::m::TARGET)] = inv::inv_index(dest_target(m.2).unwrap());
-        u[pm::modslot(slot, pm::m::OPERATION)] = op::encode(op::ADD);
+        u[pm::modslot(slot, pm::m::OPERATION)] = pm::kinds::encode(op::ADD, op::COUNT_V1);
         u[pm::modslot(slot, pm::m::AMOUNT)] = r(m.1);
     }
     u
@@ -215,7 +215,7 @@ pub fn convert(bytes: &[u8], opts: Opts) -> Result<Converted, ConvError> {
     let s = crate::v2m::parse(bytes)?;
     let mut warnings = vec![];
     let song = song_opts(&s, opts, &mut warnings)?;
-    Ok(Converted { blob: song.write(), warnings })
+    Ok(Converted { blob: song.write()?, warnings })
 }
 
 /// The program each channel plays at each frame, and its notes and controllers, per (channel, program).
@@ -310,7 +310,7 @@ pub fn song_opts(s: &V2m, opts: Opts, warnings: &mut Vec<String>) -> Result<Song
         if !text.is_empty() {
             values[ch::SPEECH] = 1.0;
         }
-        m.devices.push(Dev { kind: unisynth::kind::INSTRUMENT, chunk: unisynth::chunk::encode_text(&values, &[], &text) });
+        m.devices.push(Dev { kind: unisynth::kind::INSTRUMENT, chunk: unisynth::migrate::encode_old(&values, &[], &text) });
         let dev = m.devices.len() - 1;
         let mut prev = 0u64;
         let lane = part
@@ -334,10 +334,10 @@ pub fn song_opts(s: &V2m, opts: Opts, warnings: &mut Vec<String>) -> Result<Song
     let g = &s.globals;
     let era = era_value(s.version, opts.profile);
     let fx = |kind: u8, mode: usize, vals: &[u8]| {
-        let mut v = vec![unisynth::fx::mode_value(kind, mode)];
+        let mut v = vec![unisynth::migrate::old_fx_mode_value(kind, mode)];
         v.extend(vals.iter().map(|&x| r(x)));
         v.push(era);
-        Dev { kind, chunk: unisynth::fx::encode(&v) }
+        Dev { kind, chunk: unisynth::migrate::encode_old_fx(&v) }
     };
     let bus = |m: &mut SongM, dev: Option<Dev>, recv: Vec<(usize, usize, f32)>| {
         let devices = dev.map(|d| {
@@ -349,17 +349,22 @@ pub fn song_opts(s: &V2m, opts: Opts, warnings: &mut Vec<String>) -> Result<Song
         m.tracks.len() - 1
     };
     use synth_core::device::recv;
-    // a send or receive level is in use when it is above 0 or an Add route moves it (a controller often opens it)
-    let used = |v: &[f32; COUNT], i: usize| v[i] > 0.0 || (0..pm::MOD_SLOTS).any(|k| unisynth::modmx::adds_to(v, k, i));
+    // a send or receive level is in use when it is above 0 or an Add route moves it (a controller often opens it); read
+    // on the patches as the migration makes them (v3)
+    use unisynth::params as p3;
+    let used = |v: &[f32; p3::COUNT], i: usize| v[i] > 0.0 || (0..p3::MOD_SLOTS).any(|k| unisynth::modmx::adds_to(v, k, i));
     // aux A/B. V2 clears both buses every frame and renders the channels in order, each one's voices (aux
     // oscillators) and receive before its sends: a reader hears exactly the sends of the lower channels in the same
     // frame. So each reader receives straight from those senders' aux output pair (no bus track, no cycle).
-    let vals: Vec<[f32; COUNT]> = (0..n).map(|t| unisynth::chunk::Chunk::parse(&m.devices[m.tracks[t].devices[0]].chunk).unwrap().values()).collect();
-    for (k, (send, rcv)) in [(ch::SEND_AUXA, ch::RECV_AUXA), (ch::SEND_AUXB, ch::RECV_AUXB)].into_iter().enumerate() {
-        let aux_mode = unisynth::osc::v2mode::AUX_A + k as u8;
+    let vals: Vec<[f32; p3::COUNT]> = (0..n)
+        .map(|t| unisynth::migrate::decode_old_chunk(&m.devices[m.tracks[t].devices[0]].chunk).and_then(|(_, v, _)| unisynth::migrate::values(&v)))
+        .collect::<Result<_, _>>()
+        .map_err(|e| ConvError::Input(e.to_string()))?;
+    for (k, (send, rcv)) in [(p3::ch::SEND_AUXA, p3::ch::RECV_AUXA), (p3::ch::SEND_AUXB, p3::ch::RECV_AUXB)].into_iter().enumerate() {
+        let aux = p3::osc_type::AUX_A + k;
         for t in 0..n {
             let v = &vals[t];
-            let osc = (0..3).any(|i| unisynth::osc::v2_aux(v, i) && (pm::v2_raw(v[pm::osc(i, o::SHAPE + shape::V2_MODE)]) as i32 & 7) as u8 == aux_mode);
+            let osc = (0..3).any(|i| p3::osc_type::decode(v[p3::osc(i, p3::o::TYPE)]) == aux);
             if !used(v, rcv) && !osc {
                 continue;
             }

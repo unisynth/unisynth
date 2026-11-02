@@ -3,7 +3,7 @@
 
 use super::*;
 use crate::modmx::{op, source, target};
-use crate::params::{self as pm, ch, e, env_mode, f, filter_type as ft, l, lx, shape, v, v2};
+use crate::params::old::{self as pm, ch, e, env_mode, f, filter_type as ft, l, lx, shape, v, v2};
 
 /// A V2 patch: the V2 voice, envelope 1 in V2 mode at full level, `oscs` as `(mode, ring, transpose, colour)`, and
 /// `edits` (raw values / 128 unless a choice).
@@ -28,7 +28,7 @@ fn v2patch(oscs: &[(u8, u8, u8, u8)], edits: &[(usize, f32)]) -> Vec<u8> {
     for &(i, x) in edits {
         p[i] = x;
     }
-    crate::chunk::encode(&p, &[])
+    encode(&p, &[])
 }
 
 fn play(chunk: &[u8], note: u8, n: usize) -> (Vec<f32>, Vec<f32>) {
@@ -136,7 +136,7 @@ fn the_v2_sustain_time_slopes_the_held_level() {
 #[test]
 fn an_lfo_in_envelope_mode_runs_one_cycle_and_holds() {
     // LFO 1 V2 mode, saw, key sync, one-shot, routed (Add) to oscillator 1's transpose: the pitch rises once, then holds
-    let t = target::PARAM + target::PARAMS.iter().position(|&i| i == pm::osc(0, o::COARSE)).unwrap() as u8;
+    let t = target::PARAM + target::PARAMS.iter().position(|&i| i == v3i(pm::osc(0, o::COARSE))).unwrap() as u8;
     let edits = [
         (pm::lfo_ext(0, lx::MODE), 1.0),
         (pm::lfo(0, l::SHAPE), 0.0),
@@ -144,9 +144,9 @@ fn an_lfo_in_envelope_mode_runs_one_cycle_and_holds() {
         (pm::lfo_ext(0, lx::EG), 1.0 / 128.0),
         (pm::lfo(0, l::RATE), 90.0 / 128.0),
         (pm::lfo(0, l::DEPTH), 12.0 / 128.0),
-        (pm::modslot(0, pm::m::SOURCE), source::encode(source::LFO1)),
+        (pm::modslot(0, pm::m::SOURCE), source_old(source::LFO1)),
         (pm::modslot(0, pm::m::TARGET), inv::inv_index(t)),
-        (pm::modslot(0, pm::m::OPERATION), op::encode(op::ADD)),
+        (pm::modslot(0, pm::m::OPERATION), op_old(op::ADD)),
         (pm::modslot(0, pm::m::AMOUNT), 1.0),
     ];
     let (x, _) = play(&v2patch(&[(3, 0, 64, 64)], &edits), 69, 88200);
@@ -166,13 +166,13 @@ fn the_channel_stage_volume_and_the_newest_voice_s_routes() {
     let ratio = rms(&chan[5000..20000]) / rms(&base[5000..20000]);
     assert!((ratio - 0.6).abs() < 0.01, "{ratio}");
     // velocity → channel volume (Add), from the newest voice: a quiet second note lowers the whole channel
-    let t = target::PARAM + target::PARAMS.iter().position(|&i| i == ch::VOL).unwrap() as u8;
+    let t = target::PARAM + target::PARAMS.iter().position(|&i| i == v3i(ch::VOL)).unwrap() as u8;
     let edits = [
         (ch::ON, 1.0),
         (ch::VOL, 0.0),
-        (pm::modslot(0, pm::m::SOURCE), source::encode(source::VELOCITY)),
+        (pm::modslot(0, pm::m::SOURCE), source_old(source::VELOCITY)),
         (pm::modslot(0, pm::m::TARGET), inv::inv_index(t)),
-        (pm::modslot(0, pm::m::OPERATION), op::encode(op::ADD)),
+        (pm::modslot(0, pm::m::OPERATION), op_old(op::ADD)),
         (pm::modslot(0, pm::m::AMOUNT), 1.0),
     ];
     let (x, _) = with_ins(&v2patch(&sine, &edits), 44100.0, |ins| {
@@ -235,7 +235,7 @@ fn mixed(edits: &[(usize, f32)]) -> Vec<u8> {
     for &(i, x) in edits {
         p[i] = x;
     }
-    crate::chunk::encode(&p, &[])
+    encode(&p, &[])
 }
 
 fn rms(x: &[f32]) -> f64 {
@@ -294,10 +294,10 @@ fn mix_v2_oscillator_with_unisynth_filter_and_voice_pan() {
     p[pm::osc(0, o::GAIN)] = 1.0;
     p[pm::filt(0, f::TYPE)] = ft::encode(ft::SVF_LP);
     p[pm::filt(0, f::CUTOFF)] = 0.4;
-    let c = crate::chunk::encode(&p, &[]);
+    let c = encode(&p, &[]);
     let (l, r) = play(&c, A440, 44100);
     p[v::PAN] = 0.0;
-    let (pl, pr) = play(&crate::chunk::encode(&p, &[]), A440, 44100);
+    let (pl, pr) = play(&encode(&p, &[]), A440, 44100);
     eprintln!("v2 osc: centre l {:.3} r {:.3}; pan left l {:.3} r {:.3}", rms(&l), rms(&r), rms(&pl), rms(&pr));
     // centred: the unisynth pan law (√½ per side), like a unisynth slot; hard left: nothing on the right
     assert!((rms(&l) - rms(&r)).abs() < 1e-3 && rms(&pr) < 0.01 * rms(&pl));

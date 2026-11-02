@@ -4,7 +4,9 @@
 use serde::de::{MapAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-pub const FORMAT: &str = "song/1";
+pub const FORMAT: &str = "song/2";
+/// The format before change unify-v2-algorithms (the old unisynth layout); migrated once on load (`crate::migrate`).
+pub const FORMAT_V1: &str = "song/1";
 pub const TICKS_PER_BEAT: u32 = 960;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -226,7 +228,8 @@ pub struct Device {
     /// Preset name shown in the editor (not exported).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preset: Option<String>,
-    /// Effect chunk trailer when an imported chunk's differs from the canonical one (its byte size).
+    /// `song/1` only: an imported effect chunk's legacy trailer. Dropped by the migration; a `song/2` file has none
+    /// (its chunks end in the version tag).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub trailer: Option<i32>,
 }
@@ -249,24 +252,8 @@ pub struct Placement {
 pub struct Lane {
     /// Index into the track's devices.
     pub device: usize,
-    #[serde(deserialize_with = "current_name_de")]
     pub param: String,
     pub points: Vec<Point>,
-}
-
-/// A parameter name as the current layout calls it: an old unified-synth name (before change unify-v2-algorithms,
-/// `unisynth::params::rename::OLD`) becomes the current name at its index, others are returned as they are. Applied when
-/// a song file is read, so old song files and presets keep loading.
-pub fn current_name(n: &str) -> String {
-    use unisynth::params::{name, rename::OLD};
-    match OLD.iter().position(|(old, new)| *old == n && old != new) {
-        Some(i) => name(i),
-        None => n.to_string(),
-    }
-}
-
-fn current_name_de<'de, D: Deserializer<'de>>(d: D) -> Result<String, D::Error> {
-    String::deserialize(d).map(|n| current_name(&n))
 }
 
 /// Parameter values keyed by name, in file order (so a preset can store them sorted by index).
@@ -325,7 +312,6 @@ impl<'de> Deserialize<'de> for Values {
             fn visit_map<A: MapAccess<'de>>(self, mut m: A) -> Result<Values, A::Error> {
                 let mut out = Vec::new();
                 while let Some((k, v)) = m.next_entry::<String, f32>()? {
-                    let k = current_name(&k);
                     if out.iter().any(|(n, _): &(String, f32)| *n == k) {
                         return Err(serde::de::Error::custom(format!("duplicate parameter {k}")));
                     }

@@ -115,7 +115,7 @@ pub fn convert_tfm(blob: &[u8], tail: f64) -> Result<Converted, ConvError> {
     }
     let mut warnings = vec![];
     let song = song(t.tempo as i32, &parts, last as f64 + tail, &mut warnings);
-    Ok(Converted { blob: song.write(), warnings })
+    Ok(Converted { blob: song.write()?, warnings })
 }
 
 /// A loose Tunefish patch (112 values) played by `phrase`: `(block, note, velocity)` with velocity 0 = note-off, the
@@ -137,7 +137,7 @@ pub fn convert_patch(patch: &[f32], phrase: &[(u32, u8, u8)], tempo: i32, length
         .collect();
     let mut warnings = vec![];
     let song = song(tempo, &[Part { patch, events }], length, &mut warnings);
-    Ok(Converted { blob: song.write(), warnings })
+    Ok(Converted { blob: song.write()?, warnings })
 }
 
 // ---- .tf4m: the 2013 Tunefish 4 of Enigma Studio 4 (Brain Control's "Turtles all the way down") ----

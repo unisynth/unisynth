@@ -1,4 +1,4 @@
-//! song/1 scenarios (change add-synth-daw, spec song-source): round trip, linked placements, tick → sample,
+//! song/2 scenarios (change add-synth-daw, spec song-source; song/1 migration: change unify-v2-algorithms): round trip, linked placements, tick → sample,
 //! same-sample ordering, overlapping same-pitch notes, loop flattening, validation paths, export determinism,
 //! buses, mute, import round trip, legacy kinds, presets, parameter tables.
 
@@ -10,12 +10,12 @@ use synth_core::mix::Song as Blob;
 /// root object (clips, more tracks) by the caller through `edit`.
 fn base() -> serde_json::Value {
     serde_json::json!({
-        "format": "song/1", "rate": 44100, "tempo": 120.0, "signature": [4, 4], "ticks_per_beat": 960,
+        "format": "song/2", "rate": 44100, "tempo": 120.0, "signature": [4, 4], "ticks_per_beat": 960,
         "length": 15360,
         "clips": [],
         "tracks": [
             { "id": "lead", "name": "Lead", "volume": 1.0, "mute": false, "receives": [],
-              "devices": [ { "kind": 64, "values": { "osc1.type": 0.25 } } ], "placements": [], "lanes": [] }
+              "devices": [ { "kind": 64, "values": { "osc1.type": 0.0833333358168602 } } ], "placements": [], "lanes": [] }
         ],
         "master": { "id": "master", "name": "Master", "volume": 1.0, "mute": false, "receives": [
             { "from": "lead", "channel": "main", "volume": 1.0 } ], "devices": [], "placements": [], "lanes": [] }
@@ -284,8 +284,8 @@ fn unknown_fields_and_bad_format_are_rejected() {
     v["tracks"][0]["colour"] = serde_json::json!("#fff");
     has(&v, "/tracks/0", "unknown field");
     let mut v = base();
-    v["format"] = serde_json::json!("song/2");
-    has(&v, "/format", "song/1");
+    v["format"] = serde_json::json!("song/3");
+    has(&v, "/format", "song/2");
 }
 
 #[test]
@@ -303,7 +303,7 @@ fn blob_round_trip_keeps_chunks_routing_volumes_and_automation() {
     let mut v = base();
     v["clips"] = serde_json::json!([{ "id": "a", "length": 3840, "notes": [[0, 480, 60, 100], [481, 479, 62, 90], [1000, 7, 64, 1]] }]);
     v["tracks"][0]["placements"] = serde_json::json!([{ "clip": "a", "start": 0, "length": 3840, "loop": false }]);
-    v["tracks"][0]["devices"][0]["values"] = serde_json::json!({ "osc1.type": 0.25, "filt1.type": 0.2, "env1.attack": 0.123456 });
+    v["tracks"][0]["devices"][0]["values"] = serde_json::json!({ "osc1.type": 0.0833333358168602, "filt1.type": 0.2, "env1.attack": 0.123456 });
     v["tracks"][0]["devices"].as_array_mut().unwrap().push(serde_json::json!({ "kind": 68, "values": { "mode": 0.0, "feedback": 0.3 } }));
     v["tracks"][0]["lanes"] = serde_json::json!([{ "device": 1, "param": "feedback", "points": [[0, 0.1], [1234.5, 0.7]] }]);
     v["tracks"][0]["volume"] = serde_json::json!(0.7);
@@ -399,7 +399,7 @@ fn legacy_kinds_point_to_synth_convert() {
 #[test]
 fn preset_round_trip_gives_the_same_chunk() {
     let mut v = base();
-    v["tracks"][0]["devices"][0]["values"] = serde_json::json!({ "env1.attack": 0.3, "osc1.type": 0.25, "master": 0.5 });
+    v["tracks"][0]["devices"][0]["values"] = serde_json::json!({ "env1.attack": 0.3, "osc1.type": 0.0833333358168602, "master": 0.5 });
     let s = song_of(&v);
     let p = preset::save(&s.tracks[0].devices[0], "Lead 1");
     let text = preset::to_json(&p);
@@ -415,7 +415,7 @@ fn preset_round_trip_gives_the_same_chunk() {
 #[test]
 fn preset_drops_default_values() {
     let mut v = base();
-    v["tracks"][0]["devices"][0]["values"] = serde_json::json!({ "osc1.type": 0.25, "filt1.cutoff": unisynth::params::DEFAULTS[unisynth::params::FILT + 1] });
+    v["tracks"][0]["devices"][0]["values"] = serde_json::json!({ "osc1.type": 0.0833333358168602, "filt1.cutoff": unisynth::params::DEFAULTS[unisynth::params::FILT + 1] });
     let p = preset::save(&song_of(&v).tracks[0].devices[0], "x");
     assert_eq!(p.values.len(), 1);
 }
@@ -457,7 +457,7 @@ fn every_oscillator_kind_has_an_option_name() {
     // the expanded osc type choice names every kind the engine plays (the clocked oscillator too)
     let t = tables::table(64, 0).unwrap();
     let o = &t.param("osc1.type").unwrap().options;
-    for name in ["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive", "Clocked"] {
+    for name in ["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive saw/tri", "Sine", "FM", "Aux in B", "Clocked"] {
         assert!(o.iter().any(|x| x == name), "{name} missing from {o:?}");
     }
 }
@@ -571,10 +571,10 @@ fn with_osc(values: serde_json::Value) -> serde_json::Value {
 #[test]
 fn a_wavetable_layer_spread_is_a_normal_value_and_the_sample_index_a_whole_number() {
     // osc1.s8 is the wavetable's layer spread
-    assert!(issues(&with_osc(serde_json::json!({ "osc1.type": 0.75, "osc1.s8": 0.29 }))).is_empty());
+    assert!(issues(&with_osc(serde_json::json!({ "osc1.type": 0.25, "osc1.s8": 0.29 }))).is_empty());
     has(&with_osc(serde_json::json!({ "osc1.s8": 1.5 })), "/tracks/0/devices/0/values/osc1.s8", "out of range");
     // the sampler's sample index has its own raw parameter
-    assert!(issues(&with_osc(serde_json::json!({ "osc1.type": 1.0, "osc1.sample": 3 }))).is_empty());
+    assert!(issues(&with_osc(serde_json::json!({ "osc1.type": 0.3333333432674408, "osc1.sample": 3 }))).is_empty());
     has(&with_osc(serde_json::json!({ "osc1.sample": 0.5 })), "/tracks/0/devices/0/values/osc1.sample", "whole number");
     has(&with_osc(serde_json::json!({ "osc1.sample": 70000 })), "/tracks/0/devices/0/values/osc1.sample", "out of range");
 }
@@ -703,12 +703,31 @@ fn no_source_names_in_the_parameter_table() {
 
 /// change unify-v2-algorithms 1.3: a song file with the old parameter names (values and lanes) loads under the new names.
 #[test]
-fn old_parameter_names_load_under_the_new_ones() {
-    let d: song::model::Values = serde_json::from_str(r#"{"env1.mode": 0.5, "vdist.mode": 0.25, "ch.volume": 0.5, "lfo1.eg": 1, "master": 0.2}"#).unwrap();
-    let names: Vec<&str> = d.0.iter().map(|(n, _)| n.as_str()).collect();
-    assert_eq!(names, ["env1.law", "drive.mode", "strip.volume", "lfo1.one_shot", "master"]);
-    let l: song::model::Lane = serde_json::from_str(r#"{"device": 0, "param": "env2.slope", "points": []}"#).unwrap();
-    assert_eq!(l.param, "env2.curve_slope");
+fn an_old_song_file_migrates_once_and_a_new_one_never() {
+    // song/1: old names (before and after the 1.3 renames) and old encodings → song/2 names and values
+    let mut v = base();
+    v["format"] = serde_json::json!("song/1");
+    v["tracks"][0]["devices"][0]["values"] = serde_json::json!({
+        "osc1.type": 0.25, "env1.mode": 0.5, "vdist.mode": 0.25, "ch.volume": 0.5, "lfo1.eg": 1.0 / 128.0, "master": 0.2
+    });
+    v["tracks"][0]["lanes"] = serde_json::json!([{ "device": 0, "param": "env2.slope", "points": [[0, 0.2], [960, 0.8]] }]);
+    let s = song_of(&v);
+    assert_eq!(s.format, "song/2");
+    let d = &s.tracks[0].devices[0].values;
+    let get = |n: &str| d.get(n).unwrap_or_else(|| panic!("{n} missing from {d:?}"));
+    assert_eq!(unisynth::params::osc_type::decode(get("osc1.type")), unisynth::params::osc_type::PM);
+    assert_eq!(get("env1.law"), 1.0, "the old V2 envelope mode is the frame law");
+    assert_eq!((get("drive.mode"), get("strip.volume"), get("lfo1.one_shot"), get("master")), (0.25, 0.5, 1.0, 0.2));
+    assert!(d.iter().all(|(n, _)| n != "env1.mode" && n != "vdist.mode"));
+    // the slope lane of a seconds-law envelope is its curve slope
+    assert_eq!(s.tracks[0].lanes[0].param, "env2.curve_slope");
+    // migrated once: saved as song/2 and read back, nothing changes
+    let again = song_of(&serde_json::from_str(&to_json(&s)).unwrap());
+    assert_eq!(again, s);
+    // a song/2 file with an old name is an error, not a migration
+    let mut v2 = serde_json::from_str::<serde_json::Value>(&to_json(&s)).unwrap();
+    v2["tracks"][0]["devices"][0]["values"]["vdist.mode"] = serde_json::json!(0.25);
+    has(&v2, "/tracks/0/devices/0/values/vdist.mode", "unknown parameter");
 }
 
 /// Receives on the extra pairs (V2 reverb/delay sends, aux inputs): `send` names the sending track's output pair (1–4),
@@ -742,4 +761,29 @@ fn a_send_past_the_extra_pairs_is_an_error() {
     v["master"]["receives"][0]["send"] = serde_json::json!(5);
     let e = validate(&song_of(&v));
     assert!(e.iter().any(|i| i.path == "/master/receives/0/send"), "{e:?}");
+}
+
+/// change unify-v2-algorithms (review of the format switch): a song/1 lane on an effect's mode is re-encoded point by
+/// point like the device's mode, and an envelope-law lane that reaches a quirk sets it on the patch.
+#[test]
+fn old_effect_mode_lanes_and_quirk_reaching_lanes_migrate() {
+    let mut v = base();
+    v["format"] = serde_json::json!("song/1");
+    v["tracks"][0]["devices"] = serde_json::json!([
+        { "kind": 64, "values": { "v2.era": unisynth::params::old::kinds::encode(1, 7) } },
+        { "kind": 70, "values": {} }
+    ]);
+    let k = 70u8;
+    let modes = unisynth::fx::mode_total(k);
+    let old = unisynth::migrate::old_fx_mode_value(k, modes - 1);
+    let frame = unisynth::params::old::env_mode::encode(unisynth::params::old::env_mode::V2);
+    v["tracks"][0]["lanes"] = serde_json::json!([
+        { "device": 1, "param": "mode", "points": [[0, 0.0], [960, old]] },
+        { "device": 0, "param": "env1.mode", "points": [[0, 0.0], [960, frame]] }
+    ]);
+    let s = song_of(&v);
+    let mode = s.tracks[0].lanes.iter().find(|l| l.device == 1).unwrap();
+    assert_eq!(mode.points[1].value, unisynth::fx::mode_value(k, modes - 1));
+    assert!(s.tracks[0].lanes.iter().all(|l| !l.param.starts_with("quirk.")));
+    assert_eq!(s.tracks[0].devices[0].values.get("quirk.coarse_env"), Some(1.0));
 }

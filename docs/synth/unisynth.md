@@ -71,44 +71,47 @@ flowchart LR
 
 ## Parameters
 
-260 values in groups: everything normalized (0..1) except the three sample indices (raw whole numbers). Indices
-184–259 are the V2 part (change add-v2-import, below). A value outside its group's law is clamped, and NaN reads as
-0.
+The v3 layout (change unify-v2-algorithms, task 6.4): 294 values in module blocks, everything normalized (0..1)
+except the three sample indices (raw whole numbers). Indices below 240 take one chunk byte, the rest two (they need
+`us-chunk-wide`). A value outside its law is clamped, and NaN reads as 0. The layout before it (260 values, chunk
+versions 1 and 2) is frozen host-side as `params::old` for the migration; the player rejects it.
 
 | Group | Indices | Count | Fields |
 |---|---|---:|---|
 | voice | 0–15 | 16 | master, pan, capacity, steal, unison, uni-detune, uni-spread, mode, slide, glide, transpose, velocity, start-spread, one-shot, noise level, env1-at-output |
-| oscillator ×3 | 16–81 | 22 each | type, tracking, coarse, fine, octave, ratio, ratio fine, fixed Hz, gain, mix, pan, pm-out, feedback, shape[9] |
-| noise | 82–84 | 3 | band on, hp, lp |
-| filter ×4 | 85–96 | 3 each | type, cutoff, resonance |
-| envelope ×4 | 97–120 | 6 each | law (seconds, rate, frame), attack, decay, sustain, release, curve_slope |
-| LFO ×2 | 121–128 | 4 each | shape, rate, depth, sync |
-| mod slot ×12 | 129–176 | 4 each | source, target, amount, operation |
-| sample index ×3 | 177–179 | 1 each | raw: the GSM sample number (1-based, 0 = none), DLS wave index or packed DLS instrument of oscillator slot 1–3 (`osc1.sample` …) |
-| controllers | 180–182 | 3 | `ctl.wheel` (0..1), `ctl.bend` (0..1, centre 0.5), `ctl.bend_range` (0..24 semitones, default 2) |
-| ext | 183 | 1 | `noise.width` |
-| voice output | 184–188 | 5 | `voice.stage` (off/on), `voice.keysync`, `voice.era` (`count 0..6`, default 6), `voice.routing`, `voice.balance` |
-| drive | 189–192 | 4 | `drive.mode/gain/p1/p2` |
-| envelope amplify ×4 | 193–196 | 1 each | `envN.amplify` (frame law) |
-| LFO extras ×2 | 197–204 | 4 each | `lfoN.law` (unisynth / frame), `phase`, `polarity`, `one_shot` |
-| mod slot 13–16 | 205–220 | 4 each | as slots 1–12 (`us-matrix-add`) |
-| controllers 2–7 | 221–226 | 6 | `ctl.cc2` … `ctl.cc7` (breath, 3–6, volume; default CC7 = 127/128) |
-| channel strip | 227–236 | 10 | `strip.on`, `volume`, `boost`, `order`, `send_reverb/delay/aux_a/aux_b`, `recv_aux_a/b` |
-| speech | 237–239 | 3 | `speech.on`, `speech.select`, `speech.pitch` |
-| channel strip, two-byte | 240–259 | 20 | `strip.drive_*` ×4, `strip.chorus_*` ×7, `strip.comp_*` ×9 |
+| voice settings | 16–22 | 7 | `voice.amp_source` (master × velocity × env 1 / env 1 only), `voice.pan_stage` (per slot / after the drive), `voice.dc_filter`, `voice.law` (transpose in semitones / 7-bit steps), `voice.keysync` (free / restart / full reset), `voice.routing` (serial / parallel), `voice.balance` |
+| oscillator ×3 | 23–97 | 25 each | type, tracking, coarse, fine, octave, ratio, ratio fine, fixed Hz, gain, mix, pan, pm-out, feedback, shape[9], sample (raw: GSM sample number, DLS wave index or packed DLS instrument), combine (add / multiply / replace), law (unisynth / 7-bit steps) |
+| noise | 98–101 | 4 | band on, hp, lp, width |
+| filter ×4 | 102–125 | 6 each | type, cutoff, resonance, form, oversample, law |
+| envelope ×4 | 126–161 | 9 each | law (seconds, rate, frame), attack, decay, sustain, release, curve (by law, quadratic, power, exponential), curve_slope, sustain_slope, amplify |
+| LFO ×2 | 162–177 | 8 each | shape, rate, depth, sync (song time, continue, restart), law (Hz / frame), phase, polarity (positive, negative, bipolar), one_shot |
+| mod slot 1–10 | 178–217 | 4 each | source, target, amount, operation |
+| controllers | 218–220 | 3 | `ctl.wheel` (0..1), `ctl.bend` (0..1, centre 0.5), `ctl.bend_range` (0..24 semitones, default 2) |
+| drive | 221–224 | 4 | `drive.mode/gain/p1/p2` |
+| quirks | 225–229 | 5 | `quirk.exact_math`, `integer_fm`, `fixed_seed`, `lcg_noise`, `coarse_env` (off / on; see [Quirks](#mono-sum-voice-drive-channel-strip-and-speech-change-add-v2-import-names-unify-v2-algorithms)) |
+| channel strip | 230–260 | 31 | `strip.on`, `volume`, `drive_mode/gain/p1/p2`, `send_reverb`, `send_delay`, `boost`, `order` (one-byte up to here), `send_aux_a/b`, `recv_aux_a/b`, `dc_filter`, `chorus_*` ×7, `comp_*` ×9 |
+| mod slot 11–16 | 261–284 | 4 each | as slots 1–10 |
+| controllers 2–7 | 285–290 | 6 | `ctl.cc2` … `ctl.cc7` (breath, 3–6, volume; default CC7 = 127/128) |
+| speech | 291–293 | 3 | `speech.on`, `speech.select`, `speech.pitch` |
 
-**7-bit fields** store `step / 128` (`params::v2_raw`); that code runs on the step value plus its Add routes. That
-holds for every appended parameter and for the existing fields that a naive type or the frame law reads: oscillator
-coarse/fine/gain/shape, filter cutoff/resonance, envelope fields, LFO fields, and voice pan/transpose with
-`voice.stage` on. The defaults are V2's initial patch values with the stage switches off, so an older patch is unchanged.
+**Choices are plain** `Choice(n)` (`law::choice`, stored `k/(n − 1)`): oscillator type of 13 (off, phase mod,
+saw/pulse, wavetable, sampler, naive saw/tri, naive pulse, sine, coloured noise, FM, aux in A, aux in B, clocked),
+filter type of 11 (off, state-variable low/high/band/notch, 4-pole low, RBJ high/band, resonator notch,
+state-variable all-pass, 4-pole high: the algorithm with its response), LFO shape of 8, mod source of 17, operation
+of 3. Defaults are each new field's first option, except the balance and the sustain slope (centre), amplify (1) and
+the LFO sync (restart).
 
-**Expanded choices.** Oscillator type, filter type, envelope mode, mod source and mod operation gained kinds without
-moving stored values. A choice of `n` kinds is read as `choice(p, 2n − 1)` (`params::kinds`): the old kind `k`
-(stored `k/(n − 1)`) lands on position `2k`, and the later kinds take the odd positions. Unused positions are off.
-Ids in code are semantic (`osc_type::V2 = 5`, `filter_type::V2_LP..V2_MOOG_HP = 9..15`, `env_mode::V2 = 2`,
-`source::CC2..CC2+5 = 10..15`, `source::V2_NOTE = 16`, `op::ADD = 2`). Use `decode`/`encode`, never `choice` on these
-fields. `inv_choice(k, n_old)` still encodes an old kind. The song tables list one option per stored position (`—` for
-unused positions).
+**7-bit fields** store `step / 128` (`params::v2_raw`): the drive, the strip, the controllers 2–7, the speech, the
+balance, sustain slope, amplify and LFO phase, and the fields a 7-bit law reads (an oscillator's coarse, fine, gain
+and colour on its 7-bit law, a filter's cutoff and resonance on its 7-bit law, an envelope's times on the frame law,
+an LFO's rate on the frame law).
+
+**Settings and their modules.** A setting that adds code is its module (design D5): the oscillator combine's multiply
+and replace (`us-osc-combine`), a non-plain filter form or law (`us-flt-feedback`; the plain state-variable and 4-pole
+forms are `us-flt-svf` and `us-flt-ladder`), the power curve (`us-env-rate`), the exponential curve, sustain slope and
+amplify (`us-env-frame`), LFO settings beyond the plain Hz-law LFO (`us-lfo-frame`), the voice settings
+(`us-voice-out`), each quirk (`us-quirk-*`). `needs` lists them; a patch whose module the build lacks fails at load.
+
 `shape[9]` means different things per oscillator type:
 
 | Type | shape[0..9] |
@@ -116,11 +119,12 @@ unused positions).
 | phase-mod | waveform blend (sine + Square35) |
 | saw/pulse | waveform (saw → pulse), pulse width |
 | wavetable | bandwidth, harmonics, damp, scale, mod, drive, layers, layer detune, layer spread |
-| sampler | start, loop mode, loop boundary, loop start, loop length, reverse, interpolation, source (GSM / DLS instrument / DLS wave), (unused: the sample index is the raw value 177–179) |
+| sampler | start, loop mode, loop boundary, loop start, loop length, reverse, interpolation, source (GSM / DLS instrument / DLS wave), (unused: the sample index is the slot's raw `sample` field) |
+| naive generators | (unused), colour (`step/128`: the saw/triangle break point, pulse width, noise filter, FM depth) |
 | clocked | wave `choice(p, 6)`, voices `round(10p)`, version `choice(p, 3)` (0 v1, ½ v2 in a glide, 1 v2), clock `p·2²⁰` Hz, retrigger byte `round(255p)` = `2k + accent`, filter base `8p`, filter amount `8p`, filter decay `1 + (0.5 − p)/100`, filter damping `p` (see [Clocked](#clocked-us-osc-clocked)) |
 
-Structural parameters (voice capacity, each oscillator type, each sampler source, the three sample indices) are read from the chunk
-only; `set_param` ignores them, so automation cannot change what was sized at load.
+Structural parameters (voice capacity, each oscillator type, each sampler source, the three sample indices, the quirks)
+are read from the chunk only; `set_param` ignores them, so automation cannot change what was sized or built at load.
 
 ### Laws
 
@@ -149,31 +153,34 @@ Resolution rule: a law that *is* a legacy law (cutoff, envelope time, slide time
 byte. New laws carry perceptual bounds (rate ≤ 4 %, gain ≤ 0.7 dB above −40 dB, transpose ≤ 0.2 semitone, vibrato
 amount ≤ 0.1 semitone per byte). Tests: `crates/unisynth/src/params/tests.rs`.
 
-## Chunk v1
+## Chunk v3
 
 ```text
-u8 version = 1 (2: + speech text)
+u8 version = 3 (4: + speech text)
 count n, n × { index, f32 value }        only values that differ from the defaults, indices strictly increasing
 u8 s,  s × { u32 size, GSM sample chunk } header + WAVEFORMATEX + blocks, nothing after the blocks
-version 2 only: u16 len ≥ 1, len bytes    Ronan speech text
+version 4 only: u16 len ≥ 1, len bytes    speech text
 (end)
 ```
 
+Versions 1 and 2 held the old layout (change unify-v2-algorithms). The checked player rejects them, and any other
+version, with `LoadError::UnknownVersion`; `synth-convert migrate` and `song migrate` (or `unisynth::migrate`) bring an
+old song to v3. A trusted build (`us-trusted`, songs generated on the host) reads no version.
+
 Escapes (change add-v2-import), like UTF-8 lead bytes. A count byte `c < 0xFF` is the count, and `0xFF` is followed
 by a `u16` count of 255 or more. An index byte `b < 0xF0` is the index, and `0xF0 + k` is followed by a byte `x`:
-index `240 + 256k + x` (up to 4335). Chunks written before the escapes have the same bytes and the same meaning. The
-encoder writes the shortest form, and the reader rejects an escaped count below 255. A two-byte index is always 240 or
-more, so every index has one form. A version 2 chunk without `us-speech` fails with `UnsupportedModule(SPEECH)`. Reading
-escapes is module `us-chunk-wide` (implied by `us-strip`). Without it, an escape fails with
-`UnsupportedModule(CHUNK_WIDE)`, and the reader steps through 5-byte pairs as before, so a song without V2 pays
-nothing here (design D4, D11).
+index `240 + 256k + x` (up to 4335). The encoder writes the shortest form, and the reader rejects an escaped count
+below 255. A two-byte index is always 240 or more, so every index has one form. A version 4 chunk without `us-speech`
+fails with `UnsupportedModule(SPEECH)`. Reading escapes is module `us-chunk-wide` (implied by `us-strip`). Without
+it, an escape fails with `UnsupportedModule(CHUNK_WIDE)`, and the reader steps through 5-byte pairs, so a song whose
+indices are all below 240 pays nothing here (design D4, D11).
 
 ```mermaid
 flowchart TD
-    A["bytes"] --> V{"version = 1?"}
-    V -- no --> E["BadChunk"]
-    V -- yes --> P["n pairs: index < 184, strictly increasing,<br/>value finite and 0..1<br/>(sample index 177–179: 0..65535)"]
-    P -- bad --> E
+    A["bytes"] --> V{"version 3 or 4?"}
+    V -- no --> U["UnknownVersion"]
+    V -- yes --> P["n pairs: index < 294, strictly increasing,<br/>value finite and 0..1<br/>(an oscillator's sample index: 0..65535)"]
+    P -- bad --> E["BadChunk"]
     P --> S["s samples: size fits, GSM header ok,<br/>no bytes after the blocks"]
     S -- bad --> E
     S --> T{"bytes left?"}
@@ -183,14 +190,27 @@ flowchart TD
     X -- yes --> OK["values = defaults + pairs"]
 ```
 
-- The encoding is canonical (sorted, defaults omitted): the same patch gives the same bytes. The worst case is 923
-  bytes (all 184 values differ); a Slaughter-like patch is about 100 bytes.
-- The three sample indices (177–179) are the only raw values. Each is not a shape value: `shape[8]` is the wavetable's layer spread, a normal 0..1 value. It reads like the legacy `(int)v`, 1-based, 0 = none; DLS uses the legacy
-  `(int)v − 1`. A GSM index beyond the section is an error, a DLS index is checked against the bank at render.
+- The encoding is canonical (sorted, defaults omitted): the same patch gives the same bytes. The worst case is 1529
+  bytes (all 294 values differ); a Slaughter-like patch is about 100 bytes.
+- The three sample indices (`oscN.sample`) are the only raw values. Each reads like the legacy `(int)v`, 1-based,
+  0 = none; DLS uses the legacy `(int)v − 1`. A GSM index beyond the section is an error, a DLS index is checked against
+  the bank at render.
 - Without `us-sample-gsm`, a chunk with samples fails with `UnsupportedModule(SAMPLE_GSM)`.
 - Sizes are `u32` and `usize` is 32-bit on i686: every offset uses checked arithmetic, so hostile sizes cannot wrap.
 
 The format went through a cross-model adversarial review (task 1.4); the decisions are recorded in design D3.
+
+### Migration from the old layout (`unisynth::migrate`, host only)
+
+`migrate::values(old)` turns a patch of the old layout into v3 by the value rules of the change's design ("v3 layout
+(frozen, task 6.4)"): the naive generator's mode becomes the type, ring the combine; the old filter kinds become a type
+with a form and law; an envelope's mode becomes a law with the curve "by law"; the frame-law LFO's 7-bit shape and sync
+become the union shape and the sync choice; 7-bit switches become choices; the format version (`voice.era`) becomes
+the quirks its patch reaches and the settings it decided. `instrument_chunk`, `effect_chunk` and `lane` (one lane per
+v3 field that moves) build on it. The converters build patches in the old layout and the song writer migrates them
+(`synth_convert::model::SongM::write`), so a converter's output is the migration of its old output by construction.
+`research/unify-v3-layout/layout.py` is an independent reference: both give the same pairs for all 4,820 instruments of
+the tracked songs (`MIGRATE_CROSSCHECK`).
 
 ## Voice framework
 
@@ -295,12 +315,14 @@ Rate-law rates are the legacy per-512-block steps per second (`STEP = 0.256`, 86
 deviations: a power decay that would rise (`d·M` above ≈ 1.02) holds at the peak instead of growing past 1, and the
 sustain level is fixed at note-on (no chase).
 
-Until the format switch (task 6.1) `envN.law` picks law and curve together: seconds + quadratic, rate + power, frame +
-exponential.
-- `envN.curve_slope` is the power exponent on the rate law and the sustain slope on the frame law.
+The fields: `envN.law` (seconds, rate, frame), `envN.curve` (by law: quadratic for seconds, power for rate,
+exponential for frame; or any of the three), `envN.curve_slope` (the power exponent), `envN.sustain_slope` (the
+held level's drift, 7-bit, 64 = flat), `envN.amplify` (output gain, 7-bit).
 - The frame law re-reads its fields every control segment (the matrix may move them) and keeps the level at note-on.
   The other laws take their fields at note-on.
-- Each curve's code is built with its law's feature.
+- The power curve's code is built with `us-env-rate`; the exponential curve, the sustain slope and amplify with
+  `us-env-frame` (a patch that sets them on another law needs that module too). Quirk `coarse_env` (a frame-law
+  envelope on 256-sample frames with the year-2000 laws) is `us-quirk-coarse-env`.
 
 ### LFOs
 
@@ -318,16 +340,15 @@ settings read per control segment (`LfoP::read`).
 
 A Scale slot sees `1 − d + d·shape`, an Offset slot `d·(2·shape − 1)`, with `d = (depth · M(depth))²`.
 
-Until the format switch (task 6.1) `lfoN.law` picks two fixed sets. The Hz law uses the first five shapes, and `sync`
-on restarts at phase 0, off runs on song time. The frame law reads shape, rate and sync as 7-bit steps (saw, triangle,
-pulse, sine, sample-and-hold), and `sync` on restarts at `lfoN.phase`, off continues. `lfoN.polarity` and
-`lfoN.one_shot` apply to every LFO (both default to off: positive, free). The settings beyond the Hz law's are built
-with `us-lfo-frame`.
+The fields: `lfoN.shape` (`Choice(8)`), `rate`, `depth`, `sync` (song time, continue, restart; default restart),
+`law` (Hz, frame), `phase` (start phase, 7-bit), `polarity`, `one_shot`. The plain LFO (Hz law, the first five shapes,
+restart or song time, no phase, positive, free) needs nothing else; any other setting is built with `us-lfo-frame`.
 
 ## Mod matrix
 
-16 slots `(source, target, amount, operation)`; `modmx.rs`. Slots 13–16, the Add operation and the sources added after
-chunk v1 need `us-matrix-add` (change add-v2-import).
+16 slots `(source, target, amount, operation)`; `modmx.rs` (slots 1–10 one-byte, 11–16 two-byte in the chunk). Slots
+13–16, the Add operation and the sources added after the first 10 (CC2–7, centred note) need `us-matrix-add` (change
+add-v2-import).
 
 ```mermaid
 flowchart TD
@@ -370,7 +391,8 @@ Sources: 0 none, 1–4 envelopes, 5–6 LFOs, 7 wheel (live input via `UInstrume
 (`note/127`), 10–15 controllers 2–7 (`ctl.cc2..7`), 16 V2 note (`2·(note − 48)/128`). An Add slot reads an LFO as
 `depth · shape`, or as a V2-mode LFO's own output. Evaluation order matters and mirrors Tunefish: slots run in order; a slot sees this pass's results of
 earlier slots and the previous pass's results of later ones (the one-segment slot delay), which makes self-modulation
-and slot-to-slot depth modulation possible. The target ids are frozen with chunk v1 (78–141 with change add-v2-import).
+and slot-to-slot depth modulation possible. The target ids are frozen (78–141 with change add-v2-import); a parameter
+target names its parameter, so it follows the layout.
 
 ## Oscillator slots
 
@@ -584,7 +606,7 @@ add-cauldron-xm-import). Algorithm and sources:
 
 ### Controllers: wheel, bend and bend range
 
-`ctl.wheel`, `ctl.bend` and `ctl.bend_range` (indices 180–182) are ordinary automatable parameters, so a song carries
+`ctl.wheel`, `ctl.bend` and `ctl.bend_range` (indices 218–220) are ordinary automatable parameters, so a song carries
 wheel and bend as automation lanes. The wheel feeds mod source 7 (the live input `UInstrument::mod_wheel` writes the
 same parameter). Bend shifts every voice by `(bend − 0.5) · 2 · range` semitones: it is added to the voice's transpose, so
 held and releasing voices follow it and, like transpose, a fixed-frequency oscillator does not. The defaults (wheel 0,
@@ -655,16 +677,22 @@ to the feedback form, keeps the state). `us-flt-svf`, `us-flt-ladder`, `us-flt-f
 `us-flt-notch` gate the types: a patch that loads with a missing one fails at load; a type automated to a missing one
 bypasses.
 
-Until the format switch (task 6.1) the type value also picks the form and the law of its topology:
+The type is the algorithm with its response (`Choice(11)`); `filtN.form`, `filtN.oversample` and `filtN.law` are
+settings of the state-variable and 4-pole types (the RBJ and resonator types ignore them):
 
-| Type | Topology, response | Form | Law |
+| Type | Form 0 / 1 | Oversample 0 / 1 | Law 0 / 1 |
 |---|---|---|---|
-| SVF low/high/band/notch | state-variable | input | Hz |
-| Ladder low-pass | 4-pole low | feedback before the clip, 1× | Hz |
-| Feedback SVF low/band/high/notch/all-pass | state-variable | feedback, held | 7-bit steps |
-| 4-pole 2× low/high | 4-pole low/high | feedback after the clip, 2× | 7-bit steps |
-| RBJ high/band-pass | biquad with the reference's `log₁₀2` bandwidth law, `w0 = 2π·fc/rate` | | Hz, `clamp(p, 0, 0.85)` |
-| Resonator notch | zeros on the unit circle, poles at radius `q`, one sample of input latency, `z = cos(2π·fc/rate)` | | Hz, `clamp(p, 0, 0.85)`; the pole radius does not scale with the rate |
+| state-variable low/high/band/notch/all-pass | input / feedback resonance | interpolated / held | Hz / 7-bit steps |
+| 4-pole low/high | feedback before / after the clip | 1 / 2 steps | Hz / 7-bit steps |
+
+The earlier types are settings now: SVF = state-variable, input, interpolated, Hz; ladder = 4-pole low, before the
+clip, 1 step, Hz; the feedback SVF types = state-variable, feedback, held, 7-bit; the 4-pole 2× types = 4-pole, after
+the clip, 2 steps, 7-bit.
+
+| Type | Topology |
+|---|---|
+| RBJ high/band-pass | biquad with the reference's `log₁₀2` bandwidth law, `w0 = 2π·fc/rate`; Hz, `clamp(p, 0, 0.85)` |
+| Resonator notch | zeros on the unit circle, poles at radius `q`, one sample of input latency, `z = cos(2π·fc/rate)`; Hz, `clamp(p, 0, 0.85)`; the pole radius does not scale with the rate |
 
 **State-variable** (`flt::sv_coefs`, 2× oversampled): per half-step `low += f·band; high = a·(x − c·band) − low;
 band += f·high`. The responses are low, band, high, notch (`low + high`) and all-pass (`low + band + high`: flat at
@@ -698,24 +726,25 @@ to `0..19 980` Hz after the sum, as Slaughter does. All coefficients are compute
 
 ## Mono-sum voice, drive, channel strip and speech (change add-v2-import; names: unify-v2-algorithms)
 
-`voice.stage` on sets the voice output settings (change unify-v2-algorithms 5.2):
-- amplitude: envelope 1 alone (not master × velocity × envelope 1)
-- pan stage: once, after the drive, on the mono sum (not per slot)
-- output DC filter: from format version 6
-- transpose law: 7-bit steps
+The voice output settings (`us-voice-out`; a converted V2 voice sets all of them):
+- `voice.amp_source`: the amplitude is envelope 1 alone (not master × velocity × envelope 1)
+- `voice.pan_stage`: the pan comes once, after the drive, on the mono sum (not per slot)
+- `voice.dc_filter`: the output DC filter
+- `voice.law`: the transpose on 7-bit steps (`step − 64`)
 
-Its parameters use 7-bit step laws (stored value = step / 128).
-
-`voice.era` holds the format version of a converted song (0–6, 7 = a 2004 build). Only `params::era_settings` reads
-it. That function derives the settings the converter will write at the format switch (FM and aux-in generators, the
-2× 4-pole filter, key sync 2, the DC filters, the channel routes' voice sources) and the quirks. A test fails on any
-other read.
+The player has no format version (change unify-v2-algorithms, the format switch). What V2's version decided is
+written by the converter (and the migration of old songs): no FM generator before version 4 and no aux-in or 4-pole
+filter before 6 (the slot or filter off), key sync 2 as 1 before 6, the DC filters on at 6, a channel route on a voice
+source dropped before 5; the rest are the quirks below, each set only where its code is reached. A test fails if the
+player reads `era` anywhere.
 
 **Quirks** (survey of 2026-11-01, change unify-v2-algorithms task 6.3, `tools/unisynth-parity/quirk-survey.ts`).
-A quirk reproduces one source build. It exists only if some converted song leaves the parity tolerance (1 dB loudness,
-3 dB per octave band) without it: against the original V2 render where one exists (the 18 parity songs), else against
-the song's own render with the quirk on. Each was cleared in turn (`--cfg us_quirk_off="<quirk>"`) over the 347 V2
-songs:
+A quirk reproduces one source build; each is a structural choice of the instrument (`quirk.*`, indices 225–229) and
+a module of its own (`us-quirk-exact-math`, `-integer-fm`, `-fixed-seed`, `-lcg-noise`, `-coarse-env`; module ids
+57–61): a patch that sets one in a build without it fails with `UnsupportedModule`. A quirk exists only if some
+converted song leaves the parity tolerance (1 dB loudness, 3 dB per octave band) without it: against the original V2
+render where one exists (the 18 parity songs), else against the song's own render with the quirk on. Each was cleared
+in turn (`--cfg us_quirk_off="<quirk>"` before the switch) over the 347 V2 songs:
 
 | Quirk | Reproduces | Format versions | Songs that set it | Without it: outside parity tolerance | Decision |
 |---|---|---|---:|---|---|
@@ -731,10 +760,10 @@ songs:
 
 **Combine.** Every slot meets the running sum of the earlier slots through one step (`osc::mix_in`): add (panned by
 the slot and the voice pan), multiply (ring) or replace (both on both channels of the sum). The running mono sum
-(the FM and ring input of a later naive generator) is unpanned. Until the format switch every slot adds, except the
-naive generators: ring multiplies, FM and aux in replace. The naive generators share the slot path: one
-`slot_targets` with the 7-bit oscillator law (transpose `step − 64`, detune `(step − 64)/128`, volume `step/128`,
-note 60 = 130.8 Hz) next to the semitone and Hz laws.
+(the FM and ring input of a later naive generator) is unpanned. `oscN.combine` sets it for every slot (multiply and
+replace: `us-osc-combine`); a converted V2 slot multiplies when it rang, replaces for FM and aux in. The naive
+generators share the slot path: one `slot_targets` with `oscN.law`, the 7-bit oscillator law (transpose `step − 64`,
+detune `(step − 64)/128`, volume `step/128`, note 60 = 130.8 Hz) or the semitone and Hz laws.
 
 ```mermaid
 flowchart LR
@@ -755,21 +784,23 @@ flowchart LR
 
 | Module | Feature | What it is |
 |---|---|---|
-| oscillator type `Naive` | `us-osc-naive` | generators saw/tri (`shape` morphs), pulse (`shape` = width), sine, coloured noise (state-variable filtered; colour), FM (from the running sum), aux in A/B; the mode Add/Mul/Set into the sum; ring multiplies by the running sum. Coarse/fine on 7-bit laws |
-| filter types `Feedback SVF …`, `4-pole 2× …` | `us-flt-feedback` | the feedback-resonance state-variable filter (low/band/high/notch/all-pass) and the 2× 4-pole filter (low/high) |
+| oscillator types naive saw/tri … aux in B | `us-osc-naive` | generators saw/tri (colour morphs), pulse (colour = width), sine, coloured noise (state-variable filtered; colour), FM (from the running sum), aux in A/B; coarse/fine/gain on the slot's law |
+| `oscN.combine` multiply, replace | `us-osc-combine` | ring (multiply the running sum) and replace, on any slot |
+| filter forms and the 7-bit law | `us-flt-feedback` | the feedback-resonance and held forms of the state-variable filter, the after-the-clip and 2-step forms of the 4-pole filter, the 7-bit cutoff/resonance law |
 | `voice.routing`, `voice.balance` | `us-flt-parallel` | filter slots 1 and 2 single, serial or parallel with a balance |
 | drive | `us-drive` | off, overdrive (arctangent), clip, bit crush, decimate, low/band/high/notch/all-pass/4-pole filter; `drive.*` input gain, param 1/2 |
 | envelope law `Frame` | `us-env-frame` | per-frame (344.5 /s) attack/decay/sustain/release in 0..128 steps, sustain slope, `envN.amplify` |
 | LFO law `frame` | `us-lfo-frame` | the frame law and the LFO settings beyond the Hz law's: triangle, pulse, sample-and-hold, `lfoN.polarity` (+, −, ±), `lfoN.one_shot`, start phase, key sync reseed |
 | voice output | `us-voice-out` | the voice path above (sum, DC filter, keysync, pan after drive) |
 | channel strip | `us-strip` | see below; needs `synth-core/pairs` |
-| speech | `us-speech` | formant speech; text in chunk version 2 |
+| speech | `us-speech` | formant speech; text in chunk version 4 |
+| quirks | `us-quirk-*` | one per quirk (table above) |
 | matrix Add | `us-matrix-add` | the Add rule, CC2–CC7 and centred-note sources, slots 13–16 |
 
-`us-all` enables them all. With `voice.stage` on, a naive oscillator outputs the same mono signal to both channels
-and ignores the slot pan; the voice pan applies after the drive.
+`us-all` enables them all. With `voice.pan_stage` after the drive, a naive oscillator outputs the same mono signal to
+both channels and ignores the slot pan; the voice pan applies after the drive.
 
-**Mixing.** Every module above is chosen per slot or by its own parameter. A unisynth voice (`voice.stage` off) can
+**Mixing.** Every module above is chosen per slot or by its own parameter. A unisynth voice (the voice settings off) can
 use any of them beside the unisynth ones:
 - a feedback SVF or 4-pole filter in any filter slot
 - a naive oscillator next to a wavetable or BLIT slot
@@ -827,7 +858,7 @@ the parity tools.
 | clocked oscillator, flanger `comb`, distortion `wrap` | TBL Jizz / Stash (1997) | Probe's mini-cauldron (`research/tbl-mini-cauldron`): waveforms, comb/doubler, wrap-around specials |
 | reverb `Comb`, delay `Modulated`, compressor `Look-ahead`, EQ `Cut` | V2 | `V2Reverb`, `V2ModDel`, `V2Comp`, post filters |
 | matrix Add, CC2–7, centred note | V2 | `storeV2Values` modulation |
-| `voice.era` behaviours (future quirk flags) | V2 format versions 0–6, the 2004 build | v2redux `v2eras.h` ledger |
+| the quirks (`quirk.*`) and the converter's version-dependent writes | V2 format versions 0–6, the 2004 build | v2redux `v2eras.h` ledger |
 
 The port follows V2's `synth_core.cpp` (public domain) and v2redux's `v2core.cpp` where the x87 rounding and bugs
 matter (fast sine below −π, the arctangent table path, `fistp` round-to-nearest, the integer-indefinite FM collapse).
@@ -1027,13 +1058,16 @@ entry's decoded length is bounded by the data it carries.
 ## Effects (kinds 65–73)
 
 The nine effect kinds replace the fifteen legacy effects. Each legacy algorithm is kept whole as a *mode* of its kind;
-the first parameter selects the mode (`choice(p, n)`), and the parameters after it are the legacy effect's own, in its
-order and with its normalized ranges and curves. A legacy effect chunk therefore converts by putting the mode in front,
-and its automation converts by shifting the parameter index by one.
+the first parameter selects the mode (`choice(p, n)` of the kind's modes, in the order of the tables below), and the
+parameters after it are the legacy effect's own, in its order and with its normalized ranges and curves. A legacy
+effect chunk therefore converts by putting the mode in front, and its automation converts by shifting the parameter
+index by one. The chunk ends in the version tag `fx::TAG` (`0xFFFF_FF03`: never a legacy size trailer, a NaN as a
+value); a checked player rejects a chunk without it (`UnknownVersion`: an old chunk, migrate it) or with a length that
+is not whole values (`BadChunk`). The tag alone is mode 0 with its defaults.
 
 ```mermaid
 flowchart LR
-    chunk["chunk<br/>[mode, p0, p1, …] + 4-byte trailer"] --> ufx["UFx::need / new"]
+    chunk["chunk<br/>[mode, p0, p1, …] + version tag"] --> ufx["UFx::need / new"]
     ufx --> pick{"mode = choice(p0, n)"}
     pick -->|feature on| mode["mode body<br/>(legacy algorithm)"]
     pick -->|feature off| err["UnsupportedModule(id)"]
@@ -1055,19 +1089,21 @@ flowchart LR
 | 73 formant | formant (2): vowel, wet | | |
 
 The 7-bit modes (change add-v2-import; names: unify-v2-algorithms; features `us-fx-eq-cut`, `-delay-modulated`,
-`-reverb-comb`, `-compressor-lookahead`) store `step / 128`, with `era` (format version) last. Their mode values sit
-between the old ones (`fx::mode_value`), so old stored modes are unchanged. Their sources are in "Provenance".
+`-reverb-comb`, `-compressor-lookahead`) store `step / 128`. They have no format version: the converter sets the
+reverb's low cut off below V2 format 4, and the cut EQ's DC filter is a choice (on from format 6). Their sources are
+in "Provenance".
 
 | Kind | mode |
 |---|---|
-| 67 EQ | Cut (3): low cut, high cut, era |
-| 68 delay | Modulated (8): volume, feedback, delay L, delay R, mod rate, mod depth, mod phase, era |
-| 71 reverb | Comb (5): time, high cut, low cut (no effect below format 4), volume, era; wet only, mono input |
-| 72 compressor | Look-ahead (10): detect (off/peak/RMS), couple (stereo link), auto gain, lookahead, threshold, ratio, attack, release, out gain, era |
+| 67 EQ | Cut (3): low cut, high cut, DC filter (off / on, default on) |
+| 68 delay | Modulated (7): volume, feedback, delay L, delay R, mod rate, mod depth, mod phase |
+| 71 reverb | Comb (4): time, high cut, low cut, volume; wet only, mono input |
+| 72 compressor | Look-ahead (9): detect (off/peak/RMS), couple (stereo link), auto gain, lookahead, threshold, ratio, attack, release, out gain |
 
-The mini-cauldron modes (change add-cauldron-xm-import, features `us-fx-flanger-comb`, `us-fx-distortion-wrap`) also
-sit at free stored positions: comb at flanger 0.5, wrap at distortion 0.25. Shaper 0, curve 0.5, power 1.0, phaser 0
-and ring 1.0 keep their meaning.
+Mode ids per kind (the order of `fx::MODES`): distortion shaper, curve, power, wrap; EQ parametric, 3band, cut; delay
+tempo, ms, modulated; flanger phaser, ring, comb; reverb freeverb, compact, rooms, comb; compressor, look-ahead.
+
+The mini-cauldron modes (change add-cauldron-xm-import, features `us-fx-flanger-comb`, `us-fx-distortion-wrap`):
 
 | Kind | mode |
 |---|---|
@@ -1446,7 +1482,7 @@ feature in every list is needed.
 ### Demo songs
 
 The six reference songs (WaveSabre Global Groove, Elysian, Engage, Eladamri; Tunefish no_remorse, tf4testsong) are the
-songs the A/B renders play. `tools/demo-songs/build.ts` converts them and saves them as `song/1` in `project/music`
+songs the A/B renders play. `tools/demo-songs/build.ts` converts them and saves them as `song/2` in `project/music`
 (`WS_SONG_DIR=<dir with elysian.bin …> TF_SONGS=<dir with *.tfm> bun tools/demo-songs/build.ts`; a missing source is
 skipped). Each file starts with a `meta` block:
 
@@ -1454,7 +1490,7 @@ skipped). Each file starts with a `meta` block:
 "meta": {
   "title": "Elysian",
   "author": "logicoma (the composer is not named in the repository)",
-  "description": "Elysian, an Ableton Live project … This is an adapted version, not the original recording: The project was converted to a WaveSabre song …, then by `synth-convert ws` to the unified synth …, then imported to song/1 … sound close to, not identical with, the original …",
+  "description": "Elysian, an Ableton Live project … This is an adapted version, not the original recording: The project was converted to a WaveSabre song …, then by `synth-convert ws` to the unified synth …, then imported … sound close to, not identical with, the original …",
   "copyright": "Copyright 2012-2021 WaveSabre Team",
   "license": "MIT",
   "url": "https://github.com/logicomacorp/WaveSabre/blob/9245fb8…/Tests/WaveSabreConvertTests/Tests/Elysian.als",
@@ -1474,7 +1510,7 @@ Released songs (`project/music/released/`, no licence; committed while the autho
 `tools/ws-extract/make-demos.py` (25 WaveSabre intros) and `research/tbl-mini-cauldron/tools/make_demos.py` (TBL's
 three clocked soundtracks: Jizz "Smokeout", Stash "over2" and "bluish" by Probe, as `tbl-jizz-smokeout`,
 `tbl-stash-over2`, `tbl-stash-bluish`; `synth-convert xm … --names` gives the track names, `<sample> (record r,
-class)`). The clocked songs are large (2.8, 13.2 and 5.3 MB of JSON: per-tick automation). Through `song/1` they
+class)`). The clocked songs are large (2.8, 13.2 and 5.3 MB of JSON: per-tick automation). Through the song JSON they
 render within ~0.1 dB median and 4.3 dB worst per octave band and second of the converter's own blob: notes land on the
 960-ticks-per-beat grid (±3 frames at Jizz's 470 BPM).
 

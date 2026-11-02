@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://64k.local/schema/song.schema.json",
-  "title": "64k song source (song/1)",
+  "title": "64k song source (song/2)",
   "description": "Editable song for the unified synth; exported to the synth-mix blob by crates/song. Structural schema; semantic checks (parameter names and ranges per device kind, references, receive cycles, duplicate lanes, notes and points inside the song) are done by crates/song and reported as JSON-pointer issues.",
   "type": "object",
   "additionalProperties": false,
   "required": ["format", "rate", "tempo", "signature", "ticks_per_beat", "length", "clips", "tracks", "master"],
   "properties": {
-    "format": { "const": "song/1" },
+    "format": { "const": "song/2" },
     "meta": { "$ref": "#/$defs/meta" },
     "about": { "$ref": "#/$defs/about" },
     "rate": { "type": "integer", "minimum": 8000, "maximum": 192000 },
@@ -83,8 +83,7 @@
         "samples": { "type": "array", "maxItems": 255, "items": { "type": "string", "contentEncoding": "base64" } },
         "speech": { "type": "array", "items": { "type": "string" }, "description": "Ronan speech texts (V2 phonemes), kind 64 only" },
         "bypass": { "type": "boolean" },
-        "preset": { "type": "string" },
-        "trailer": { "type": "integer" }
+        "preset": { "type": "string" }
       }
     },
     "receive": {

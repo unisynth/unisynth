@@ -1,40 +1,44 @@
-//! The instrument parameter layout (kind 64): 260 values in groups, the defaults and (host-side) the
-//! names and laws per index. Design D3, V2 part design D4a (change add-v2-import). A chunk stores only the values that
-//! differ from [`DEFAULTS`].
+//! The instrument parameter layout (kind 64, chunk versions 3 and 4): 294 values in module blocks, the defaults and
+//! (host-side) the names and laws per index. Change unify-v2-algorithms, design "v3 layout (frozen, task 6.4)"; the
+//! layout before it is [`old`] (host-only, for the migration). A chunk stores only the values that differ from
+//! [`DEFAULTS`]; indices 0–239 take one byte in a chunk, the rest two.
 //!
 //! ```text
-//! voice  0..16    master pan capacity steal unison uni-detune uni-spread mode slide glide transpose
-//!                 velocity start-spread one-shot noise-level env1-at-output
-//! osc ×3 16..82   22 each: type tracking coarse fine octave ratio ratio-fine fixed-hz gain mix pan pm-out
-//!                 feedback, then shape[9] (meaning by oscillator type, see `shape`)
-//! noise  82..85   band-on hp lp
-//! filt ×4 85..97  3 each: type cutoff resonance
-//! env ×4 97..121  6 each: mode attack decay sustain release slope
-//! lfo ×2 121..129 4 each: shape rate depth sync
-//! mod ×12 129..177 4 each: source target amount operation
-//! smp ×3 177..180 the GSM sample number or DLS wave index of each sampler slot (raw whole numbers, structural)
-//! ctl    180..183 mod wheel, pitch bend, bend range (for the DAW; automatable)
-//! ext    183..184 noise width (1 = independent channels, 0 = the same noise on both)
-//! v2     184..189 V2 voice, key sync, format version, filter routing, filter balance
-//! vdist  189..193 voice distortion: mode gain p1 p2
-//! envamp 193..197 V2 envelope amplify ×4
-//! lfoext 197..205 2 × (mode phase polarity eg)
-//! mod2   205..221 mod slots 13–16
-//! cc     221..227 controllers 2–7
-//! ch     227..240 channel stage on, volume, boost, fx order, sends ×4, aux receive ×2, speech on, speech ctl 4/5
-//! ch     240..260 channel distortion ×4, chorus ×7, compressor ×9   (two-byte indices in the chunk)
+//! voice     0..16    master pan capacity steal unison uni-detune uni-spread mode slide glide transpose
+//!                    velocity start-spread one-shot noise-level env1-at-output
+//! vs        16..23   voice settings: amp source, pan stage, DC filter, transpose law, key sync, filter routing, balance
+//! osc ×3    23..98   25 each: type tracking coarse fine octave ratio ratio-fine fixed-hz gain mix pan pm-out feedback,
+//!                    shape[9] (meaning by type, see `shape`), sample index (raw), combine, law
+//! noise     98..102  band-on hp lp width
+//! filt ×4   102..126 6 each: type cutoff resonance form oversample law
+//! env ×4    126..162 9 each: law attack decay sustain release curve curve-slope sustain-slope amplify
+//! lfo ×2    162..178 8 each: shape rate depth sync law phase polarity one-shot
+//! mod 1–10  178..218 4 each: source target amount operation
+//! ctl       218..221 mod wheel, pitch bend, bend range
+//! drive     221..225 mode gain p1 p2
+//! quirk     225..230 exact math, integer FM, fixed seed, LCG noise, coarse envelope
+//! strip     230..261 channel strip (one block: `is_strip`)
+//! mod 11–16 261..285
+//! cc        285..291 controllers 2–7
+//! speech    291..294 on, select, pitch
 //! ```
 //!
-//! Everything except the sample indices is normalized 0..1. Every V2 field (the appended ones, and the existing fields
-//! a V2 type or mode reads) stores `V2 raw / 128`: see [`v2_raw`].
+//! Everything except the sample indices is normalized 0..1. Fields on a 7-bit step law store `step / 128`
+//! ([`v2_raw`] gives the step).
 
 /// Number of values in a patch.
-pub const COUNT: usize = CH2 + ch::LEN2;
+pub const COUNT: usize = SPEECH + 3;
 
-/// A V2 field's raw value (`128 · p`): the number V2's own code works on.
+/// A 7-bit step field's step (`128 · p`).
 #[inline]
 pub fn v2_raw(p: f32) -> f32 {
     128.0 * p
+}
+
+/// Value of choice `id` of `n` (`law::host::inv_choice` without the clamp, for the player and const tables).
+#[inline]
+pub const fn choice_value(id: usize, n: usize) -> f32 {
+    if n < 2 { 0.0 } else { id as f32 / (n - 1) as f32 }
 }
 
 /// Voice group (`0..16`).
@@ -59,8 +63,34 @@ pub mod v {
     pub const LEN: usize = 16;
 }
 
+/// Voice settings (absolute indices).
+pub const VS: usize = v::LEN;
+pub mod vs {
+    /// Choice: 0 every envelope as patched, 1 envelope 1 alone sets the amplitude (and the voice ends with it).
+    pub const AMP_SOURCE: usize = super::VS;
+    /// Choice: 0 each slot pans, 1 the voice pans after the drive (slots mono).
+    pub const PAN_STAGE: usize = AMP_SOURCE + 1;
+    /// Choice: the voice output's DC filter.
+    pub const DC_FILTER: usize = AMP_SOURCE + 2;
+    /// Choice: transpose in 0 semitones (`law::transpose`), 1 7-bit steps (`step − 64`).
+    pub const LAW: usize = AMP_SOURCE + 3;
+    /// Choice of 3: a note-on keeps the oscillator phases (free), restarts them, or resets the voice.
+    pub const KEYSYNC: usize = AMP_SOURCE + 4;
+    /// Choice: filter slots 1–2 in series or in parallel.
+    pub const ROUTING: usize = AMP_SOURCE + 5;
+    /// Parallel balance, 7-bit step (64 = both full).
+    pub const BALANCE: usize = AMP_SOURCE + 6;
+    pub const LEN: usize = 7;
+    pub mod keysync {
+        pub const FREE: usize = 0;
+        pub const RESTART: usize = 1;
+        pub const RESET: usize = 2;
+        pub const COUNT: usize = 3;
+    }
+}
+
 /// Oscillator slots: 3 × [`o::LEN`] starting at [`OSC`].
-pub const OSC: usize = v::LEN;
+pub const OSC: usize = VS + vs::LEN;
 pub const OSC_SLOTS: usize = 3;
 pub mod o {
     pub const TYPE: usize = 0;
@@ -79,72 +109,54 @@ pub mod o {
     /// First of the 9 type-dependent shape values.
     pub const SHAPE: usize = 13;
     pub const SHAPES: usize = 9;
-    pub const LEN: usize = 22;
+    /// The GSM sample number or DLS wave index of a sampler slot (raw whole number 0..65535, structural).
+    pub const SAMPLE: usize = 22;
+    /// Choice of 3 ([`super::combine`]): how the slot meets the sum of the earlier slots.
+    pub const COMBINE: usize = 23;
+    /// Choice: 0 the unisynth laws, 1 7-bit steps (coarse = transpose `step − 64`, fine = detune, gain = volume, all
+    /// `step / 128`).
+    pub const LAW: usize = 24;
+    pub const LEN: usize = 25;
 }
 
-/// Expanded choices (design D4a): a choice of `n` kinds grows to `2n − 1` stored positions so a stored `k/(n−1)`
-/// keeps decoding to kind `k`; later kinds take the odd positions. Ids here are semantic (old kinds keep their ids,
-/// later kinds follow); `decode` reads a stored value, `encode` writes one. Encoding an old kind with
-/// `inv_choice(k, OLD)` gives the same value as `encode(k)`.
-pub mod kinds {
-    /// Kind id of a stored value: `old` kinds at the even positions, `later` (in order) at the odd ones, other odd
-    /// positions → `none`.
-    #[inline]
-    pub fn decode(p: f32, old: usize, later: usize, none: usize) -> usize {
-        at(crate::law::choice(p, 2 * old - 1), old, later, none)
-    }
-    /// [`decode`] in a build that may lack the later kinds (`built`: their feature is on). A trusted build
-    /// (`us-trusted`: the song's modules were checked on the host) without them only ever reads old kinds, whose
-    /// stored values decode with the old law (`choice(p, old)`, the pre-expansion code); every other build keeps the
-    /// full decode, so a later kind still fails to load.
-    #[inline]
-    pub fn decode_in(p: f32, old: usize, later: usize, none: usize, built: bool) -> usize {
-        if cfg!(feature = "us-trusted") && !built {
-            crate::law::choice(p, old)
-        } else {
-            decode(p, old, later, none)
-        }
-    }
-    /// Kind id at stored position `c` (`0..2·old − 1`).
-    #[inline]
-    pub fn at(c: usize, old: usize, later: usize, none: usize) -> usize {
-        if c % 2 == 0 {
-            c / 2
-        } else if c / 2 < later {
-            old + c / 2
-        } else {
-            none
-        }
-    }
-    /// Stored value of kind `id`.
-    pub fn encode(id: usize, old: usize) -> f32 {
-        let top = (2 * old - 2) as f32;
-        let pos = if id < old { 2 * id } else { 2 * (id - old) + 1 };
-        pos as f32 / top
-    }
+/// Slot combine ops (`o::COMBINE`).
+pub mod combine {
+    pub const ADD: usize = 0;
+    pub const MUL: usize = 1;
+    pub const SET: usize = 2;
+    pub const COUNT: usize = 3;
 }
 
-/// Oscillator types (`o::TYPE`, [`kinds`] with 5 old kinds).
+/// Oscillator types (`o::TYPE`, `Choice(13)`).
 pub mod osc_type {
     pub const OFF: usize = 0;
     pub const PM: usize = 1;
     pub const BLIT: usize = 2;
     pub const WAVETABLE: usize = 3;
     pub const SAMPLER: usize = 4;
-    /// Kinds of chunk v1 (`inv_choice(k, COUNT)` still encodes them).
-    pub const COUNT: usize = 5;
-    /// V2 oscillator (change add-v2-import): `shape[V2_MODE]` picks its waveform.
-    pub const V2: usize = 5;
-    /// Mini-cauldron oscillator (change add-cauldron-xm-import): `shape[CD_*]` pick wave, voices, version, clock.
-    pub const CLOCKED: usize = 6;
-    pub const ALL: usize = 7;
+    /// The naive generators (`osc::naive`): saw/triangle, pulse, sine, coloured noise, FM (phase-modulated by the
+    /// sum of the earlier slots), aux in A and B (the strip's aux busses).
+    pub const NAIVE_SAW: usize = 5;
+    pub const NAIVE_PULSE: usize = 6;
+    pub const SINE: usize = 7;
+    pub const NOISE: usize = 8;
+    pub const FM: usize = 9;
+    pub const AUX_A: usize = 10;
+    pub const AUX_B: usize = 11;
+    /// Clocked oscillator: `shape[CLK_*]` pick wave, voices, version, clock.
+    pub const CLOCKED: usize = 12;
+    pub const COUNT: usize = 13;
     #[inline]
     pub fn decode(p: f32) -> usize {
-        // a trusted build reads the expanded choice when it has any later kind (its song was checked on the host)
-        super::kinds::decode_in(p, COUNT, ALL - COUNT, OFF, cfg!(feature = "us-osc-naive") || cfg!(feature = "us-osc-clocked"))
+        crate::law::choice(p, COUNT)
     }
-    pub fn encode(id: usize) -> f32 {
-        super::kinds::encode(id, COUNT)
+    pub const fn encode(id: usize) -> f32 {
+        super::choice_value(id, COUNT)
+    }
+    /// Whether type `t` is a naive generator.
+    #[inline]
+    pub const fn is_naive(t: usize) -> bool {
+        t >= NAIVE_SAW && t <= AUX_B
     }
 }
 
@@ -174,13 +186,8 @@ pub mod shape {
     pub const SMP_REVERSE: usize = 5;
     pub const SMP_INTERP: usize = 6;
     pub const SMP_SOURCE: usize = 7;
-    // shape[8] is unused by the sampler (the sample index lives in the `SMP` group: raw values do not mix with
-    // normalized shape values)
-    /// V2 oscillator: mode raw 0 off, 1 saw/tri, 2 pulse, 3 sine, 4 noise, 5 FM, 6 aux A, 7 aux B; colour; ring (raw
-    /// bit 0). Its coarse field is V2's transpose, fine its detune, gain its volume (all raw / 128).
-    pub const V2_MODE: usize = 0;
-    pub const V2_COLOR: usize = 1;
-    pub const V2_RING: usize = 2;
+    /// Naive generators: the colour (saw/triangle break point, pulse width, noise filter, FM depth), `step / 128`.
+    pub const NAIVE_COLOR: usize = 1;
     /// Clocked oscillator (change add-cauldron-xm-import): wave `choice(p, 6)` (saw, square, spike, pulse, noise,
     /// fold), voices `round(10p)` (0–10), version `choice(p, 2) + 1`, clock `p·2²⁰` Hz (phrase frames per second: the
     /// original's internal rate times the playback ratio; 0 = one per output frame). The phrase frame at a note-on
@@ -202,113 +209,19 @@ pub mod shape {
     pub const CLK_F_DAMP: usize = 8;
 }
 
-/// Noise group (`82..85`).
+/// Noise group.
 pub const NOISE: usize = OSC + OSC_SLOTS * o::LEN;
 pub mod n {
     pub const BAND_ON: usize = 0;
     pub const HP: usize = 1;
     pub const LP: usize = 2;
-    pub const LEN: usize = 3;
-}
-
-/// Filter slots: 4 × [`f::LEN`].
-pub const FILT: usize = NOISE + n::LEN;
-pub const FILT_SLOTS: usize = 4;
-pub mod f {
-    pub const TYPE: usize = 0;
-    pub const CUTOFF: usize = 1;
-    pub const RESONANCE: usize = 2;
-    pub const LEN: usize = 3;
-}
-/// Filter types (`f::TYPE`, [`kinds`] with 9 old kinds). V2's filters read cutoff and resonance raw / 128.
-pub mod filter_type {
-    pub const OFF: usize = 0;
-    pub const SVF_LP: usize = 1;
-    pub const SVF_HP: usize = 2;
-    pub const SVF_BP: usize = 3;
-    pub const SVF_NOTCH: usize = 4;
-    pub const LADDER_LP: usize = 5;
-    pub const RBJ_HP: usize = 6;
-    pub const RBJ_BP: usize = 7;
-    pub const NOTCH: usize = 8;
-    pub const COUNT: usize = 9;
-    pub const V2_LP: usize = 9;
-    pub const V2_BP: usize = 10;
-    pub const V2_HP: usize = 11;
-    pub const V2_NOTCH: usize = 12;
-    pub const V2_ALL: usize = 13;
-    pub const V2_MOOG_LP: usize = 14;
-    pub const V2_MOOG_HP: usize = 15;
-    pub const ALL: usize = 16;
-    #[inline]
-    pub fn decode(p: f32) -> usize {
-        super::kinds::decode_in(p, COUNT, ALL - COUNT, OFF, cfg!(feature = "us-flt-feedback"))
-    }
-    pub fn encode(id: usize) -> f32 {
-        super::kinds::encode(id, COUNT)
-    }
-}
-
-/// Envelopes: 4 × [`e::LEN`].
-pub const ENV: usize = FILT + FILT_SLOTS * f::LEN;
-pub const ENV_SLOTS: usize = 4;
-pub mod e {
-    /// [`env_mode`].
-    pub const MODE: usize = 0;
-    pub const ATTACK: usize = 1;
-    pub const DECAY: usize = 2;
-    pub const SUSTAIN: usize = 3;
-    pub const RELEASE: usize = 4;
-    pub const SLOPE: usize = 5;
-    pub const LEN: usize = 6;
-}
-
-/// Envelope modes (`e::MODE`, [`kinds`] with 2 old modes).
-pub mod env_mode {
-    pub const TIMED: usize = 0;
-    pub const RATE: usize = 1;
-    pub const COUNT: usize = 2;
-    /// V2's envelope: attack, decay, sustain, sustain time (`e::SLOPE`), release raw / 128 and [`super::env_amp`].
-    pub const V2: usize = 2;
-    pub const ALL: usize = 3;
-    #[inline]
-    pub fn decode(p: f32) -> usize {
-        super::kinds::decode_in(p, COUNT, ALL - COUNT, TIMED, cfg!(feature = "us-env-frame"))
-    }
-    pub fn encode(id: usize) -> f32 {
-        super::kinds::encode(id, COUNT)
-    }
-}
-
-/// LFOs: 2 × [`l::LEN`].
-pub const LFO: usize = ENV + ENV_SLOTS * e::LEN;
-pub const LFO_SLOTS: usize = 2;
-pub mod l {
-    pub const SHAPE: usize = 0;
-    pub const RATE: usize = 1;
-    pub const DEPTH: usize = 2;
-    pub const SYNC: usize = 3;
+    /// Noise width `0..1`: 1 gives each channel its own noise (Tunefish's), 0 the same noise on both (WaveSabre's
+    /// Slaughter), in between a mix that keeps the power of each channel.
+    pub const WIDTH: usize = 3;
     pub const LEN: usize = 4;
 }
 
-/// Mod matrix: slots 1–12 at [`MOD`], 13–16 at [`MOD2`] (appended); use [`modslot`].
-pub const MOD: usize = LFO + LFO_SLOTS * l::LEN;
-pub const MOD_SLOTS: usize = 16;
-/// Slots in the first block (chunk v1).
-pub const MOD_SLOTS1: usize = 12;
-pub mod m {
-    pub const SOURCE: usize = 0;
-    pub const TARGET: usize = 1;
-    pub const AMOUNT: usize = 2;
-    pub const OPERATION: usize = 3;
-    pub const LEN: usize = 4;
-}
-
-/// Sample index group: one raw value per oscillator slot, the GSM sample number (1-based, 0 = none) or DLS wave index
-/// of a sampler slot. Not normalized (0..65535, whole numbers) and structural (read from the chunk only).
-pub const SMP: usize = MOD + MOD_SLOTS1 * m::LEN;
-/// Sampler source choice (`choice(p, 3)` of `shape[SMP_SOURCE]`). The order keeps every earlier file valid: 0.0 was
-/// GSM and 1.0 a GM.DLS wave.
+/// Sampler source choice (`choice(p, 3)` of `shape[SMP_SOURCE]`).
 pub mod smp_source {
     /// A GSM sample of the chunk (`sample index`: 1-based, 0 = none).
     pub const GSM: usize = 0;
@@ -320,8 +233,134 @@ pub mod smp_source {
     pub const COUNT: usize = 3;
 }
 
-/// Controllers, appended for the DAW so every earlier index stays valid.
-pub const CTL: usize = SMP + OSC_SLOTS;
+/// Filter slots: 4 × [`f::LEN`].
+pub const FILT: usize = NOISE + n::LEN;
+pub const FILT_SLOTS: usize = 4;
+pub mod f {
+    pub const TYPE: usize = 0;
+    pub const CUTOFF: usize = 1;
+    pub const RESONANCE: usize = 2;
+    /// Choice: state-variable 0 input-scaled / 1 feedback-scaled resonance; 4-pole 0 feedback before / 1 after the
+    /// clip.
+    pub const FORM: usize = 3;
+    /// Choice: state-variable 0 interpolated / 1 held input; 4-pole 0 one / 1 two steps per sample.
+    pub const OVERSAMPLE: usize = 4;
+    /// Choice: cutoff and resonance on 0 the Hz law, 1 7-bit steps.
+    pub const LAW: usize = 5;
+    pub const LEN: usize = 6;
+}
+/// Filter types (`f::TYPE`, `Choice(11)`): the algorithm and its response.
+pub mod filter_type {
+    pub const OFF: usize = 0;
+    pub const SVF_LP: usize = 1;
+    pub const SVF_HP: usize = 2;
+    pub const SVF_BP: usize = 3;
+    pub const SVF_NOTCH: usize = 4;
+    pub const P4_LP: usize = 5;
+    pub const RBJ_HP: usize = 6;
+    pub const RBJ_BP: usize = 7;
+    pub const NOTCH: usize = 8;
+    pub const SVF_ALL: usize = 9;
+    pub const P4_HP: usize = 10;
+    pub const COUNT: usize = 11;
+    #[inline]
+    pub fn decode(p: f32) -> usize {
+        crate::law::choice(p, COUNT)
+    }
+    pub const fn encode(id: usize) -> f32 {
+        super::choice_value(id, COUNT)
+    }
+}
+
+/// Envelopes: 4 × [`e::LEN`].
+pub const ENV: usize = FILT + FILT_SLOTS * f::LEN;
+pub const ENV_SLOTS: usize = 4;
+pub mod e {
+    /// [`env_law`].
+    pub const LAW: usize = 0;
+    pub const ATTACK: usize = 1;
+    pub const DECAY: usize = 2;
+    pub const SUSTAIN: usize = 3;
+    pub const RELEASE: usize = 4;
+    /// [`env_curve`].
+    pub const CURVE: usize = 5;
+    /// The power curve's exponent.
+    pub const CURVE_SLOPE: usize = 6;
+    /// The sustain level's drift, 7-bit step (64 = flat).
+    pub const SUSTAIN_SLOPE: usize = 7;
+    /// Output gain, 7-bit step (128 = 1).
+    pub const AMPLIFY: usize = 8;
+    pub const LEN: usize = 9;
+}
+
+/// Envelope time laws (`e::LAW`, `Choice(3)`).
+pub mod env_law {
+    pub const SECONDS: usize = 0;
+    pub const RATE: usize = 1;
+    pub const FRAME: usize = 2;
+    pub const COUNT: usize = 3;
+    pub const fn encode(id: usize) -> f32 {
+        super::choice_value(id, COUNT)
+    }
+}
+
+/// Envelope curves (`e::CURVE`, `Choice(4)`): 0 the law's own (quadratic for seconds, power for rate, exponential
+/// for frame).
+pub mod env_curve {
+    pub const BY_LAW: usize = 0;
+    pub const QUADRATIC: usize = 1;
+    pub const POWER: usize = 2;
+    pub const EXPONENTIAL: usize = 3;
+    pub const COUNT: usize = 4;
+}
+
+/// LFOs: 2 × [`l::LEN`].
+pub const LFO: usize = ENV + ENV_SLOTS * e::LEN;
+pub const LFO_SLOTS: usize = 2;
+pub mod l {
+    /// `Choice(8)` of `lfo::shape`.
+    pub const SHAPE: usize = 0;
+    pub const RATE: usize = 1;
+    pub const DEPTH: usize = 2;
+    /// [`super::lfo_sync`].
+    pub const SYNC: usize = 3;
+    /// Choice: 0 the Hz law, 1 the frame law (rate `¼·calcfreq` turns per frame).
+    pub const LAW: usize = 4;
+    /// Start phase at a restart, 7-bit step of a turn.
+    pub const PHASE: usize = 5;
+    /// Choice of 3: positive, negative, bipolar.
+    pub const POLARITY: usize = 6;
+    /// Choice: one cycle, then hold.
+    pub const ONE_SHOT: usize = 7;
+    pub const LEN: usize = 8;
+}
+
+/// What a note-on does to an LFO (`l::SYNC`, `Choice(3)`).
+pub mod lfo_sync {
+    /// The phase of an LFO that has run since frame 0 (every voice shares it).
+    pub const SONG_TIME: usize = 0;
+    /// The voice's LFO runs on from where it was.
+    pub const CONTINUE: usize = 1;
+    /// Restart at the start phase.
+    pub const RESTART: usize = 2;
+    pub const COUNT: usize = 3;
+}
+
+/// Mod matrix: slots 1–10 at [`MOD`], 11–16 at [`MOD2`] (two-byte); use [`modslot`].
+pub const MOD: usize = LFO + LFO_SLOTS * l::LEN;
+pub const MOD_SLOTS: usize = 16;
+/// Slots in the first block.
+pub const MOD_SLOTS1: usize = 10;
+pub mod m {
+    pub const SOURCE: usize = 0;
+    pub const TARGET: usize = 1;
+    pub const AMOUNT: usize = 2;
+    pub const OPERATION: usize = 3;
+    pub const LEN: usize = 4;
+}
+
+/// Controllers.
+pub const CTL: usize = MOD + MOD_SLOTS1 * m::LEN;
 pub mod ctl {
     /// Mod wheel `0..1` (mod source 7); the live input `UInstrument::mod_wheel` writes it.
     pub const WHEEL: usize = super::CTL;
@@ -332,94 +371,8 @@ pub mod ctl {
     pub const LEN: usize = 3;
 }
 
-/// Values appended after the controllers, so every earlier index stays valid.
-pub const EXT: usize = CTL + ctl::LEN;
-pub mod ext {
-    /// Noise width `0..1`: 1 gives each channel its own noise (Tunefish's), 0 the same noise on both (WaveSabre's
-    /// Slaughter), in between a mix that keeps the power of each channel.
-    pub const NOISE_WIDTH: usize = super::EXT;
-    pub const LEN: usize = 1;
-}
-
-/// V2 voice and filter routing (design D4a), appended after `ext`.
-pub const V2G: usize = EXT + ext::LEN;
-pub mod v2 {
-    /// Choice off/on: V2 voice laws and output stage.
-    pub const VOICE: usize = super::V2G;
-    /// Raw 0 none, 1 oscillators, 2 full.
-    pub const KEYSYNC: usize = VOICE + 1;
-    /// Source `.v2m` format version 0–6, or 7 = a version 5 file from the 2004 engine (v2redux `eras::kkrieger2004`:
-    /// version 5 behaviour with version 6 sine, FM and arctangent). An expanded choice ([`super::kinds`]) over
-    /// `count(0, 6)`, so stored versions keep their values. Use [`super::era`].
-    pub const ERA: usize = VOICE + 2;
-    /// The 2004-engine version 5 (`ERA` id 7).
-    pub const ERA_V5_2004: usize = 7;
-    /// Filter slots 1–2: raw 0/1 serial, 2 parallel.
-    pub const ROUTING: usize = VOICE + 3;
-    /// Parallel balance, raw 64 = both full.
-    pub const BALANCE: usize = VOICE + 4;
-    pub const LEN: usize = 5;
-}
-
-/// The format version of a converted song (`voice.era`): `(format version, version 6 sine/FM/arctangent)`. Read only
-/// by [`era_settings`].
-#[inline]
-pub fn era(p: &[f32; COUNT]) -> (u32, bool) {
-    match kinds::decode(p[v2::ERA], 7, 1, 6) {
-        v2::ERA_V5_2004 => (5, true),
-        v => (v as u32, v >= 6),
-    }
-}
-
-/// What the format version decides, until the format switch (change unify-v2-algorithms, design D3 and D4): the
-/// settings the converter will write, and the quirk candidates (design D2). The player's only reader of `voice.era`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct EraSettings {
-    /// The FM generator exists (version 4 on); an earlier FM slot is off.
-    pub fm_osc: bool,
-    /// The aux-in generators exist (version 6); an earlier aux slot is off.
-    pub aux_osc: bool,
-    /// The 2× 4-pole filter exists (version 6); an earlier one is off.
-    pub four_pole: bool,
-    /// Key sync 2 resets the voice (version 6); earlier it acts as 1.
-    pub full_keysync: bool,
-    /// The voice output and channel strip DC filters (version 6).
-    pub dc_filters: bool,
-    /// Channel routes read the voice sources (version 5 on); earlier only velocity and the controllers.
-    pub chan_voice_sources: bool,
-    /// Quirk `lcg_noise`: the old LCG noise (before version 5).
-    pub lcg_noise: bool,
-    /// Quirk `exact_math`: exact sine and arctangent (before version 6, except the 2004 build of version 5).
-    pub exact_math: bool,
-    /// Quirk `integer_fm`: the FM generator's phase offset rounded to an integer, out of range = the x87 "integer
-    /// indefinite" (before version 6, except the 2004 build of version 5).
-    pub integer_fm: bool,
-    /// Quirk `fixed_seed`: noise seeds 0 (before version 6).
-    pub fixed_seed: bool,
-    /// Quirk `coarse_env`: 256-sample frames and the year-2000 envelope laws (before version 2).
-    pub coarse_env: bool,
-}
-
-pub fn era_settings(p: &[f32; COUNT]) -> EraSettings {
-    let (v, new_math) = era(p);
-    // the quirk survey (task 6.3) builds with `--cfg us_quirk_off="<quirk>"` to clear one quirk everywhere
-    EraSettings {
-        fm_osc: v >= 4,
-        aux_osc: v >= 6,
-        four_pole: v >= 6,
-        full_keysync: v >= 6,
-        dc_filters: v >= 6,
-        chan_voice_sources: v >= 5,
-        lcg_noise: v < 5 && !cfg!(us_quirk_off = "lcg_noise"),
-        exact_math: !new_math && !cfg!(us_quirk_off = "exact_math"),
-        integer_fm: !new_math && !cfg!(us_quirk_off = "integer_fm"),
-        fixed_seed: v < 6 && !cfg!(us_quirk_off = "fixed_seed"),
-        coarse_env: v < 2 && !cfg!(us_quirk_off = "coarse_env"),
-    }
-}
-
-/// Voice distortion (after the filters): V2 mode, input gain, param 1, param 2 (raw / 128).
-pub const VDIST: usize = V2G + v2::LEN;
+/// Voice drive (after the filters): mode, input gain, param 1, param 2 (7-bit steps).
+pub const DRIVE: usize = CTL + ctl::LEN;
 pub mod dist {
     pub const MODE: usize = 0;
     pub const GAIN: usize = 1;
@@ -428,33 +381,59 @@ pub mod dist {
     pub const LEN: usize = 4;
 }
 
-/// V2 envelope amplify of envelope `i` (V2-mode envelopes).
-pub const ENV_AMP: usize = VDIST + dist::LEN;
-pub const fn env_amp(i: usize) -> usize {
-    ENV_AMP + i
+/// Quirks (design D2, the 6.3 survey): choices that reproduce particular source builds, each a module.
+pub const QUIRK: usize = DRIVE + dist::LEN;
+pub mod quirk {
+    /// Exact sine and arctangent instead of the fast approximations (sine and FM generators, the drives).
+    pub const EXACT_MATH: usize = super::QUIRK;
+    /// The FM generator's phase offset rounded to an integer, out of range = the x87 "integer indefinite".
+    pub const INTEGER_FM: usize = EXACT_MATH + 1;
+    /// Noise generator seeds start at 0.
+    pub const FIXED_SEED: usize = EXACT_MATH + 2;
+    /// The old LCG noise generator.
+    pub const LCG_NOISE: usize = EXACT_MATH + 3;
+    /// 256-sample frames and the year-2000 laws for frame-law envelopes.
+    pub const COARSE_ENV: usize = EXACT_MATH + 4;
+    pub const LEN: usize = 5;
 }
 
-/// LFO extras: 2 × [`lx::LEN`].
-pub const LFO_EXT: usize = ENV_AMP + ENV_SLOTS;
-pub mod lx {
-    /// Choice: 0 unisynth laws, 1 V2 (shape, rate, depth = amplify, sync read raw / 128).
-    pub const MODE: usize = 0;
-    /// Start phase (raw / 128 of a turn) at key sync.
-    pub const PHASE: usize = 1;
-    /// Raw 0 positive, 1 negative, 2 bipolar.
-    pub const POLARITY: usize = 2;
-    /// Raw nonzero: one cycle, then hold (V2 envelope mode).
-    pub const EG: usize = 3;
-    pub const LEN: usize = 4;
+/// Channel strip (design D5 of add-v2-import): one block from [`STRIP`], 7-bit steps unless noted. The first ten
+/// fields take one chunk byte, the rest two.
+pub const STRIP: usize = QUIRK + quirk::LEN;
+pub mod ch {
+    /// Choice off/on.
+    pub const ON: usize = super::STRIP;
+    pub const VOL: usize = ON + 1;
+    /// Strip distortion: mode, gain, p1, p2.
+    pub const DIST: usize = ON + 2;
+    pub const SEND_RVB: usize = ON + 6;
+    pub const SEND_DLY: usize = ON + 7;
+    pub const BOOST: usize = ON + 8;
+    /// Raw 0 distortion then chorus, 1 chorus then distortion.
+    pub const FXROUTE: usize = ON + 9;
+    pub const SEND_AUXA: usize = ON + 10;
+    pub const SEND_AUXB: usize = ON + 11;
+    pub const RECV_AUXA: usize = ON + 12;
+    pub const RECV_AUXB: usize = ON + 13;
+    /// Choice: the strip's DC filters.
+    pub const DC_FILTER: usize = ON + 14;
+    /// Chorus/flanger: amount, feedback, delay L, delay R, mod rate, mod depth, mod phase.
+    pub const CHORUS: usize = ON + 15;
+    pub const CHORUS_LEN: usize = 7;
+    /// Compressor: mode, couple, auto gain, look-ahead, threshold, ratio, attack, release, out gain.
+    pub const COMP: usize = CHORUS + CHORUS_LEN;
+    pub const COMP_LEN: usize = 9;
+    pub const LEN: usize = 15 + CHORUS_LEN + COMP_LEN;
 }
-pub const fn lfo_ext(i: usize, fld: usize) -> usize {
-    LFO_EXT + i * lx::LEN + fld
+/// Whether index `i` is a channel-strip field.
+pub const fn is_strip(i: usize) -> bool {
+    i >= STRIP && i < STRIP + ch::LEN
 }
 
-/// Mod slots 13–16.
-pub const MOD2: usize = LFO_EXT + LFO_SLOTS * lx::LEN;
+/// Mod slots 11–16.
+pub const MOD2: usize = STRIP + ch::LEN;
 
-/// Controllers 2–7 (raw / 128): breath, CC 3–6, volume. CC1 is [`ctl::WHEEL`].
+/// Controllers 2–7 (7-bit steps): breath, CC 3–6, volume. CC1 is [`ctl::WHEEL`].
 pub const CC: usize = MOD2 + (MOD_SLOTS - MOD_SLOTS1) * m::LEN;
 pub const CC_COUNT: usize = 6;
 /// Index of controller `n` (2..=7).
@@ -462,44 +441,22 @@ pub const fn cc(n: usize) -> usize {
     CC + n - 2
 }
 
-/// Channel stage (design D5): the one-byte part at [`CH`], the two-byte part at [`CH2`]. V2 laws (raw / 128).
-pub const CH: usize = CC + CC_COUNT;
-pub mod ch {
-    /// Choice off/on.
-    pub const ON: usize = super::CH;
-    pub const VOL: usize = ON + 1;
-    pub const BOOST: usize = ON + 2;
-    /// Raw 0 distortion then chorus, 1 chorus then distortion.
-    pub const FXROUTE: usize = ON + 3;
-    pub const SEND_RVB: usize = ON + 4;
-    pub const SEND_DLY: usize = ON + 5;
-    pub const SEND_AUXA: usize = ON + 6;
-    pub const SEND_AUXB: usize = ON + 7;
-    pub const RECV_AUXA: usize = ON + 8;
-    pub const RECV_AUXB: usize = ON + 9;
-    /// Choice off/on: the Ronan speech stage.
-    pub const SPEECH: usize = ON + 10;
-    /// The speech controllers 4 (text 0–62 / frame rate 63–127) and 5 (pitch), raw / 128: a change applies them.
-    pub const SPEECH_CTL4: usize = ON + 11;
-    pub const SPEECH_CTL5: usize = ON + 12;
-    pub const LEN: usize = 13;
-    /// Channel distortion: mode, gain, p1, p2.
-    pub const DIST: usize = super::CH2;
-    /// Chorus/flanger: amount, feedback, delay L, delay R, mod rate, mod depth, mod phase.
-    pub const CHORUS: usize = DIST + 4;
-    pub const CHORUS_LEN: usize = 7;
-    /// Compressor: mode, couple, auto gain, look-ahead, threshold, ratio, attack, release, out gain.
-    pub const COMP: usize = CHORUS + CHORUS_LEN;
-    pub const COMP_LEN: usize = 9;
-    pub const LEN2: usize = 4 + CHORUS_LEN + COMP_LEN;
+/// Speech: on (choice), then the speech controllers 4 (text 0–62 / frame rate 63–127) and 5 (pitch), 7-bit steps: a
+/// change applies them.
+pub const SPEECH: usize = CC + CC_COUNT;
+pub mod speech {
+    pub const ON: usize = super::SPEECH;
+    pub const SELECT: usize = ON + 1;
+    pub const PITCH: usize = ON + 2;
 }
-/// First two-byte index of the chunk escape (`chunk::SHORT`); the channel stage's second part starts there.
-pub const CH2: usize = 240;
-const _: () = assert!(CH + ch::LEN == CH2, "the one-byte part ends at the two-byte indices");
+
+/// First two-byte index of the chunk escape (`chunk::SHORT`).
+pub const TWO_BYTE: usize = 240;
+const _: () = assert!(ch::FXROUTE == TWO_BYTE - 1 && COUNT == 294, "the frozen v3 layout (design 6.4)");
 
 /// Index of the sample index of oscillator slot `i`.
 pub const fn smp_index(i: usize) -> usize {
-    SMP + i
+    osc(i, o::SAMPLE)
 }
 
 /// Index of field `fld` of oscillator slot `i`.
@@ -527,15 +484,15 @@ pub const fn modslot(i: usize, fld: usize) -> usize {
     }
 }
 
-/// Whether parameter `i` is stored raw (not normalized): the sampler index of each oscillator slot.
+/// Whether parameter `i` is stored raw (not normalized): the sample index of each oscillator slot.
 pub const fn is_raw(i: usize) -> bool {
-    i >= SMP && i < SMP + OSC_SLOTS
+    i >= OSC && i < NOISE && (i - OSC) % o::LEN == o::SAMPLE
 }
 
-/// Whether parameter `i` shapes the instrument's memory and is read from the chunk only: voice capacity, each
-/// oscillator type, each sampler source and index. `set_param` ignores these.
+/// Whether parameter `i` shapes the instrument's memory or its modules and is read from the chunk only: voice
+/// capacity, each oscillator type, each sampler source and index, the quirks. `set_param` ignores these.
 pub const fn is_structural(i: usize) -> bool {
-    if i == v::CAPACITY || is_raw(i) {
+    if i == v::CAPACITY || is_raw(i) || (i >= QUIRK && i < QUIRK + quirk::LEN) {
         return true;
     }
     if i < OSC || i >= NOISE {
@@ -545,8 +502,15 @@ pub const fn is_structural(i: usize) -> bool {
     fld == o::TYPE || fld == o::SHAPE + shape::SMP_SOURCE
 }
 
+/// Whether quirk `q` (a [`quirk`] index) is set.
+#[inline]
+pub fn quirk_on(p: &[f32; COUNT], q: usize) -> bool {
+    p[q] >= 0.5
+}
+
 /// Default values (a note on a default patch with one oscillator type set sounds: unity gain, centred, filters off,
-/// envelope 1 at full sustain with an instant attack).
+/// envelope 1 at full sustain with an instant attack). Every field the v3 layout added defaults to its first option,
+/// except the balance and the sustain slope (centre), amplify (1) and the LFO sync (restart).
 pub const DEFAULTS: [f32; COUNT] = defaults();
 
 const fn defaults() -> [f32; COUNT] {
@@ -560,15 +524,15 @@ const fn defaults() -> [f32; COUNT] {
     d[v::VELOCITY] = 1.0;
     d[v::START_SPREAD] = 1.0; // a whole turn: unison voices do not start in phase
     d[v::ENV1_AT_OUTPUT] = 1.0;
+    d[vs::BALANCE] = 0.5;
     d[ctl::BEND] = 0.5; // centre
     d[ctl::BEND_RANGE] = 2.0 / 24.0; // two semitones
-    d[ext::NOISE_WIDTH] = 1.0; // independent channels
-    // V2 part (design D4a): V2's initial patch values / 128, switches off
-    d[v2::ERA] = 1.0; // version 6
-    d[v2::BALANCE] = 0.5;
-    d[VDIST + dist::GAIN] = 32.0 / 128.0;
-    d[VDIST + dist::P2] = 0.5;
-    d[cc(7)] = 127.0 / 128.0; // V2 starts every channel at volume 127
+    d[NOISE + n::LP] = 1.0;
+    d[NOISE + n::WIDTH] = 1.0; // independent channels
+    // 7-bit parts: the source's initial patch values / 128
+    d[DRIVE + dist::GAIN] = 32.0 / 128.0;
+    d[DRIVE + dist::P2] = 0.5;
+    d[cc(7)] = 127.0 / 128.0; // a channel starts at volume 127
     d[ch::VOL] = 1.0;
     d[ch::DIST + dist::GAIN] = 32.0 / 128.0;
     d[ch::DIST + dist::P1] = 100.0 / 128.0;
@@ -597,7 +561,6 @@ const fn defaults() -> [f32; COUNT] {
         d[osc(i, o::SHAPE + shape::BLIT_PULSE_WIDTH)] = 0.5;
         i += 1;
     }
-    d[NOISE + n::LP] = 1.0;
     i = 0;
     while i < FILT_SLOTS {
         d[filt(i, f::CUTOFF)] = 1.0;
@@ -605,18 +568,19 @@ const fn defaults() -> [f32; COUNT] {
     }
     i = 0;
     while i < ENV_SLOTS {
-        d[env_amp(i)] = 1.0;
         d[env(i, e::DECAY)] = 0.3;
         d[env(i, e::SUSTAIN)] = 1.0;
         d[env(i, e::RELEASE)] = 0.1;
-        d[env(i, e::SLOPE)] = 0.5;
+        d[env(i, e::CURVE_SLOPE)] = 0.5;
+        d[env(i, e::SUSTAIN_SLOPE)] = 0.5;
+        d[env(i, e::AMPLIFY)] = 1.0;
         i += 1;
     }
     i = 0;
     while i < LFO_SLOTS {
         d[lfo(i, l::RATE)] = 0.6;
         d[lfo(i, l::DEPTH)] = 1.0;
-        d[lfo(i, l::SYNC)] = 1.0;
+        d[lfo(i, l::SYNC)] = 1.0; // restart
         i += 1;
     }
     d
@@ -626,6 +590,8 @@ const fn defaults() -> [f32; COUNT] {
 mod host;
 #[cfg(any(test, feature = "std"))]
 pub use host::{law_of, name, Law};
+#[cfg(any(test, feature = "std"))]
+pub mod old;
 #[cfg(any(test, feature = "std"))]
 pub mod rename;
 

@@ -1,8 +1,7 @@
 //! The sampler slot: GM.DLS and GSM sources, pitch, loops, reverse, start, interpolation, one-shot.
 
 use super::*;
-use crate::chunk::encode;
-use crate::params::shape as sp;
+use crate::params::old::shape as sp;
 #[cfg(feature = "us-voice-oneshot")]
 use synth_core::voice::VoiceState;
 

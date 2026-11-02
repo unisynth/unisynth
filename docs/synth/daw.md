@@ -7,7 +7,7 @@ Change `add-synth-daw`. Compose music for the intro with the unified synth in th
 ## Pieces
 
 ```text
-project/music/*.song.json  (song/1, schema/song.schema.json)       project/music/patches/*.patch.json (us-patch/1)
+project/music/*.song.json  (song/2, schema/song.schema.json)       project/music/patches/*.patch.json (us-patch/2)
         │  crates/song: parse → validate (JSON-pointer issues) → export / import / presets / tables / render
         ▼
 synth-mix blob (*.song.bin) ──► synth_core::mix::Player (the intro's player)  ─► song render, DAW bounce
@@ -24,8 +24,8 @@ packages/daw (served at /daw by packages/cli)
 
 | Piece | Where | Notes |
 |---|---|---|
-| `song/1` source | `crates/song` | Musical time (960 ticks per beat), clips placed on tracks (linked, looping), devices by parameter name, receives, automation lanes, a master. Deterministic export. |
-| `us-patch/1` preset | `crates/song::preset` | Non-default values of one device, sorted by parameter index. |
+| `song/2` source | `crates/song` | Musical time (960 ticks per beat), clips placed on tracks (linked, looping), devices by parameter name, receives, automation lanes, a master. Deterministic export. |
+| `us-patch/2` preset | `crates/song::preset` | Non-default values of one device, sorted by parameter index. |
 | `song` CLI | `crates/song/src/main.rs` | `export`, `import`, `render` (16-bit or `--f32`, `--bank`/`GM_DLS`), `info` (tracks, devices, features), `check`. |
 | Shared mixer step | `synth_core::mix::Mixer` | `Player` = `Mixer` + `BlobSource`; the live host = `Mixer` + its schedule. |
 | Live host | `crates/synth-wasm` | Edits between calls (D4), transport with loop and note chase, audition, meters, no allocation in `render`. C ABI for wasm32. |
@@ -34,11 +34,11 @@ packages/daw (served at /daw by packages/cli)
 
 ## Formats
 
-`song/1` (abridged; full schema `schema/song.schema.json`):
+`song/2` (abridged; full schema `schema/song.schema.json`):
 
 ```json
 {
-  "format": "song/1", "rate": 44100, "tempo": 128.0, "signature": [4, 4], "ticks_per_beat": 960, "length": 30720,
+  "format": "song/2", "rate": 44100, "tempo": 128.0, "signature": [4, 4], "ticks_per_beat": 960, "length": 30720,
   "clips": [{ "id": "bass-a", "length": 3840, "notes": [[0, 220, 36, 100], [240, 220, 36, 80]] }],
   "tracks": [{ "id": "bass", "name": "Bass", "color": "#61afef", "volume": 0.6, "mute": false,
     "receives": [{ "from": "kick", "channel": "side", "volume": 0.5 }],
@@ -53,8 +53,10 @@ packages/daw (served at /daw by packages/cli)
 
 - **Notes** `[start tick, length ticks, pitch, velocity]`; **points** `[tick, value 0..1]` (ticks may be fractional:
   import keeps exact sample times). Values are normalized by parameter name; names come from the engine's tables
-  (`osc2.gain`, `filt1.cutoff`, `env1.attack`, `mod3.target`, effect `mode`, `dry_wet`, …) and are frozen with unisynth
-  chunk v1.
+  (`osc2.gain`, `filt1.cutoff`, `env1.attack`, `mod3.target`, effect `mode`, `dry_wet`, …) and follow the unisynth
+  v3 layout. A `song/1` file (the layout before change unify-v2-algorithms) is migrated once when it is read (`song
+  migrate` saves it; the DAW opens it through the engine's `song_migrate`); a `song/2` file with an old name is an
+  error.
 - **Export** (`song export`, the DAW's Export and live playback): tick → sample `round(tick·60·rate/(tempo·960))`;
   placements flattened into one lane per track (loops repeat every clip length, cut at the placement end); one open
   note per pitch (an earlier note is cut at the next start); at one sample note-offs come first, then note-ons in

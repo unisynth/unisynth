@@ -1,7 +1,7 @@
 //! The noise source and the four filter slots, through the whole voice.
 
 use super::*;
-use crate::params::{self as pm, f as pf, filter_type as ft, filt, n as pn, NOISE};
+use crate::params::old::{self as pm, f as pf, filter_type as ft, filt, n as pn, NOISE};
 use synth_core::device::Device;
 
 const RATE: f64 = 44100.0;
@@ -253,8 +253,7 @@ fn a_type_can_be_automated_while_a_note_sounds() {
         let before = tilt(&a);
         assert!(before < -6.0, "{before}");
         // the low-pass becomes a high-pass between two calls
-        let (index, v) = ftype(0, ft::SVF_HP);
-        ins.set_param(index, v);
+        ins.set_param(v3::filt(0, v3::f::TYPE), v3::filter_type::encode(v3::filter_type::SVF_HP));
         let mut rng = Lcg(1);
         let (mut l, mut r, mut c, mut d) = (vec![0.0; 24_000], vec![0.0; 24_000], vec![0.0; 24_000], vec![0.0; 24_000]);
         let mut ctx = Ctx { rate: RATE, tempo: 120, frame: 24_000, rng: &mut rng };
@@ -292,13 +291,13 @@ fn an_add_route_moves_the_normalized_cutoff_before_its_law() {
     };
     let plain = hf(&base);
     let cut = pm::filt(0, pm::f::CUTOFF);
-    let t = target::PARAM + target::PARAMS.iter().position(|&i| i == cut).unwrap() as u8;
+    let t = target::PARAM + target::PARAMS.iter().position(|&i| i == v3i(cut)).unwrap() as u8;
     let add = |amount: f32| {
         let mut e = base.clone();
         e.extend([
-            (pm::modslot(13, pm::m::SOURCE), source::encode(source::VELOCITY)),
+            (pm::modslot(13, pm::m::SOURCE), source_old(source::VELOCITY)),
             (pm::modslot(13, pm::m::TARGET), crate::law::host::inv_index(t)),
-            (pm::modslot(13, pm::m::OPERATION), op::encode(op::ADD)),
+            (pm::modslot(13, pm::m::OPERATION), op_old(op::ADD)),
             (pm::modslot(13, pm::m::AMOUNT), (amount + 1.0) / 2.0),
         ]);
         e

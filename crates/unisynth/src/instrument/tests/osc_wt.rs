@@ -1,7 +1,7 @@
 //! The spectral wavetable oscillator (Tunefish generator): spectrum, unison, drive, rebuild cadence, rates.
 
 use super::*;
-use crate::params::shape as sp;
+use crate::params::old::shape as sp;
 
 fn dft(x: &[f32], from: usize, n: usize, hz: f64, rate: f64) -> f64 {
     let (mut re, mut im) = (0.0f64, 0.0f64);

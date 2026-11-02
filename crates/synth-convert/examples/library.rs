@@ -64,7 +64,7 @@ fn ws_instrument(src: &SongM, di: usize) -> Result<Entry, String> {
             Trk { volume: 1.0, receives: vec![(0, 0, 1.0)], devices: vec![], lane: 0, autos: vec![] },
         ],
     };
-    devices_of(synth_convert::convert(&one.write()).map_err(|e| e.to_string())?)
+    devices_of(synth_convert::convert(&one.write().unwrap()).map_err(|e| e.to_string())?)
 }
 
 fn wavesabre(dir: &PathBuf) -> BTreeMap<String, Vec<Entry>> {

@@ -27,7 +27,7 @@ fn noise(n: usize) -> Vec<f32> {
 
 fn run(kind: Kind, hz: f32, res: f32, rate: f32, x: &[f32]) -> Vec<f32> {
     let mut f = Slot::new();
-    f.set(kind, &flt::coefs(kind, hz, res, rate));
+    f.set(kind, &flt::coefs(kind, hz, res, rate, flt::Forms::PLAIN));
     x.iter().map(|v| f.process(*v, *v).0).collect()
 }
 
@@ -93,8 +93,8 @@ fn the_band_is_tunefishs_ladder_low_pass_then_rbj_high_pass() {
     let (lp_hz, hp_hz) = (1100.0f32, 900.0f32);
     let mut n = Noise::new();
     n.start(77);
-    n.lp.set(LP, &unisynth::flt::coefs(LP, lp_hz, BAND_RES, RATE));
-    n.hp.set(HP, &unisynth::flt::coefs(HP, hp_hz, BAND_RES, RATE));
+    n.lp.set(LP, &unisynth::flt::coefs(LP, lp_hz, BAND_RES, RATE, unisynth::flt::Forms::PLAIN));
+    n.hp.set(HP, &unisynth::flt::coefs(HP, hp_hz, BAND_RES, RATE, unisynth::flt::Forms::PLAIN));
     let mut raw = Noise::new();
     raw.start(77);
     let (mut l, mut r): (Vec<f32>, Vec<f32>) = (0..6000).map(|_| raw.next(2.0, false, 1.0)).unzip();

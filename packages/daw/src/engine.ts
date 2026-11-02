@@ -1,7 +1,7 @@
 // The engine (design D6/D7): one compiled engine module (crates/synth-wasm) used three ways — a main-thread
 // instance for song functions (tables, validation, export/import, presets), the AudioWorklet live host, and a
 // Worker for offline bounce. The UI clock follows the worklet's reported position (D8e).
-import type { Device } from "./model.ts";
+import type { Device, Song } from "./model.ts";
 import { bounceThreaded, mtModule, mtWorkers, type MtOptions } from "./bounce-mt.ts";
 
 type X = Record<string, any> & { memory: WebAssembly.Memory };
@@ -68,6 +68,13 @@ export class Engine {
     this.x.gsm_encode(p, pcm.length);
     this.x.dealloc(p, Math.max(4, n));
     return new Uint8Array(this.x.memory.buffer, this.x.out_ptr(), this.x.out_len()).slice();
+  }
+  /** A song file read as the current layout: `song/1` is migrated to `song/2` (change unify-v2-algorithms), `song/2`
+   * comes back as it is. Errors name what does not migrate. */
+  migrate(text: string): { song?: Song; errors?: Issue[] } {
+    const r = this.call("song_migrate", new TextEncoder().encode(text));
+    const v = JSON.parse(this.text(r.out));
+    return r.ok ? { song: v } : { errors: v.errors };
   }
   exportBlob(json: string): { blob?: Uint8Array; errors?: Issue[] } {
     const r = this.call("song_export", new TextEncoder().encode(json));

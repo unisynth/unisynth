@@ -94,8 +94,8 @@ test("the audition sliders set the armed instrument's ctl.wheel and ctl.bend liv
     document.getElementById("pb")!.dispatchEvent(new PointerEvent("pointerup"));
   });
   const calls: [number, number, number, number][] = await page.evaluate(() => (window as any).calls);
-  // [track, device, parameter index, value]: wheel 180 = 1, bend 181 = 1 then back to the centre
-  expect(calls.map((c) => [c[2], +c[3].toFixed(3)])).toEqual([[180, 1], [181, 1], [181, 0.5]]);
+  // [track, device, parameter index, value]: wheel 218 = 1, bend 219 = 1 then back to the centre (the v3 layout)
+  expect(calls.map((c) => [c[2], +c[3].toFixed(3)])).toEqual([[218, 1], [219, 1], [219, 0.5]]);
   expect(await page.locator("#pb").inputValue()).toBe("0");
   expect(errors).toEqual([]);
 }, 120_000);

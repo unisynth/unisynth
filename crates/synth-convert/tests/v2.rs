@@ -37,8 +37,8 @@ fn each_program_of_a_channel_gets_its_track() {
     // the instruments differ only in what their patches say: both are V2 voices
     for t in 0..2 {
         let v = Chunk::parse(&m.devices[m.tracks[t].devices[0]].chunk).unwrap().values();
-        assert_eq!(unisynth::law::choice(v[pm::v2::VOICE], 2), 1);
-        assert_eq!(pm::osc_type::decode(v[pm::osc(0, pm::o::TYPE)]), pm::osc_type::V2);
+        assert_eq!(unisynth::law::choice(v[pm::vs::AMP_SOURCE], 2), 1);
+        assert!(pm::osc_type::is_naive(pm::osc_type::decode(v[pm::osc(0, pm::o::TYPE)])));
     }
     // the master sums the instruments and the two buses, then V2's post filters and sum compressor
     let master = m.tracks.last().unwrap();

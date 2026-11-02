@@ -209,8 +209,8 @@ fn device(cx: &mut Cx, p: &str, d: &Device) -> Option<&'static Table> {
             cx.err(format!("{p}/samples/{i}"), "not valid base64");
         }
     }
-    if d.trailer.is_some() && !unisynth::fx::is_effect(k) {
-        cx.err(format!("{p}/trailer"), "only effects have a chunk trailer");
+    if d.trailer.is_some() {
+        cx.err(format!("{p}/trailer"), "a song/2 device has no chunk trailer (it was a song/1 field)");
     }
     Some(t)
 }

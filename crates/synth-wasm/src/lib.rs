@@ -282,6 +282,25 @@ pub unsafe extern "C" fn song_validate(p: *const u8, n: usize) -> u32 {
     }
 }
 
+/// Reads a song file as the current layout: a `song/1` file is migrated to `song/2` (change unify-v2-algorithms), a
+/// `song/2` file is returned as it is. 1 = OUT holds the song JSON, 0 = OUT holds the issues JSON.
+///
+/// # Safety
+/// See [`bytes`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn song_migrate(p: *const u8, n: usize) -> u32 {
+    match song::parse(&unsafe { text(p, n) }) {
+        Ok(s) => {
+            reply(serde_json::to_value(&s).unwrap_or_default());
+            1
+        }
+        Err(e) => {
+            reply(issues(&e));
+            0
+        }
+    }
+}
+
 /// Exports a song JSON; 1 = OUT holds the blob bytes, 0 = OUT holds the issues JSON.
 ///
 /// # Safety

@@ -440,7 +440,7 @@ fn stored(loop_kind: u8, relative: i8, finetune: i8) -> crate::xm::Sample {
 #[test]
 fn a_stored_sample_keeps_its_loop() {
     use unisynth::law;
-    use unisynth::params::{self as pm, o, shape as sp};
+    use unisynth::params::old::{self as pm, o, shape as sp};
     for (kind, mode) in [(0, 0), (1, 1), (2, 2)] {
         let s = stored(kind, 0, 0);
         let st = sampler(&s, 44100);
@@ -460,7 +460,7 @@ fn a_stored_sample_keeps_its_loop() {
 fn a_stored_sample_plays_at_the_xm_frequency() {
     // the sampler steps 2^((semis − 60)/12) samples per output frame: an XM note must step freq/rate
     use unisynth::law;
-    use unisynth::params::{self as pm, o};
+    use unisynth::params::old::{self as pm, o};
     for (rel, ft) in [(0, 0), (12, -64), (-7, 100), (30, 127)] {
         let s = stored(0, rel, ft);
         let st = sampler(&s, 44100);

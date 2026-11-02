@@ -41,7 +41,7 @@ test("song schema rejects unknown fields and bad notes", () => {
   const bad = structuredClone(s);
   bad.clips[0].notes[0] = [0, 0, 200, 0];
   expect(song(bad)).toBe(false);
-  expect(song({ ...s, format: "song/2" })).toBe(false);
+  expect(song({ ...s, format: "song/1" })).toBe(false); // the old layout: migrate it (song migrate)
 });
 
 test("every song in project/music matches the song schema, and a song with meta says who made it", () => {

@@ -161,6 +161,26 @@ that use it. Each flag SHALL be a cargo feature.
 
 ## MODIFIED Requirements
 
+### Requirement: Mod matrix
+The voice SHALL have a 16-slot mod matrix: source (envelope 1–4, LFO 1–2, mod wheel, velocity, key, and the
+controllers breath, CC 3–6 and volume), target, amount and operation. A Scale slot SHALL multiply the target's
+normalized value (several Scale slots multiply together). An Offset slot SHALL add amount × source in the target's
+physical unit after mapping (several add together). Slots 1–10 SHALL be one-byte parameters of the chunk and slots
+11–16 two-byte ones; the matrix without the Add module SHALL evaluate slots 1–10, and every slot's default SHALL be no
+source.
+
+#### Scenario: Scale composition
+- **WHEN** two Scale slots aim at filter 1 cutoff with results 0.5 and 0.5
+- **THEN** the cutoff mapping receives 0.25 × the base normalized value
+
+#### Scenario: Pitch offset
+- **WHEN** an Offset slot routes a fully open envelope to pitch with amount +12
+- **THEN** the voice plays one octave above the note while the envelope is at 1
+
+#### Scenario: A slot past 10 needs the Add module
+- **WHEN** a patch routes mod slot 11 and the build lacks the matrix Add module
+- **THEN** loading fails with an unsupported-module error naming it
+
 ### Requirement: Device kind and chunk
 The instrument SHALL be `synth-mix` device kind 64. Its chunk SHALL hold a format version, the parameter values that
 differ from their defaults as index/value pairs in strictly increasing index order, a sample section, and (format

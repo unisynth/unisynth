@@ -16,11 +16,11 @@ const MELODY: [(i32, u8, Option<u8>); 2] = [(0, 60, Some(100)), (20000, 60, None
 
 fn converted(kind: u8, chunk: Vec<u8>) -> SongM {
     let s = song(vec![Dev { kind, chunk }], vec![MELODY.to_vec()], vec![track(&[0], 0)]);
-    SongM::read(&convert(&s.write()).unwrap().blob).unwrap()
+    SongM::read(&convert(&s.write().unwrap()).unwrap().blob).unwrap()
 }
 
 fn of(s: &SongM) -> Vec<&'static str> {
-    features(&s.write()).unwrap()
+    features(&s.write().unwrap()).unwrap()
 }
 
 fn slaughter(f: impl Fn(&mut [f32])) -> SongM {
@@ -110,14 +110,14 @@ fn every_effect_kind_lists_exactly_its_mode() {
     ];
     for (k, feature) in want {
         let s = song(vec![dev(k, &[0.5; 4])], vec![vec![]], vec![track(&[0], 0)]);
-        let out = convert(&s.write()).unwrap().blob;
+        let out = convert(&s.write().unwrap()).unwrap().blob;
         assert_eq!(features(&out).unwrap(), vec![feature], "legacy kind {k}");
     }
 }
 
 #[test]
 fn a_song_without_devices_needs_nothing_and_a_default_instrument_needs_only_the_envelope() {
-    assert_eq!(features(&song(vec![], vec![vec![]], vec![track(&[], 0)]).write()).unwrap(), Vec::<&str>::new());
+    assert_eq!(features(&song(vec![], vec![vec![]], vec![track(&[], 0)]).write().unwrap()).unwrap(), Vec::<&str>::new());
     // the default patch has no oscillator, no filter and no noise; envelope 1 always runs
     let f = of(&unified(|_| {}, &[]));
     assert_eq!(f.len(), 1, "{f:?}");
@@ -173,18 +173,19 @@ fn ty(x: usize) -> f32 {
 fn the_chunk_value_counts_with_the_lane_and_a_lane_belongs_to_its_own_device() {
     let slot = pm::filt(0, pm::f::TYPE);
     // the chunk says ladder, the lane only visits svf types: ladder is still needed
-    let s = many(1, |_, p| p[slot] = ty(ft::LADDER_LP), &[(0, slot, &[(0, 30), (100, 40)])]);
+    let s = many(1, |_, p| p[slot] = ty(ft::P4_LP), &[(0, slot, &[(0, 30), (100, 40)])]);
     assert!(of(&s).contains(&"us-flt-ladder"), "{:?}", of(&s));
     // device 0 is svf, device 1 is the notch with a lane that stays on the notch: no rbj or ladder for either
-    let s = many(2, |d, p| p[slot] = ty(if d == 0 { ft::SVF_LP } else { ft::NOTCH }), &[(1, slot, &[(0, 255), (100, 255)])]);
+    let notch = (ty(ft::NOTCH) * 255.0).round() as u8;
+    let s = many(2, |d, p| p[slot] = ty(if d == 0 { ft::SVF_LP } else { ft::NOTCH }), &[(1, slot, &[(0, notch), (100, notch)])]);
     let f = of(&s);
     assert!(f.contains(&"us-flt-svf") && f.contains(&"us-flt-notch") && !f.contains(&"us-flt-ladder") && !f.contains(&"us-flt-rbj"), "{f:?}");
 }
 
 #[test]
 fn envelopes_other_than_the_first_count_when_read_or_when_a_lane_can_route_them() {
-    let mode = |e| pm::env(e, pm::e::MODE);
-    let tf = unisynth::law::host::inv_choice(1, 2);
+    let mode = |e| pm::env(e, pm::e::LAW);
+    let tf = pm::env_law::encode(pm::env_law::RATE);
     // envelope 2 is Tunefish-mode but nothing reads it
     let idle = many(1, |_, p| p[mode(1)] = tf, &[]);
     assert!(!of(&idle).contains(&"us-env-rate"), "{:?}", of(&idle));
@@ -287,7 +288,7 @@ fn automation_is_needed_when_a_track_has_a_lane() {
 
 #[test]
 fn legacy_and_malformed_songs_are_errors_naming_the_problem() {
-    let legacy = song(vec![dev(w::SCISSOR, &[0.5; 4])], vec![vec![]], vec![track(&[0], 0)]).write();
+    let legacy = song(vec![dev(w::SCISSOR, &[0.5; 4])], vec![vec![]], vec![track(&[0], 0)]).write().unwrap();
     match features(&legacy) {
         Err(ConvError::Device(k, m)) => assert!(k == w::SCISSOR && m.contains("convert"), "{m}"),
         r => panic!("{:?}", r.err()),
@@ -295,7 +296,7 @@ fn legacy_and_malformed_songs_are_errors_naming_the_problem() {
     assert!(matches!(features(&[1, 2, 3]), Err(ConvError::Input(_))));
     let mut bad = unified(|_| {}, &[]);
     bad.devices[0].chunk = vec![9, 9, 9];
-    assert!(matches!(features(&bad.write()), Err(ConvError::Device(..)) | Err(ConvError::Input(_))));
+    assert!(matches!(features(&bad.write().unwrap()), Err(ConvError::Device(..)) | Err(ConvError::Input(_))));
 }
 
 /// Opt-in: `FEATURES_DUMP=<dir>` writes the WaveSabre test songs (`legacy/<name>.song`) and their conversions
@@ -312,13 +313,13 @@ fn dump_songs_for_the_compo_build_check() {
 }
 
 fn why(s: &SongM, feature: &str) -> Vec<String> {
-    explain(&s.write(), None).unwrap().into_iter().find(|n| n.feature == feature).map(|n| n.why).unwrap_or_default()
+    explain(&s.write().unwrap(), None).unwrap().into_iter().find(|n| n.feature == feature).map(|n| n.why).unwrap_or_default()
 }
 
 #[test]
 fn the_explained_map_lists_the_same_features_and_names_each_cause() {
     let s = slaughter(|p| p[15] = 0.8);
-    let e = explain(&s.write(), None).unwrap();
+    let e = explain(&s.write().unwrap(), None).unwrap();
     assert_eq!(e.iter().map(|n| n.feature).collect::<Vec<_>>(), of(&s), "same list, same order");
     assert!(e.iter().all(|n| !n.why.is_empty() && n.cost.is_none()));
     assert_eq!(why(&s, "us-noise"), ["instrument device 0: noise_level is above 0"]);
@@ -346,7 +347,7 @@ fn an_effect_names_its_device_kind_and_mode() {
     let mut p = vec![0.0f32; 7];
     p[0] = 0.5;
     let s = song(vec![dev(w::ECHO, &p)], vec![vec![]], vec![track(&[0], 0)]);
-    let c = SongM::read(&convert(&s.write()).unwrap().blob).unwrap();
+    let c = SongM::read(&convert(&s.write().unwrap()).unwrap().blob).unwrap();
     assert_eq!(why(&c, "us-fx-delay-tempo"), ["device 0: delay (kind 68), mode 0"]);
 }
 
@@ -359,7 +360,7 @@ fn the_cost_table_gives_each_features_saving_and_the_text_adds_them_up() {
     assert!(!cost.contains_key("all") && !cost.contains_key("odd"));
     assert!(read_cost("feature,raw,xz\nus-noise,1,1\n").is_empty(), "no `all` row: nothing to subtract from");
     let s = slaughter(|p| p[15] = 0.8);
-    let e = explain(&s.write(), Some(&cost)).unwrap();
+    let e = explain(&s.write().unwrap(), Some(&cost)).unwrap();
     let text = render_text(&e);
     assert!(text.contains("us-noise   +0.5 K raw, +0.2 K xz"), "{text}");
     assert!(text.contains("marginal cost of the listed features") && text.contains("+1.5 K raw, +0.7 K xz"), "{text}");
@@ -372,7 +373,7 @@ fn many_causes_are_cut_in_the_text_and_kept_in_the_json() {
     p[v::NOISE_LEVEL] = 1.0;
     let d = || Dev { kind: unisynth::kind::INSTRUMENT, chunk: unisynth::chunk::encode(&p, &[]) };
     let s = song(vec![d(), d(), d(), d(), d()], vec![MELODY.to_vec()], vec![track(&[0], 0)]);
-    let e = explain(&s.write(), None).unwrap();
+    let e = explain(&s.write().unwrap(), None).unwrap();
     let noise = e.iter().find(|n| n.feature == "us-noise").unwrap();
     assert_eq!(noise.why.len(), 5);
     let text = render_text(&e);

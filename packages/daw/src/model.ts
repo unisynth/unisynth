@@ -1,7 +1,7 @@
-// song/1 ⇄ editor model (change add-synth-daw). The editor keeps the mockup's working model — bars (1-based) and
+// song/2 ⇄ editor model (change add-synth-daw). The editor keeps the mockup's working model — bars (1-based) and
 // sixteenth steps, dB volumes, sends stored on the sending track, one pattern per clip name per track — and this
-// adapter turns it into the song/1 source (receives on the target, ticks, linear volumes) and back. Devices are
-// song/1 devices already (`{kind, values}` by parameter name), so the adapter passes them through.
+// adapter turns it into the song/2 source (receives on the target, ticks, linear volumes) and back. Devices are
+// song/2 devices already (`{kind, values}` by parameter name), so the adapter passes them through.
 
 export const TPB = 960;
 
@@ -11,7 +11,7 @@ export type Point = [number, number];
 /** An editor lane point: [bar, value] and, while unmoved, the tick it was loaded from. */
 export type LanePoint = [number, number, number?];
 export type Song = {
-  format: "song/1";
+  format: "song/2";
   /** Title, author, licence notes (crates/song `Meta`); kept as loaded. */
   meta?: Record<string, unknown>;
   /** What the song is (genre, style, tempo; crates/song `About`); kept as loaded. */
@@ -44,7 +44,7 @@ export type SongTrack = {
 
 /** Editor note: step (1/16 bar), length in steps, pitch, velocity 0..1. */
 export type UINote = { s: number; l: number; n: number; v: number; sel?: boolean };
-/** `id`: the song/1 clip id it was loaded from (kept on save). */
+/** `id`: the song/2 clip id it was loaded from (kept on save). */
 export type UIPattern = { len: number; notes: UINote[]; cc?: { wheel: Point[]; bend: Point[] }; id?: string };
 export type UIClip = { start: number; len: number; name: string; sel?: boolean; loop?: boolean };
 export type UITrack = {
@@ -52,7 +52,7 @@ export type UITrack = {
   name: string;
   /** Description as loaded (role, sound, similar instruments); written back unchanged. */
   about?: About;
-  /** Display colour (CSS variable); `color` is the song/1 value, kept as loaded. */
+  /** Display colour (CSS variable); `color` is the song/2 value, kept as loaded. */
   col: string;
   color?: string;
   vol: number;
@@ -81,7 +81,7 @@ export type UITrack = {
  * carry their loaded tick as a third element, kept while the point's bar is unchanged. */
 export type UIState = { tracks: UITrack[]; master: UITrack; tempo: number; sig: [number, number]; bars: number; rate?: number; meta?: Record<string, unknown>; about?: About; length0?: [number, number] };
 
-/** A device as song/1 stores it (editor-only fields such as `_edited` are dropped). */
+/** A device as song/2 stores it (editor-only fields such as `_edited` are dropped). */
 export function cleanDevice(d: Device): Device {
   const out: Device = { kind: d.kind, values: { ...d.values } };
   if (d.samples?.length) out.samples = [...d.samples];
@@ -92,7 +92,7 @@ export function cleanDevice(d: Device): Device {
   return out;
 }
 
-/** song/1 JSON in the layout `crates/song` writes: two-space indent, arrays of scalars on one line. */
+/** song/2 JSON in the layout `crates/song` writes: two-space indent, arrays of scalars on one line. */
 export function prettyJson(v: unknown): string {
   const scalar = (x: unknown) => x === null || typeof x !== "object";
   const go = (x: unknown, ind: number): string => {
@@ -128,7 +128,7 @@ export function audible(tracks: UITrack[], t: UITrack): boolean {
   return !!t.bus && solos.some((x) => x.sends.some((s) => s[0] === t.name));
 }
 
-/** The editor model as a song/1 source. `audible(t)` (solo/mute for live preview) defaults to `!t.mute`. */
+/** The editor model as a song/2 source. `audible(t)` (solo/mute for live preview) defaults to `!t.mute`. */
 export function toSong(ui: UIState, audible?: (t: UITrack) => boolean): Song {
   const bar = ticksPerBar(ui.sig), step = bar / 16;
   const tick = (b: number) => Math.round((b - 1) * bar);
@@ -196,12 +196,12 @@ export function toSong(ui: UIState, audible?: (t: UITrack) => boolean): Song {
   if (ui.master.mrecv0) master.receives.push(...ui.master.mrecv0.filter((r) => live.has(r.from)).map((r) => ({ ...r })));
   for (const t of ui.tracks) if (!ui.master.mrecv0 || !was.has(t.id)) master.receives.push({ from: t.id, channel: "main", volume: 1 });
   const length = ui.length0 && ui.length0[0] === ui.bars ? ui.length0[1] : Math.round(ui.bars * bar);
-  return { format: "song/1", ...(ui.meta ? { meta: ui.meta } : {}), ...(ui.about ? { about: ui.about } : {}), rate: ui.rate ?? 44100, tempo: ui.tempo, signature: ui.sig, ticks_per_beat: TPB, length, clips, tracks, master };
+  return { format: "song/2", ...(ui.meta ? { meta: ui.meta } : {}), ...(ui.about ? { about: ui.about } : {}), rate: ui.rate ?? 44100, tempo: ui.tempo, signature: ui.sig, ticks_per_beat: TPB, length, clips, tracks, master };
 }
 
 const COLORS = ["--t-kick", "--t-bass", "--t-lead", "--t-pad", "--t-keys", "--t-hats"];
 
-/** A song/1 source as the editor model. */
+/** A song/2 source as the editor model. */
 export function fromSong(s: Song): UIState {
   const sig = s.signature, bar = ticksPerBar(sig), step = bar / 16;
   const clip = new Map(s.clips.map((c) => [c.id, c]));

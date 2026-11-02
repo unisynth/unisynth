@@ -1,4 +1,4 @@
-// song/1 ⇄ editor model adapter: the demo song survives fromSong → toSong with the same placements, notes,
+// song/2 ⇄ editor model adapter: the demo song survives fromSong → toSong with the same placements, notes,
 // devices, routing and automation, and the result validates in the engine module (crates/song rules).
 import { expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";

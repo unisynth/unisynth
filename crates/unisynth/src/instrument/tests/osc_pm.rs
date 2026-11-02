@@ -1,7 +1,7 @@
 //! The phase-mod operator (Falcon): sine + Square35, feedback, sends, ratios.
 
 use super::*;
-use crate::params::shape;
+use crate::params::old::shape;
 
 /// Magnitude of the DFT bin at `hz` over `n` frames of `x` starting at `from` (rate 44 100).
 fn mag(x: &[f32], from: usize, n: usize, hz: f64) -> f64 {

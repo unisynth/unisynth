@@ -14,11 +14,13 @@ async function boot() {
   const file = want ?? (songs.includes("project/music/demo.song.json") ? "project/music/demo.song.json" : songs[0]);
   let initial: model.UIState;
   try {
-    initial = model.fromSong(JSON.parse(await api.read(file!)));
+    const r = engine.migrate(await api.read(file!));
+    if (!r.song) throw new Error(r.errors?.map((e) => `${e.path}: ${e.message}`).join("; "));
+    initial = model.fromSong(r.song);
   } catch {
     initial = model.fromSong({
-      format: "song/1", rate: 44100, tempo: 120, signature: [4, 4], ticks_per_beat: 960, length: 8 * 3840, clips: [],
-      tracks: [{ id: "t1", name: "Track 1", color: "--t-lead", volume: 0.5, mute: false, receives: [], devices: [{ kind: 64, preset: "init", values: { "osc1.type": 0.5 } }], placements: [], lanes: [] }],
+      format: "song/2", rate: 44100, tempo: 120, signature: [4, 4], ticks_per_beat: 960, length: 8 * 3840, clips: [],
+      tracks: [{ id: "t1", name: "Track 1", color: "--t-lead", volume: 0.5, mute: false, receives: [], devices: [{ kind: 64, preset: "init", values: { "osc1.type": 0.16666667 } }], placements: [], lanes: [] }],
       master: { id: "master", name: "Master", volume: 1, mute: false, receives: [{ from: "t1", channel: "main", volume: 1 }], devices: [], placements: [], lanes: [] },
     });
   }

@@ -24,7 +24,10 @@
 //! the render context, and give the same output for any split of a render into calls.
 //!
 //! A chunk is the original device chunk with the mode in front: little-endian f32 parameters (`[mode, p0, p1, …]`)
-//! followed by a 4-byte trailer that is ignored; missing parameters keep their defaults.
+//! followed by the 4-byte version tag [`TAG`] (change unify-v2-algorithms: in the old layout this was WaveSabre's size
+//! trailer, ignored). Missing parameters keep their defaults. The mode is `Choice(n)` of the kind's modes. A checked
+//! player rejects a chunk without the tag (an old chunk, another version) with `UnknownVersion` and one whose length is
+//! not whole values with `BadChunk`.
 
 use crate::kind;
 use crate::law as plaw;
@@ -122,10 +125,10 @@ trait Effect<'a>: Sized {
     fn wake(&mut self, _skipped: u32) {}
 }
 
-/// `(kind, mode, module id)` for every mode of every kind, in mode order.
-// Distortion: curve sits between shaper and power so the stored mode values keep their meaning (0 = shaper,
-// 1.0 = power, as before curve existed; curve = 0.5). The V2 modes (change add-v2-import) come after the modes of
-// chunk v1 ([`OLD_MODES`]) and are stored between them (`params::kinds`), so old values keep their meaning too.
+/// The v3 effect chunk's last four bytes (`i32` −253: never a legacy size trailer, and a NaN, never a value).
+pub const TAG: [u8; 4] = 0xFFFF_FF03u32.to_le_bytes();
+
+/// `(kind, mode, module id)` for every mode of every kind, in mode order (the mode id is its `Choice(n)` position).
 const MODES: [(u8, usize, u8); 22] = [
     (kind::DISTORTION, 0, m::FX_DISTORTION_SHAPER),
     (kind::DISTORTION, 1, m::FX_DISTORTION_CURVE),
@@ -152,7 +155,7 @@ const MODES: [(u8, usize, u8); 22] = [
     (kind::FLANGER, 2, m::FX_FLANGER_COMB),
 ];
 
-/// Modes per kind before change add-v2-import (`inv_choice(mode, mode_count(k))` still encodes them).
+/// Modes per kind before change add-v2-import: the old layout's expanded mode choice (the migration decodes it).
 const OLD_MODES: [(u8, usize); 9] = [
     (kind::DISTORTION, 3),
     (kind::CRUSHER, 1),
@@ -165,8 +168,7 @@ const OLD_MODES: [(u8, usize); 9] = [
     (kind::FORMANT, 1),
 ];
 
-/// Number of modes of effect kind `k` that chunk v1 had (0 for a kind that is not an effect): `inv_choice(mode,
-/// mode_count(k))` encodes those. [`mode_total`] counts the later ones too; [`mode_value`] encodes any mode.
+/// Number of modes of effect kind `k` that the old chunk v1 had (0 for a kind that is not an effect; the migration).
 pub fn mode_count(k: u8) -> usize {
     OLD_MODES.iter().find(|e| e.0 == k).map_or(0, |e| e.1)
 }
@@ -176,58 +178,15 @@ pub fn mode_total(k: u8) -> usize {
     MODES.iter().filter(|e| e.0 == k).count()
 }
 
-/// The mode a stored mode value selects: an expanded choice (`params::kinds`) when the kind gained modes.
+/// The mode a stored mode value selects (`Choice(mode_total(k))`).
 #[inline]
 pub fn mode_of_value(k: u8, p: f32) -> usize {
-    // a trusted build without the V2 modes reads only old ones (see `params::kinds::decode_in`)
-    let v2 = cfg!(feature = "us-fx-eq-cut")
-        || cfg!(feature = "us-fx-delay-modulated")
-        || cfg!(feature = "us-fx-reverb-comb")
-        || cfg!(feature = "us-fx-compressor-lookahead")
-        || cfg!(feature = "us-fx-distortion-wrap")
-        || cfg!(feature = "us-fx-flanger-comb");
-    if cfg!(feature = "us-trusted") && !v2 {
-        return plaw::choice(p, mode_count(k));
-    }
-    let (old, later) = (mode_count(k), mode_total(k) - mode_count(k));
-    if later == 0 || old == 0 {
-        plaw::choice(p, old.max(1))
-    } else if old == 1 {
-        plaw::choice(p, 1 + later)
-    } else {
-        crate::params::kinds::decode(p, old, later, 0)
-    }
+    plaw::choice(p, mode_total(k))
 }
 
 /// The stored value of mode `mode` of kind `k`.
 pub fn mode_value(k: u8, mode: usize) -> f32 {
-    let (old, later) = (mode_count(k), mode_total(k) - mode_count(k));
-    if later == 0 {
-        if old > 1 { mode as f32 / (old - 1) as f32 } else { 0.0 }
-    } else if old == 1 {
-        mode as f32 / later as f32
-    } else {
-        crate::params::kinds::encode(mode, old)
-    }
-}
-
-/// Stored positions of kind `k`'s mode value (`choice(p, positions)`): the modes and, between the old ones, room
-/// for the later ones.
-pub fn mode_positions(k: u8) -> usize {
-    let (old, later) = (mode_count(k), mode_total(k) - mode_count(k));
-    if later == 0 {
-        old
-    } else if old == 1 {
-        1 + later
-    } else {
-        2 * old - 1
-    }
-}
-
-/// The mode at stored position `pos`, or `None` for a free position.
-pub fn mode_at(k: u8, pos: usize) -> Option<usize> {
-    let m = mode_of_value(k, if mode_positions(k) > 1 { pos as f32 / (mode_positions(k) - 1) as f32 } else { 0.0 });
-    (mode_value(k, m) == if mode_positions(k) > 1 { pos as f32 / (mode_positions(k) - 1) as f32 } else { 0.0 }).then_some(m)
+    crate::params::choice_value(mode, mode_total(k))
 }
 
 /// The mode a chunk selects.
@@ -337,6 +296,21 @@ modes! {
     "us-fx-flanger-comb" FLANGER 2 Comb comb::Comb<'a>,
 }
 
+/// The chunk's form: whole values and the version tag (a trusted build: generated songs, checked on the host). A
+/// chunk of the tag alone is mode 0 with its defaults.
+fn check(chunk: &[u8]) -> Result<(), LoadError> {
+    if cfg!(feature = "us-trusted") {
+        return Ok(());
+    }
+    if chunk.len() < 4 || chunk.len() % 4 != 0 {
+        return Err(if chunk.len() >= 4 && chunk[chunk.len() - 4..] == TAG { LoadError::BadChunk } else { LoadError::UnknownVersion });
+    }
+    if chunk[chunk.len() - 4..] != TAG {
+        return Err(LoadError::UnknownVersion);
+    }
+    Ok(())
+}
+
 /// An effect device (kinds 65–73).
 pub struct UFx<'a> {
     mode: Mode<'a>,
@@ -347,10 +321,16 @@ pub struct UFx<'a> {
 impl<'a> UFx<'a> {
     /// Pool bytes for effect kind `k` loaded from `chunk`.
     pub fn need(k: u8, chunk: &[u8], env: &Env) -> Result<usize, LoadError> {
+        if is_effect(k) {
+            check(chunk)?;
+        }
         Mode::need(k, mode_of(k, chunk), env, &Params(chunk))
     }
 
     pub fn new(k: u8, chunk: &[u8], env: &Env, pool: &mut Pool<'a>) -> Result<Self, LoadError> {
+        if is_effect(k) {
+            check(chunk)?;
+        }
         let (mode, params) = Mode::create(k, mode_of(k, chunk), env, pool)?;
         let mut fx = UFx { mode, params };
         for i in 0..params {
@@ -407,11 +387,11 @@ impl Device for UFx<'_> {
     }
 }
 
-/// Builds an effect chunk from its parameters (`[mode, p0, …]`, mode as a normalized value). Host side.
+/// Builds an effect chunk from its parameters (`[mode, p0, …]`, mode as a normalized value) and the tag. Host side.
 #[cfg(any(test, feature = "std"))]
 pub fn encode(values: &[f32]) -> std::vec::Vec<u8> {
     let mut v: std::vec::Vec<u8> = values.iter().flat_map(|x| x.to_le_bytes()).collect();
-    v.extend((v.len() as i32 + 4).to_le_bytes());
+    v.extend(TAG);
     v
 }
 

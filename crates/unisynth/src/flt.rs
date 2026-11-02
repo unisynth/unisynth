@@ -20,7 +20,7 @@ pub const NS: usize = 9;
 /// compile to the plain input-form and one-step arithmetic.
 const FORMS: bool = cfg!(any(feature = "us-flt-feedback", feature = "us-drive", feature = "us-strip"));
 
-/// The kinds of the 7-bit step-law types in order (`filter_type` from `V2_LP`, the drive's filter modes from 5).
+/// The kinds of the drive's filter modes (from mode 5) in order.
 pub const STEPS_KINDS: [Kind; 7] = [Kind::SvfLp, Kind::SvfBp, Kind::SvfHp, Kind::SvfNotch, Kind::SvfAll, Kind::Pole4Lp, Kind::Pole4Hp];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -44,26 +44,34 @@ pub enum Kind {
 }
 
 impl Kind {
-    /// The type for a `filter_type` value, or the module that is missing from this build.
-    pub fn check(ty: usize) -> Result<Kind, LoadError> {
-        let (kind, id, on) = match ty {
-            ft::SVF_LP => (Kind::SvfLp, module::FILTER_SVF, cfg!(feature = "us-flt-svf")),
-            ft::SVF_HP => (Kind::SvfHp, module::FILTER_SVF, cfg!(feature = "us-flt-svf")),
-            ft::SVF_BP => (Kind::SvfBp, module::FILTER_SVF, cfg!(feature = "us-flt-svf")),
-            ft::SVF_NOTCH => (Kind::SvfNotch, module::FILTER_SVF, cfg!(feature = "us-flt-svf")),
-            ft::LADDER_LP => (Kind::Pole4Lp, module::FILTER_LADDER, cfg!(feature = "us-flt-ladder")),
-            ft::RBJ_HP => (Kind::RbjHp, module::FILTER_RBJ, cfg!(feature = "us-flt-rbj")),
-            ft::RBJ_BP => (Kind::RbjBp, module::FILTER_RBJ, cfg!(feature = "us-flt-rbj")),
-            ft::NOTCH => (Kind::Notch, module::FILTER_NOTCH, cfg!(feature = "us-flt-notch")),
-            ft::V2_LP..=ft::V2_MOOG_HP => (STEPS_KINDS[ty - ft::V2_LP], module::FILTER_FEEDBACK, cfg!(feature = "us-flt-feedback")),
+    /// The kind for a `filter_type` value with `forms`, or the module that is missing from this build: the plain forms
+    /// of the state-variable and 4-pole filters are `us-flt-svf` and `us-flt-ladder`, any other form or the 7-bit law
+    /// is `us-flt-feedback`, as are the all-pass and 4-pole high-pass responses (their code; a plain build stays as it
+    /// was before the format switch).
+    pub fn check(ty: usize, forms: Forms) -> Result<Kind, LoadError> {
+        let plain = forms.plain();
+        let fb = (module::FILTER_FEEDBACK, cfg!(feature = "us-flt-feedback"));
+        let sv = if plain { (module::FILTER_SVF, cfg!(feature = "us-flt-svf")) } else { fb };
+        let p4 = if plain { (module::FILTER_LADDER, cfg!(feature = "us-flt-ladder")) } else { fb };
+        let (kind, (id, on)) = match ty {
+            ft::SVF_LP => (Kind::SvfLp, sv),
+            ft::SVF_HP => (Kind::SvfHp, sv),
+            ft::SVF_BP => (Kind::SvfBp, sv),
+            ft::SVF_NOTCH => (Kind::SvfNotch, sv),
+            ft::SVF_ALL => (Kind::SvfAll, fb),
+            ft::P4_LP => (Kind::Pole4Lp, p4),
+            ft::P4_HP => (Kind::Pole4Hp, fb),
+            ft::RBJ_HP => (Kind::RbjHp, (module::FILTER_RBJ, cfg!(feature = "us-flt-rbj"))),
+            ft::RBJ_BP => (Kind::RbjBp, (module::FILTER_RBJ, cfg!(feature = "us-flt-rbj"))),
+            ft::NOTCH => (Kind::Notch, (module::FILTER_NOTCH, cfg!(feature = "us-flt-notch"))),
             _ => return Ok(Kind::Off),
         };
         if on { Ok(kind) } else { Err(LoadError::UnsupportedModule(id)) }
     }
 
     /// At run time: a type automated to a module this build lacks bypasses (the load already rejected the patch's own).
-    pub fn of(ty: usize) -> Kind {
-        Kind::check(ty).unwrap_or(Kind::Off)
+    pub fn of(ty: usize, forms: Forms) -> Kind {
+        Kind::check(ty, forms).unwrap_or(Kind::Off)
     }
 
     /// Kinds that share state layouts keep their state across a type change.
@@ -78,10 +86,46 @@ impl Kind {
     }
 }
 
-/// True when a `filter_type` value uses the 7-bit step law and the feedback form ([`coefs_steps`]): the later kinds.
-/// Until the format switch (design D4, "Order of work") the type value carries the law and the form.
-pub fn steps(ty: usize) -> bool {
-    ty >= ft::V2_LP
+/// A filter slot's settings beyond its type (`f::FORM`, `f::OVERSAMPLE`, `f::LAW`). Read only in a build with the
+/// forms; otherwise every slot is plain.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Forms {
+    /// State-variable: feedback-scaled resonance; 4-pole: feedback after the clip.
+    pub feedback: bool,
+    /// State-variable: held input, last output; 4-pole: two steps per sample.
+    pub held: bool,
+    /// Cutoff and resonance on the 7-bit step law.
+    pub steps: bool,
+}
+
+impl Forms {
+    pub const PLAIN: Forms = Forms { feedback: false, held: false, steps: false };
+    /// The 7-bit filters: feedback form, held / two steps, 7-bit law (the drive's filter modes).
+    pub const STEPS: Forms = Forms { feedback: true, held: true, steps: true };
+
+    /// The slot's forms at run time: plain in a build without them (its load checks failed otherwise).
+    pub fn of(p: &[f32; crate::params::COUNT], i: usize) -> Forms {
+        if !FORMS { Forms::PLAIN } else { Forms::read(p, i) }
+    }
+
+    /// The slot's forms as stored (the load check).
+    pub fn read(p: &[f32; crate::params::COUNT], i: usize) -> Forms {
+        use crate::params::{f, filt};
+        let on = |fld| crate::law::choice(p[filt(i, fld)], 2) == 1;
+        Forms { feedback: on(f::FORM), held: on(f::OVERSAMPLE), steps: on(f::LAW) }
+    }
+
+    pub fn plain(self) -> bool {
+        self == Forms::PLAIN
+    }
+
+    fn sv(self) -> SvForm {
+        SvForm { feedback: self.feedback, held: self.held }
+    }
+
+    fn p4(self) -> P4Form {
+        P4Form { clip_after: self.feedback, x2: self.held }
+    }
 }
 
 /// The state-variable form (design D1). `feedback`: the resonance damps the band feedback only
@@ -210,16 +254,18 @@ pub fn transparent(kind: Kind, hz: f32, res: f32) -> bool {
         }
 }
 
-/// The coefficients of `kind` at `hz` and normalized resonance `res`, for `rate`.
-pub fn coefs(kind: Kind, hz: f32, res: f32, rate: f32) -> [f32; NC] {
+/// The coefficients of `kind` at `hz` and normalized resonance `res`, for `rate`, in `forms` (the Hz law).
+pub fn coefs(kind: Kind, hz: f32, res: f32, rate: f32, forms: Forms) -> [f32; NC] {
     let hz = hz.max(1.0).min(0.49 * rate);
     let q = res.max(0.0).min(0.85);
     match kind {
         Kind::Off => [0.0; NC],
-        Kind::SvfLp | Kind::SvfHp | Kind::SvfBp | Kind::SvfNotch | Kind::SvfAll if cfg!(feature = "us-flt-svf") => {
-            sv_coefs(sv_f_hz(hz, rate), res, SvForm::INPUT)
+        Kind::SvfLp | Kind::SvfHp | Kind::SvfBp | Kind::SvfNotch | Kind::SvfAll if cfg!(feature = "us-flt-svf") || FORMS => {
+            sv_coefs(sv_f_hz(hz, rate), res, forms.sv())
         }
-        Kind::Pole4Lp | Kind::Pole4Hp if cfg!(feature = "us-flt-ladder") => p4_coefs(p4_f_hz(hz, rate, P4Form::ONE), res, P4Form::ONE),
+        Kind::Pole4Lp | Kind::Pole4Hp if cfg!(feature = "us-flt-ladder") || FORMS => {
+            p4_coefs(p4_f_hz(hz, rate, forms.p4()), res, forms.p4())
+        }
         Kind::RbjHp | Kind::RbjBp if cfg!(feature = "us-flt-rbj") => {
             let w0 = 2.0 * core::f32::consts::PI * hz / rate;
             let (sin, cos) = crate::fm::sincosf(w0);
@@ -244,20 +290,19 @@ pub fn coefs(kind: Kind, hz: f32, res: f32, rate: f32) -> [f32; NC] {
     }
 }
 
-/// The coefficients of `kind` on the 7-bit step law (cutoff and resonance = step / 128) at `rate`: the state-variable
-/// responses in the feedback form, the 2× 4-pole filter. Format versions below 6 have no 4-pole filter (`old_moog`):
-/// it then passes the signal (v2redux `DELTA_NO_MOOG`; moves to the converter at the format switch, design D3).
-pub fn coefs_steps(kind: Kind, cutoff: f32, reso: f32, rate: f32, old_moog: bool) -> (Kind, [f32; NC]) {
+/// The coefficients of `kind` on the 7-bit step law (cutoff and resonance = step / 128) at `rate`, in `forms`. The law
+/// is the state-variable and 4-pole filters' ([`has_steps`]); the others stay on the Hz law.
+pub fn coefs_steps(kind: Kind, cutoff: f32, reso: f32, rate: f32, forms: Forms) -> [f32; NC] {
     match kind {
-        Kind::Off => (Kind::Off, [0.0; NC]),
-        Kind::Pole4Lp | Kind::Pole4Hp => {
-            if old_moog {
-                return (Kind::Off, [0.0; NC]);
-            }
-            (kind, p4_coefs(p4_f_steps(cutoff, rate, P4Form::TWO), reso, P4Form::TWO))
-        }
-        _ => (kind, sv_coefs(sv_f_steps(cutoff, rate), reso, SvForm::FEEDBACK)),
+        Kind::Pole4Lp | Kind::Pole4Hp => p4_coefs(p4_f_steps(cutoff, rate, forms.p4()), reso, forms.p4()),
+        Kind::SvfLp | Kind::SvfHp | Kind::SvfBp | Kind::SvfNotch | Kind::SvfAll => sv_coefs(sv_f_steps(cutoff, rate), reso, forms.sv()),
+        _ => [0.0; NC],
     }
+}
+
+/// Whether `kind` reads the 7-bit step law when its slot sets it.
+pub fn has_steps(kind: Kind) -> bool {
+    matches!(kind, Kind::SvfLp | Kind::SvfHp | Kind::SvfBp | Kind::SvfNotch | Kind::SvfAll | Kind::Pole4Lp | Kind::Pole4Hp)
 }
 
 /// One filter slot of a voice (or of the noise band): stereo state and the ramped coefficients.
@@ -480,7 +525,7 @@ mod tests {
 
     fn run(kind: Kind, hz: f32, res: f32, rate: f32, x: &[f32]) -> std::vec::Vec<f32> {
         let mut f = Slot::new();
-        f.set(kind, &coefs(kind, hz, res, rate));
+        f.set(kind, &coefs(kind, hz, res, rate, Forms::PLAIN));
         x.iter().map(|v| f.process(*v, *v).0).collect()
     }
 
@@ -797,16 +842,16 @@ mod tests {
     #[cfg(all(feature = "us-flt-svf", feature = "us-flt-ladder", feature = "us-flt-rbj", feature = "us-flt-notch"))]
     fn resonance_follows_each_types_original_law() {
         // SVF: q = 1 − p
-        assert!((coefs(Kind::SvfLp, 1000.0, 0.3, RATE)[1] - 0.7).abs() < 1e-6);
-        assert_eq!(coefs(Kind::SvfLp, 1000.0, 0.0, RATE)[1], 1.0);
-        assert_eq!(coefs(Kind::SvfLp, 1000.0, 1.0, RATE)[1], 0.0);
+        assert!((coefs(Kind::SvfLp, 1000.0, 0.3, RATE, Forms::PLAIN)[1] - 0.7).abs() < 1e-6);
+        assert_eq!(coefs(Kind::SvfLp, 1000.0, 0.0, RATE, Forms::PLAIN)[1], 1.0);
+        assert_eq!(coefs(Kind::SvfLp, 1000.0, 1.0, RATE, Forms::PLAIN)[1], 0.0);
         // the others clamp to 0..=0.85: 0.9 is 0.85
         for kind in [Kind::Pole4Lp, Kind::RbjHp, Kind::RbjBp, Kind::Notch] {
-            assert_eq!(coefs(kind, 1000.0, 0.9, RATE), coefs(kind, 1000.0, 0.85, RATE), "{kind:?}");
-            assert_ne!(coefs(kind, 1000.0, 0.5, RATE), coefs(kind, 1000.0, 0.1, RATE), "{kind:?}");
+            assert_eq!(coefs(kind, 1000.0, 0.9, RATE, Forms::PLAIN), coefs(kind, 1000.0, 0.85, RATE, Forms::PLAIN), "{kind:?}");
+            assert_ne!(coefs(kind, 1000.0, 0.5, RATE, Forms::PLAIN), coefs(kind, 1000.0, 0.1, RATE, Forms::PLAIN), "{kind:?}");
         }
         // ladder feedback r = q·e^((1 − p)·1.386249) with p from the cutoff
-        let c = coefs(Kind::Pole4Lp, 2205.0, 0.5, RATE);
+        let c = coefs(Kind::Pole4Lp, 2205.0, 0.5, RATE, Forms::PLAIN);
         let f = 2.0 * 2205.0 / RATE;
         let p = (3.6 * f - 1.6 * f * f) / 2.0;
         assert!((c[2] - 0.5 * libm::expf((1.0 - p) * 1.386249)).abs() < 1e-5);
@@ -862,12 +907,12 @@ mod tests {
     fn a_type_that_shares_a_state_layout_keeps_its_state_and_another_starts_clean() {
         let x = noise(500);
         let mut f = Slot::new();
-        f.set(Kind::SvfLp, &coefs(Kind::SvfLp, 800.0, 0.2, RATE));
+        f.set(Kind::SvfLp, &coefs(Kind::SvfLp, 800.0, 0.2, RATE, Forms::PLAIN));
         x.iter().for_each(|v| _ = f.process(*v, *v));
         let before = f.s;
-        f.to(Kind::SvfHp, &coefs(Kind::SvfHp, 800.0, 0.2, RATE), 32);
+        f.to(Kind::SvfHp, &coefs(Kind::SvfHp, 800.0, 0.2, RATE, Forms::PLAIN), 32);
         assert_eq!(f.s, before, "SVF kinds share their state");
-        f.to(Kind::Pole4Lp, &coefs(Kind::Pole4Lp, 800.0, 0.2, RATE), 32);
+        f.to(Kind::Pole4Lp, &coefs(Kind::Pole4Lp, 800.0, 0.2, RATE, Forms::PLAIN), 32);
         assert_eq!(f.s, [[0.0; NS]; 2], "a different layout starts from silence");
         f.to(Kind::Off, &[0.0; NC], 32);
         assert_eq!(f.process(0.25, -0.5), (0.25, -0.5), "off is bypass");
@@ -877,7 +922,7 @@ mod tests {
     #[cfg(all(feature = "us-flt-svf", feature = "us-flt-ladder", feature = "us-flt-rbj", feature = "us-flt-notch"))]
     fn coefficients_ramp_across_the_segment() {
         let mut f = Slot::new();
-        let (a, b) = (coefs(Kind::SvfLp, 200.0, 0.0, RATE), coefs(Kind::SvfLp, 4000.0, 0.0, RATE));
+        let (a, b) = (coefs(Kind::SvfLp, 200.0, 0.0, RATE, Forms::PLAIN), coefs(Kind::SvfLp, 4000.0, 0.0, RATE, Forms::PLAIN));
         f.set(Kind::SvfLp, &a);
         f.to(Kind::SvfLp, &b, 32);
         let mut seen = std::vec::Vec::new();
@@ -900,7 +945,7 @@ mod tests {
         for (ty, on, id) in [
             (ft::SVF_LP, cfg!(feature = "us-flt-svf"), module::FILTER_SVF),
             (ft::SVF_NOTCH, cfg!(feature = "us-flt-svf"), module::FILTER_SVF),
-            (ft::LADDER_LP, cfg!(feature = "us-flt-ladder"), module::FILTER_LADDER),
+            (ft::P4_LP, cfg!(feature = "us-flt-ladder"), module::FILTER_LADDER),
             (ft::RBJ_HP, cfg!(feature = "us-flt-rbj"), module::FILTER_RBJ),
             (ft::RBJ_BP, cfg!(feature = "us-flt-rbj"), module::FILTER_RBJ),
             (ft::NOTCH, cfg!(feature = "us-flt-notch"), module::FILTER_NOTCH),
@@ -908,10 +953,10 @@ mod tests {
             let r = crate::instrument::UInstrument::need(&patch(ty));
             if on {
                 assert!(r.is_ok(), "type {ty}");
-                assert_eq!(Kind::check(ty).is_ok(), true);
+                assert_eq!(Kind::check(ty, Forms::PLAIN).is_ok(), true);
             } else {
                 assert_eq!(r.err(), Some(LoadError::UnsupportedModule(id)), "type {ty}");
-                assert_eq!(Kind::of(ty), Kind::Off, "automated to a missing type = bypass");
+                assert_eq!(Kind::of(ty, Forms::PLAIN), Kind::Off, "automated to a missing type = bypass");
             }
         }
         assert!(crate::instrument::UInstrument::need(&patch(ft::OFF)).is_ok());
@@ -920,11 +965,11 @@ mod tests {
     #[test]
     fn the_cutoff_is_kept_below_nyquist() {
         for k in [Kind::SvfLp, Kind::Pole4Lp, Kind::RbjHp, Kind::RbjBp, Kind::Notch] {
-            assert_eq!(coefs(k, 1.0e6, 0.3, 22050.0), coefs(k, 0.49 * 22050.0, 0.3, 22050.0), "{k:?}");
-            assert_eq!(coefs(k, -5.0, 0.3, 22050.0), coefs(k, 1.0, 0.3, 22050.0), "{k:?}: a negative cutoff");
+            assert_eq!(coefs(k, 1.0e6, 0.3, 22050.0, Forms::PLAIN), coefs(k, 0.49 * 22050.0, 0.3, 22050.0, Forms::PLAIN), "{k:?}");
+            assert_eq!(coefs(k, -5.0, 0.3, 22050.0, Forms::PLAIN), coefs(k, 1.0, 0.3, 22050.0, Forms::PLAIN), "{k:?}: a negative cutoff");
         }
         for k in [Kind::SvfLp, Kind::Pole4Lp, Kind::RbjHp, Kind::Notch] {
-            for c in coefs(k, 100_000.0, 0.5, 22050.0) {
+            for c in coefs(k, 100_000.0, 0.5, 22050.0, Forms::PLAIN) {
                 assert!(c.is_finite(), "{k:?}");
             }
         }
@@ -940,7 +985,7 @@ mod tests {
 
     /// Steady-state gain in dB of `kind` at `hz` (cutoff, no resonance) for a sine at `f`.
     fn open_gain_db(kind: Kind, hz: f32, f: f32, rate: f32, amp: f32) -> f32 {
-        let c = coefs(kind, hz, 0.0, rate);
+        let c = coefs(kind, hz, 0.0, rate, Forms::PLAIN);
         let mut s = [0.0f32; NS];
         let n = rate as usize / 2;
         let (mut e_out, mut e_in) = (0.0f64, 0.0f64);
@@ -1020,7 +1065,7 @@ mod tests {
 
     #[test]
     fn a_passed_through_slot_neither_runs_nor_changes() {
-        let c = coefs(Kind::SvfLp, OPEN_LP_HZ, 0.0, RATE);
+        let c = coefs(Kind::SvfLp, OPEN_LP_HZ, 0.0, RATE, Forms::PLAIN);
         let mut f = Slot::new();
         f.set(Kind::SvfLp, &c);
         for i in 0..200 {
@@ -1046,7 +1091,7 @@ mod tests {
     fn wake_gap(kind: Kind, open_hz: f32, hz_closed: f32, prime: bool) -> f32 {
         let closed = kind;
         let x = |i: usize| 0.5 * libm::sinf(2.0 * core::f32::consts::PI * 440.0 * i as f32 / RATE);
-        let (open, shut) = (coefs(kind, open_hz, 0.0, RATE), coefs(closed, hz_closed, 0.0, RATE));
+        let (open, shut) = (coefs(kind, open_hz, 0.0, RATE, Forms::PLAIN), coefs(closed, hz_closed, 0.0, RATE, Forms::PLAIN));
         let mut run_all = Slot::new();
         run_all.set(kind, &open);
         let mut woken = Slot::new();

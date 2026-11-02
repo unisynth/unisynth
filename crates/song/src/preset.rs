@@ -1,12 +1,15 @@
-//! `us-patch/1` presets: one device (kind + the values that differ from the kind's defaults, by name, sorted by
-//! parameter index). Loading sets every listed value and leaves the others at their defaults.
+//! `us-patch/2` presets: one device (kind + the values that differ from the kind's defaults, by name, sorted by
+//! parameter index). Loading sets every listed value and leaves the others at their defaults. A `us-patch/1` preset
+//! (the old unisynth layout) is migrated once on parse (`crate::migrate::device`).
 
 use crate::model::{Device, Values};
 use crate::tables;
 use crate::Issue;
 use serde::{Deserialize, Serialize};
 
-pub const FORMAT: &str = "us-patch/1";
+pub const FORMAT: &str = "us-patch/2";
+/// The format before change unify-v2-algorithms.
+pub const FORMAT_V1: &str = "us-patch/1";
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -41,7 +44,13 @@ pub fn load(p: &Preset) -> Device {
 /// Parses and validates a preset (format, kind, names, ranges).
 pub fn parse(json: &str) -> Result<Preset, Vec<Issue>> {
     let de = &mut serde_json::Deserializer::from_str(json);
-    let p: Preset = serde_path_to_error::deserialize(de).map_err(|e| vec![Issue { path: crate::pointer(e.path()), message: e.inner().to_string() }])?;
+    let mut p: Preset = serde_path_to_error::deserialize(de).map_err(|e| vec![Issue { path: crate::pointer(e.path()), message: e.inner().to_string() }])?;
+    if p.format == FORMAT_V1 {
+        let mut d = load(&p);
+        crate::migrate::device(&mut d, "")?;
+        p.values = d.values;
+        p.format = FORMAT.into();
+    }
     let mut out = vec![];
     if p.format != FORMAT {
         out.push(Issue { path: "/format".into(), message: format!("expected \"{FORMAT}\", found \"{}\"", p.format) });

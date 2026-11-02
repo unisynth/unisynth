@@ -1,7 +1,8 @@
 //! V2's global effects as effect modes (change add-v2-import): reverb `v2` (kind 71 mode 3), delay `v2` (68 mode 2),
 //! compressor `v2` (72 mode 1, V2's sum compressor) and EQ `cut` (67 mode 2, V2's master DC filter and post low/high
 //! cut). Parameters are V2 raw / 128 in V2's order, then the source format version (`count(0, 6)`, default 6) for
-//! the behaviours that changed: the reverb low cut (version 4), the DC filter and denormal bias (version 6).
+//! the behaviours that changed with the format version are written by the converter (the reverb's low cut off before
+//! version 4) or are a setting (the cut EQ's DC filter); the v3 layout has no `era` parameter.
 //! Reverb and delay read their input from the left channel (V2's mono aux buses: the instruments' sends put the
 //! same mono mix on both channels) and output only the wet signal. Port of V2 (public domain) after v2redux (CC0).
 
@@ -12,21 +13,17 @@ use synth_core::device::{Ctx, Io};
 use synth_core::mix::{Env, LoadError};
 use synth_core::pool::Pool;
 
-/// Format version from a parameter (`count(0, 6)`).
-fn era(p: f32) -> u32 {
-    crate::law::count(p, 0, 6)
-}
 
 fn raw(p: f32) -> f32 {
     p * 128.0
 }
 
-// ---- EQ cut: DC filter (version 6), low cut, high cut ----
+// ---- EQ cut: DC filter (choice, default on), low cut, high cut ----
 
 pub struct Cut {
     lc: f32,
     hc: f32,
-    era: u32,
+    dc: bool,
     dcf: [Dcf; 2],
     lcbuf: [f32; 2],
     hcbuf: [f32; 2],
@@ -38,13 +35,13 @@ impl<'a> Effect<'a> for Cut {
         0
     }
     fn new(_: &Env, _: &mut Pool<'a>) -> Result<Self, LoadError> {
-        Ok(Cut { lc: 0.0, hc: 127.0 / 128.0, era: 6, dcf: [Dcf::default(); 2], lcbuf: [0.0; 2], hcbuf: [0.0; 2] })
+        Ok(Cut { lc: 0.0, hc: 127.0 / 128.0, dc: true, dcf: [Dcf::default(); 2], lcbuf: [0.0; 2], hcbuf: [0.0; 2] })
     }
     fn set(&mut self, i: usize, v: f32) {
         match i {
             0 => self.lc = v,
             1 => self.hc = v,
-            2 => self.era = era(v),
+            2 => self.dc = crate::law::choice(v, 2) == 1,
             _ => {}
         }
     }
@@ -60,7 +57,7 @@ impl<'a> Effect<'a> for Cut {
         for ch in 0..2 {
             for x in io.ch[ch][..n].iter_mut() {
                 let mut v = *x;
-                if self.era >= 6 {
+                if self.dc {
                     v = self.dcf[ch].step(v, r);
                 }
                 let y = v - self.lcbuf[ch];
@@ -80,23 +77,21 @@ impl<'a> Effect<'a> for Cut {
 
 pub struct CompressorV2<'a> {
     p: [f32; 9],
-    era: u32,
     comp: Comp<'a>,
 }
 
 impl<'a> Effect<'a> for CompressorV2<'a> {
-    const PARAMS: usize = 10;
+    const PARAMS: usize = 9;
     fn need(_: &Env, _: &Params) -> usize {
         Comp::need()
     }
     fn new(_: &Env, pool: &mut Pool<'a>) -> Result<Self, LoadError> {
         let d = [0.0, 0.0, 1.0, 2.0, 90.0, 32.0, 20.0, 64.0, 64.0].map(|x| x / 128.0);
-        Ok(CompressorV2 { p: d, era: 6, comp: Comp::new(pool).map_err(|_| LoadError::OutOfMemory)? })
+        Ok(CompressorV2 { p: d, comp: Comp::new(pool).map_err(|_| LoadError::OutOfMemory)? })
     }
     fn set(&mut self, i: usize, v: f32) {
         match i {
             0..=8 => self.p[i] = v,
-            9 => self.era = era(v),
             _ => {}
         }
     }
@@ -119,23 +114,21 @@ const DELAY_LEN: usize = 32_768;
 
 pub struct DelayV2<'a> {
     p: [f32; 7],
-    era: u32,
     del: ModDel<'a>,
 }
 
 impl<'a> Effect<'a> for DelayV2<'a> {
-    const PARAMS: usize = 8;
+    const PARAMS: usize = 7;
     fn need(_: &Env, _: &Params) -> usize {
         ModDel::need(DELAY_LEN)
     }
     fn new(_: &Env, pool: &mut Pool<'a>) -> Result<Self, LoadError> {
         let d = [100.0, 80.0, 64.0, 64.0, 0.0, 0.0, 64.0].map(|x| x / 128.0);
-        Ok(DelayV2 { p: d, era: 6, del: ModDel::new(pool, DELAY_LEN).map_err(|_| LoadError::OutOfMemory)? })
+        Ok(DelayV2 { p: d, del: ModDel::new(pool, DELAY_LEN).map_err(|_| LoadError::OutOfMemory)? })
     }
     fn set(&mut self, i: usize, v: f32) {
         match i {
             0..=6 => self.p[i] = v,
-            7 => self.era = era(v),
             _ => {}
         }
     }
@@ -193,7 +186,6 @@ impl Line<'_> {
 
 pub struct ReverbV2<'a> {
     p: [f32; 4],
-    era: u32,
     comb: [[Line<'a>; 4]; 2],
     combl: [[f32; 4]; 2],
     all: [[Line<'a>; 2]; 2],
@@ -201,7 +193,7 @@ pub struct ReverbV2<'a> {
 }
 
 impl<'a> Effect<'a> for ReverbV2<'a> {
-    const PARAMS: usize = 5;
+    const PARAMS: usize = 4;
     fn need(_: &Env, _: &Params) -> usize {
         COMB.iter().flatten().chain(ALL.iter().flatten()).map(|&n| Pool::need::<f32>(n)).sum()
     }
@@ -213,12 +205,11 @@ impl<'a> Effect<'a> for ReverbV2<'a> {
         ];
         let all = [[line(ALL[0][0])?, line(ALL[0][1])?], [line(ALL[1][0])?, line(ALL[1][1])?]];
         let d = [64.0, 64.0, 32.0, 127.0].map(|x| x / 128.0);
-        Ok(ReverbV2 { p: d, era: 6, comb, combl: [[0.0; 4]; 2], all, hpf: [0.0; 2] })
+        Ok(ReverbV2 { p: d, comb, combl: [[0.0; 4]; 2], all, hpf: [0.0; 2] })
     }
     fn set(&mut self, i: usize, v: f32) {
         match i {
             0..=3 => self.p[i] = v,
-            4 => self.era = era(v),
             _ => {}
         }
     }
@@ -237,8 +228,7 @@ impl<'a> Effect<'a> for ReverbV2<'a> {
         let gaina = GAINA.map(|g| crate::fm::powf(g, e));
         let damp = lf * (highcut / 128.0);
         let gainin = vol / 128.0;
-        // no low cut stage before format version 4 (its parameter came then)
-        let low = if self.era >= 4 { lf * sq(sq(lowcut / 128.0)) } else { 0.0 };
+        let low = lf * sq(sq(lowcut / 128.0));
         for i in 0..n {
             let x = io.ch[0][i] * gainin;
             for ch in 0..2 {

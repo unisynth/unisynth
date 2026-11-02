@@ -18,10 +18,10 @@ fn tmp(name: &str) -> std::path::PathBuf {
 }
 
 const DEMO: &str = r#"{
-  "format": "song/1", "rate": 44100, "tempo": 128.0, "signature": [4, 4], "ticks_per_beat": 960, "length": 7680,
+  "format": "song/2", "rate": 44100, "tempo": 128.0, "signature": [4, 4], "ticks_per_beat": 960, "length": 7680,
   "clips": [{ "id": "a", "length": 3840, "notes": [[0, 480, 57, 100], [960, 480, 60, 90], [1920, 960, 64, 110]] }],
   "tracks": [{ "id": "lead", "name": "Lead", "volume": 0.8, "mute": false, "receives": [],
-    "devices": [{ "kind": 64, "values": { "osc1.type": 0.25 } }, { "kind": 66, "values": { "mode": 0.0, "vertical": 0.3 } }],
+    "devices": [{ "kind": 64, "values": { "osc1.type": 0.0833333358168602 } }, { "kind": 66, "values": { "mode": 0.0, "vertical": 0.3 } }],
     "placements": [{ "clip": "a", "start": 0, "length": 7680, "loop": true }],
     "lanes": [{ "device": 1, "param": "dry_wet", "points": [[0, 0.0], [7680, 1.0]] }] }],
   "master": { "id": "master", "name": "Master", "volume": 1.0, "mute": false,

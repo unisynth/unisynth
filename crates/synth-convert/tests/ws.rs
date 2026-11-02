@@ -32,7 +32,7 @@ fn params(n: usize, seed: f32) -> Vec<f32> {
 }
 
 fn convert(s: &SongM) -> SongM {
-    SongM::read(&convert_ws(&s.write()).expect("converts")).expect("reads back")
+    SongM::read(&convert_ws(&s.write().unwrap()).expect("converts")).expect("reads back")
 }
 
 /// One effect of every kind, one track each, plus a master that receives them all.
@@ -58,8 +58,10 @@ fn every_legacy_effect_becomes_its_kind_and_mode_with_its_parameters() {
         let (d, s) = (&out.devices[i], &src.devices[i]);
         assert_eq!(d.kind, k, "device {i}");
         assert_eq!(unisynth::fx::mode_of(k, &d.chunk), mode, "device {i}");
-        // the legacy chunk follows the mode unchanged: parameters and the trailer
-        assert_eq!(&d.chunk[4..], &s.chunk[..], "device {i}");
+        // the legacy parameters follow the mode unchanged; the chunk ends in the v3 tag
+        let n = s.chunk.len().saturating_sub(4);
+        assert_eq!(&d.chunk[4..4 + n], &s.chunk[..n], "device {i}");
+        assert_eq!(&d.chunk[d.chunk.len() - 4..], &unisynth::fx::TAG, "device {i}");
     }
 }
 
@@ -77,7 +79,7 @@ fn structure_is_preserved_field_by_field() {
 
 #[test]
 fn the_converted_song_loads_and_renders_in_the_unified_player() {
-    loads_and_renders(&convert_ws(&all_effects().write()).unwrap());
+    loads_and_renders(&convert_ws(&all_effects().write().unwrap()).unwrap());
 }
 
 #[test]
@@ -91,7 +93,7 @@ fn a_sidechain_receive_keeps_its_track_channel_and_volume() {
     let out = convert(&src);
     assert_eq!(out.devices[0].kind, u::COMPRESSOR);
     assert_eq!(out.tracks[1].receives, vec![(0, 2, 0.8), (0, 0, 0.3)]);
-    loads_and_renders(&out.write());
+    loads_and_renders(&out.write().unwrap());
 }
 
 #[test]
@@ -105,7 +107,7 @@ fn effect_automation_moves_one_parameter_up_and_keeps_its_points() {
     assert_eq!(out.tracks[0].autos[0].points, pts);
     assert_eq!((out.tracks[0].autos[1].device, out.tracks[0].autos[1].param), (1, 4));
     assert_eq!(out.tracks[0].autos[1].points, pts[..2]);
-    loads_and_renders(&out.write());
+    loads_and_renders(&out.write().unwrap());
 }
 
 #[test]
@@ -116,19 +118,19 @@ fn short_legacy_chunks_keep_their_defaults() {
         let src = song(vec![d], vec![vec![]], vec![track(&[0], 0), track(&[], 0)]);
         let out = convert(&src);
         assert_eq!(unisynth::fx::mode_of(u::REVERB, &out.devices[0].chunk), 2, "{len}");
-        loads_and_renders(&out.write());
+        loads_and_renders(&out.write().unwrap());
     }
 }
 
 #[test]
 fn converting_twice_is_an_error_not_a_silent_copy() {
-    let once = convert_ws(&all_effects().write()).unwrap();
+    let once = convert_ws(&all_effects().write().unwrap()).unwrap();
     assert!(matches!(convert_ws(&once), Err(ConvError::Device(k, _)) if k == u::DISTORTION));
 }
 
 #[test]
 fn malformed_input_names_the_problem() {
-    let good = all_effects().write();
+    let good = all_effects().write().unwrap();
     for n in 0..good.len() {
         assert!(matches!(convert_ws(&good[..n]), Err(ConvError::Input(_))), "truncated at {n}");
     }
@@ -136,7 +138,7 @@ fn malformed_input_names_the_problem() {
     trailing.push(0);
     assert!(matches!(convert_ws(&trailing), Err(ConvError::Input(_))));
     let unknown = song(vec![dev(20, &[0.5])], vec![vec![]], vec![track(&[0], 0), track(&[], 0)]);
-    let e = convert_ws(&unknown.write()).unwrap_err();
+    let e = convert_ws(&unknown.write().unwrap()).unwrap_err();
     assert!(matches!(e, ConvError::Device(20, _)) && e.to_string().contains("unknown"), "{e}");
 }
 
@@ -152,7 +154,7 @@ mod cli {
         let dir = std::env::temp_dir().join(format!("synth-convert-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let (good, bad, out) = (dir.join("in.song"), dir.join("bad.song"), dir.join("out.song"));
-        std::fs::write(&good, super::all_effects().write()).unwrap();
+        std::fs::write(&good, super::all_effects().write().unwrap()).unwrap();
         let o = run(&["ws", good.to_str().unwrap(), out.to_str().unwrap()]);
         assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
         assert!(super::loads_and_renders(&std::fs::read(&out).unwrap()).len() > 0);
@@ -175,7 +177,7 @@ mod cli {
         sl[29] = 14.0 / 15.0;
         let big: Vec<_> = (0..12).map(|i| (0, 40 + i as u8, Some(100))).collect();
         let loud = super::common::song(vec![dev(w::SLAUGHTER, &sl)], vec![big], vec![track(&[0], 0), track(&[], 0)]);
-        std::fs::write(&good, loud.write()).unwrap();
+        std::fs::write(&good, loud.write().unwrap()).unwrap();
         let o = run(&["ws", good.to_str().unwrap(), out.to_str().unwrap()]);
         assert!(o.status.success());
         assert!(String::from_utf8_lossy(&o.stderr).contains("warning") && out.exists());

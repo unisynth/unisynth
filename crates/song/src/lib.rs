@@ -1,4 +1,4 @@
-//! `song/1` song source and `us-patch/1` presets for the unified synth (change add-synth-daw, spec song-source):
+//! `song/2` song source and `us-patch/2` presets for the unified synth (change add-synth-daw, spec song-source):
 //! serde model, validation with JSON-pointer issues, export to and import from the `synth-mix` blob, parameter
 //! tables, presets and rendering through the song player. Shared by the `song` CLI and the browser live host.
 
@@ -6,6 +6,7 @@ pub mod b64;
 pub mod blob;
 pub mod export;
 pub mod import;
+pub mod migrate;
 pub mod model;
 pub mod patterns;
 pub mod preset;
@@ -52,8 +53,16 @@ pub(crate) fn pointer(path: &serde_path_to_error::Path) -> String {
     out
 }
 
-/// Parses a `song/1` file (structure only; see [`validate`] for the semantic checks).
+/// Parses a song file (structure only; see [`validate`] for the semantic checks). A `song/1` file (the old unisynth
+/// layout) is migrated to `song/2` here, once ([`migrate::song`]).
 pub fn parse(json: &str) -> Result<Song, Vec<Issue>> {
+    let mut s = parse_as_is(json)?;
+    migrate::song(&mut s)?;
+    Ok(s)
+}
+
+/// Parses a song file as written (no migration).
+pub fn parse_as_is(json: &str) -> Result<Song, Vec<Issue>> {
     let de = &mut serde_json::Deserializer::from_str(json);
     serde_path_to_error::deserialize(de).map_err(|e| {
         let msg = e.inner().to_string();
@@ -75,7 +84,7 @@ pub fn load(json: &str) -> Result<Song, Vec<Issue>> {
     if issues.is_empty() { Ok(s) } else { Err(issues) }
 }
 
-/// The song as `song/1` JSON (stable layout: two-space indent, number arrays on one line).
+/// The song as `song/2` JSON (stable layout: two-space indent, number arrays on one line).
 pub fn to_json(s: &Song) -> String {
     pretty(&serde_json::to_value(s).unwrap_or_default())
 }
@@ -154,6 +163,8 @@ pub fn features(s: &Song) -> Vec<String> {
                     ot::BLIT => out.insert("us-osc-blit"),
                     ot::WAVETABLE => out.insert("us-osc-wt"),
                     ot::SAMPLER => out.insert(if choice(at(o::SHAPE + shape::SMP_SOURCE), p::smp_source::COUNT) != p::smp_source::GSM { "us-sample-dls" } else { "us-sample-gsm" }),
+                    ot::CLOCKED => out.insert("us-osc-clocked"),
+                    t if ot::is_naive(t) => out.insert("us-osc-naive"),
                     _ => false,
                 };
             }
@@ -161,16 +172,19 @@ pub fn features(s: &Song) -> Vec<String> {
                 out.insert("us-noise");
             }
             for slot in 0..p::FILT_SLOTS {
+                let plain = [f::FORM, f::OVERSAMPLE, f::LAW].iter().all(|&k| choice(v[p::FILT + slot * f::LEN + k], 2) == 0);
                 match choice(v[p::FILT + slot * f::LEN + f::TYPE], ft::COUNT) {
+                    ft::SVF_ALL | ft::P4_HP => out.insert("us-flt-feedback"),
+                    ft::SVF_LP | ft::SVF_HP | ft::SVF_BP | ft::SVF_NOTCH | ft::P4_LP if !plain => out.insert("us-flt-feedback"),
                     ft::SVF_LP | ft::SVF_HP | ft::SVF_BP | ft::SVF_NOTCH => out.insert("us-flt-svf"),
-                    ft::LADDER_LP => out.insert("us-flt-ladder"),
+                    ft::P4_LP => out.insert("us-flt-ladder"),
                     ft::RBJ_HP | ft::RBJ_BP => out.insert("us-flt-rbj"),
                     ft::NOTCH => out.insert("us-flt-notch"),
                     _ => false,
                 };
             }
             for slot in 0..p::ENV_SLOTS {
-                out.insert(if choice(v[p::ENV + slot * e::LEN + e::MODE], 2) == 1 { "us-env-rate" } else { "us-env-seconds" });
+                out.insert(["us-env-seconds", "us-env-rate", "us-env-frame"][choice(v[p::ENV + slot * e::LEN + e::LAW], p::env_law::COUNT)]);
             }
         } else if let Some(name) = fx_feature(d.kind, tables::mode_of(d.kind, &d.values)) {
             out.insert(name);

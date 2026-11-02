@@ -76,7 +76,7 @@ modules! {
     AUTOMATION = 37, "us-automation", "automation lanes";
     // added after the first release of the table: ids are never renumbered
     FX_DISTORTION_CURVE = 38, "us-fx-distortion-curve", "distortion, curve mode";
-    MATRIX_ADD = 39, "us-matrix-add", "mod matrix Add operation, controller sources, slots 13–16";
+    MATRIX_ADD = 39, "us-matrix-add", "mod matrix Add operation, controller sources, slots 11–16";
     SPEECH = 40, "us-speech", "formant speech stage";
     ENV_FRAME = 41, "us-env-frame", "frame-law envelope";
     OSC_NAIVE = 42, "us-osc-naive", "naive oscillator generators";
@@ -94,6 +94,18 @@ modules! {
     OSC_CLOCKED = 54, "us-osc-clocked", "clocked oscillator";
     FX_DISTORTION_WRAP = 55, "us-fx-distortion-wrap", "distortion, wrap mode";
     FX_FLANGER_COMB = 56, "us-fx-flanger-comb", "flanger, comb mode";
+    // quirks (change unify-v2-algorithms: the 6.3 survey's kept ones)
+    QUIRK_EXACT_MATH = 57, "us-quirk-exact-math", "quirk: exact sine and arctangent";
+    QUIRK_INTEGER_FM = 58, "us-quirk-integer-fm", "quirk: integer FM phase";
+    QUIRK_FIXED_SEED = 59, "us-quirk-fixed-seed", "quirk: noise seeds at 0";
+    QUIRK_LCG_NOISE = 60, "us-quirk-lcg-noise", "quirk: LCG noise";
+    QUIRK_COARSE_ENV = 61, "us-quirk-coarse-env", "quirk: coarse frame-law envelope";
+    OSC_COMBINE = 62, "us-osc-combine", "slot combine: multiply (ring) and replace";
+}
+
+/// The module of quirk index `q` (a `params::quirk` index).
+pub const fn quirk_module(q: usize) -> u8 {
+    QUIRK_EXACT_MATH + (q - crate::params::QUIRK) as u8
 }
 
 /// Whether this build contains every module in `ids`: generated songs assert it at compile time

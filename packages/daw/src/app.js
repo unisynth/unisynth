@@ -14,7 +14,7 @@ import * as arrange from "./ui/state/arrange.ts";
 import { mountTracks } from "./ui/arrange/Tracks.tsx";  // not `live`: that is the aria-live status element below
 import { laneEl, overrides, overrideSet, rollClips, selectedId, setSelectedId } from "./ui/state/view.ts";
 import { mountMixer, setMixerShown } from "./ui/mixer.tsx";
-// DAW UI (change add-synth-daw): the reviewed mockup's views and interactions on the real song/1 model,
+// DAW UI (change add-synth-daw): the reviewed mockup's views and interactions on the real song/2 model,
 // engine (AudioWorklet + synth-wasm live host), device panels generated from the engine's parameter tables and
 // /api/music. Started by main.ts with { engine, model, api, tables, initial, files, library }.
 export function start(DAW) {
@@ -217,7 +217,7 @@ function knobEdited(t, el) {
     arrange.setLabelRev(n => n + 1);  // the header shows the * on the edited preset
   }
 }
-/** One line from a song/1 about: type · style · tempo · engine · like … — description. */
+/** One line from a song/2 about: type · style · tempo · engine · like … — description. */
 const aboutText = a => [a.type, a.style, a.tempo, a.engine, a.similar_to?.length ? "like " + a.similar_to.join(", ") : ""].filter(Boolean).join(" · ") + " — " + a.description;
 const live = document.getElementById("live");
 function addLane(t, ln, box, beforeH, beforeL) {
@@ -420,7 +420,7 @@ function group(title, knobs, opts = {}) {
 }
 const sel = (label, opts, i = 0) => `<select aria-label="${label}">${opts.map((o, j) => `<option${j === i ? " selected" : ""}>${o}</option>`).join("")}</select>`;
 const col = (...els) => { const d = document.createElement("div"); d.className = "dcol"; els.forEach(e => d.append(e)); return d; };
-// ---- Device panels generated from the engine's parameter tables (design D8). Values live in the song/1 device
+// ---- Device panels generated from the engine's parameter tables (design D8). Values live in the song/2 device
 // (`d.values`, by parameter name); a knob or select writes there, sets the live parameter at once and queues an
 // engine update (structural parameters rebuild the device there). ----
 const status = document.createElement("div"); status.className = "rack-status"; status.setAttribute("aria-live", "polite");
@@ -436,7 +436,7 @@ function liveParam(t, d, p, v) {
   const di = engineDev(t, d); if (di >= 0 && E.node) E.setParam(trackIndex(t), di, p.index, v);
   livePush();
 }
-const initInstrument = () => ({ kind: 64, preset: "init", values: { "osc1.type": 0.5, "filt1.type": 0.125, "filt1.cutoff": 0.6, "env1.sustain": 0.7, "env1.release": 0.15 } });
+const initInstrument = () => ({ kind: 64, preset: "init", values: { "osc1.type": 0.16666667, "filt1.type": 0.1, "filt1.cutoff": 0.6, "env1.sustain": 0.7, "env1.release": 0.15 } });
 // A control for one parameter: select (choices, mod targets), number field (raw sampler index) or knob.
 function pctl(t, d, p, label) {
   const short = label ?? p.name.slice(p.name.indexOf(".") + 1).replace(/_/g, " ");
@@ -472,18 +472,25 @@ function pgroup(t, d, title, ps, opts = {}) {
   return g;
 }
 const OSC_SHAPES = { 1: ["waveform"], 2: ["waveform", "pulse width"], 3: ["bandwidth", "harmonics", "damp", "scale", "mod", "drive", "layers", "layer detune", "layer spread"],
-  4: ["start", null, null, "loop start", "loop length"], 5: ["mode", "colour", "ring"],
-  6: ["wave", "voices", "version", "clock", "retrigger", "filter base", "filter amount", "filter decay", "filter damp"] };  // s1 loop mode, s2 boundary, s5 reverse, s6 interp, s7 source: samplerPre; index: osc<i>.sample
+  4: ["start", null, null, "loop start", "loop length"],
+  // the naive generators (5–11): the colour; type, combine and law are their own parameters
+  5: [null, "colour"], 6: [null, "colour"], 7: [null, "colour"], 8: [null, "colour"], 9: [null, "colour"], 10: [null, "colour"], 11: [null, "colour"],
+  12: ["wave", "voices", "version", "clock", "retrigger", "filter base", "filter amount", "filter decay", "filter damp"] };  // s1 loop mode, s2 boundary, s5 reverse, s6 interp, s7 source: samplerPre; index: osc<i>.sample
 // Sampler shape knobs shown for the current settings: the loop start/length only for a custom loop that plays.
 const smpShapes = (d, i) => [0, ...(choice(vget(d, ip(`osc${i}.s1`)), 3) && choice(vget(d, ip(`osc${i}.s2`)), 2) ? [3, 4] : [])];
 const OSC_COMMON = ["tracking", "coarse", "fine", "octave", "ratio", "ratio_fine", "fixed_hz", "gain", "mix", "pan", "pm_out", "feedback"];
 const SLOTS = { osc: 3, filt: 4, env: 4, lfo: 2, mod: 12 };
 const slotKeys = (g, i) => INST().params.filter(p => p.name.startsWith(`${g}${i}.`)).map(p => p.name);
-/** A choice parameter's option name: expanded choices (`Law::Kinds`) store later kinds between the old ones. */
+/** A choice parameter's option name. */
 function optName(d, name) { const p = ip(name), o = p.options || []; return o[choice(vget(d, p), o.length)]; }
-// oscillator kind ids (unisynth `osc_type`): 5 = Naive (V2), 6 = Clocked; a literal, since oscType is hoisted (fmtVal
-// may run before this line)
-function oscType(d, i) { return Math.max(0, ["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive", "Clocked"].indexOf(optName(d, `osc${i}.type`))); }
+/** The stored value of a choice parameter's option `label` (from the engine's table, so no encoding is assumed here). */
+function optValue(name, label) { const o = ip(name).options || [], i = o.indexOf(label); return i <= 0 || o.length < 2 ? 0 : i / (o.length - 1); }
+// oscillator kind ids (unisynth `osc_type`): 5–11 the naive generators, 12 clocked; a literal, since oscType is hoisted
+// (fmtVal may run before this line)
+function oscType(d, i) {
+  return Math.max(0, ["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive saw/tri", "Naive pulse", "Sine", "Coloured noise", "FM",
+    "Aux in A", "Aux in B", "Clocked"].indexOf(optName(d, `osc${i}.type`)));
+}
 function slotUsed(d, g, i) {
   if (g === "osc") return oscType(d, i) !== 0;
   if (g === "filt") return optName(d, `filt${i}.type`) !== "Off";
@@ -787,7 +794,7 @@ const b64ToBytes = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 const bytesToB64 = b => { let s = ""; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000)); return btoa(s); };
 const gsmSongs = new Map();  // song path → parsed song (library loads)
 async function gsmOf(g) {
-  if (!gsmSongs.has(g.path)) gsmSongs.set(g.path, JSON.parse(await api.read(g.path)));
+  if (!gsmSongs.has(g.path)) gsmSongs.set(g.path, songText(await api.read(g.path)));
   const s = gsmSongs.get(g.path), t = [...s.tracks, s.master].find(x => x.id === g.track);
   return t?.devices?.[g.device]?.samples?.[g.sample] ?? null;
 }
@@ -804,7 +811,7 @@ const gsmSlot = d => [1, 2, 3].find(i => oscType(d, i) === 4 && choice(vget(d, i
 function useGsm(t, d, b64, label, slot = gsmSlot(d)) {
   const before = snap(); d.samples ??= [];
   let k = d.samples.indexOf(b64); if (k < 0) { d.samples.push(b64); k = d.samples.length - 1; }
-  Object.assign(d.values, { [`osc${slot}.type`]: 1, [`osc${slot}.s7`]: 0, [`osc${slot}.sample`]: k + 1 });
+  Object.assign(d.values, { [`osc${slot}.type`]: optValue(`osc${slot}.type`, "Sampler"), [`osc${slot}.s7`]: 0, [`osc${slot}.sample`]: k + 1 });
   overrides.get(t.id)?.clear(); livePush(); rebuildTracks(); renderAll(); commit(before, `${t.name}: osc ${slot} plays ${label} (GSM sample ${k + 1})`);
 }
 // Samples no GSM sampler slot plays still cost bytes in the intro: drop them and renumber the slots.
@@ -1515,20 +1522,25 @@ async function loadInto(t, src, it) {
   if (src.id === "project") {
     const text = await api.read(it.preset.path), r = E.presetLoad(text);
     if (!r.device) return say(`${it.name}: ${r.errors?.map(e => e.message).join("; ")}`);
-    const i = t.devices.indexOf(inst); t.devices[i] = { ...r.device, _edited: false }; inst = t.devices[i];
-    for (const ln of t.lanes) if (ln.dev === i && !paramOf(inst, ln.param)) ln.param = "filt1.cutoff";
+    const i = t.devices.indexOf(inst);
+    const lost = t.lanes.filter(ln => ln.dev === i && !paramOf(r.device, ln.param)).map(ln => ln.param);
+    if (lost.length) return say(`${it.name}: the lanes on ${lost.join(", ")} have no parameter in this patch`);
+    t.devices[i] = { ...r.device, _edited: false }; inst = t.devices[i];
   } else if (it.conv?.devices?.length) {
     // converted legacy entry: its instrument replaces the track's, its insert effects go right after it
     const [ins, ...fx] = it.conv.devices.map(d => ({ ...structuredClone(d), preset: it.name, _edited: false }));
-    const i = t.devices.indexOf(inst); t.devices.splice(i, 1, ins, ...fx); inst = ins;
-    for (const ln of t.lanes) { if (ln.dev > i) ln.dev += fx.length; else if (ln.dev === i && !paramOf(inst, ln.param)) ln.param = "filt1.cutoff"; }
+    const i = t.devices.indexOf(inst);
+    const lost = t.lanes.filter(ln => ln.dev === i && !paramOf(ins, ln.param)).map(ln => ln.param);
+    if (lost.length) return say(`${it.name}: the lanes on ${lost.join(", ")} have no parameter in this patch`);
+    t.devices.splice(i, 1, ins, ...fx); inst = ins;
+    for (const ln of t.lanes) if (ln.dev > i) ln.dev += fx.length;
   } else if (src.id === "gsm") {
     const b64 = await gsmOf(it.gsm); if (!b64) return say(`${it.name}: sample not found in ${it.gsm.path}`);
     return useGsm(t, inst, b64, it.name);
   } else if (src.id === "gm") {
     // a sampler slot on the GM.DLS instrument (source 0.5): each note plays the region for its key and velocity
     const g = it.gm, slot = [1, 2, 3].find(i => oscType(inst, i) === 4) || [1, 2, 3].find(i => !slotUsed(inst, "osc", i)) || 1;
-    Object.assign(inst.values, { [`osc${slot}.type`]: 1, [`osc${slot}.s7`]: 0.5, [`osc${slot}.sample`]: 1 + (g.drums ? 16384 : 0) + g.bank * 128 + g.prog });
+    Object.assign(inst.values, { [`osc${slot}.type`]: optValue(`osc${slot}.type`, "Sampler"), [`osc${slot}.s7`]: 0.5, [`osc${slot}.sample`]: 1 + (g.drums ? 16384 : 0) + g.bank * 128 + g.prog });
     delete inst.values[`osc${slot}.s8`];
     inst.preset = `GM ${it.gm.name}`; inst._edited = false;
   }
@@ -1708,7 +1720,7 @@ function showPos() {
 // position it reports. Every edit sends the exported song to the host, which applies it per track (D4). ----
 const frameOf = b => Math.max(0, Math.round((b - 1) / barsPerSec() * E.rate));
 const barOf = f => 1 + f / E.rate * barsPerSec();
-let songMeta = st0.meta, songLen0 = st0.length0;  // song/1 meta (title, author, licence notes) and [bars, ticks] as loaded
+let songMeta = st0.meta, songLen0 = st0.length0;  // song/2 meta (title, author, licence notes) and [bars, ticks] as loaded
 const uiState = () => ({ tracks: raw(tracks), master: raw(master), tempo: tr.tempo() || 120, sig: sig(), bars: BARS, length0: songLen0, ...(songMeta ? { meta: songMeta } : {}) });
 const cleanDev = d => { const { _edited, _dev, ...x } = d; return x; };
 const songOf = live => { const s1 = M.toSong(uiState(), live ? audible : undefined); for (const t of [...s1.tracks, s1.master]) t.devices = t.devices.map(cleanDev); return s1; };
@@ -1928,7 +1940,7 @@ function dirtyUpd() {
   files.setDirty({ on: d, n });
   document.getElementById("saved-info").textContent = d ? `${n} unsaved change${n > 1 ? "s" : ""}` : savedAt ? `Saved ${savedAt.toTimeString().slice(0, 5)}` : "No changes";
 }
-// Puts a song/1 source into the editor (undo history cleared).
+// Puts a song/2 source into the editor (undo history cleared).
 function useSong(s, file, saved) {
   if (playing) setPlay(false);
   const st = M.fromSong(s), d = JSON.parse(snap()); songMeta = st.meta; songLen0 = st.length0;
@@ -1940,8 +1952,14 @@ function useSong(s, file, saved) {
   H.clear(); songFile = file; files.setSongFile(file); files.addSong(file); savedDepth = 0; savedAt = saved ? new Date() : null;
   relayout(); updateLoop(); SONG_POS = 1; showPos(); fitSong(true); if (saved) markSaved(); else savedId = -1; liveLoaded = false; livePush(); dirtyUpd();
 }
+// A song file as the current layout: a song/1 file migrates (the engine's `song_migrate`), song/2 as it is.
+function songText(text) {
+  const r = E.migrate(text);
+  if (!r.song) throw new Error(r.errors.map(e => `${e.path}: ${e.message}`).join("; "));
+  return r.song;
+}
 async function loadSong(f) {
-  try { useSong(JSON.parse(await api.read(f)), f, true); say(`opened ${f}`); } catch (e) { say(`cannot open ${f}: ${e.message}`); }
+  try { useSong(songText(await api.read(f)), f, true); say(`opened ${f}`); } catch (e) { say(`cannot open ${f}: ${e.message}`); }
 }
 function openSong(f) {
   if (f === songFile) return;
@@ -1964,11 +1982,11 @@ async function save() {
   const r = await api.write(songFile, json);
   if (!r.ok) { if (r.errors) showErrors(r.errors, "Save"); else say(`save failed: ${r.error}`); return false; }
   markSaved(); savedDepth = H.depth; savedAt = new Date(); files.addSong(songFile);
-  dirtyUpd(); say(`${api.static ? "downloaded (read-only preview)" : "saved"} ${songFile} (song/1, ${(json.length / 1024).toFixed(1)} kB)`); return true;
+  dirtyUpd(); say(`${api.static ? "downloaded (read-only preview)" : "saved"} ${songFile} (song/2, ${(json.length / 1024).toFixed(1)} kB)`); return true;
 }
 window.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); e.stopImmediatePropagation(); save(); } }, true);
 window.addEventListener("beforeunload", e => { if (isDirty()) { e.preventDefault(); e.returnValue = ""; } });
-const emptySong = () => ({ format: "song/1", rate: 44100, tempo: 120, signature: [4, 4], ticks_per_beat: 960, length: 8 * 3840, clips: [],
+const emptySong = () => ({ format: "song/2", rate: 44100, tempo: 120, signature: [4, 4], ticks_per_beat: 960, length: 8 * 3840, clips: [],
   tracks: [{ id: "t1", name: "Track 1", color: "--t-lead", volume: 0.5, mute: false, receives: [], devices: [initInstrument()], placements: [], lanes: [] }],
   master: { id: "master", name: "Master", volume: 1, mute: false, receives: [{ from: "t1", channel: "main", volume: 1 }], devices: [], placements: [], lanes: [] } });
 function newSong() {

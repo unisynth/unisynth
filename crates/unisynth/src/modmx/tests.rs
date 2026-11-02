@@ -10,7 +10,7 @@ fn near(a: f32, b: f32) -> bool {
 fn set(p: &mut [f32; COUNT], i: usize, src: usize, tgt: u8, scale: bool, amount: f32) {
     p[modslot(i, m::SOURCE)] = inv::inv_choice(src, source::COUNT);
     p[modslot(i, m::TARGET)] = inv::inv_index(tgt);
-    p[modslot(i, m::OPERATION)] = inv::inv_choice(if scale { 0 } else { 1 }, 2);
+    p[modslot(i, m::OPERATION)] = op::encode(if scale { op::SCALE } else { op::OFFSET });
     p[modslot(i, m::AMOUNT)] =
         if scale { inv::inv_scale_amount(amount) } else { inv::inv_offset_amount(amount, target::offset_range(tgt)) };
 }
@@ -239,7 +239,7 @@ fn controller_and_v2_note_sources_and_legacy_targets() {
     // V2 note source: 2·(60 − 48)/128 at note 60
     let pan = target::PARAM;
     let mut p = DEFAULTS;
-    set_add(&mut p, 0, source::V2_NOTE, pan, 1.0);
+    set_add(&mut p, 0, source::NOTE_CENTRED, pan, 1.0);
     mm.eval(&p, &sources());
     let mut v = p;
     mm.apply(&mut v, false);
@@ -249,4 +249,39 @@ fn controller_and_v2_note_sources_and_legacy_targets() {
     set_add(&mut p, 0, source::VELOCITY, target::filter_cutoff(0), 1.0);
     set(&mut p, 1, source::VELOCITY, target::PARAM, true, 1.0);
     assert!(!routes(&p, 0) && !routes(&p, 1));
+}
+
+#[test]
+fn a_slot_past_ten_needs_the_add_module() {
+    // the matrix without `us-matrix-add` is the chunk's one-byte block of slots 1–10 (unify-v2-algorithms)
+    let mut p = DEFAULTS;
+    set(&mut p, 10, source::VELOCITY, target::GAIN, true, 1.0);
+    assert!(needs_add(&p, 10), "slot 11");
+    let mut q = DEFAULTS;
+    set(&mut q, 9, source::VELOCITY, target::GAIN, true, 1.0);
+    assert!(!needs_add(&q, 9), "slot 10");
+    // its index is two-byte: a build without the escapes refuses it first
+    #[cfg(all(feature = "std", not(feature = "us-matrix-add")))]
+    assert_eq!(
+        crate::instrument::UInstrument::need(&crate::chunk::encode(&p, &[])).err(),
+        Some(synth_core::mix::LoadError::UnsupportedModule(if cfg!(feature = "us-chunk-wide") {
+            crate::module::MATRIX_ADD
+        } else {
+            crate::module::CHUNK_WIDE
+        }))
+    );
+}
+
+#[cfg(feature = "std")]
+#[test]
+fn a_lane_that_can_make_a_slot_add_needs_the_add_module() {
+    // review of the format switch: the slot is Scale in the chunk, a lane can move it to Add
+    let mut p = DEFAULTS;
+    set(&mut p, 0, source::VELOCITY, target::GAIN, true, 1.0);
+    let c = crate::chunk::encode(&p, &[]);
+    let o = pm::modslot(0, pm::m::OPERATION);
+    let no = crate::needs::instrument(&c, &|_| None).unwrap();
+    assert!(!no.contains(&crate::module::MATRIX_ADD));
+    let lane = crate::needs::instrument(&c, &|i| (i == o).then_some((0.0, 1.0))).unwrap();
+    assert!(lane.contains(&crate::module::MATRIX_ADD));
 }

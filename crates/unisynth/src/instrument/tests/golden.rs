@@ -7,7 +7,7 @@
 use super::osc_sample::{bank, chunk_of, dls_slot, gsm_entry, sh, with_bank};
 use super::*;
 use crate::modmx::{source, target};
-use crate::params::{e, env, l, lfo, shape as sp, v};
+use crate::params::old::{e, env, l, lfo, shape as sp, v};
 
 const RATE: f64 = 44100.0;
 const FRAMES: usize = 24_000;
@@ -188,7 +188,7 @@ fn patches() -> Vec<(&'static str, Vec<u8>, Option<Vec<u8>>)> {
     out
 }
 
-use crate::params::{f as fp, filt, filter_type as ft, n, NOISE};
+use crate::params::old::{f as fp, filt, filter_type as ft, n, NOISE};
 
 fn play(chunk: &[u8], bank: Option<&[u8]>) -> Vec<f32> {
     with_bank(chunk, bank, RATE, |ins| {

@@ -9,7 +9,7 @@ const BAR: i64 = 3840;
 /// A 120 BPM song with one instrument track `lead` whose single clip (placed once at 0) holds `notes`.
 fn song(bars: i64, notes: &[[i64; 4]]) -> Song {
     let v = serde_json::json!({
-        "format": "song/1", "rate": 44100, "tempo": 120.0, "signature": [4, 4], "ticks_per_beat": 960,
+        "format": "song/2", "rate": 44100, "tempo": 120.0, "signature": [4, 4], "ticks_per_beat": 960,
         "length": bars * BAR,
         "clips": [{ "id": "all", "length": bars * BAR, "notes": notes }],
         "tracks": [
