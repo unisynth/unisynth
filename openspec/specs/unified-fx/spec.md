@@ -90,15 +90,11 @@ the song's tempo and rate. An effect SHALL NOT allocate during rendering.
 - **THEN** the reported pool size covers the delay line and the render never reads outside it
 
 ### Requirement: Comb reverb, modulated delay, look-ahead compressor and cut EQ modes
-The effects SHALL have these modes:
-- reverb `comb`: parallel combs with damping, then all-passes, with a low cut
-- delay `modulated`: a modulated stereo delay
-- compressor `lookahead`: peak or RMS detection, look-ahead, stereo link
-- EQ `cut`: a low cut and a high cut
-
-Their parameters SHALL use 7-bit laws (value = step / 128). These four modes SHALL have no format-version (era)
-parameter: version-dependent behaviour is written by the converter (low cut off) or is a setting of the mode: the Cut EQ's DC filter. (The source's denormal bias is dropped: no song moved without it.)
-The other modes and their parameter layouts SHALL be unchanged.
+The effects SHALL have these modes: reverb `comb` (parallel damped combs, all-passes, low cut), delay `modulated`
+(modulated stereo delay), compressor `lookahead` (peak or RMS detection, look-ahead, stereo link) and EQ `cut` (low
+and high cut). Their parameters SHALL use 7-bit laws (value = step / 128) and SHALL have no
+format-version parameter: the converter writes version-dependent behaviour (reverb low cut off), and the cut EQ's DC
+filter is a setting. The other modes SHALL be unchanged.
 
 #### Scenario: Existing modes unchanged
 - **WHEN** the effect self-goldens recorded before this change are run

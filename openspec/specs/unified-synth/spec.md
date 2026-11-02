@@ -16,11 +16,10 @@ The instrument SHALL build `no_std` for the i686 compo target and `wasm32-unknow
 - **THEN** both builds succeed and the linker map contains no `core::fmt` symbols
 
 ### Requirement: Device kind and chunk
-The instrument SHALL be `synth-mix` device kind 64. Its chunk SHALL hold a format version, the parameter values that
-differ from their defaults as index/value pairs in strictly increasing index order, a sample section, and (format
-version 4 only) a speech text section, with no bytes after it. Parameters not in the chunk SHALL take their defaults.
-A chunk without speech text SHALL be written as format version 3. The player SHALL reject format versions 1 and 2 (the
-layout before this change) with an error; the host migration converts them.
+The instrument SHALL be `synth-mix` device kind 64. Its chunk SHALL hold a format version, the non-default parameter
+values as index/value pairs in strictly increasing index order, a sample section and (version 4 only) a speech text
+section, with nothing after it; absent parameters take their defaults. Without speech text the chunk SHALL be version
+3. The player SHALL reject versions 1 and 2 (the earlier layout) with an error; the host migration converts them.
 
 #### Scenario: Sparse chunk
 - **WHEN** a chunk sets only oscillator slot 1 type and level
@@ -184,12 +183,10 @@ free-running. A Scale slot SHALL see an LFO as `1 − d + d·shape` (unipolar, d
 - **THEN** the LFO completes one ramp in 0.5 s and then holds its end value
 
 ### Requirement: Mod matrix
-The voice SHALL have a 16-slot mod matrix: source (envelope 1–4, LFO 1–2, mod wheel, velocity, key, and the
-controllers breath, CC 3–6 and volume), target, amount and operation. A Scale slot SHALL multiply the target's
-normalized value (several Scale slots multiply together). An Offset slot SHALL add amount × source in the target's
-physical unit after mapping (several add together). Slots 1–10 SHALL be one-byte parameters of the chunk and slots
-11–16 two-byte ones; the matrix without the Add module SHALL evaluate slots 1–10, and every slot's default SHALL be no
-source.
+The voice SHALL have a 16-slot mod matrix: source (envelope 1–4, LFO 1–2, mod wheel, velocity, key, breath, CC 3–6,
+volume), target, amount and operation. Scale slots SHALL multiply the target's normalized value together; Offset slots
+SHALL add amount × source in the target's physical unit after mapping. Slots 1–10 SHALL be one-byte chunk parameters
+and slots 11–16 two-byte ones, evaluated only with the Add module; every slot SHALL default to no source.
 
 #### Scenario: Scale composition
 - **WHEN** two Scale slots aim at filter 1 cutoff with results 0.5 and 0.5
