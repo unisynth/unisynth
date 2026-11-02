@@ -757,6 +757,18 @@ in turn (`--cfg us_quirk_off="<quirk>"` before the switch) over the 347 V2 songs
 | `dc_bias` | the channel strip's and the 7-bit effects' denormal bias | 6 | 36 | none; none past the listening thresholds either | dropped |
 | `filter bias` | the feedback and 4-pole forms' denormal bias (every version; the drive's filter modes too) | 0–6 | 347 | none; none past the listening thresholds either (checked at the freeze, task 6.4) | dropped |
 
+Each kept quirk, its source build, cargo feature and module id, and the songs that leave the parity tolerance without
+it (song files under `project/music/released/v2/`; loudness / worst octave band in dB; "original" = against the V2
+render of the parity suite, else against the song's own render with the quirk on):
+
+| Quirk | Source | Feature (module id) | Songs past tolerance without it |
+|---|---|---|---|
+| `quirk.coarse_env` | V2 format versions 0–1 (the 2000 envelope) | `us-quirk-coarse-env` (61) | fr08 against its original (−1.46 / −2.21); `kb-fr-08-the-product-main` (−1.34 / −2.20), `loader` (−1.24 / −2.07), `tpinv` (−1.27 / −2.13), `entropy-fr-010-art-entroxion-sanxion-remix` (−1.01 / −2.09) |
+| `quirk.lcg_noise` | V2 format versions 0–4 (MSVC `rand`-style LCG) | `us-quirk-lcg-noise` (60) | fr014 (+1.33 / +5.07) and fr08 (+0.58 / +3.43) against their originals; `wayfinder-fr-014-garbage-collection-main` (+1.32 / +5.00), `kb-fr-08-the-product-main` (+0.70 / +3.48), `loading` and `whateverload` (+0.48 / +6.95) |
+| `quirk.exact_math` | V2 format versions 0–5, not the 2004 build (C runtime `sin`, `atan`) | `us-quirk-exact-math` (57) | kkrieger against its original (−0.88 / −6.40); `tport-metaproducts-kg` (−1.16 / −5.96), `entropy-fr-010-art-entroxion-sanxion-remix` (−0.94 / −5.15), `tport-mp3-joiner-1-0-crk` (−2.92 / −4.35), `tport-metaproducts-picture-downloader-1-0-589-kg` (−0.24 / −3.64), `quickyman-funny-rythm` (−1.33 / −2.07), `pista-crystal-gate-loader` (−1.25 / −1.74), `quickyman-welcome-mr-saw` (−1.10 / −1.06) |
+| `quirk.integer_fm` | V2 format versions 0–5, not the 2004 build (x87 `fistp` phase offset) | `us-quirk-integer-fm` (58) | kkrieger (+0.34 / +7.56) and fr029 (+0.79 / +3.04) against their originals; `v2mplayer-greetz-to-breakpoint` (+1.09 / +9.92), `icefall-subcelestial-beauty` (+0.08 / +5.76), `preston-demo-or-suck` (+0.92 / +5.70), `kz-total-commander-6-7-x-x-crk` and `v2mplayer-the-2nd-movement-sid-remix` (−1.29 / −5.29), `quickyman-stop-the-user` (+0.37 / +4.98), `tad-short-fm-2` (−0.79 / +4.64), `tport-flash-sound-grabber-1-10-crk` (+1.93 / +3.89), `icefall-subcelestial-silence` (+0.46 / +3.79), `dq-coop-biff-3d-igel-intro` (−0.09 / +3.25) |
+| `quirk.fixed_seed` | V2 format versions 0–5 (noise seeds at 0 instead of per voice) | `us-quirk-fixed-seed` (59) | `under-seh-auslogics-boostspeed-4-1-4-135-crk` (−0.09 / −3.33) |
+
 
 **Combine.** Every slot meets the running sum of the earlier slots through one step (`osc::mix_in`): add (panned by
 the slot and the voice pan), multiply (ring) or replace (both on both channels of the sum). The running mono sum

@@ -1,5 +1,5 @@
 // Library state (change daw-solid-ts 4.2): every instrument source in one searchable tree (/api/library). Project
-// presets load as us-patch/1; the GM bank sets a sampler wave; Tunefish and WaveSabre entries load once synth-convert
+// presets load as us-patch/2 (us-patch/1 migrated); the GM bank sets a sampler wave; Tunefish and WaveSabre entries load once synth-convert
 // has converted them (project/music/.library.json). Pure helpers + the signals ui/library/Library.tsx renders.
 import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";

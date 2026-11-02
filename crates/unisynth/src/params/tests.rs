@@ -466,7 +466,7 @@ fn the_rename_map_covers_every_old_parameter() {
 pub(crate) fn has_source_name(s: &str) -> bool {
     // words, not substrings: `env2` is envelope 2, not V2
     let l = s.to_ascii_lowercase();
-    ["tunefish", "wavesabre", "ronan", "moog", "slaughter", "falcon", "cauldron"].iter().any(|x| l.contains(x))
+    ["tunefish", "wavesabre", "farbrausch", "ronan", "moog", "slaughter", "falcon", "cauldron"].iter().any(|x| l.contains(x))
         || l.split(|c: char| !c.is_ascii_alphanumeric()).any(|t| t == "tf" || t == "ws" || t.starts_with("v2"))
 }
 

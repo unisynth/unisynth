@@ -673,7 +673,7 @@ fn an_import_config_names_the_tracks_and_attaches_descriptions() {
 fn no_source_names_in_the_parameter_table() {
     fn source(s: &str) -> bool {
         let l = s.to_ascii_lowercase();
-        ["tunefish", "wavesabre", "ronan", "moog", "slaughter", "falcon", "cauldron"].iter().any(|x| l.contains(x))
+        ["tunefish", "wavesabre", "farbrausch", "ronan", "moog", "slaughter", "falcon", "cauldron"].iter().any(|x| l.contains(x))
             || l.split(|c: char| !c.is_ascii_alphanumeric()).any(|t| t == "tf" || t == "ws" || t.starts_with("v2"))
     }
     let mut bad = vec![];
