@@ -3,6 +3,9 @@ import { raw } from "./ui/state/song.ts";
 import { api, armed, E, initSession, master, selected, setArmed, setSelected, song, tracks } from "./ui/app/session.ts";
 import { commit, H, initCore, lastSaid, redo, restore, say, snap, undo } from "./ui/app/core.ts";
 import { BARS, barsPerSec, beatsPerBar, fmtBars, followHold, holdFollow, LOOP, loopOn, PAD_BARS, playing, resumeFollow, setBars, setLoopOn, setPos, sig, SONG_POS } from "./ui/app/transport.ts";
+import { addAutoLane, addLane, applyAutomation, curVal, grab, initAutomation, knobEdited, laneVals, recOn, recordFrame, recordPoint, release, setRec, updateReauto } from "./ui/app/automation.ts";
+import { BW, setBW } from "./ui/app/arrange.ts";
+import { css } from "./ui/app/theme.ts";
 import { audible, ensureAudio, initEngine, livePush, liveLoop, onBuffer, onOpenFilters, pushSong, seek, setPlay, setSongMeta, songOf, stopPressed, unloadLive } from "./ui/app/engine.ts";
 import * as liveState from "./ui/state/live.ts";
 import * as tr from "./ui/state/transport.ts";
@@ -35,8 +38,6 @@ import { b64ToBytes, bytesToB64, gmInstrument } from "./ui/model/bytes.ts";  // 
 // engine (AudioWorklet + synth-wasm live host), device panels generated from the engine's parameter tables and
 // /api/music. Started by main.ts with { engine, model, api, tables, initial, files, library }.
 export function start(DAW) {
-let BW = 44;  // arrangement px per bar (song length, playhead, loop: ui/app/transport.ts)
-const laneVals = [];
 let CAT = null;  // library catalog (/api/library)
 initSession(DAW);  // engine, api, song store proxies, selection (ui/app/session.ts)
 const M = DAW.model, TABLES = DAW.tables;
@@ -66,10 +67,6 @@ mountLibrary(document.getElementById("lib"), {
   hasInst: () => { selectedId(); return !!instOf(selected); }, target: () => { selectedId(); return selected.name; },
   audition: (src, it, done) => auditionEntry(src, it, done), load: (src, it) => loadInto(selected, src, it),
 });
-// Colour tokens of style.css (static: no theme switching), cached — getComputedStyle per knob/lane draw cost seconds
-// per undo on large songs (bench/ui-profile.ts).
-const cssCache = new Map();
-const css = v => { let x = cssCache.get(v); if (x === undefined) cssCache.set(v, x = getComputedStyle(document.documentElement).getPropertyValue(v).trim()); return x; };
 
 // Ruler
 const ruler = document.getElementById("ruler");
@@ -153,116 +150,15 @@ function knobEdited(t, d, p) {
   if (d.kind === 64 && !d._edited) { d._edited = true; arrange.setLabelRev(n => n + 1); }  // the panel and the header show the * on the edited preset
 }
 /** One line from a song/2 about: type · style · tempo · engine · like … — description. */
+// Automation: values at the playhead, recording, lane rows (ui/app/automation.ts).
+initAutomation({ rebuildTracks: () => rebuildTracks() });
+/** One line from a song/1 about: type · style · tempo · engine · like … — description. */
 const aboutText = a => [a.type, a.style, a.tempo, a.engine, a.similar_to?.length ? "like " + a.similar_to.join(", ") : ""].filter(Boolean).join(" · ") + " — " + a.description;
 const live = document.getElementById("live");
-// One automation lane: header (.thdr.auto) and lane (.lane.auto) elements for the row (ui/arrange/Tracks.tsx inserts
-// them, one pair per t.lanes entry); the SVG draw and the point editor stay imperative (design D4). Returns the
-// elements and a dispose that unregisters the lane from laneVals.
-function addLane(t, ln) {
-  // the target list (every parameter of every device, hundreds of options) is built when the select is first used;
-  // until then it holds the current target only (rows mount while scrolling: design D6)
-  const names = devicesOf(t), opts = () => { const used = new Set(t.lanes.filter(x => x !== ln).map(x => x.dev + ":" + x.param));
-    return t.devices.map((dv, di) => `<optgroup label="${names[di]}">${autoParams(dv).map(p =>
-      `<option value="${di}:${p.name}"${di === ln.dev && p.name === ln.param ? " selected" : ""}${used.has(di + ":" + p.name) ? " disabled" : ""}>${names[di]} · ${p.name}</option>`).join("")}</optgroup>`).join(""); };
-  const ah = document.createElement("div"); ah.className = "thdr auto";
-  const cur = () => laneText(t, ln, laneValue(ln.pts, SONG_POS));
-  ah.innerHTML = `<label class="tgt"><span aria-hidden="true">↳</span><select aria-label="${t.name} automation target"><option value="${ln.dev}:${ln.param}" selected>${names[ln.dev]} · ${ln.param}</option></select></label>
-    <span class="num val" title="Value at the playhead">${cur()}</span>
-    <button class="rm" aria-label="Remove ${devicesOf(t)[ln.dev]} ${ln.param} lane" title="Remove lane">✕</button>`;
-  const al = document.createElement("div"); al.className = "lane auto"; al.setAttribute("role", "group"); al.setAttribute("aria-label", `${t.name} ${devicesOf(t)[ln.dev]} ${ln.param} automation`);
-  // Point editor. Mouse: click empty = add, drag point = move (snap 1/16 bar, Alt = free; time stays between
-  // neighbours), double-click / right-click point = delete. Keyboard (point focused): ←/→ time, ↑/↓ value
-  // (Shift = fine), Delete/Backspace = delete. Every gesture is one undo step in the real app.
-  const H = 40, X = b => (b - 1) * BW, Y = v => H - 4 - v * (H - 8);
-  let selI = -1, drag = null, lastDown = null;
-  const fmtBar = b => { const t = Math.round((b - 1) * 16); return `${1 + Math.floor(t / 16)}.${1 + Math.floor((t % 16) / 4)}.${(t % 4) * 240}`; };
-  const draw = (focus = false) => {
-    const lp = raw(ln.pts), dname = devicesOf(t)[ln.dev];  // read-only: raw points, name once (not per point)
-    const W = (BARS + PAD_BARS) * BW;
-    const pts = [[1, lp[0][1]], ...lp, [BARS + 1, lp[lp.length - 1][1]]];
-    const c = css(t.col);
-    al.innerHTML = `<svg width="${W}" height="${H}"><polygon fill="${c}1f" points="${X(1)},${H} ${pts.map(([b, v]) => `${X(b)},${Y(v)}`).join(" ")} ${X(BARS + 1)},${H}"/><polyline fill="none" stroke="${c}" stroke-width="1.5" points="${pts.map(([b, v]) => `${X(b)},${Y(v)}`).join(" ")}"/>${
-      lp.map(([b, v], i) => `<g class="pt${i === selI ? " sel" : ""}" data-i="${i}" tabindex="0" role="slider" aria-label="${dname} ${ln.param} point ${i + 1} at ${fmtBar(b)}" aria-valuemin="0" aria-valuemax="1" aria-valuenow="${v.toFixed(3)}" aria-valuetext="${laneText(t, ln, v)} at bar ${fmtBar(b)}"><circle class="hit" cx="${X(b)}" cy="${Y(v)}" r="8"/><circle class="dot" cx="${X(b)}" cy="${Y(v)}" r="${i === selI ? 4 : 3}" fill="${i === selI ? c : css("--bg")}" stroke="${c}"/></g>`).join("")
-    }${drag && drag.moved ? (() => { const [b, v] = lp[drag.i]; const tx = Math.min(W - 120, X(b) + 8); return `<rect x="${tx - 3}" y="2" width="118" height="14" rx="3" fill="${css("--panel")}" stroke="${css("--line")}"/><text x="${tx}" y="12" font-size="10" fill="${css("--fg")}" font-family="ui-monospace,monospace">${fmtBar(b)} · ${laneText(t, ln, v)}</text>`; })() : ""}</svg>`;
-    ah.querySelector(".val").textContent = cur(); applyAutomation();
-    if (focus && selI >= 0) al.querySelector(`.pt[data-i="${selI}"]`)?.focus();
-  };
-  const entry = { draw, t, ln, ah, val: () => { ah.querySelector(".val").textContent = cur(); } }; laneVals.push(entry); draw();
-  const toBV = (e, free) => {
-    const r = al.getBoundingClientRect();
-    const raw = 1 + (e.clientX - r.left) / BW, b = free ? raw : 1 + Math.round((raw - 1) * 16) / 16;
-    return [Math.min(BARS + 1, Math.max(1, b)), Math.min(1, Math.max(0, (r.top + H - 4 - e.clientY) / (H - 8)))];
-  };
-  const clampTime = (i, b) => {
-    const lo = i > 0 ? ln.pts[i - 1][0] + 1 / 64 : 1, hi = i < ln.pts.length - 1 ? ln.pts[i + 1][0] - 1 / 64 : BARS + 1;
-    return Math.min(hi, Math.max(lo, b));
-  };
-  const remove = i => { const before = snap(); setTimeout(() => commit(before, `${ln.param}: point deleted`)); if (ln.pts.length === 1) { status2(`${ln.param}: last point kept; remove the lane with ✕ instead`); return; } ln.pts.splice(i, 1); selI = Math.min(i, ln.pts.length - 1); draw(true); status2(`point deleted`); };
-  const status2 = m => { live.textContent = `${t.name} ${ln.param}: ${m}`; };
-  al.addEventListener("pointerdown", e => {
-    if (e.button !== 0) return;
-    const g = e.target.closest(".pt");
-    al.setPointerCapture(e.pointerId);
-    if (g) {
-      const i = +g.dataset.i, now = performance.now();
-      if (lastDown && lastDown.i === i && now - lastDown.t < 400) { lastDown = null; drag = null; remove(i); return; }  // double-click
-      lastDown = { i, t: now };
-      selI = i; drag = { i, moved: false, x0: e.clientX, y0: e.clientY, before: snap() }; draw();
-    }
-    else drag = { add: true, x0: e.clientX, y0: e.clientY, before: snap() };
-  });
-  al.addEventListener("pointermove", e => {
-    if (!drag || drag.add) return;
-    if (!drag.moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 3) return;
-    drag.moved = true;
-    const [b, v] = toBV(e, e.altKey);
-    ln.pts[drag.i] = [clampTime(drag.i, b), v]; draw();
-  });
-  al.addEventListener("pointerup", e => {
-    if (drag?.add && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 3) {
-      const [b, v] = toBV(e, e.altKey);
-      ln.pts.push([b, v]); ln.pts.sort((p1, p2) => p1[0] - p2[0]); selI = ln.pts.findIndex(p => p[0] === b && p[1] === v); status2(`point added at ${fmtBar(b)}`);
-    } else if (drag?.moved) status2(`point moved to ${fmtBar(ln.pts[drag.i][0])}, ${laneText(t, ln, ln.pts[drag.i][1])}`);
-    if (drag?.before) commit(drag.before, live.textContent);
-    drag = null; draw(true);
-  });
-  al.addEventListener("contextmenu", e => { const g = e.target.closest(".pt"); if (g) { e.preventDefault(); remove(+g.dataset.i); } });
-  al.addEventListener("focusin", e => { const g = e.target.closest(".pt"); if (g && +g.dataset.i !== selI) { selI = +g.dataset.i; draw(true); } });
-  al.addEventListener("keydown", e => {
-    const g = e.target.closest(".pt"); if (!g) return;
-    const i = +g.dataset.i; let [b, v] = ln.pts[i];
-    const dv = e.shiftKey ? 0.005 : 0.05, db = e.shiftKey ? 1 / 64 : 1 / 16;
-    if (e.key === "ArrowUp") v = Math.min(1, v + dv); else if (e.key === "ArrowDown") v = Math.max(0, v - dv);
-    else if (e.key === "ArrowRight") b = clampTime(i, b + db); else if (e.key === "ArrowLeft") b = clampTime(i, b - db);
-    else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); remove(i); return; }
-    else return;
-    e.preventDefault(); const before = snap(); ln.pts[i] = [b, v]; selI = i; draw(true); commit(before, `${ln.param} point ${fmtBar(b)} · ${laneText(t, ln, v)}`);
-  });
-  { const sl = ah.querySelector(".tgt select"); let full = false;
-    const fill = () => { if (full) return; full = true; sl.innerHTML = opts(); };
-    for (const ev of ["pointerdown", "focus", "keydown"]) sl.addEventListener(ev, fill); }
-  ah.querySelector(".tgt select").addEventListener("change", e => {
-    const [di, p] = e.target.value.split(":"), before = snap(); ln.dev = +di; ln.param = p; draw(); commit(before, `${t.name}: lane now ${devicesOf(t)[ln.dev]} · ${p}`);
-  });
-  ah.querySelector(".rm").addEventListener("click", () => {
-    const before = snap(); t.lanes.splice(t.lanes.indexOf(ln), 1); applyAutomation(); commit(before, `${t.name}: lane ${ln.param} removed`);
-  });
-  return { ah, al, dispose: () => { const i = laneVals.indexOf(entry); if (i >= 0) laneVals.splice(i, 1); } };
-}
 // Track rows: ui/arrange/Tracks.tsx (windowed, design D6). A mounted row in the view window renders its clips and, while
 // open, its automation lanes (addLane per lane); rebuildTracks() bumps arrange.rev so mounted rows refill after
 // add/delete/reorder/undo. Rows off screen hold nothing (laneEl / laneVals only list mounted rows). Clips render
 // reactively in the lane (Clip.tsx), culled to the bars around the view.
-// "+ lane": the next free automatable parameter (filter cutoff first), one undo step; the row shows it (store).
-function addAutoLane(t) {
-  const used = new Set(t.lanes.map(x => x.dev + ":" + x.param));
-  const pref = ["filt1.cutoff", "filt1.resonance", "master", "dry_wet", "feedback"];
-  const cand = t.devices.flatMap((dv, di) => autoParams(dv).map(p => [di, p])).filter(([di, p]) => !used.has(di + ":" + p.name));
-  const free = cand.find(([, p]) => pref.includes(p.name)) || cand[0];
-  if (!free) return live.textContent = `${t.name}: ${t.devices.length ? "every automatable parameter already has a lane" : "add a device first"}`;
-  const [di, p] = free, d = t.devices[di], before = snap(), ln = { dev: di, param: p.name, pts: [[1, d.values[p.name] ?? p.default]] };
-  t.lanes.push(ln); commit(before, `${t.name}: lane ${devicesOf(t)[di]} · ${p.name} added`);
-}
 function rebuildTracks() {
   arrange.setRev(v => v + 1);
   if (typeof relayout === "function") { relayout(); applyAutomation(); hdrPad(); hdrs.scrollTop = lw.scrollTop; }
@@ -593,8 +489,7 @@ function deviceActions() {
     sideSenders: t => tracks.filter(x => x.sends.some(s1 => s1[0] === t.name && s1[1] === "side")).map(x => x.name),
     setParam: (t, d, p, v, msg) => { const before = snap(); d.values[p.name] = v; liveParam(t, d, p, v); if (p.structural || p.name.endsWith(".type") || p.name === "mode") renderDevice(); commit(before, msg); },
     knobInput: (t, d, p, v) => { d.values[p.name] = v; if (!(recOn && playing && recordPoint(t, d, p, v))) knobEdited(t, d, p); liveParam(t, d, p, v); },
-    grab: (t, d, p) => { if (recOn) recHold = { t, d, p }; },
-    release: (t, d, p) => { if (recHold) recLast.delete(`${t.id}:${t.devices.indexOf(d)}:${p.name}`); recHold = null; },
+    grab, release,
     begin: () => snap(), end: (before, msg) => commit(before, msg),
     // a mode change selects another parameter set: keep only the mode
     modeChanged: (t, d) => { for (const k of Object.keys(d.values)) if (k !== "mode") delete d.values[k]; renderDevice(); livePush(); },
@@ -1312,7 +1207,7 @@ function tick(now) {
 initEngine({
   showPos: () => showPos(),
   seeked: () => { applyAutomation(); laneVals.forEach(l => l.val()); },
-  frame: now => { if (recOn && recHold) recordPoint(recHold.t, recHold.d, recHold.p, curVal(recHold.d, recHold.p.name)); showPos(); applyAutomation(); laneTick(now); },
+  frame: now => { recordFrame(); showPos(); applyAutomation(); laneTick(now); },
 });
 let lastLane = 0;
 function laneTick(now) { if (now - lastLane < 100) return; lastLane = now; laneVals.forEach(l => l.val());
@@ -1608,7 +1503,7 @@ function setVolume(t, v, done) {
 function zoomArr(f, clientX, quiet) {
   const r = lw.getBoundingClientRect(), ax = (clientX ?? r.left + lw.clientWidth / 2) - r.left, s0 = lw.scrollLeft, b0 = BW;
   const nb = clamp(BW * f, 6, 400); if (Math.abs(nb - BW) < .01) return;
-  BW = nb; arrange.setBw(BW); document.documentElement.style.setProperty("--bar-w", BW + "px");
+  setBW(nb); arrange.setBw(BW); document.documentElement.style.setProperty("--bar-w", BW + "px");
   relayout(); tracks.forEach(renderLane); updateLoop(); drawCursor(); showPos();
   lw.scrollLeft = anchorScroll(s0, ax, b0, BW); if (!quiet) say(`arrangement zoom ${Math.round(BW / 44 * 100)}%`);
 }

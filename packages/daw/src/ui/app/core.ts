@@ -24,6 +24,10 @@ export function initCore(h: CoreHooks): void {
 }
 /** Shows a status message and announces it (aria-live). */
 export function say(m: string): void { if (statusEl) statusEl.textContent = m; if (liveEl) liveEl.textContent = m; }
+/** Announces a message to screen readers only (aria-live), leaving the status line. */
+export function announce(m: string): void { if (liveEl) liveEl.textContent = m; }
+/** Text last announced (aria-live). */
+export const announced = (): string => liveEl?.textContent ?? "";
 /** The last status message (commands built from several steps extend it). */
 export const lastSaid = (): string => statusEl?.textContent ?? "";
 
