@@ -253,6 +253,8 @@ before → `AGENTS.md` rows → land on `main`.
     strip DOM stay for step 5. 161/161 twice, bench unchanged on both songs.
   - [x] step 5a: `ui/app/automation.ts` (lane values, record, lane rows), `ui/app/arrange.ts` (`BW`),
     `ui/app/theme.ts` (`css`); ratchet treats the drag alias `dg` like `drag`. 161/161 twice, bench unchanged.
+  - [x] step 5b: `ui/app/clips.ts` (clip commands, clipboard, lane gestures, keys, menus; typed gesture union),
+    snapping into transport.ts, `focusArea` into arrange.ts. 161/161 twice, bench unchanged.
 - [ ] 9.2 Integration check of the spec budgets on the 50-track song: bench every scenario against the step-3
   baseline, "Edit response budget" and "Playback display budget" as browser tests. Verify: `/daw/` from `serve`,
   `/dsp` static build loads and bounces, hot-reload dev loop works.

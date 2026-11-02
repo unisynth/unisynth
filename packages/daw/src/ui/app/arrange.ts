@@ -3,3 +3,6 @@
 /** Arrangement px per bar. */
 export let BW = 44;
 export function setBW(v: number): void { BW = v; }
+/** The editor that keys and zoom act on: the arrangement or the piano roll. */
+export let focusArea: "arr" | "roll" = "arr";
+export function setFocusArea(v: "arr" | "roll"): void { focusArea = v; }

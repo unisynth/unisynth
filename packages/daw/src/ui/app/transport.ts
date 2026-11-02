@@ -37,6 +37,12 @@ export const barsPerSec = (): number => (tr.tempo() || 128) / 60 / quartersPerBa
 export const frameOf = (b: number): number => Math.max(0, Math.round((b - 1) / barsPerSec() * E.rate));
 export const barOf = (f: number): number => 1 + f / E.rate * barsPerSec();
 
+/** The snap setting as piano-roll steps (1/16 bar) and as arrangement bars; 0 = off. */
+export const rollSnap = (): number => ({ "1/16": 1, "1/8": 2, "1/4": 4, "Bar": 16, "Off": 0 } as Record<string, number>)[tr.snap()] ?? 0;
+export const arrSnap = (): number => ({ "1/16": 1 / 16, "1/8": 1 / 8, "1/4": 1 / 4, "Bar": 1, "Off": 0 } as Record<string, number>)[tr.snap()] ?? 0;
+/** Snaps to `q` (0: to 1/100). */
+export const snapTo = (x: number, q: number): number => q ? Math.round(x / q) * q : Math.round(x * 100) / 100;
+
 export function holdFollow(): void {
   if (followHold || !playing || !tr.follow()) return;
   followHold = true; tr.setFollowHeld(true); say("follow paused while you look around · F resumes");

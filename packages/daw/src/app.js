@@ -2,9 +2,10 @@
 import { raw } from "./ui/state/song.ts";
 import { api, armed, E, initSession, master, selected, setArmed, setSelected, song, tracks } from "./ui/app/session.ts";
 import { commit, H, initCore, lastSaid, redo, restore, say, snap, undo } from "./ui/app/core.ts";
-import { BARS, barsPerSec, beatsPerBar, fmtBars, followHold, holdFollow, LOOP, loopOn, PAD_BARS, playing, resumeFollow, setBars, setLoopOn, setPos, sig, SONG_POS } from "./ui/app/transport.ts";
+import { arrSnap, rollSnap, snapTo, BARS, barsPerSec, beatsPerBar, fmtBars, followHold, holdFollow, LOOP, loopOn, PAD_BARS, playing, resumeFollow, setBars, setLoopOn, setPos, sig, SONG_POS } from "./ui/app/transport.ts";
 import { addAutoLane, addLane, applyAutomation, curVal, grab, initAutomation, knobEdited, laneVals, recOn, recordFrame, recordPoint, release, setRec, updateReauto } from "./ui/app/automation.ts";
-import { BW, setBW } from "./ui/app/arrange.ts";
+import { BW, focusArea, setBW, setFocusArea } from "./ui/app/arrange.ts";
+import { arrKeys, clearClipSel, clipboard, drawCursor, initClips, place, selClips } from "./ui/app/clips.ts";
 import { css } from "./ui/app/theme.ts";
 import { audible, ensureAudio, initEngine, livePush, liveLoop, onBuffer, onOpenFilters, pushSong, seek, setPlay, setSongMeta, songOf, stopPressed, unloadLive } from "./ui/app/engine.ts";
 import * as liveState from "./ui/state/live.ts";
@@ -724,11 +725,7 @@ function selectTrack(t) {
 
 // ===== Editing: selection, cut/copy/paste/duplicate/delete, move/transpose, quantize/align, undo =====
 // One snap setting drives both editors. Piano roll unit = 1/16 note (STEP px); arrangement unit = bar (BW px).
-const rollSnap = () => ({ "1/16": 1, "1/8": 2, "1/4": 4, "Bar": 16, "Off": 0 })[tr.snap()];
-const arrSnap = () => ({ "1/16": 1 / 16, "1/8": 1 / 8, "1/4": 1 / 4, "Bar": 1, "Off": 0 })[tr.snap()];
-const snapTo = (x, q) => q ? Math.round(x / q) * q : Math.round(x * 100) / 100;
-let focusArea = "arr", rCursor = 0, rDrag = null, rLast = null, aCursor = 13, aDrag = null, aLast = null, lastVel = .78;
-const clipboard = { notes: null, clips: null };
+let rCursor = 0, rDrag = null, rLast = null, lastVel = .78;
 // Status, undo/redo (ui/app/core.ts): a restore rebuilds the views for the restored song and selection.
 initCore({
   restored: () => { rebuildTracks(); selectTrack(selected); updateArmed(); },
@@ -765,13 +762,13 @@ function scrollToNotes(ns) { if (!grid) return; const top = (HI - Math.max(...ns
   if (top < grid.scrollTop || bot > grid.scrollTop + grid.clientHeight) grid.scrollTop = Math.max(0, top - 40); }
 function rollCmd(name, arg) { const before = snap(); roll[name](arg); commit(before, lastSaid()); drawRoll(); renderLane(selected); }
 onRollMount(() => rollEls.tools.querySelectorAll("[data-roll]").forEach(b => b.onclick = () => {
-  const a = b.dataset.roll; focusArea = "roll";
+  const a = b.dataset.roll; setFocusArea("roll");
   if (a.startsWith("t")) rollCmd("transpose", +a.slice(1)); else if (a === "quantlen") rollCmd("quant", true); else rollCmd(a);
   gridc.focus();
 }));
 onRollMount(() => {
 gridc.addEventListener("pointerdown", e => {
-  focusArea = "roll"; gridc.focus(); gridc.setPointerCapture(e.pointerId);
+  setFocusArea("roll"); gridc.focus(); gridc.setPointerCapture(e.pointerId);
   const [st, key] = rpos(e), n = noteHit(st, key), now = performance.now();
   const dbl = rLast && now - rLast.t < 400 && Math.hypot(e.clientX - rLast.x, e.clientY - rLast.y) < 5;  // two clicks, no drag
   rLast = null;
@@ -831,121 +828,13 @@ function centreRoll() { if (grid && rollNotes.length) { const mid = rollNotes.re
 
 onRollMount(() => velSet.addEventListener("change", () => { const v = Math.max(1, Math.min(127, Math.round(+velSet.value || 0))); if (!v || !selNotes().length) return;
   const before = snap(), ns = selNotes(); ns.forEach(n => n.v = v / 127); lastVel = v / 127; commit(before, `velocity ${v} on ${ns.length} notes`); velSet.blur(); drawRoll(); }));
-// ---- arrangement ----
-const instrTracks = () => tracks.filter(t => !t.bus);
-const selClips = () => tracks.flatMap(t => t.clips.filter(c => c.sel).map(c => ({ t, c })));
-const clearClipSel = () => tracks.forEach(t => t.clips.forEach(c => c.sel = false));
-// Placing a clip over others trims or removes what it covers (Ableton-style), never overlaps.
-function place(t, nc) {
-  const out = [];
-  for (const c of t.clips) {
-    if (c === nc) continue;
-    const a = c.start, b = c.start + c.len, x = nc.start, y = nc.start + nc.len;
-    if (b <= x || a >= y) out.push(c); else if (a < x && b > y) out.push({ ...c, len: x - a }, { ...c, start: y, len: b - y, sel: false });
-    else if (a < x) out.push({ ...c, len: x - a }); else if (b > y) out.push({ ...c, start: y, len: b - y });
-  }
-  t.clips = [...out, nc].sort((p1, p2) => p1.start - p2.start);
-}
-let uniq = 2;
-const arr = {
-  all() { tracks.forEach(t => t.clips.forEach(c => c.sel = true)); },
-  copy() { const cs = selClips(); if (!cs.length) return say("no clips selected"); const i0 = Math.min(...cs.map(x => instrTracks().indexOf(x.t))), s0 = Math.min(...cs.map(x => x.c.start));
-    clipboard.clips = cs.map(({ t, c }) => ({ dt: instrTracks().indexOf(t) - i0, ds: c.start - s0, len: c.len, name: c.name, pat: structuredClone(raw(patOf(t, c.name))) })); say(`${cs.length} clips copied`); },
-  del() { const n = selClips().length; tracks.forEach(t => t.clips = t.clips.filter(c => !c.sel)); say(`${n} clips deleted`); },
-  cut() { arr.copy(); arr.del(); say(`${clipboard.clips?.length || 0} clips cut`); },
-  paste(linked, at = aCursor) { if (!clipboard.clips) return say("clipboard empty"); clearClipSel(); const it = instrTracks(), i0 = Math.max(0, it.indexOf(selected));
-    for (const c of clipboard.clips) { const t = it[i0 + c.dt]; if (!t) continue;
-      const name = linked ? c.name : `${c.name} ${uniq++}`; if (!t.pats?.[name]) (t.pats ??= {})[name] = structuredClone(c.pat);
-      place(t, { start: at + c.ds, len: c.len, name, sel: true }); }
-    say(`${clipboard.clips.length} clips pasted${linked ? " (linked)" : ""} at bar ${+at.toFixed(2)}`); },
-  dup(linked) { const cs = selClips(); if (!cs.length) return say("no clips selected"); const end = Math.max(...cs.map(x => x.c.start + x.c.len)), keep = clipboard.clips, t0 = selected;
-    setSelected(instrTracks()[Math.min(...cs.map(x => instrTracks().indexOf(x.t)))]); arr.copy(); arr.paste(linked, end); clipboard.clips = keep; setSelected(t0);
-    say(`${cs.length} clips duplicated${linked ? " (linked)" : ""} to bar ${+end.toFixed(2)}`); },
-  move(d) { const cs = selClips(); if (!cs.length) return; if (cs.some(x => x.c.start + d < 1)) return say("song start");
-    cs.forEach(x => x.c.start += d); cs.forEach(x => place(x.t, x.c)); say(`moved ${d > 0 ? "+" : ""}${d} bar`); },
-  track(d) { const cs = selClips(), it = instrTracks(); if (!cs.length) return; if (cs.some(x => !it[it.indexOf(x.t) + d])) return say("no track there");
-    for (const x of cs) { const nt = it[it.indexOf(x.t) + d]; carry(x.t, nt, x.c.name); x.t.clips = x.t.clips.filter(c => c !== x.c); place(nt, x.c); } say(`moved to ${d > 0 ? "next" : "previous"} track`); },
-  align() { const q = arrSnap() || 1, cs = selClips().length ? selClips() : tracks.flatMap(t => t.clips.map(c => ({ t, c })));
-    for (const x of cs) x.c.start = Math.max(1, 1 + Math.round((x.c.start - 1) / q) * q); cs.forEach(x => place(x.t, x.c)); say(`aligned ${cs.length} clips to ${q === 1 ? "bars" : tr.snap()}`); },
-};
-function arrCmd(name, arg) { const before = snap(); arr[name](arg); fitSong(); commit(before, lastSaid()); tracks.forEach(renderLane); drawCursor(); renderDevice(); }
-document.querySelectorAll("#arr-corner [data-arr]").forEach(b => b.onclick = () => { focusArea = "arr"; arrCmd(b.dataset.arr); lw.focus(); });
-const lanesEl = document.getElementById("lanes"), cursorEl = Object.assign(document.createElement("div"), { className: "cursor" }); lanesEl.append(cursorEl);
-function drawCursor() { cursorEl.style.left = (aCursor - 1) * BW + "px"; }
-drawCursor();
-const lpos = e => { const r = lanesEl.getBoundingClientRect(); return [1 + (e.clientX - r.left) / BW, e.clientY - r.top]; };
-const laneAtY = y => [...lanesEl.querySelectorAll(".lane.track")].find(l => { const r = l.getBoundingClientRect(); return y >= r.top && y < r.bottom; });
-lanesEl.addEventListener("pointerdown", e => {
-  if (e.button !== 0 || !e.target.closest(".lane.track")) return;  // automation lanes have their own editor; right button = menu
-  focusArea = "arr"; lw.focus({ preventScroll: true }); lanesEl.setPointerCapture(e.pointerId);
-  const el = e.target.closest(".clip"), [bar, y] = lpos(e), t = tracks.find(x => x.id === e.target.closest(".lane.track").dataset.track), now = performance.now();
-  if (el) {
-    const c = el._clip;
-    if (!e.target.closest(".lbl, .rz")) return bodyDown(e, t, c, bar, y);  // clip body: click selects, drag selects a range
-    if (e.shiftKey) { c.sel = !c.sel; renderLane(t); return; }
-    if (!c.sel) { clearClipSel(); c.sel = true; }
-    aDrag = { mode: e.target.classList.contains("rz") ? "resize" : "move", alt: e.altKey, bars0: BARS, bar0: bar, before: snap(), t0: t, orig: selClips().map(x => ({ ...x, start: x.c.start, len: x.c.len })) };
-    rollClips.set(t.id, c); selectTrack(t); if (!document.getElementById("p-roll").hidden) centreRoll();
-  } else {
-    if (!e.shiftKey) clearClipSel();
-    aCursor = Math.max(1, 1 + Math.floor((bar - 1) / (arrSnap() || 1)) * (arrSnap() || 1)); drawCursor();
-    aDrag = { mode: "marquee", bar0: bar, y0: y, keep: new Set(selClips().map(x => x.c)), box: Object.assign(document.createElement("div"), { className: "marquee" }) };
-    if (selected !== t) selectTrack(t);
-  }
-  tracks.forEach(renderLane);
+// Clip editing on the lanes (ui/app/clips.ts).
+initClips({
+  fitSong: quiet => fitSong(quiet), renderDevice: () => renderDevice(), selectTrack: t => selectTrack(t),
+  clipPicked: (t, c) => { rollClips.set(t.id, c); selectTrack(t); if (rollEls) centreRoll(); },
+  showRoll: () => { show(tabs.find(x => x.id === "tab-roll")); centreRoll(); },
+  rollChanged: redraw => { genRoll(selected); if (redraw && rollEls) drawRoll(); },
 });
-// Press on a clip body (Ableton: the title bar moves, the body selects). Click = select the clip; drag = range.
-function bodyDown(e, t, c, bar, y) {
-  aCursor = Math.max(1, 1 + Math.floor((bar - 1) / (arrSnap() || 1)) * (arrSnap() || 1)); drawCursor();
-  aDrag = { mode: "marquee", bar0: bar, y0: y, x: e.clientX, yc: e.clientY, keep: new Set(e.shiftKey ? selClips().map(x => x.c) : []), pend: { c, t, shift: e.shiftKey },
-    box: Object.assign(document.createElement("div"), { className: "marquee" }) };
-}
-lanesEl.addEventListener("pointermove", e => {
-  if (!aDrag) return; const [bar, y] = lpos(e), q = arrSnap();
-  if (!aDrag.moved && aDrag.pend && Math.hypot(e.clientX - aDrag.x, e.clientY - aDrag.yc) < 4) return;
-  if (!aDrag.moved && aDrag.pend && !aDrag.pend.shift) clearClipSel();
-  aDrag.moved = true;
-  if (aDrag.mode === "move") {
-    let d = snapTo(bar - aDrag.bar0, q); d = Math.max(1 - Math.min(...aDrag.orig.map(o => o.start)), d);
-    const it = instrTracks(), lane = laneAtY(e.clientY), tt = lane && tracks.find(x => x.id === lane.dataset.track);
-    const dt = tt && !tt.bus ? it.indexOf(tt) - it.indexOf(aDrag.t0) : 0, ok = aDrag.orig.every(o => it[it.indexOf(o.t) + dt]);
-    for (const o of aDrag.orig) { o.c.start = o.start + d; const nt = ok ? it[it.indexOf(o.t) + dt] : o.t; if (nt !== o.cur) { carry(o.t, nt, o.c.name); (o.cur || o.t).clips = (o.cur || o.t).clips.filter(c => c !== o.c); nt.clips.push(o.c); o.cur = nt; } }
-    aDrag.dt = ok ? dt : 0;
-  } else if (aDrag.mode === "resize") { const d = snapTo(bar - aDrag.bar0, q); for (const o of aDrag.orig) { o.c.len = Math.max(q || .25, o.len + d); if (aDrag.alt) o.c.loop = true; } }
-  else { const x0 = (Math.min(aDrag.bar0, bar) - 1) * BW, x1 = (Math.max(aDrag.bar0, bar) - 1) * BW, y0 = Math.min(aDrag.y0, y), y1 = Math.max(aDrag.y0, y);
-    Object.assign(aDrag.box.style, { left: x0 + "px", top: y0 + "px", width: x1 - x0 + "px", height: y1 - y0 + "px" }); if (!aDrag.box.isConnected) lanesEl.append(aDrag.box);
-    const lr = lanesEl.getBoundingClientRect();
-    for (const t of tracks) for (const c of t.clips) { const ly = laneEl.get(t.id)?.offsetTop ?? -1, lh = laneEl.get(t.id)?.offsetHeight ?? 0, cx0 = (c.start - 1) * BW, cx1 = cx0 + c.len * BW;
-      c.sel = aDrag.keep.has(c) || (cx0 < x1 && cx1 > x0 && ly < y1 && ly + lh > y0); } void lr; }
-  if (aDrag.mode !== "marquee") fitSong(true);
-  tracks.forEach(renderLane);
-});
-lanesEl.addEventListener("pointerup", () => {
-  if (!aDrag) return;
-  if (aDrag.mode === "move" && aDrag.moved) { for (const o of aDrag.orig) place(o.cur || o.t, o.c); commit(aDrag.before, `${aDrag.orig.length} clips moved${aDrag.dt ? ` ${aDrag.dt > 0 ? "down" : "up"} ${Math.abs(aDrag.dt)} track` : ""}`); }
-  if (aDrag.mode === "resize" && aDrag.moved) { for (const o of aDrag.orig) place(o.t, o.c); commit(aDrag.before, "clip length changed"); }
-  if (aDrag.mode === "marquee") { aDrag.box.remove(); if (aDrag.moved) say(`${selClips().length} clips selected`);
-    else if (aDrag.pend) { const { c, t, shift } = aDrag.pend; if (shift) c.sel = !c.sel; else { clearClipSel(); c.sel = true; }
-      rollClips.set(t.id, c); selectTrack(t); if (!document.getElementById("p-roll").hidden) { centreRoll(); } } }
-  if (aDrag.mode === "move" || aDrag.mode === "resize") { fitSong(); if (aDrag.moved && BARS > aDrag.bars0) say(`${lastSaid()} · song extended to ${BARS} bars`); }
-  aDrag = null; tracks.forEach(renderLane); renderDevice();
-});
-lw.addEventListener("keydown", e => { if (e.target === lw) arrKeys(e); });
-lanesEl.addEventListener("mousedown", e => { if (e.button === 0 && e.target.closest(".lane.track")) e.preventDefault(); });
-function arrKeys(e, hdrTrack) {
-  const mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase(); let cmd = null, arg;
-  if (mod && k === "a") cmd = "all"; else if (mod && k === "c") cmd = "copy"; else if (mod && k === "x") cmd = "cut";
-  else if (mod && k === "v") { cmd = "paste"; arg = e.shiftKey; } else if (mod && k === "d") { cmd = "dup"; arg = e.shiftKey; }
-  else if (mod && k === "z") { e.preventDefault(); return e.shiftKey ? redo() : undo(); }
-  else if (k === "delete" || k === "backspace") cmd = "del";
-  else if (k === "arrowleft" || k === "arrowright") { cmd = "move"; arg = (k === "arrowright" ? 1 : -1) * (e.shiftKey ? 4 : arrSnap() || 1); }
-  else if (k === "arrowup" || k === "arrowdown") { cmd = "track"; arg = k === "arrowdown" ? 1 : -1; }
-  else if (k === "q") cmd = "align";
-  else if (k === "escape") { clearClipSel(); tracks.forEach(renderLane); return; }
-  if (hdrTrack && cmd === "all") { e.preventDefault(); clearClipSel(); hdrTrack.clips.forEach(c => c.sel = true); tracks.forEach(renderLane); return say(`${hdrTrack.clips.length} clips of ${hdrTrack.name} selected`); }
-  if (hdrTrack && (cmd === "move" || cmd === "track")) return;  // arrows on a header move between tracks
-  if (!cmd) return; e.preventDefault(); arrCmd(cmd, arg);
-}
 
 async function loadInto(t, src, it) {
   const before = snap(); let inst = instOf(t); if (!inst) return;
@@ -1418,7 +1307,7 @@ function headerClick(t, e) {
     const all = t.clips.length && t.clips.every(c => c.sel); if (!e.shiftKey && !e.ctrlKey && !e.metaKey) clearClipSel();
     t.clips.forEach(c => c.sel = !all); tracks.forEach(renderLane); say(`${selClips().length} clips selected`);
   }
-  selectTrack(t); focusArea = "arr";
+  selectTrack(t); setFocusArea("arr");
 }
 // Keys on the focused header itself: F2 rename, Alt+↑/↓ reorder, Ctrl+Delete delete, menu key; then the clip
 // commands (Ctrl/Delete/Escape), Enter/Space select, ↑/↓ move focus and selection between tracks.
@@ -1442,48 +1331,6 @@ function trackMenu(t, x, y) {
     ["Delete track", "Ctrl+Delete", () => deleteTrack(t)]], `${t.name} track menu`);
 }
 document.querySelector('#arr-corner button[aria-label="Add track"]').onclick = () => addTrack(false);
-// ===== Clips: create, make unique, loop =====
-let clipN = 1;
-function createClip(t, bar) {
-  if (t.bus) return say("bus tracks have no clips; they play what other tracks send");
-  const q = arrSnap() >= 1 ? arrSnap() : 1, start = 1 + Math.floor((bar - 1) / q) * q, name = `clip ${clipN++}`;
-  const before = snap(); clearClipSel(); (t.pats ??= {})[name] = { len: 1, notes: [], cc: { wheel: [], bend: [] } };
-  const c = { start, len: 1, name, sel: true }; place(t, c); fitSong(true); rollClips.set(t.id, c);
-  tracks.forEach(renderLane); selectTrack(t); commit(before, `${name} created on ${t.name} at bar ${start}; double-click the roll to add notes`);
-  show(tabs.find(x => x.id === "tab-roll")); centreRoll();
-}
-function makeUnique(t, c) {
-  if (links(t, c.name) < 2) return say(`${c.name} is not linked`);
-  const before = snap(), name = `${c.name} ${uniq++}`; t.pats[name] = structuredClone(raw(patOf(t, c.name))); c.name = name;
-  tracks.forEach(renderLane); genRoll(selected); commit(before, `clip is now unique: ${name}`); renderDevice();
-}
-function toggleClipLoop(t, c) { const before = snap(); c.loop = !c.loop; tracks.forEach(renderLane); genRoll(selected); if (!document.getElementById("p-roll").hidden) drawRoll(); commit(before, `${c.name}: ${c.loop ? `loops its ${patOf(t, c.name).len}-bar pattern` : "plays once (crop)"}`); }
-// Double-click: empty lane space creates a clip; a clip opens in the piano roll. (The lanes hold pointer capture
-// during a press, so the lane is found from the pointer position, not from the event target.)
-// Own double-click detection: a click redraws the clips, so the browser never sees two clicks on one element.
-let aLastClick = null;
-lanesEl.addEventListener("pointerup", e => {
-  if (e.button !== 0 || !aDrag || aDrag.moved) return;
-  const now = performance.now(), dbl = aLastClick && now - aLastClick.t < 400 && Math.hypot(e.clientX - aLastClick.x, e.clientY - aLastClick.y) < 5;
-  aLastClick = dbl ? null : { t: now, x: e.clientX, y: e.clientY };
-  if (dbl) setTimeout(() => laneDouble(e));
-}, true);
-function laneDouble(e) {
-  const lane = laneAtY(e.clientY); if (!lane) return; const t = tracks.find(x => x.id === lane.dataset.track), bar = lpos(e)[0];
-  const c = t.clips.find(c1 => bar >= c1.start && bar < c1.start + c1.len);
-  if (c) { rollClips.set(t.id, c); selectTrack(t); show(tabs.find(x => x.id === "tab-roll")); centreRoll(); return; }
-  createClip(t, bar);
-}
-lanesEl.addEventListener("contextmenu", e => {
-  const lane = e.target.closest(".lane.track"); if (!lane) return; e.preventDefault();
-  const t = tracks.find(x => x.id === lane.dataset.track), el = e.target.closest(".clip"), bar = lpos(e)[0];
-  if (!el) return popMenu(e.clientX, e.clientY, [["Create clip here", "double-click", () => createClip(t, bar), t.bus], ["Paste here", "Ctrl+V", () => { aCursor = 1 + Math.floor(bar - 1); drawCursor(); if (selected !== t) selectTrack(t); arrCmd("paste"); }, !clipboard.clips]], "Lane menu");
-  const c = el._clip; if (!c.sel) { clearClipSel(); c.sel = true; tracks.forEach(renderLane); }
-  popMenu(e.clientX, e.clientY, [["Open in piano roll", "", () => { rollClips.set(t.id, c); selectTrack(t); show(tabs.find(x => x.id === "tab-roll")); centreRoll(); }],
-    ["Duplicate", "Ctrl+D", () => arrCmd("dup", false)], ["Duplicate linked", "Ctrl+Shift+D", () => arrCmd("dup", true)],
-    ["Make unique", "", () => makeUnique(t, c), links(t, c.name) < 2], [c.loop ? "Loop off (crop)" : "Loop clip", "Alt+drag edge", () => toggleClipLoop(t, c)], "-",
-    ["Cut", "Ctrl+X", () => arrCmd("cut")], ["Copy", "Ctrl+C", () => arrCmd("copy")], ["Delete", "Del", () => arrCmd("del")]], `Clip ${c.name} menu`);
-});
 // ===== Arm, volume faders (header and mixer stay in sync), solo rule, splitter memory =====
 function updateArmed() {  // the footer (ui/footer/Audition.tsx) and the headers follow
   arrange.setArmedId(armed?.id ?? null);
