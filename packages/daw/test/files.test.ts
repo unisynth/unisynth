@@ -78,6 +78,11 @@ test("switching with unsaved changes asks: Cancel stays, Don't save opens the ot
   await dialog().getByRole("button", { name: "Don't save" }).click();
   await page.waitForFunction(() => document.querySelector("#songlist button[aria-current=true]")?.textContent?.startsWith("global-groove"));
   expect(await undoDepth()).toBe(0);
+  // the opened song's own master, not the previous song's (demo's master has an effect, global-groove's has none)
+  const masterOf = (f: string) => JSON.parse(readFileSync(join(music, f), "utf8")).master;
+  const m = await page.evaluate(() => (window as any).DAW.debug.song().master);
+  expect(m.devices.length).toBe(masterOf("global-groove.song.json").devices.length);
+  expect(m.volume).toBeCloseTo(masterOf("global-groove.song.json").volume, 6);
   // the discarded edit is not on disk
   expect(readFileSync(join(music, "demo.song.json"), "utf8")).toBe(readFileSync(join(ROOT, "project/music/demo.song.json"), "utf8"));
   // back to demo, clean: no prompt

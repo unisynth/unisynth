@@ -16,6 +16,7 @@ import { BARS, PAD_BARS, SONG_POS } from "./transport.ts";
 import { livePush, pushSong } from "./engine.ts";
 import { BW } from "./arrange.ts";
 import { css } from "./theme.ts";
+import type { Snap } from "../state/snapshot.ts";
 
 type Lane = UITrack["lanes"][number];
 /** A mounted automation lane row: redraw, refresh its value readout. */
@@ -117,7 +118,7 @@ export function addLane(t: UITrack, ln: Lane): { ah: HTMLElement; al: HTMLElemen
   // neighbours), double-click / right-click point = delete. Keyboard (point focused): ←/→ time, ↑/↓ value
   // (Shift = fine), Delete/Backspace = delete. Every gesture is one undo step in the real app.
   const H = 40, X = (b: number) => (b - 1) * BW, Y = (v: number) => H - 4 - v * (H - 8);
-  type Drag = { i: number; moved: boolean; x0: number; y0: number; before: string; add?: false } | { add: true; x0: number; y0: number; before: string };
+  type Drag = { i: number; moved: boolean; x0: number; y0: number; before: Snap; add?: false } | { add: true; x0: number; y0: number; before: Snap };
   let selI = -1, drag: Drag | null = null, lastDown: { i: number; t: number } | null = null;
   const fmtBar = (b: number) => { const t = Math.round((b - 1) * 16); return `${1 + Math.floor(t / 16)}.${1 + Math.floor((t % 16) / 4)}.${(t % 4) * 240}`; };
   const draw = (focus = false): void => {
@@ -142,7 +143,9 @@ export function addLane(t: UITrack, ln: Lane): { ah: HTMLElement; al: HTMLElemen
     const lo = i > 0 ? ln.pts[i - 1]![0] + 1 / 64 : 1, hi = i < ln.pts.length - 1 ? ln.pts[i + 1]![0] - 1 / 64 : BARS + 1;
     return Math.min(hi, Math.max(lo, b));
   };
-  const remove = (i: number): void => { const before = snap(); setTimeout(() => commit(before, `${ln.param}: point deleted`)); if (ln.pts.length === 1) { status2(`${ln.param}: last point kept; remove the lane with ✕ instead`); return; } ln.pts.splice(i, 1); selI = Math.min(i, ln.pts.length - 1); draw(true); status2(`point deleted`); };
+  const remove = (i: number): void => { const before = snap(); setTimeout(() => commit(before, `${ln.param}: point deleted`)); if (ln.pts.length === 1) { status2(`${ln.param}: last point kept; remove the lane with ✕ instead`); return; } ln.pts = raw(ln.pts).filter((_, k) => k !== i); selI = Math.min(i, ln.pts.length - 1); draw(true); status2(`point deleted`); };
+  // Points are replaced, never changed in place: the undo snapshot caches each points array (ui/state/snapshot.ts).
+  const setPt = (i: number, p: LanePoint): void => { const a = raw(ln.pts).slice(); a[i] = p; ln.pts = a; };
   const status2 = (m: string) => { announce(`${t.name} ${ln.param}: ${m}`); };
   al.addEventListener("pointerdown", e => {
     if (e.button !== 0) return;
@@ -162,12 +165,12 @@ export function addLane(t: UITrack, ln: Lane): { ah: HTMLElement; al: HTMLElemen
     if (!dg.moved && Math.hypot(e.clientX - dg.x0, e.clientY - dg.y0) < 3) return;
     dg.moved = true;
     const [b, v] = toBV(e, e.altKey);
-    ln.pts[dg.i] = [clampTime(dg.i, b), v]; draw();
+    setPt(dg.i, [clampTime(dg.i, b), v]); draw();
   });
   al.addEventListener("pointerup", e => {
     if (drag?.add && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 3) {
       const [b, v] = toBV(e, e.altKey);
-      ln.pts.push([b, v]); ln.pts.sort((p1, p2) => p1[0] - p2[0]); selI = ln.pts.findIndex(p => p[0] === b && p[1] === v); status2(`point added at ${fmtBar(b)}`);
+      ln.pts = [...raw(ln.pts), [b, v] as LanePoint].sort((p1, p2) => p1[0] - p2[0]); selI = ln.pts.findIndex(p => p[0] === b && p[1] === v); status2(`point added at ${fmtBar(b)}`);
     } else if (drag && !drag.add && drag.moved) status2(`point moved to ${fmtBar(ln.pts[drag.i]![0])}, ${laneText(t, ln, ln.pts[drag.i]![1])}`);
     if (drag?.before) commit(drag.before, announced());
     drag = null; draw(true);
@@ -182,7 +185,7 @@ export function addLane(t: UITrack, ln: Lane): { ah: HTMLElement; al: HTMLElemen
     else if (e.key === "ArrowRight") b = clampTime(i, b + db); else if (e.key === "ArrowLeft") b = clampTime(i, b - db);
     else if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); remove(i); return; }
     else return;
-    e.preventDefault(); const before = snap(); ln.pts[i] = [b, v]; selI = i; draw(true); commit(before, `${ln.param} point ${fmtBar(b)} · ${laneText(t, ln, v)}`);
+    e.preventDefault(); const before = snap(); setPt(i, [b, v]); selI = i; draw(true); commit(before, `${ln.param} point ${fmtBar(b)} · ${laneText(t, ln, v)}`);
   });
   const sl = ah.querySelector<HTMLSelectElement>(".tgt select")!;
   { let full = false;

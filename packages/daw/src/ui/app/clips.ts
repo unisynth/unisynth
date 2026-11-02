@@ -13,13 +13,14 @@ import { selected, setSelected, tracks } from "./session.ts";
 import { commit, lastSaid, redo, say, snap, undo } from "./core.ts";
 import { arrSnap, BARS, snapTo } from "./transport.ts";
 import { BW, setFocusArea } from "./arrange.ts";
+import type { Snap } from "../state/snapshot.ts";
 
 type ClipEl = HTMLElement & { _clip: UIClip };
 type Orig = { t: UITrack; c: UIClip; start: number; len: number; cur?: UITrack };
 /** A clip gesture: move/resize the selected clips, or a marquee (range select; `pend`: a press on a clip body that
  * selects that clip unless it turns into a drag, from `x`/`yc`). */
 type ADrag =
-  | { mode: "move" | "resize"; bar0: number; moved?: boolean; before: string; alt: boolean; bars0: number; t0: UITrack; orig: Orig[]; dt?: number }
+  | { mode: "move" | "resize"; bar0: number; moved?: boolean; before: Snap; alt: boolean; bars0: number; t0: UITrack; orig: Orig[]; dt?: number }
   | { mode: "marquee"; bar0: number; moved?: boolean; y0: number; keep: Set<UIClip>; box: HTMLElement; x?: number; yc?: number; pend?: { c: UIClip; t: UITrack; shift: boolean } };
 export interface ClipHooks {
   /** Grow the song to the last clip (`quiet`: no message). */

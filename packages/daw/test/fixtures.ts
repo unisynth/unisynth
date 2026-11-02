@@ -9,3 +9,12 @@ export function bigSong(demo: any, n = BIG_TRACKS): any {
   return { ...demo, tracks, clips: demo.clips.filter((c: any) => c.id === "bass-a"),
     master: { ...demo.master, receives: tracks.map((t) => ({ from: t.id, channel: "main", volume: 1 })) } };
 }
+
+/** `bigSong` with one dense automation lane per track (`points` points, a converted song's density): about 6 MB of
+ * lane points at the default sizes, like tbl-stash-over2 (6.10 MB of 6.57 MB). */
+export function denseSong(demo: any, n = 45, points = 7000): any {
+  const s = bigSong(demo, n);
+  for (const t of s.tracks) for (const ln of t.lanes) ln.points = Array.from({ length: points }, (_, k) => [Math.round(k * s.length / points), +(0.5 + 0.4 * Math.sin(k / 37)).toFixed(6)]);
+  return s;
+}
+

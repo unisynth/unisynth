@@ -67,9 +67,15 @@ in one step. Each point below was checked against solid-js 1.9 in the browser bu
   clip after an undone delete). So keyed lists (arrangement clips) get stable runtime ids before they are rendered
   with `<For>`, and view state holds ids, not object references. Until a panel is ported, `restore()` keeps rebuilding
   its views.
-- **Snapshot cost.** `JSON.stringify` of the whole song happens per gesture (start and commit compare). This is
-  measured on a 50-track song with GSM samples. If the cost is over 4 ms, samples move to a content-addressed asset
-  table outside the snapshot, and commit uses a dirty flag set by actions instead of a string compare.
+- **Snapshot cost.** A whole-song `JSON.stringify` per gesture (start and commit compare) cost ~19 ms each on
+  tbl-stash-over2 (6.57 MB, of which 6.10 MB automation lane points of a converted song; GSM samples 0.02 MB, so the
+  planned sample asset table would not have helped). Since 9.3 a snapshot is structured (`ui/state/snapshot.ts`):
+  per track the body without lanes, the lane headers, and one JSON string per lane's points, cached per points array
+  (WeakMap). Lane points are copy-on-write (an edit assigns a new array); verify mode (on under webdriver, i.e. in
+  every browser test) re-serializes cached lanes and throws on a mismatch. `restoreSong` drops the cache (reconcile
+  keeps array identity with new contents) and the restore re-primes it from the restored snapshot. Undo and redo
+  reconcile only the tracks that differ from the current state while the track list is the same. The history has an
+  epoch (bumped on a song load): a gesture begun before the load commits nothing.
 - **Per-frame values are never song state.** Automation playback values, meters and the playhead live in
   `ui/state/live.ts` (D3). They are not undoable, never pushed to the engine, and knobs show the live value if
   present, otherwise the song value. `toSong` and canvases read raw data outside tracking scopes; canvases redraw on a

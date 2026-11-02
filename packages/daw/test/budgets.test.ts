@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import type { Browser, Page } from "playwright";
 import { startServer, type Server } from "../../cli/src/server.ts";
 import { buildDaw, DIST } from "../build.ts";
-import { BIG_TRACKS, bigSong } from "./fixtures.ts";
+import { BIG_TRACKS, bigSong, denseSong } from "./fixtures.ts";
 
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const root = mkdtempSync(join(tmpdir(), "daw-budget-"));
@@ -25,13 +25,16 @@ const report: string[] = [];
 beforeAll(async () => {
   mkdirSync(music, { recursive: true });
   cpSync(join(ROOT, "project/music/demo.song.json"), join(music, "demo.song.json"));
-  writeFileSync(join(music, "big.song.json"), JSON.stringify(bigSong(JSON.parse(readFileSync(join(music, "demo.song.json"), "utf8"))), null, 1));
+  const demo = JSON.parse(readFileSync(join(music, "demo.song.json"), "utf8"));
+  writeFileSync(join(music, "big.song.json"), JSON.stringify(bigSong(demo), null, 1));
+  writeFileSync(join(music, "dense.song.json"), JSON.stringify(denseSong(demo)));
   await buildDaw({ wasm: false });
   s = await startServer({ port: 0, root, build: false, dawDist: DIST, headless: false });
   const { chromium } = await import("playwright");
   const channel = process.env.CHROME_CHANNEL ?? "chrome";
   browser = await chromium.launch({ channel: channel === "bundled" ? undefined : channel, headless: true, args: ["--autoplay-policy=no-user-gesture-required"] });
   page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  await page.addInitScript(() => localStorage.setItem("daw.verifySnap", "0"));  // measuring: no snapshot cross-check
   page.on("pageerror", (e) => errors.push(e.message));
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
   await page.goto(`${s.url}daw/?song=project/music/big.song.json&tab=mix`);
@@ -182,3 +185,27 @@ test("playback with the device panel shown and the live view on: ≥ 95 % of fra
   expect(r.same).toBe(true);
   expect(errors).toEqual([]);
 }, 30_000);
+
+test("dense automation (≈ 6 MB of lane points, like tbl-stash-over2): knob step and mute each within one frame", async () => {
+  await page.goto(`${s.url}daw/?song=project/music/dense.song.json&tab=dev`);
+  await page.waitForSelector(".thdr.track");
+  await page.waitForTimeout(500);
+  const size = await page.evaluate(() => JSON.stringify((window as any).DAW.debug.song().tracks.map((t: any) => t.lanes)).length);
+  expect(size).toBeGreaterThan(4e6);
+  await page.locator('.thdr.track[data-track="t2"]').click();
+  await page.waitForSelector('#device [data-param="filt1.resonance"]');
+  const knob = await timeEdit("dense knob", (i) => { const k = document.querySelector('#device [data-param="filt1.resonance"]') as HTMLElement;
+    k.focus(); k.dispatchEvent(new KeyboardEvent("keydown", { key: i % 2 ? "ArrowDown" : "ArrowUp", bubbles: true })); });
+  const d0: number = await page.evaluate(() => (window as any).DAW.debug.undoDepth());
+  const mute = await timeEdit("dense mute", () => (document.querySelector('.thdr.track[data-track="t3"] [aria-label^="Mute"]') as HTMLElement).click());
+  await page.waitForTimeout(50);  // deferred mute commits
+  expect(await page.evaluate(() => (window as any).DAW.debug.undoDepth())).toBe(d0 + 7);
+  expect(knob).toBeLessThan(FRAME);
+  expect(mute).toBeLessThan(FRAME);
+  expect(errors).toEqual([]);
+}, 60_000);
+// Undo on the dense song: the snapshot side is cheap since 9.3 (per-track restore, ~9 ms reconcile), but a restore
+// rebuilds the mounted rows and redraws every automation lane as an SVG with one element per point (7 000 here):
+// ~1.4 s. Lane rendering, not undo state; see openspec daw-solid-ts tasks.
+test.todo("dense automation: undo of one step within one frame");
+

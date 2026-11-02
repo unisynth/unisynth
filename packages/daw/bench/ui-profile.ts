@@ -6,6 +6,7 @@ import { startServer } from "../../cli/src/server.ts";
 const s = await startServer({ port: 0, root: process.env.ROOT, build: false, dawDist: new URL("../dist", import.meta.url).pathname, headless: false });
 const b = await chromium.launch({ channel: "chrome" });
 const p = await b.newPage({ viewport: { width: 1600, height: 1000 } });
+await p.addInitScript(() => localStorage.setItem("daw.verifySnap", "0"));  // measure without the snapshot cache check (on under webdriver)
 await p.goto(`${s.url}daw/?song=${process.env.SONG}&tab=dev`); await p.waitForSelector(".thdr.track"); await p.waitForTimeout(1000);
 const cdp = await p.context().newCDPSession(p);
 await cdp.send("Profiler.enable"); await cdp.send("Profiler.setSamplingInterval", { interval: 100 });

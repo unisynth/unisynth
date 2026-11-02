@@ -16,6 +16,7 @@ import { rebuildTracks, setFocusArea } from "./arrange.ts";
 import { arrKeys, clearClipSel, selClips } from "./clips.ts";
 import { drawRoll, genRoll } from "./roll.ts";
 import { renderAll, senders } from "./device.ts";
+import type { Snap } from "../state/snapshot.ts";
 
 /** A new track's instrument: one oscillator through a low-pass filter. */
 export const initInstrument = (): Device => ({ kind: 64, preset: "init", values: { "osc1.type": 0.16666667, "filt1.type": 0.1, "filt1.cutoff": 0.6, "env1.sustain": 0.7, "env1.release": 0.15 } });
@@ -122,7 +123,7 @@ export function toggleArm(t: UITrack): void {
 }
 // Volume (header and mixer faders, design D7): live while the slider moves, one undo step per gesture (`done` on
 // change; a key press is a whole gesture). The other fader follows the store.
-const volBefore = new Map<string, string>();
+const volBefore = new Map<string, Snap>();
 export function setVolume(t: UITrack, v: number, done?: boolean): void {
   if (done) { const b = volBefore.get(t.id); volBefore.delete(t.id); if (b) commit(b, `${t.name} volume ${v.toFixed(1)} dB`); return; }
   if (!volBefore.has(t.id)) volBefore.set(t.id, snap());

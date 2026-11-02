@@ -23,7 +23,9 @@ import { liveStats } from "./device/live.ts";
 import { initParams } from "./model/params.ts";
 import { instOf } from "./model/track.ts";
 import { armed, type Daw, E, api, initSession, selected, song, tracks, type WithTrack } from "./app/session.ts";
-import { H, initCore, redo, say, undo } from "./app/core.ts";
+import { H, initCore, redo, say, snap, undo } from "./app/core.ts";
+import { setVerify } from "./state/snapshot.ts";
+import { persist } from "./state/persist.ts";
 import { BARS, beatsPerBar, LOOP, loopOn, playing, setBars } from "./app/transport.ts";
 import { addAutoLane, addLane, applyAutomation, initAutomation, laneVals, recOn, recordFrame, setRec } from "./app/automation.ts";
 import { BW, fitArr, fitSong, hdrs, initArrange, lanes, laneTick, loopSelection, lw, onLength, onLoopText, rebuildTracks, relayout, showPos, toggleFollow, toggleLoop, updateLoop, zoomArr } from "./app/arrange.ts";
@@ -42,6 +44,10 @@ function onTempo(v: number): void { tr.setTempo(v); showPos(); say(`tempo ${v} B
 function onSig(v: string): void { tr.setSig(v); document.documentElement.style.setProperty("--beats", String(beatsPerBar())); showPos(); dirtyUpd(); say(`time signature ${v}: beat grid and positions follow; the piano roll keeps 16 steps per bar`); }
 
 export function start(daw: Daw): void {
+  // Undo snapshot cache check (ui/state/snapshot.ts): on in automated browsers (tests), off for users; the
+  // `daw.verifySnap` key ("1" / "0") overrides (the bench and budget tests measure with it off).
+  const vs = persist.get("daw.verifySnap");  // persist: storage may throw in a sandboxed frame
+  setVerify(vs ? vs === "1" : navigator.webdriver === true);
   initSession(daw);  // engine, api, song store proxies, selection (ui/app/session.ts)
   const st0 = daw.initial;
   setBars(st0.bars); LOOP[1] = Math.min(BARS, 4) + 1;
@@ -112,6 +118,7 @@ export function start(daw: Daw): void {
   mountAudition(el("audition"), { armedName: () => { const id = arrange.armedId(); return id == null ? null : tracks.find(t => t.id === id)?.name ?? null; },
     toggleKb, connectMidi, wheel: setWheel, bend: setBend });
   markClean();
+  snap();  // warms the lane-point cache: the first gesture does not serialize the whole song
   daw.debug = { song: () => songOf(false), selected: () => selected.id, bars: () => BARS, undoDepth: () => H.depth, live: () => liveStats() };
   // Global shortcuts: Ctrl/⌘+S and the computer keyboard before the focused editor, the rest after it.
   installKeys({

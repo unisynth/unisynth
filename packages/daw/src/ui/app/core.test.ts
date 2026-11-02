@@ -34,3 +34,25 @@ test("commit, undo, redo: values and selection come back; hooks restore then cha
   core.undo(); core.undo();  // second: nothing to undo
   expect(S.tracks[0]!.vol).toBe(v0);
 });
+
+test("undo of a one-track edit restores only that track (per-track restore); a full restore when tracks changed", () => {
+  const t = S.tracks[1]!, v0 = t.vol;
+  const b = core.snap(); t.vol = v0 - 3; core.commit(b, "vol");
+  core.undo();
+  expect(S.tracks[1]!.vol).toBe(v0);
+  expect(core.restoreStats.last).toBe("tracks 1");
+  const b2 = core.snap(); S.tracks.splice(0, 1); core.commit(b2, "delete");
+  core.undo();
+  expect(S.tracks[0]!.id).toBe(initial.tracks[0]!.id);
+  expect(core.restoreStats.last).toBe("full");
+});
+
+test("a gesture begun before the history was cleared (a song load) records nothing", () => {
+  const t = S.tracks[0]!, d0 = core.H.depth;
+  const b = core.snap();
+  core.H.clear();
+  t.vol -= 1; core.commit(b, "stale");
+  expect(core.H.depth).toBe(0);
+  t.vol += 1; void d0;
+});
+

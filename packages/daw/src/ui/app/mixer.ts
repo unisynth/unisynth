@@ -10,9 +10,10 @@ import { livePush } from "./engine.ts";
 import { addEffect, devBypass, renderAll } from "./device.ts";
 import { addTrack, selectTrack, setVolume, toggleMuteSolo } from "./tracks.ts";
 import { showTab } from "./tabs.ts";
+import type { Snap } from "../state/snapshot.ts";
 
 const trackById = (id: string): UITrack => id === master.id ? master : tracks.find(x => x.id === id)!;
-let sendBefore: string | null = null;  // undo snapshot of a send-level gesture
+let sendBefore: Snap | null = null;  // undo snapshot of a send-level gesture
 /** The mixer's actions (an insert's name opens the strip's track in the Device tab). */
 export function mixerActions(): MixerActions {
   return {

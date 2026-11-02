@@ -4,6 +4,7 @@
 // ratchet (task 2.7) reaches 0 this becomes `createStore` with actions.
 import { batch } from "solid-js";
 import { $RAW, createMutable, modifyMutable, reconcile } from "solid-js/store";
+import { resetSnapCache } from "./snapshot.ts";
 import type { UITrack } from "../../model.ts";
 
 export interface SongRoot { tracks: UITrack[]; master: UITrack }
@@ -22,10 +23,21 @@ export { batch };
 
 /** Restores a snapshot into the song: `tracks` reconciled by track id, then `master` — never the root (a root
  * reconcile deletes every key the snapshot lacks). Unchanged tracks, devices and values keep their identity; arrays
- * without ids (clips, notes, sends, lane points) merge by position (values exact, identity by index). */
+ * without ids (clips, notes, sends, lane points) merge by position (values exact, identity by index), so the undo
+ * snapshot cache of lane points is dropped (ui/state/snapshot.ts). */
 export function restoreSong(song: SongRoot, d: SongRoot): void {
+  resetSnapCache();
   batch(() => {
     modifyMutable(song.tracks, reconcile(d.tracks, { key: "id" }));
     modifyMutable(song.master, reconcile(d.master, { key: "id" }));
+  });
+}
+/** Restores only some tracks (by index; the track list itself unchanged) and optionally the master, each reconciled
+ * by id like `restoreSong` (undo of a one-track edit does not parse or reconcile the other tracks). */
+export function restoreTracks(song: SongRoot, at: [number, UITrack][], master?: UITrack): void {
+  resetSnapCache();
+  batch(() => {
+    for (const [i, t] of at) modifyMutable(song.tracks[i]!, reconcile(t, { key: "id" }));
+    if (master) modifyMutable(song.master, reconcile(master, { key: "id" }));
   });
 }

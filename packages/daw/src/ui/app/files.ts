@@ -5,7 +5,7 @@ import * as tr from "../state/transport.ts";
 import * as files from "../state/files.ts";
 import * as dialogs from "../files/dialogs.tsx";
 import { api, DAW, E, master, songText, tracks } from "./session.ts";
-import { H, restore, say, snap } from "./core.ts";
+import { H, restoreState, say } from "./core.ts";
 import { BARS, barsPerSec, beatsPerBar, fmtBars, LOOP, playing, setBars, setPos } from "./transport.ts";
 import { livePush, setPlay, setSongMeta, songOf, unloadLive } from "./engine.ts";
 import { fitSong, relayout, showPos, updateLoop } from "./arrange.ts";
@@ -38,12 +38,11 @@ export function dirtyUpd(): void {
 // Puts a song/2 source into the editor (undo history cleared).
 function useSong(s: unknown, file: string, saved: boolean): void {
   if (playing) setPlay(false);
-  const st = DAW.model.fromSong(s as Parameters<typeof DAW.model.fromSong>[0]), d = JSON.parse(snap()); setSongMeta(st.meta, st.length0);
-  d.tracks = st.tracks; d.sel = (st.tracks.find(t => !t.bus) || st.tracks[0])?.id ?? "master"; d.armed = st.tracks.find(t => t.devices.some(x => x.kind === 64))?.id;
-  Object.keys(master).forEach(k => delete (master as Record<string, unknown>)[k]); Object.assign(master, st.master);
+  const st = DAW.model.fromSong(s as Parameters<typeof DAW.model.fromSong>[0]); setSongMeta(st.meta, st.length0);
+  const sel = (st.tracks.find(t => !t.bus) || st.tracks[0])?.id ?? "master", armedId = st.tracks.find(t => t.devices.some(x => x.kind === 64))?.id;
   tr.setTempo(st.tempo); const v = st.sig.join("/"); tr.ensureSig(v); document.documentElement.style.setProperty("--beats", String(beatsPerBar()));
   setBars(st.bars); LOOP[0] = 1; LOOP[1] = Math.min(BARS, 4) + 1;
-  restore(JSON.stringify(d));
+  restoreState({ tracks: st.tracks, master: st.master, sel, armed: armedId });  // the loaded song's own master too
   H.clear(); songFile = file; files.setSongFile(file); files.addSong(file); savedDepth = 0; savedAt = saved ? new Date() : null;
   relayout(); updateLoop(); setPos(1); showPos(); fitSong(true); if (saved) markSaved(); else savedId = -1; unloadLive(); livePush(); dirtyUpd();
 }

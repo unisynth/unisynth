@@ -16,7 +16,7 @@ import { choice, devName, effectChoices, fmtVal, ip, modSrcName, nModes, optValu
 import { engineDev, instOf, links } from "../model/track.ts";
 import { bytesToB64 } from "../model/bytes.ts";
 import { api, E, selected, tracks } from "./session.ts";
-import { commit, say, snap } from "./core.ts";
+import { commit, H, say, snap } from "./core.ts";
 import { playing } from "./transport.ts";
 import { livePush } from "./engine.ts";
 import { applyAutomation, curVal, grab, knobEdited, recOn, recordPoint, release, updateReauto } from "./automation.ts";
@@ -25,6 +25,7 @@ import { NAMES } from "./roll.ts";
 import { envView, filtView, LFO_SHAPES, lfoView, oscView, yDb } from "./screens.ts";
 import type { LibItem, Source } from "../state/library.ts";
 import { gsmOf, gsmSlot, gsmUsed, NOBANK, pcmOf, playSample, smpWhat } from "./samples.ts";
+import type { Snap } from "../state/snapshot.ts";
 
 /** Makes the status line and the hidden audio-file input and starts the live per-voice view. Call once. */
 export function initDevice(): void {
@@ -98,8 +99,10 @@ let wavTarget: WavTarget | null = null;
 function importWav(t: UITrack, d: Device, slot: number): void { wavTarget = { t, d, slot }; wavIn.value = ""; wavIn.click(); }
 const GSM_MAX_SECONDS = 30;
 async function importAudio(file: File, tg: WavTarget): Promise<void> {
+  const ep = H.epoch;  // a song opened while decoding: the target track is gone
   try {
     const ab = await new OfflineAudioContext(1, 1, 44100).decodeAudioData(await file.arrayBuffer());  // resampled to 44.1 kHz
+    if (H.epoch !== ep) return;
     const n = ab.length, mono = new Float32Array(n);
     for (let c = 0; c < ab.numberOfChannels; c++) { const ch = ab.getChannelData(c); for (let i = 0; i < n; i++) mono[i] += ch[i] / ab.numberOfChannels; }
     if (n > GSM_MAX_SECONDS * 44100) { say(`${file.name}: ${(n / 44100).toFixed(1)} s is too long for a 64k intro (at most ${GSM_MAX_SECONDS} s); trim it first`); return; }
@@ -140,7 +143,8 @@ function savePreset(d: Device, btn: HTMLElement): void {
   q(".ok").onclick = async () => {
     const nm = inp.value.trim(), path = `project/music/patches/${file()}`;
     const { _edited, ...dev } = d as Device & { _edited?: boolean }; void _edited; const text = E.presetSave({ ...dev, values: { ...d.values } }, nm);
-    const res = await api.write(path, text);
+    const ep = H.epoch, res = await api.write(path, text);
+    if (H.epoch !== ep) { close(); return; }  // another song was opened meanwhile: the file is saved, the device is gone
     if (!res.ok) { q(".perr").textContent = res.errors?.map((e: { path: string; message: string }) => `${e.path}: ${e.message}`).join("; ") || res.error || ""; return; }
     const before = snap(); d.preset = nm; (d as Device & { _edited?: boolean })._edited = false; close(); lib.setCatalog(await api.library() || lib.catalog()); renderAll(); btn.focus(); commit(before, `saved preset ${nm} → ${path}`);
   };
@@ -175,7 +179,7 @@ function deviceActions(): DeviceActions {
     setParam: (t, d, p, v, msg) => { const before = snap(); d.values[p.name] = v; liveParam(t, d, p, v); if (p.structural || p.name.endsWith(".type") || p.name === "mode") renderDevice(); commit(before, msg); },
     knobInput: (t, d, p, v) => { d.values[p.name] = v; if (!(recOn && playing && recordPoint(t, d, p, v))) knobEdited(t, d, p); liveParam(t, d, p, v); },
     grab, release,
-    begin: () => snap(), end: (before, msg) => commit(before as string, msg),
+    begin: () => snap(), end: (before, msg) => commit(before as Snap, msg),
     // a mode change selects another parameter set: keep only the mode
     modeChanged: (t, d) => { for (const k of Object.keys(d.values)) if (k !== "mode") delete d.values[k]; renderDevice(); livePush(); },
     clearSlot: (t, d, g, i) => slotCmd(`${SLOT_TITLE(g, i)} cleared; mod rows that targeted it are off, its lanes removed`, () => remapSlots(t, d, g, y => y === i ? 0 : y)),
@@ -191,7 +195,7 @@ function deviceActions(): DeviceActions {
     playSample: b64 => playSample(b64), openLibrary: src => openLibrary(src), importWav: (t, d, i) => importWav(t, d, i),
     removeUnusedGsm: (t, d) => removeUnusedGsm(t, d), pcm: pcmOf,
     put: (t, d, p, v) => { d.values[p.name] = v; liveParam(t, d, p, v); },
-    dragEnd: (_t, d, before, msg) => { (d as Device & { _edited?: boolean })._edited = true; commit(before as string, msg); },
+    dragEnd: (_t, d, before, msg) => { (d as Device & { _edited?: boolean })._edited = true; commit(before as Snap, msg); },
     status,
   };
   return a as unknown as DeviceActions;
@@ -209,6 +213,7 @@ export async function loadInto(t: UITrack, src: Source, it: LibItem): Promise<vo
   const before = snap(); let inst = instOf(t); if (!inst) return;
   if (src.id === "project") {
     const text = await api.read(it.preset.path), r = E.presetLoad(text);
+    if (before.epoch !== H.epoch) return;  // another song was opened meanwhile
     if (!r.device) { say(`${it.name}: ${r.errors?.map((e: { message: string }) => e.message).join("; ")}`); return; }
     const i = t.devices.indexOf(inst);
     const lost = t.lanes.filter(ln => ln.dev === i && !paramOf(r.device as Device, ln.param)).map(ln => ln.param);
@@ -223,7 +228,7 @@ export async function loadInto(t: UITrack, src: Source, it: LibItem): Promise<vo
     t.devices.splice(i, 1, ins!, ...fx); inst = ins!;
     for (const ln of t.lanes) if (ln.dev > i) ln.dev += fx.length;
   } else if (src.id === "gsm") {
-    const b64 = await gsmOf(it.gsm); if (!b64) { say(`${it.name}: sample not found in ${it.gsm.path}`); return; }
+    const b64 = await gsmOf(it.gsm); if (before.epoch !== H.epoch) return; if (!b64) { say(`${it.name}: sample not found in ${it.gsm.path}`); return; }
     useGsm(t, inst, b64, it.name); return;
   } else if (src.id === "gm") {
     // a sampler slot on the GM.DLS instrument (source 0.5): each note plays the region for its key and velocity

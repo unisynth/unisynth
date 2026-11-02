@@ -290,7 +290,7 @@ before → `AGENTS.md` rows → land on `main`.
   Open against the edit budget on the released songs (the spec scenarios pass): selecting a track while the Device
   tab shows (select-dev, the instrument panel mounts for the new track) 23–26 ms; a knob step on tbl-stash-over2
   30 ms (two JSON snapshots of the 4 MB song per undo step); mute on tbl-stash-over2 15.9 ms (at the limit).
-- [ ] 9.3 Undo snapshot cost on large songs (from 9.2): a knob step on tbl-stash-over2 takes 30 ms and mute 15.9 ms
+- [x] 9.3 Undo snapshot cost on large songs (from 9.2): a knob step on tbl-stash-over2 takes 30 ms and mute 15.9 ms
   against the 16.7 ms edit budget. Cause, measured: `snap()` stringifies tracks + master per gesture, twice (start
   and commit compare); on tbl-stash-over2 that is 6.57 MB, of which automation lane points are 6.10 MB (a converted
   song with dense lanes), pats 0.37 MB, GSM samples 0.02 MB; one stringify ≈ 19 ms, one track ≈ 0.14 ms. D2's planned
@@ -301,6 +301,17 @@ before → `AGENTS.md` rows → land on `main`.
   restore by id). Verify: a generated dense-automation fixture (≈ 6 MB) in `test/budgets.test.ts` with knob step and
   mute under one frame; `ui/state/history.test.ts` and the undo/redo contract tests green; bench knob / mute / undo on
   tbl-stash-over2 under 16.7 ms and trashpanda unchanged.
+  Done: structured snapshot `ui/state/snapshot.ts` (per-lane points cached by array, copy-on-write lane edits,
+  verify mode on under webdriver = every browser test cross-checks the cache), per-track undo restore, history epoch
+  (a gesture across a song load commits nothing; async preset load / save / WAV import also stop after their await).
+  Doubt-driven review, 2 cycles, cross-model (@propose-review-1, @propose-review-3): freeze was tried and rejected
+  (Solid's unwrap copies frozen objects); in-place raw edits with verify off stay a documented trade-off. Found and
+  fixed on the way: opening another song kept the previous song's master (reconciled back from a stale snapshot;
+  regression assertion in files.test). Bench: tbl-stash-over2 knob 30 → 2.4, mute 15.9 → 1.2, undo 178 → 89 ms;
+  trashpanda knob 1.1 → 1.0, undo 14 → 9.5 ms. Dense fixture: knob 68 → 1.3, mute 34 → 0.8 ms. Undo on the dense
+  fixture stays ~1.4 s: the restore rebuilds the mounted rows and redraws every automation lane as an SVG with one
+  element per point (profile: lane `draw` + `hdrPad`; reconcile ~9 ms) — a lane rendering issue (`test.todo` in
+  budgets.test). Write ratchet 98 → 97. Full suite 176/176 (+1 todo) twice.
 - [ ] 9.4 Track selection with the Device tab shown (from 9.2): select-dev 23–26 ms on trashpanda and
   tbl-stash-over2. Cause: `Device.tsx` renders `<Show when={shownTrack()} keyed>`, so every selection unmounts and
   mounts the whole chain (instrument blocks, knobs, screens). Profile with `bench/ui-profile.ts` first; candidates

@@ -15,6 +15,7 @@ import { LOOP, rollSnap, snapTo, SONG_POS } from "./transport.ts";
 import { focusArea, holdOn, holdOnBar, setFocusArea } from "./arrange.ts";
 import { clipboard } from "./clips.ts";
 import { css } from "./theme.ts";
+import type { Snap } from "../state/snapshot.ts";
 
 export interface RollHooks {
   /** An audition key pressed: play `note` on the selected track, held as `key`. */
@@ -114,9 +115,9 @@ export function drawRoll(): void {
 // Wheel/bend: click adds, drag moves, double-click deletes (like automation lanes).
 const VH = 84;
 type CCDrag =
-  | { vel: "group"; before: string; v0: number; orig: [UINote, number][] }
-  | { vel: "one"; before: string; n: UINote }
-  | { vel: "paint"; before: string; px: number; v: number; n_?: number }
+  | { vel: "group"; before: Snap; v0: number; orig: [UINote, number][] }
+  | { vel: "one"; before: Snap; n: UINote }
+  | { vel: "paint"; before: Snap; px: number; v: number; n_?: number }
   | { vel?: undefined; i: number };
 let ccTip: { x: number; t: string } | null = null, ccDrag: CCDrag | null = null, ccLast: { i: number; t: number } | null = null;
 // the selected track's instrument bend range (unisynth ctl.bend_range, 0..24 semitones, default 2)
@@ -212,7 +213,7 @@ new ResizeObserver(redrawRollSoon).observe(grid);
 vel.addEventListener("wheel", e => { if (!e.ctrlKey && !e.metaKey && !e.altKey && Math.abs(e.deltaX) > Math.abs(e.deltaY)) { e.preventDefault(); grid.scrollLeft += e.deltaX; } }, { passive: false }); });
 
 type RDrag =
-  | { mode: "move" | "resize"; moved?: boolean; st0: number; key0: number; before: string; orig: [UINote, number, number, number][]; hit: UINote; l0: number; alt?: boolean; f?: number }
+  | { mode: "move" | "resize"; moved?: boolean; st0: number; key0: number; before: Snap; orig: [UINote, number, number, number][]; hit: UINote; l0: number; alt?: boolean; f?: number }
   | { mode: "marquee"; moved?: boolean; st0: number; key0: number; st1: number; key1: number; keep: Set<UINote>; before?: undefined };
 /** Roll cursor (paste target, step), gesture, last click (double-click), velocity of new notes. */
 let rCursor = 0, rDrag: RDrag | null = null, rLast: { t: number; x: number; y: number } | null = null, lastVel = .78;

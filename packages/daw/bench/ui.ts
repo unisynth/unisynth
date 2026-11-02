@@ -20,6 +20,7 @@ const dist = process.env.DIST ?? new URL("../dist", import.meta.url).pathname;
 const s = await startServer({ port: 0, root: process.env.ROOT, build: false, dawDist: dist, headless: false });
 const b = await chromium.launch({ channel: "chrome", args: ["--autoplay-policy=no-user-gesture-required"] });
 const p = await b.newPage({ viewport: { width: 1600, height: 1000 } });
+await p.addInitScript(() => localStorage.setItem("daw.verifySnap", "0"));  // measure without the snapshot cache check (on under webdriver)
 p.on("pageerror", (e) => console.log("pageerror", e.message));
 const t0 = performance.now();
 await p.goto(`${s.url}daw/?song=${process.env.SONG ?? "project/music/demo.song.json"}`);
