@@ -1,9 +1,9 @@
 // DAW entry (change add-synth-daw): compiles the engine module, reads the parameter tables, the song list, the
-// library catalog and the first song, then starts the UI (app.js). Song: `?song=project/music/x.song.json`.
+// library catalog and the first song, then starts the UI (ui/App.tsx). Song: `?song=project/music/x.song.json`.
 import { Engine, wav16 } from "./engine.ts";
 import * as model from "./model.ts";
 import { api } from "./api.ts";
-import { start } from "./app.js";
+import { start } from "./ui/App.tsx";
 
 async function boot() {
   const engine = await Engine.create(new URL(".", location.href).href);

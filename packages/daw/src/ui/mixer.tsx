@@ -1,6 +1,6 @@
-// Mixer panel in SolidJS (change daw-solid-ts). Strips read the song store directly (`state/song.ts`: app.js writes
+// Mixer panel in SolidJS (change daw-solid-ts). Strips read the song store directly (`state/song.ts`: the session modules write
 // through the store proxies, so a fader, mute or send write updates just its control) and the meters from
-// `state/live.ts`. Edits go through `MixerActions` (app.js: model, undo, livePush). Mounted only while the Mixer
+// `state/live.ts`. Edits go through `MixerActions` (ui/app/mixer.ts: model, undo, livePush). Mounted only while the Mixer
 // tab shows (`setMixerShown`): a hidden mixer has no DOM to update.
 import { createSignal, For, Show, type JSX } from "solid-js";
 import { render } from "solid-js/web";

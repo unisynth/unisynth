@@ -228,7 +228,7 @@ fn watching_a_track_reports_its_voices_and_taps_and_never_changes_the_sound() {
     let p = h.probe().to_vec();
     let nv = p[1] as usize;
     assert_eq!(p[4 + nv * 22], 1.0, "filter 1 tapped");
-    // the layout the page parses (packages/daw/src/app.js `parseProbe`, VREC = 22): header, voices, slot 1 + taps, 3 flags
+    // the layout the page parses (packages/daw/src/ui/device/live.ts `parseProbe`, VREC = 22): header, voices, slot 1 + taps, 3 flags
     assert_eq!(p.len(), 4 + nv * 22 + 1 + 2 * 2048 + 3);
 }
 

@@ -1,4 +1,4 @@
-// Transport state (change daw-solid-ts, design D3): what the transport bar shows and edits. app.js publishes its
+// Transport state (change daw-solid-ts, design D3): what the transport bar shows and edits. the session (ui/app/transport.ts) publishes its
 // transport variables here (loop, bars, follow, record, edited, drops) where it refreshes their display, and reads the
 // fields the bar owns (tempo, signature, snap, buffer, open filters) from here. Song tempo/signature are not undoable.
 import { createSignal } from "solid-js";

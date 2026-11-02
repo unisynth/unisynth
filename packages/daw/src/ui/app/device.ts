@@ -12,7 +12,7 @@ import * as devst from "../state/device.ts";
 import * as lib from "../state/library.ts";
 import { persist as store } from "../state/persist.ts";
 import { overrides } from "../state/view.ts";
-import { choice, devName, effectChoices, fmtVal, ip, modSrcName, nModes, oscType, routesOf, SLOTS, type SlotGroup, slotKeys, slotUsed, smpShapes, tableOf, TARGETS, vget } from "../model/params.ts";
+import { choice, devName, effectChoices, fmtVal, ip, modSrcName, nModes, oscType, paramOf, routesOf, SLOTS, type SlotGroup, slotKeys, slotUsed, smpShapes, tableOf, TARGETS, vget } from "../model/params.ts";
 import { engineDev, instOf, links } from "../model/track.ts";
 import { bytesToB64 } from "../model/bytes.ts";
 import { api, E, selected, tracks } from "./session.ts";
@@ -23,7 +23,8 @@ import { applyAutomation, curVal, grab, knobEdited, recOn, recordPoint, release,
 import { rebuildTracks } from "./arrange.ts";
 import { NAMES } from "./roll.ts";
 import { envView, filtView, LFO_SHAPES, lfoView, oscView, yDb } from "./screens.ts";
-import { gsmSlot, gsmUsed, NOBANK, pcmOf, playSample, smpWhat } from "./samples.ts";
+import type { LibItem, Source } from "../state/library.ts";
+import { gsmOf, gsmSlot, gsmUsed, NOBANK, pcmOf, playSample, smpWhat } from "./samples.ts";
 
 /** Makes the status line and the hidden audio-file input and starts the live per-voice view. Call once. */
 export function initDevice(): void {
@@ -201,4 +202,30 @@ export function updateWatch(): void {
   const t = selected, on = liveOn() && !document.getElementById("p-dev")!.hidden && t && !t.bus && !t.master && instOf(t);
   E.watch(on ? trackIndex(t) : -1);
   if (!on) live1.liveClear();
+}
+/** Library "Load": a project preset, a converted legacy entry (its effects follow the instrument), a GSM sample or a
+ * GM.DLS instrument on a sampler slot replaces the selected track's sound. One undo step. */
+export async function loadInto(t: UITrack, src: Source, it: LibItem): Promise<void> {
+  const before = snap(); let inst = instOf(t); if (!inst) return;
+  if (src.id === "project") {
+    const text = await api.read(it.preset.path), r = E.presetLoad(text);
+    if (!r.device) { say(`${it.name}: ${r.errors?.map((e: { message: string }) => e.message).join("; ")}`); return; }
+    const i = t.devices.indexOf(inst); t.devices[i] = { ...r.device, _edited: false } as Device; inst = t.devices[i]!;
+    for (const ln of t.lanes) if (ln.dev === i && !paramOf(inst, ln.param)) ln.param = "filt1.cutoff";
+  } else if (it.conv?.devices?.length) {
+    // converted legacy entry: its instrument replaces the track's, its insert effects go right after it
+    const [ins, ...fx] = (it.conv.devices as Device[]).map(d => ({ ...structuredClone(d), preset: it.name, _edited: false }));
+    const i = t.devices.indexOf(inst); t.devices.splice(i, 1, ins!, ...fx); inst = ins!;
+    for (const ln of t.lanes) { if (ln.dev > i) ln.dev += fx.length; else if (ln.dev === i && !paramOf(inst, ln.param)) ln.param = "filt1.cutoff"; }
+  } else if (src.id === "gsm") {
+    const b64 = await gsmOf(it.gsm); if (!b64) { say(`${it.name}: sample not found in ${it.gsm.path}`); return; }
+    useGsm(t, inst, b64, it.name); return;
+  } else if (src.id === "gm") {
+    // a sampler slot on the GM.DLS instrument (source 0.5): each note plays the region for its key and velocity
+    const d = inst, g = it.gm, slot = [1, 2, 3].find(i => oscType(d, i) === 4) || [1, 2, 3].find(i => !slotUsed(d, "osc", i)) || 1;
+    Object.assign(d.values, { [`osc${slot}.type`]: 1, [`osc${slot}.s7`]: 0.5, [`osc${slot}.sample`]: 1 + (g.drums ? 16384 : 0) + g.bank * 128 + g.prog });
+    delete d.values[`osc${slot}.s8`];
+    d.preset = `GM ${it.gm.name}`; (d as Device & { _edited?: boolean })._edited = false;
+  }
+  overrides.get(t.id)?.clear(); rebuildTracks(); renderAll(); say(`${t.name}: loaded “${it.name}” (one undo step)`); commit(before, `${t.name}: loaded ${it.name}`);
 }

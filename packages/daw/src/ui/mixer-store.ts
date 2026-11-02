@@ -1,10 +1,10 @@
-// Mixer UI state (change daw-solid-ts): whether the panel shows, and the edit actions app.js provides. The strips
+// Mixer UI state (change daw-solid-ts): whether the panel shows, and the edit actions ui/app/mixer.ts provides. The strips
 // read the song store (state/song.ts) and the meters (state/live.ts) directly. Kept apart from the components
 // (mixer.tsx) so a hot reload of a component keeps the state: only edited modules re-run.
 import { createSignal } from "solid-js";
 import type { Device } from "../model.ts";
 
-/** Edits, implemented in app.js on the song store (each one commits its own undo step). */
+/** Edits, implemented in ui/app/mixer.ts on the song store (each one commits its own undo step). */
 export interface MixerActions {
   select(id: string): void;
   mute(id: string): void;

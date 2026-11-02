@@ -1,7 +1,6 @@
 // Display state that changes at frame rate (change daw-solid-ts, design D3): playhead position, transport, engine
-// load and meter levels. Written from the engine status / rAF loop in app.js, read by components. Never part of the
+// load and meter levels. Written from the engine status / rAF loop in ui/app/engine.ts, read by components. Never part of the
 // song store: not saved, not undoable, never pushed to the engine. Setters notify only on a shown change.
-// (Automation values at the playhead stay in app.js `autoVal` until the device panel is ported, task 6.2.)
 import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 

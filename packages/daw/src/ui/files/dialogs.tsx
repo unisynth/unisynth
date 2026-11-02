@@ -1,5 +1,5 @@
 // File dialogs (change daw-solid-ts 4.2): save prompt, validation errors, export summary, bounce. Built on
-// ui/common/Dialog.tsx; app.js supplies the facts and the actions (engine, files). Tables need an explicit <tbody>:
+// ui/common/Dialog.tsx; ui/app/files.ts supplies the facts and the actions (engine, files). Tables need an explicit <tbody>:
 // the HTML parser inserts one into Solid's template and the compiled node walk then misses.
 import { createSignal, For, Match, Switch } from "solid-js";
 import { openDialog } from "../common/Dialog.tsx";

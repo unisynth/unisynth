@@ -1,6 +1,6 @@
 // Device panel view state (change daw-solid-ts 6.2): never saved, never undoable.
 // - auto values: the value of each automated parameter at the playhead, per device `values` object. Written by
-//   app.js's applyAutomation (only on change; it runs every frame while playing), read by the knobs, so playback
+//   ui/app/automation.ts's applyAutomation (only on change; it runs every frame while playing), read by the knobs, so playback
 //   moves just the automated knobs. Whether a lane exists comes from the song store; the override flag from here.
 // - slot and block collapse (block collapse persists in the browser, state/persist.ts).
 import { batch, createSignal } from "solid-js";
@@ -38,7 +38,7 @@ export function blockClosed(k: string): boolean {
 }
 export function setBlockClosed(k: string, closed: boolean): void { persist.set(`daw.blk.${k}`, closed ? "1" : "0"); setBlk(k, closed); }
 
-/** The track the panel shows: renderDevice() publishes app.js's `selected` (assigned in several places). */
+/** The track the panel shows: renderDevice() publishes the session's `selected` (assigned in several places). */
 export const [shownTrack, setShownTrackSig] = createSignal<unknown>(null, { equals: false });
 export const setShownTrack = (t: unknown): void => { if (t !== shownTrack()) setShownTrackSig(() => t); };
 

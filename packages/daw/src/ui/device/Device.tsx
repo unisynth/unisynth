@@ -1,7 +1,7 @@
 // Device panel (change daw-solid-ts 6.2): the selected track's instrument and effect chain as components over the
 // song store. Knobs, selects and slot state follow the store, so an edit or an automation step updates only what
 // reads it; nothing rebuilds the panel except a track change. Drawing stays imperative (design D4): each slot screen
-// is the element app.js builds, redrawn by an effect from the values its `_draw` reads; the sampler block is
+// is the element ui/app/screens.ts builds, redrawn by an effect from the values its `_draw` reads; the sampler block is
 // ui/device/Sampler.tsx. Markup, classes and labels are the pre-port ones (contract tests).
 import { createEffect, createMemo, createSignal, For, Index, type JSX, on, onCleanup, Show, untrack } from "solid-js";
 import { render } from "solid-js/web";
@@ -71,7 +71,7 @@ const OSC_SHAPES: Record<number, (string | null)[]> = { 1: ["waveform"], 2: ["wa
 const range = (n: number) => [...Array(n)].map((_, k) => k + 1);
 
 let A!: DeviceActions;
-/** Display name; tracks the mode and preset (app.js's devName reads the kind and mode raw). */
+/** Display name; tracks the mode and preset (params.ts `devName` reads the kind and mode raw). */
 const devName = (d: Device) => { void d.values.mode; void d.preset; return A.devName(d); };
 
 /** Mounts the panel into `el`: the shown track's chain while the Device tab shows, nothing otherwise. */

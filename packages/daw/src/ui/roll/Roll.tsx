@@ -1,6 +1,6 @@
 // Piano roll panel (change daw-solid-ts 7.2, D4/D5): the note-editing toolbar, the audition keys, the note grid and the
 // controller lane exist only while the Piano roll tab shows. Drawing and gestures stay imperative (D4): on mount the
-// panel hands its elements to app.js (`attach`), which binds its handlers and paints the visible window of the
+// panel hands its elements to ui/app/roll.ts (`attach`), which binds its handlers and paints the visible window of the
 // canvases; on unmount `detach` drops them. Markup, ids and labels are the pre-port ones (tests, style.css).
 import { Index, type JSX, onCleanup, onMount, Show } from "solid-js";
 import { render } from "solid-js/web";
@@ -14,7 +14,7 @@ export interface RollEls {
 export interface RollActions { attach(els: RollEls): void; detach(): void }
 
 const NAMES = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
-/** Audition keys, top (HI) to bottom (LO): the order app.js indexes (`HI - note`). */
+/** Audition keys, top (HI) to bottom (LO): the order ui/app/roll.ts indexes (`HI - note`). */
 export const KEY_LO = 24, KEY_HI = 96;
 const KEYS = Array.from({ length: KEY_HI - KEY_LO + 1 }, (_, k) => KEY_HI - k);
 

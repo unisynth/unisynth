@@ -1,23 +1,29 @@
 // Track commands of the running session (change daw-solid-ts 9.1, step 8): selection, add / rename / reorder /
 // duplicate / delete (one undo step each, the views rebuild), the track header's events and menu, arm, volume (one undo
 // step per gesture), mute / solo. Header and mixer strip call these (design D7).
-import type { Device, UITrack } from "../../model.ts";
+import type { About, Device, UITrack } from "../../model.ts";
 import { popMenu } from "../common/Menu.tsx";
 import * as arrange from "../state/arrange.ts";
 import { bumpLane } from "../state/arrange.ts";
 import { raw } from "../state/song.ts";
 import { setSelectedId } from "../state/view.ts";
-import { instOf } from "../model/track.ts";
+import { devName } from "../model/params.ts";
+import { fxOf, instOf } from "../model/track.ts";
 import { armed, master, selected, setArmed, setSelected, tracks } from "./session.ts";
 import { commit, say, snap } from "./core.ts";
 import { livePush } from "./engine.ts";
 import { rebuildTracks, setFocusArea } from "./arrange.ts";
 import { arrKeys, clearClipSel, selClips } from "./clips.ts";
 import { drawRoll, genRoll } from "./roll.ts";
-import { renderAll } from "./device.ts";
+import { renderAll, senders } from "./device.ts";
 
 /** A new track's instrument: one oscillator through a low-pass filter. */
 export const initInstrument = (): Device => ({ kind: 64, preset: "init", values: { "osc1.type": 0.5, "filt1.type": 0.125, "filt1.cutoff": 0.6, "env1.sustain": 0.7, "env1.release": 0.15 } });
+/** Header device line: a bus's senders and effects, else the chain (`*` edited preset, "(off)" bypassed). */
+export const devLabel = (t: UITrack): string => t.bus ? `Bus · ← ${senders(t).map(x => x.name).join(", ") || "no sends"}${fxOf(t).length ? " · " + fxOf(t).map(devName).join(" → ") : ""}`
+  : t.devices.map(d => devName(d) + ((d as Device & { _edited?: boolean })._edited ? "*" : "") + (d.bypass ? " (off)" : "")).join(" → ") || "no devices";
+/** One line from a song/1 about: type · style · tempo · engine · like … — description. */
+export const aboutText = (a: About): string => [a.type, a.style, a.tempo, a.engine, a.similar_to?.length ? "like " + a.similar_to.join(", ") : ""].filter(Boolean).join(" · ") + " — " + a.description;
 const focusHeader = (t: UITrack): void => { document.querySelector<HTMLElement>(`.thdr.track[data-track="${t.id}"]`)?.focus(); };
 /** Binds the arrangement corner's "Add track" button. */
 export function initTracks(): void {

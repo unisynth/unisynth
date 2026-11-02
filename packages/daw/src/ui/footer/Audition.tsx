@@ -1,5 +1,5 @@
 // Footer audition controls (change daw-solid-ts 8.2): armed track with the keyboard octave and velocity, the ⌨
-// toggle, the Web MIDI button and the MW/PB sliders (PB springs back). Values live in state/audition.ts; app.js
+// toggle, the Web MIDI button and the MW/PB sliders (PB springs back). Values live in state/audition.ts; ui/app/audition.ts
 // sends them to the engine (AuditionActions). Ids and labels are the pre-port ones. The sliders listen natively
 // (`on:`), not by delegation: an `input`/`pointerup` dispatched without bubbling still counts.
 import { type JSX } from "solid-js";

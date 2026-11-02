@@ -1,6 +1,6 @@
 // Transport bar in SolidJS (change daw-solid-ts 3.3): the page header. Same ids, classes, names and titles as the old
 // static markup (tests and style.css rely on them). Reads state/transport.ts and state/live.ts; edits go through
-// `TransportActions` (app.js). Position and time derive from the playhead, tempo and signature, so a tempo change
+// `TransportActions` (ui/App.tsx). Position and time derive from the playhead, tempo and signature, so a tempo change
 // updates the time at once. Save shows the unsaved state (ui/state/files.ts); Bounce / Export / Save call actions.
 import { createEffect, createMemo, For, type JSX } from "solid-js";
 import { render } from "solid-js/web";

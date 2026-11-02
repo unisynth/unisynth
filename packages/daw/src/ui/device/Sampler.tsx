@@ -37,7 +37,7 @@ const SOURCES = ["GSM sample", "GM instrument (per-note regions)", "GM wave"];
 const LOOP_MODES = ["Off", "Repeat", "Ping-pong"], LOOP_REGIONS = ["Sample's own loop", "Custom"], INTERPS = ["Nearest", "Linear"];
 const SETTING = ["", "loop", "loop region", "", "", "reverse", "interpolation"];
 const W = 360, H = 52;
-const tokens = new Map<string, string>();  // static theme colours (no theme switching), as app.js's css()
+const tokens = new Map<string, string>();  // static theme colours (no theme switching), as ui/app/theme.ts `css()`
 const css = (v: string) => { let c = tokens.get(v); if (c === undefined) tokens.set(v, (c = getComputedStyle(document.documentElement).getPropertyValue(v).trim())); return c; };
 
 export function Sampler(p: { t: Track; d: Device; i: number; a: SamplerActions }): JSX.Element {

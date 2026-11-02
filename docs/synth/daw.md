@@ -16,7 +16,7 @@ synth-mix blob (*.song.bin) ──► synth_core::mix::Player (the intro's playe
                     (same Mixer step as Player: bit-identical from frame 0 without edits)
 
 packages/daw (served at /daw by packages/cli)
-  main thread: engine module instance → tables, validate, export, import, presets; UI (SolidJS components in src/ui + app.js, being ported) on the editor model
+  main thread: engine module instance → tables, validate, export, import, presets; UI (SolidJS components in src/ui, session logic in src/ui/app, started by src/ui/App.tsx) on the editor model
   AudioWorklet: engine module instance → Host.render(128) per quantum; commands in, status (position, peaks, load) out
   Worker:       engine module instance → bounce (the exported blob through Player) → WAV
   /api/music:   list / read / validated write under project/music;  /api/library, /api/bank (GM.DLS)
@@ -196,8 +196,7 @@ bun packages/cli/src/cli.ts serve --no-headless   # then open http://127.0.0.1:6
 
 `?song=project/music/x.song.json` opens a song; `?tab=roll|dev|mix` a panel; `?nobank` shows the missing-bank state.
 
-**Dev loop (hot reload).** The page is SolidJS built by Vite (change daw-solid-ts; panels still in `app.js` move over
-one at a time). For UI work, run the CLI server for `/api` and the engine files, and Vite in front of it:
+**Dev loop (hot reload).** The page is SolidJS built by Vite (change daw-solid-ts). For UI work, run the CLI server for `/api` and the engine files, and Vite in front of it:
 
 ```bash
 bun packages/daw/build.ts                                         # once: engine modules + worklet/workers in dist

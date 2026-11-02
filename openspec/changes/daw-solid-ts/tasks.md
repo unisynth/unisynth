@@ -237,7 +237,7 @@ before → `AGENTS.md` rows → land on `main`.
 
 ## 9. Finish
 
-- [ ] 9.1 Delete `app.js`, `app.d.ts`; `main.ts` mounts `ui/App.tsx`. Remove `// @ts-nocheck` users. Verify: tsc
+- [x] 9.1 Delete `app.js`, `app.d.ts`; `main.ts` mounts `ui/App.tsx`. Remove `// @ts-nocheck` users. Verify: tsc
   clean, `rg "app.js" packages/daw/src` empty, all tests green.
   Plan (one commit each, tsc + suite twice + bench): 1 model helpers, 2 core (undo, say, selection), 3 engine link,
   4 transport, 5 arrangement, 6 piano roll, 7 device helpers, 8 files/tracks, 9 `ui/App.tsx` + delete. The write
@@ -266,6 +266,11 @@ before → `AGENTS.md` rows → land on `main`.
   - [x] step 8: song files into `ui/app/files.ts`, track commands + `selectTrack` into `ui/app/tracks.ts`. 161/161
     twice; bench under machine load (loadavg ≈17) alternating against step 7: open 1.8–2.65 vs 1.77–2.34 s,
     select-dev / roll overlapping (noise).
+  - [x] step 9: `ui/App.tsx` (start, same order), `ui/app/audition.ts`, `mixer.ts`, `tabs.ts`; `loadInto` →
+    device.ts, `devLabel`/`aboutText` → tracks.ts; `app.js`, `app.d.ts` and the `app.js.AGENTS.md` sidecar deleted;
+    dead `clipNotes`, `rnd`, `live` element, `CAT` alias dropped. Ratchet counts `SESSION`, BASELINE 98 (two GM-load
+    writes on `inst.values` the counter missed by name, now seen as `d.values`). `rg "app.js" packages/daw/src`
+    empty, tsc clean, 161/161 twice.
 - [ ] 9.2 Integration check of the spec budgets on the 50-track song: bench every scenario against the step-3
   baseline, "Edit response budget" and "Playback display budget" as browser tests. Verify: `/daw/` from `serve`,
   `/dsp` static build loads and bounces, hot-reload dev loop works.

@@ -1,9 +1,8 @@
-// Write ratchet (change daw-solid-ts 2.7, design D2): app.js still writes the song model directly through the
-// createMutable proxies. Ported panels move those writes into actions; the store becomes `createStore` (where a
-// direct write is silently ignored) only when none are left. This counts the direct writes still in app.js and
-// fails when the count changes: higher = a new direct write (put it in an action), lower = lower BASELINE.
-// Task 9.1 splits app.js into modules: the moved code is still counted (SPLIT), so the baseline drops only when a
-// write is really replaced, not when it changes file.
+// Write ratchet (change daw-solid-ts 2.7, design D2): the session modules (formerly app.js, split in task 9.1) still
+// write the song model directly through the createMutable proxies. Ported panels move those writes into actions; the
+// store becomes `createStore` (where a direct write is silently ignored) only when none are left. This counts the
+// direct writes in SESSION and fails when the count changes: higher = a new direct write (put it in an action),
+// lower = lower BASELINE. Moving code between these files does not change the count.
 import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
@@ -11,6 +10,11 @@ const BASELINE = 97;
 const BASELINE = 96;
 /** Modules split out of app.js (daw-solid-ts 9.1), counted with it. */
 const SPLIT = ["ui/model/params.ts", "ui/model/track.ts", "ui/model/bytes.ts", "ui/app/session.ts", "ui/app/core.ts", "ui/app/transport.ts", "ui/app/engine.ts", "ui/app/automation.ts", "ui/app/arrange.ts", "ui/app/theme.ts", "ui/app/clips.ts", "ui/app/roll.ts", "ui/app/device.ts", "ui/app/screens.ts", "ui/app/samples.ts", "ui/app/files.ts", "ui/app/tracks.ts"];
+// 98 since 9.1 step 9: the library GM load's `Object.assign(d.values, …)` / `delete d.values[…]` were missed while the
+// local was named `inst` (the Object.assign / delete patterns know only master|t|d|c|n|tr); same writes, now seen.
+const BASELINE = 98;
+/** The session code that still writes the model (app.js until daw-solid-ts 9.1 split it into these). */
+const SESSION = ["ui/App.tsx", "ui/app/audition.ts", "ui/app/mixer.ts", "ui/app/tabs.ts", "ui/model/params.ts", "ui/model/track.ts", "ui/model/bytes.ts", "ui/app/session.ts", "ui/app/core.ts", "ui/app/transport.ts", "ui/app/engine.ts", "ui/app/automation.ts", "ui/app/arrange.ts", "ui/app/theme.ts", "ui/app/clips.ts", "ui/app/roll.ts", "ui/app/device.ts", "ui/app/screens.ts", "ui/app/samples.ts", "ui/app/files.ts", "ui/app/tracks.ts"];
 
 /** Assignment targets that are DOM, canvas, engine, view or local state, not the song model (`store[…]` in the knob
  * is `d.values`: counted; `ip.map` is a cache on the function). */
@@ -30,11 +34,11 @@ export function countModelWrites(src: string): { n: number; lines: string[] } {
   return { n: lines.length, lines };
 }
 
-test("direct model writes in app.js (and the modules split from it) only go down", () => {
+test("direct model writes in the session modules only go down", () => {
   let n = 0; const lines: string[] = [];
-  for (const f of ["app.js", ...SPLIT]) { const r = countModelWrites(readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8")); n += r.n; lines.push(...r.lines.map((l) => `${f}:${l}`)); }
-  if (n > BASELINE) console.log(`app.js has ${n} lines with direct model writes (baseline ${BASELINE}). Move the new ones into an action.\n` + lines.join("\n"));
-  if (n < BASELINE) console.log(`app.js is down to ${n} lines with direct model writes: lower BASELINE in ${import.meta.path} to ${n}.`);
+  for (const f of SESSION) { const r = countModelWrites(readFileSync(new URL(`../src/${f}`, import.meta.url), "utf8")); n += r.n; lines.push(...r.lines.map((l) => `${f}:${l}`)); }
+  if (n > BASELINE) console.log(`the session modules have ${n} lines with direct model writes (baseline ${BASELINE}). Move the new ones into an action.\n` + lines.join("\n"));
+  if (n < BASELINE) console.log(`the session modules are down to ${n} lines with direct model writes: lower BASELINE in ${import.meta.path} to ${n}.`);
   expect(n).toBe(BASELINE);
 });
 

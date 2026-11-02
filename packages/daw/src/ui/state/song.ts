@@ -1,5 +1,5 @@
 // The song store (change daw-solid-ts, design D2). Transition phase: a `createMutable` proxy over the editor model,
-// so app.js's in-place writes keep working and now notify Solid components. Bulk readers (export, undo snapshots,
+// so the session modules' in-place writes keep working and now notify Solid components. Bulk readers (export, undo snapshots,
 // structuredClone, canvas loops) take `raw()` — the plain objects, no proxy cost, never tracked. When the write
 // ratchet (task 2.7) reaches 0 this becomes `createStore` with actions.
 import { batch } from "solid-js";
@@ -8,7 +8,7 @@ import type { UITrack } from "../../model.ts";
 
 export interface SongRoot { tracks: UITrack[]; master: UITrack }
 
-/** Wraps the loaded model; `tracks` and `master` of the result are the proxies app.js mutates from now on. */
+/** Wraps the loaded model; `tracks` and `master` of the result are the proxies the session modules (ui/app/) mutate from now on. */
 export function createSong(st: SongRoot): SongRoot {
   return createMutable({ tracks: st.tracks, master: st.master });
 }

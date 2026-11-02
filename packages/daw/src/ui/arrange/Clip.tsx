@@ -1,7 +1,7 @@
 // A clip in a track lane (change daw-solid-ts 5.3): position, size, label and state are reactive on the clip (song
 // store); the note thumbnail is one canvas drawn imperatively (design D4, `thumb.ts`) when the lane's content version
 // (`laneVer`, bumped by renderLane), the clip's length/loop/name or the zoom change. Same classes, role and ARIA as
-// the old clip; the element carries `_clip` for the lane's pointer handlers in app.js.
+// the old clip; the element carries `_clip` for the lane's pointer handlers (ui/app/clips.ts).
 import { createEffect, createMemo, onCleanup, type JSX } from "solid-js";
 import { bw, laneVer } from "../state/arrange.ts";
 import { thumb, type ThumbNote } from "./thumb.ts";

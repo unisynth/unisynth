@@ -17,6 +17,10 @@ export interface Daw {
   debug?: Record<string, unknown>;
 }
 
+/** A panel's action interface as app code implements it: the panel's narrow track type `N` stands for the store track
+ * it was given (ui/arrange/Tracks.tsx). */
+export type WithTrack<A, N> = { [K in keyof A]: A[K] extends (...a: infer P) => infer R ? (...a: { [I in keyof P]: P[I] extends N ? UITrack : P[I] }) => R : A[K] };
+
 export let DAW: Daw;
 export let E: Engine;
 export let api: typeof Api;
