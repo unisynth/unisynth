@@ -1,15 +1,17 @@
 // @ts-nocheck
 import { raw } from "./ui/state/song.ts";
-import { api, armed, E, initSession, master, selected, setArmed, setSelected, song, tracks } from "./ui/app/session.ts";
+import { api, armed, E, initSession, master, selected, song, tracks } from "./ui/app/session.ts";
 import { commit, H, initCore, redo, restore, say, snap, undo } from "./ui/app/core.ts";
-import { BARS, barsPerSec, beatsPerBar, fmtBars, LOOP, loopOn, playing, setBars, setPos, sig } from "./ui/app/transport.ts";
-import { addAutoLane, addLane, applyAutomation, initAutomation, laneVals, recOn, recordFrame, release, setRec } from "./ui/app/automation.ts";
-import { BW, fitArr, fitSong, hdrs, initArrange, lanes, laneTick, loopSelection, lw, onLength, onLoopText, rebuildTracks, relayout, ruler, setFocusArea, showPos, toggleFollow, toggleLoop, updateLoop, zoomArr } from "./ui/app/arrange.ts";
-import { arrKeys, clearClipSel, initClips, selClips } from "./ui/app/clips.ts";
+import { BARS, beatsPerBar, LOOP, loopOn, playing, setBars, sig } from "./ui/app/transport.ts";
+import { addAutoLane, addLane, applyAutomation, initAutomation, laneVals, recOn, recordFrame, setRec } from "./ui/app/automation.ts";
+import { BW, fitArr, fitSong, hdrs, initArrange, lanes, laneTick, loopSelection, lw, onLength, onLoopText, rebuildTracks, relayout, ruler, showPos, toggleFollow, toggleLoop, updateLoop, zoomArr } from "./ui/app/arrange.ts";
+import { initClips } from "./ui/app/clips.ts";
 import { addEffect, devBypass, initDevice, renderAll, renderDevice, senders, trackIndex, updateWatch, useGsm } from "./ui/app/device.ts";
 import { gsmOf, playSample } from "./ui/app/samples.ts";
+import { addTrack, headerClick, headerKey, headerMenu, initTracks, renameTo, renameTrack, selectTrack, setVolume, toggleArm, toggleMuteSolo, updateArmed } from "./ui/app/tracks.ts";
+import { bounceSong, dirtyUpd, exportSong, importFile, initFiles, markClean, newSong, openSong, save } from "./ui/app/files.ts";
 import { attachRoll, centreRoll, detachRoll, drawRoll, fitRoll, followRoll, genRoll, initRoll, inRoll, keyLight, moveRollPh, rollLoopChanged, zoomRoll } from "./ui/app/roll.ts";
-import { audible, ensureAudio, initEngine, livePush, onBuffer, onOpenFilters, pushSong, seek, setPlay, setSongMeta, songOf, stopPressed, unloadLive } from "./ui/app/engine.ts";
+import { audible, ensureAudio, initEngine, livePush, onBuffer, onOpenFilters, pushSong, seek, setPlay, songOf, stopPressed } from "./ui/app/engine.ts";
 import * as liveState from "./ui/state/live.ts";
 import * as tr from "./ui/state/transport.ts";
 import { mountTransport } from "./ui/transport/TransportBar.tsx";
@@ -18,7 +20,6 @@ import * as lib from "./ui/state/library.ts";
 import { mountFiles } from "./ui/files/Files.tsx";
 import * as dialogs from "./ui/files/dialogs.tsx";
 import { mountLibrary } from "./ui/library/Library.tsx";
-import { popMenu } from "./ui/common/Menu.tsx";
 import * as arrange from "./ui/state/arrange.ts";
 import { mountTracks } from "./ui/arrange/Tracks.tsx";
 import { mountRoll } from "./ui/roll/Roll.tsx";
@@ -33,14 +34,14 @@ import { mountMixer, setMixerShown } from "./ui/mixer.tsx";
 import * as devst from "./ui/state/device.ts";
 import * as live1 from "./ui/device/live.ts";
 import { autoParams, devName, effectChoices, initParams, oscType, paramOf, slotUsed } from "./ui/model/params.ts";
-import { carry, cleanDev, devicesOf, engineDev, fxOf, instOf, laneText, patOf } from "./ui/model/track.ts";
+import { cleanDev, devicesOf, engineDev, fxOf, instOf, laneText, patOf } from "./ui/model/track.ts";
 // DAW UI (change add-synth-daw): the reviewed mockup's views and interactions on the real song/1 model,
 // engine (AudioWorklet + synth-wasm live host), device panels generated from the engine's parameter tables and
 // /api/music. Started by main.ts with { engine, model, api, tables, initial, files, library }.
 export function start(DAW) {
 let CAT = null;  // library catalog (/api/library)
 initSession(DAW);  // engine, api, song store proxies, selection (ui/app/session.ts)
-const M = DAW.model, TABLES = DAW.tables;
+const TABLES = DAW.tables;
 const st0 = DAW.initial;
 setBars(st0.bars); LOOP[1] = Math.min(BARS, 4) + 1;
 // ---- device tables (design D8): every device's parameters come from the engine module (ui/model/params.ts) ----
@@ -73,7 +74,7 @@ initRoll({ play: (n, key) => noteOn(selected, n, au.kbVel(), key), stop: key => 
 initArrange({
   rollLoop: rollLoopChanged, rollFollow: followRoll, rollPos: moveRollPh,
 });
-// Clips: ui/arrange/Clip.tsx (reactive; canvas thumbnail redrawn when renderLane bumps the lane version).
+// Clips: ui/arrange/Clip.tsx (reactive; canvas thumbnail redrawn when arrange.bumpLane bumps the lane version).
 // Every note occurrence of a placement: [note, step in the clip, audible length]. A looping clip repeats its
 // pattern (pattern length = pt.len bars); a cropped clip plays the pattern's start.
 function* clipNotes(t, c) {
@@ -457,6 +458,9 @@ const initInstrument = () => ({ kind: 64, preset: "init", values: { "osc1.type":
 // Device panel, commands and live view (ui/app/device.ts).
 initDevice();
 
+// Track commands and song files (ui/app/tracks.ts, ui/app/files.ts).
+initTracks(); initFiles();
+
 // Mixer: each strip = inserts (the track's effect chain), sends (stored as receives on the target track,
 // post-fader), fader, meters. Bus tracks have no instrument; the master is the last track and can hold effects.
 const mixer = document.getElementById("mixer");
@@ -487,20 +491,14 @@ mountMixer(mixer, song, {
   addBus: () => addTrack(true),
   devName,
 });
-function selectTrack(t) {
-  t = (t.master ? master : tracks.find(x => x.id === t.id)) || t;  // always the store proxy (writes must notify)
-  setSelected(t); setSelectedId(t.id);
-  if (!t.bus && !t.master && instOf(t) && armed !== t) { setArmed(t); updateArmed(); }  // the keyboard plays the selected track
-  genRoll(t); renderAll();
-  if (!document.getElementById("p-roll").hidden) drawRoll();
-}
+
 
 
 // ===== Editing: selection, cut/copy/paste/duplicate/delete, move/transpose, quantize/align, undo =====
 // Status, undo/redo (ui/app/core.ts): a restore rebuilds the views for the restored song and selection.
 initCore({
   restored: () => { rebuildTracks(); selectTrack(selected); updateArmed(); },
-  changed: () => { if (typeof dirtyUpd === "function") dirtyUpd(); livePush(); },
+  changed: () => { dirtyUpd(); livePush(); },
 });
 
 
@@ -575,13 +573,7 @@ function onTempo(v) { tr.setTempo(v); showPos(); say(`tempo ${v} BPM`); dirtyUpd
 function onSig(v) { tr.setSig(v); document.documentElement.style.setProperty("--beats", beatsPerBar()); showPos(); dirtyUpd(); say(`time signature ${v}: beat grid and positions follow; the piano roll keeps 16 steps per bar`); }
 
 
-// Mute / solo (header and mixer strip buttons, design D7): one state per track, both views follow the store. Mute is
-// one undo step (committed after the click); solo is not undoable.
-function toggleMuteSolo(t, solo) {
-  const name = t.name, before = snap(); t[solo ? "solo" : "mute"] = !t[solo ? "solo" : "mute"];
-  if (!solo) setTimeout(() => commit(before, `${name} ${t.mute ? "muted" : "unmuted"}`));
-  say(`${name} ${solo ? (t.solo ? "soloed" : "unsoloed") : (t.mute ? "muted" : "unmuted")}`); livePush();
-}
+
 
 // ---- Engine transport (design D6, D8e): the AudioWorklet live host plays the song; the UI clock follows the
 // position it reports. Every edit sends the exported song to the host, which applies it per track (D4). ----
@@ -825,91 +817,9 @@ function bounceSong() {
   });
 }
 markSaved(); savedAt = null; files.setSongFile(songFile); files.addSong(songFile); dirtyUpd();
+markClean();
 DAW.debug = { song: () => songOf(false), selected: () => selected.id, bars: () => BARS, undoDepth: () => H.depth,
   live: () => live1.liveStats() };
-// Menus: popMenu (ui/common/Menu.tsx), right-click or Shift+F10 / ContextMenu key on headers, lanes, clips.
-// ===== Tracks: add, rename, reorder, duplicate, delete =====
-const TCOL = ["--t-kick", "--t-bass", "--t-lead", "--t-pad", "--t-keys", "--t-hats"];
-const newId = p1 => p1 + Math.random().toString(36).slice(2, 7);
-const firstBus = () => { const i = tracks.findIndex(x => x.bus); return i < 0 ? tracks.length : i; };
-function trackCmd(msg, fn) { const before = snap(); const r = fn(); rebuildTracks(); selectTrack(selected); updateArmed(); commit(before, msg); return r; }
-function addTrack(bus) {
-  const n = tracks.filter(x => !!x.bus === !!bus).length + 1;
-  const t = bus ? { id: newId("bus"), name: `Bus ${n}`, col: "--t-bus", vol: -6, bus: true, clips: [], pats: {}, devices: [{ kind: 71, values: { mode: 0, dry_wet: 1 } }], sends: [], lanes: [] }
-    : { id: newId("t"), name: `Track ${n}`, col: TCOL[n % TCOL.length], vol: -6, clips: [], pats: {}, lanes: [], sends: [], devices: [initInstrument()] };
-  const at = bus ? tracks.length : Math.min(firstBus(), tracks.indexOf(selected) + 1 || firstBus());
-  trackCmd(`${t.name} added`, () => { tracks.splice(at, 0, t); setSelected(t); if (!bus) setArmed(t); });
-  document.querySelector(`.thdr.track[data-track="${t.id}"]`)?.focus();
-}
-function deleteTrack(t) {
-  if (t.master) return say("the master cannot be deleted");
-  if (!t.bus && tracks.filter(x => !x.bus).length === 1) return say("a song keeps at least one instrument track");
-  const i = tracks.indexOf(t);
-  trackCmd(`${t.name} deleted (Ctrl+Z restores it)`, () => {
-    tracks.splice(i, 1); for (const x of tracks) x.sends = x.sends.filter(s1 => s1[0] !== t.name);
-    if (selected === t) setSelected(tracks[Math.min(i, tracks.length - 1)]); if (armed === t) setArmed(null);
-  });
-}
-function moveTrack(t, d) {
-  const i = tracks.indexOf(t), j = i + d; if (j < 0 || j >= tracks.length) return;
-  trackCmd(`${t.name} moved ${d < 0 ? "up" : "down"}`, () => { tracks.splice(i, 1); tracks.splice(j, 0, t); });
-  document.querySelector(`.thdr.track[data-track="${t.id}"]`)?.focus();
-}
-function duplicateTrack(t) {
-  const c = JSON.parse(JSON.stringify(raw(t))); c.id = newId("t"); c.name = t.name + " 2"; c.clips.forEach(x => x.sel = false);
-  trackCmd(`${t.name} duplicated`, () => { tracks.splice(tracks.indexOf(t) + 1, 0, c); setSelected(c); });
-}
-function renameTrack(t) { arrange.setRenamingId(t.id); }
-function renameTo(t, v) {
-  const old = t.name;
-  trackCmd(`${old} renamed to ${v || "(empty)"}`, () => { t.name = v; for (const x of [...tracks, master]) x.sends.forEach(s1 => { if (s1[0] === old) s1[0] = v; }); });
-}
-// Track header events (the header component calls these, design D7). Clicks on its buttons and fields are theirs.
-function headerClick(t, e) {
-  if (e.target.closest("button, input, select")) return;
-  if (e.shiftKey || e.ctrlKey || e.metaKey) {  // Shift/Ctrl-click a header: add (or remove) all of its clips
-    const all = t.clips.length && t.clips.every(c => c.sel); if (!e.shiftKey && !e.ctrlKey && !e.metaKey) clearClipSel();
-    t.clips.forEach(c => c.sel = !all); tracks.forEach(renderLane); say(`${selClips().length} clips selected`);
-  }
-  selectTrack(t); setFocusArea("arr");
-}
-// Keys on the focused header itself: F2 rename, Alt+↑/↓ reorder, Ctrl+Delete delete, menu key; then the clip
-// commands (Ctrl/Delete/Escape), Enter/Space select, ↑/↓ move focus and selection between tracks.
-function headerKey(t, e, h) {
-  if (e.target !== h) return;
-  if (e.key === "F2") { e.preventDefault(); renameTrack(t); }
-  else if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) { e.preventDefault(); e.stopPropagation(); return moveTrack(t, e.key === "ArrowUp" ? -1 : 1); }
-  else if ((e.ctrlKey || e.metaKey) && (e.key === "Delete" || e.key === "Backspace")) { e.preventDefault(); e.stopPropagation(); return deleteTrack(t); }
-  else if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) { e.preventDefault(); const r = h.getBoundingClientRect(); trackMenu(t, r.left + 40, r.top + 20); }
-  const i = tracks.indexOf(t);
-  if (e.ctrlKey || e.metaKey || e.key === "Delete" || e.key === "Backspace" || e.key === "Escape") return arrKeys(e, t);
-  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectTrack(t); }
-  if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); const n = tracks[Math.max(0, Math.min(tracks.length - 1, i + (e.key === "ArrowDown" ? 1 : -1)))]; selectTrack(n); document.querySelector(`.thdr.track[data-track="${n.id}"]`).focus(); }
-}
-function headerMenu(t, e) { e.preventDefault(); selectTrack(t); trackMenu(t, e.clientX, e.clientY); }
-function trackMenu(t, x, y) {
-  const i = tracks.indexOf(t);
-  popMenu(x, y, [["Rename", "F2 / double-click", () => renameTrack(t)], ["Duplicate track", "", () => duplicateTrack(t)],
-    ["Move up", "Alt+↑", () => moveTrack(t, -1), i <= 0], ["Move down", "Alt+↓", () => moveTrack(t, 1), i >= tracks.length - 1], "-",
-    ["Add instrument track", "", () => addTrack(false)], ["Add bus track", "", () => addTrack(true)], "-",
-    ["Delete track", "Ctrl+Delete", () => deleteTrack(t)]], `${t.name} track menu`);
-}
-document.querySelector('#arr-corner button[aria-label="Add track"]').onclick = () => addTrack(false);
-// ===== Arm, volume faders (header and mixer stay in sync), solo rule, splitter memory =====
-function updateArmed() {  // the footer (ui/footer/Audition.tsx) and the headers follow
-  arrange.setArmedId(armed?.id ?? null);
-}
-function toggleArm(t) {
-  setArmed(armed === t ? null : t); updateArmed(); say(armed ? `${t.name} armed: the computer keyboard (Z–M, Q–P) and MIDI play it` : "no track armed");
-}
-// Volume (header and mixer faders, design D7): live while the slider moves, one undo step per gesture (`done` on
-// change; a key press is a whole gesture). The other fader follows the store.
-const volBefore = new Map();
-function setVolume(t, v, done) {
-  if (done) { const b = volBefore.get(t.id); volBefore.delete(t.id); if (b) commit(b, `${t.name} volume ${v.toFixed(1)} dB`); return; }
-  if (!volBefore.has(t.id)) volBefore.set(t.id, snap());
-  t.vol = v; livePush();
-}
 // Global shortcuts (ui/keys.ts): Ctrl/⌘+S and the computer keyboard before the focused editor, the rest after it.
 installKeys({
   save, undo, redo, toggleKb, kbPlays: () => !!(au.kbOn() && armed),
