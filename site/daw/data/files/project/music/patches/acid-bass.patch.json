@@ -1,18 +1,17 @@
 {
- "format": "us-patch/1",
- "name": "Acid Bass",
- "kind": 64,
- "values": {
-  "capacity": 0.0,
-  "mode": 1.0,
-  "glide": 0.1,
-  "osc1.type": 0.5,
-  "filt1.type": 0.625,
-  "filt1.cutoff": 0.32,
-  "filt1.resonance": 0.45,
-  "env1.attack": 0.0,
-  "env1.decay": 0.2,
-  "env1.sustain": 0.6,
-  "env1.release": 0.08
- }
+  "format": "us-patch/2",
+  "name": "Acid Bass",
+  "kind": 64,
+  "values": {
+    "capacity": 0.0,
+    "mode": 1.0,
+    "glide": 0.10000000149011612,
+    "osc1.type": 0.1666666716337204,
+    "filt1.type": 0.5,
+    "filt1.cutoff": 0.3199999928474426,
+    "filt1.resonance": 0.44999998807907104,
+    "env1.decay": 0.20000000298023224,
+    "env1.sustain": 0.6000000238418579,
+    "env1.release": 0.07999999821186066
+  }
 }

@@ -1,5 +1,5 @@
 {
-  "format": "song/1",
+  "format": "song/2",
   "meta": {
     "title": "Hydra",
     "author": "Teo",
@@ -1022,11 +1022,12 @@
             "mode": 1.0,
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.s1": 1.0,
-            "osc3.type": 0.5,
+            "osc3.type": 0.1666666716337204,
             "osc3.s1": 0.0,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.1900000125169754,
             "env1.decay": 0.5600000023841858,
             "env1.sustain": 0.2849999666213989,
@@ -1036,8 +1037,7 @@
             "env2.release": 0.009999999776482582,
             "env3.decay": 0.0,
             "env3.sustain": 0.0,
-            "env3.release": 0.009999999776482582,
-            "noise.width": 0.0
+            "env3.release": 0.009999999776482582
           }
         }
       ],
@@ -1079,28 +1079,25 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.4650000333786011,
             "threshold": 1.0,
             "foldover": 0.9699999690055847,
             "dry_wet": 1.0,
             "shaper": 0.0,
             "oversampling": 0.5
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 71,
           "values": {
-            "mode": 1.0,
+            "mode": 0.6666666865348816,
             "room_size": 0.5,
             "feedback": 0.505000114440918,
             "low_cut": 0.09491579979658127,
             "high_cut": 0.7669805288314819,
             "dry_wet": 0.27000001072883606,
             "pre_delay": 0.0
-          },
-          "trailer": 28
+          }
         }
       ],
       "placements": [],
@@ -1122,11 +1119,12 @@
             "mode": 1.0,
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.s1": 1.0,
-            "osc3.type": 0.5,
+            "osc3.type": 0.1666666716337204,
             "osc3.s1": 0.0,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.005000011064112186,
             "env1.decay": 0.5600000023841858,
             "env1.sustain": 0.2849999666213989,
@@ -1136,8 +1134,7 @@
             "env2.release": 0.009999999776482582,
             "env3.decay": 0.0,
             "env3.sustain": 0.0,
-            "env3.release": 0.009999999776482582,
-            "noise.width": 0.0
+            "env3.release": 0.009999999776482582
           }
         }
       ],
@@ -1186,13 +1183,13 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.ratio_fine": 1.0,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.09749998897314072,
             "osc1.feedback": 0.0637499988079071,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.feedback": 0.19110287725925446,
             "env1.attack": 0.09000000357627869,
             "env1.decay": 0.7599999904632568,
@@ -1204,16 +1201,16 @@
             "env3.decay": 0.5732842683792114,
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5,
-            "mod3.source": 0.3333333432674408,
+            "mod3.source": 0.1875,
             "mod3.target": 0.07450980693101883,
             "mod3.amount": 0.4292893409729004,
-            "mod3.operation": 1.0
+            "mod3.operation": 0.5
           }
         }
       ],
@@ -1266,7 +1263,6 @@
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 1.0,
             "input_gain": 1.0,
             "threshold": 1.0,
@@ -1274,8 +1270,7 @@
             "attack": 0.0,
             "release": 0.3349999785423279,
             "output_gain": 0.1850000023841858
-          },
-          "trailer": 32
+          }
         }
       ],
       "placements": [],
@@ -1297,14 +1292,14 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.ratio": 0.04999999701976776,
             "osc1.ratio_fine": 0.0,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.5,
             "osc1.s0": 1.0,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio_fine": 0.25999999046325684,
             "osc2.s0": 0.7049999833106995,
             "env1.decay": 0.19828426837921143,
@@ -1316,20 +1311,20 @@
             "env3.decay": 0.21000000834465027,
             "env3.sustain": 0.0,
             "env3.release": 0.3499999940395355,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5,
-            "mod3.source": 0.3333333432674408,
+            "mod3.source": 0.1875,
             "mod3.target": 0.01568627543747425,
             "mod3.amount": 1.0,
-            "mod3.operation": 1.0,
-            "mod4.source": 0.3333333432674408,
+            "mod3.operation": 0.5,
+            "mod4.source": 0.1875,
             "mod4.target": 0.07450980693101883,
             "mod4.amount": 1.0,
-            "mod4.operation": 1.0
+            "mod4.operation": 0.5
           }
         }
       ],
@@ -1361,18 +1356,18 @@
           "values": {
             "master": 0.05000000074505806,
             "capacity": 0.01587301678955555,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.s1": 0.0,
             "osc1.s2": 1.0,
             "osc1.s4": 1.0,
             "osc1.s6": 1.0,
-            "filt1.type": 0.125,
+            "osc1.sample": 1.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.0,
             "env1.release": 0.0,
             "env2.decay": 0.028284268453717232,
-            "env2.release": 0.009999999776482582,
-            "osc1.sample": 1.0
+            "env2.release": 0.009999999776482582
           },
           "samples": ["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"]
         }
@@ -1399,18 +1394,18 @@
           "values": {
             "master": 0.05000000074505806,
             "capacity": 0.01587301678955555,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.s1": 0.0,
             "osc1.s2": 1.0,
             "osc1.s4": 1.0,
             "osc1.s6": 1.0,
-            "filt1.type": 0.125,
+            "osc1.sample": 1.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.0,
             "env1.release": 0.0,
             "env2.decay": 0.028284268453717232,
-            "env2.release": 0.009999999776482582,
-            "osc1.sample": 1.0
+            "env2.release": 0.009999999776482582
           },
           "samples": ["VQUAAAgzAAAxAAEARKwAAP0iAABBAAAAAgBAAQaKGdKE4vgWMrYkuWJtwMop2gZHh2zt/z9UBuRn79ZuCYy2pVF3MqQEAAAkdhIQTRvZtngaWtu27/8qEm675TYpQVhZFoViQlKSBACCKgIAkCSShsJBGsnWto8qwv////8dhJVlUaoaftstyUkoHiYpCQAgqCIAAECSJCkYgiSSNpKAWFkWhcKhte3//5+q4b9tt22JwsAlRykBgCoBAAAAAACElWVRqhIAAECSSCgKkmjkWtsoFGz/////qRL+//9t20FYWRaFyuC/bbeticKgJTdJCYCyIUmSBEmiMgEAACSJFIB0YVGoDJJkGlvbKBza2rbt/ygR/P///9sqF263LcmNAkgX1lTE4L5dkpuEwkGSkiQBgLIBAAAASKJSAUCSSJIkgHRhTb0MEEUb2/ooFNi2tv//KBv8/75t2ygR/P/3b9sBSBfWhErhtluS3IZCYZskKUmSUgEAAABBkjIBSZIkiQKElWVRqhKSJJK0bUYAJI1i2/ooDtratm3fKAtu27Zt24BYWxqF0sC227ZtyxoAjhRJSnJtgB3HSVKE4mDbJEmKFIB0YU2qC5IkiQIEqQsCAAgQRagBEknaRrItA6JoI9m6AkgX1kQuINo21vWP4mAk29b2jTrBtm3bto3a4Pdt33YNhJRhUSgJfN9tuU29BjZJUYIoKAbIbZKUJCkPFClSEkUBSBfWhNIgSZIkSZLaIFGiSFKEuiDbtm0bGRMgSJJo2hiAdGFNzwKSKNlGsioEpG1k29opDFrbtu3fKg1u27Z92wBIGdaUusBt27YkiVKgLUmO5HQswG7LkiQXZ4Bct0lSJIB0YU12BLaN5MhtzArIbdskKakJgiRJkiQoDQAAAAAAAEhX1oQqIUmSJJJkSyCRIknSRiYgiSRt45hCYCPZtq4tgHRhTSgESHYjuZFPBdi2rW37qAlq27Zt26sLetu27doASBfWhNqgJLdNUjJ0YFISIAkibmCbNElRpEWA5CZJUiSAdGFNcAK2jSXZltQCWpIcN0n1CiRJUpIEKQuSAEACAABIF9aEkkBJIiXadksASJBEicRNQJKkbeOGB0CRJG3bFoB0YU32BEiWJLeNeAAkSds2kigG2La2bduoA27btm3/AUgX1oRawPZt23aNGsBu67ZtmzqAbUmS5MZagNy2TdsGgHRhTU4FSHKTlAR0AkiS3LZNKAS2TZIkSaoEkiRJkiQCSBfWhApAkrRJkgTNYJskSVKEsiBJkiRJkrIgSZIkSQKAdGFNKAEAIJI0jsYEtG3buG3tBDiSZMmydwK0bds2kgFIF9ZkR2Dbtm2SdAdAkrRt24YigCTZtq2tUsC2bdu2HYB0YU2pA962btu2qAXYtmzblqgBWpIsSZK0A0iWJLmRAEgX1hQ8QNIkSQFQTIDjtm3bRieAJEmS44YiYNu2bZsUgHRhTSgGpm3btm3IAsZt2zZJqAQUSYqSRKoEkiRJkiQBSBfWlCoASZAEAKAqAAAAAEACKyAAEABAoCoACQIkSQKAdGFNxwSUSNO2bXYEtm3bRpJLAkiSJEmSMwBIkiRJtgFIF9aEGmAkSZLjFiuAJEmSJPtVgCVbtm2rOqAlSZYcCYB0YU0sA8qSbEmSsAM2btombfgESJYlSZJmA7ZtHLdtAUgX1jQ3YONGbhx3H2Dbtm3bJA+AJMlx2wZmYCRHbtsmgHRhTeIAuG3bto3lADaS3LiNXga2jdu2bTwGtm3buHEBJt3Z9ERg48htG4cFgBtJkiOZJIAjx3Hk6EJg5EiSJBl8dGEtOABIkiRJkkwASJIkSZJYAEiSJEmSNQBIkiRJkg=="]
         }
@@ -1451,7 +1446,6 @@
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.5,
             "threshold": 1.0,
@@ -1459,8 +1453,7 @@
             "attack": 0.028284268453717232,
             "release": 0.19949936866760254,
             "output_gain": 0.5
-          },
-          "trailer": 32
+          }
         }
       ],
       "placements": [],
@@ -1478,17 +1471,17 @@
           "values": {
             "master": 0.10000000149011612,
             "unison": 1.0,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.s4": 1.0,
             "osc1.s7": 1.0,
-            "filt1.type": 0.375,
+            "osc1.sample": 243.0,
+            "filt1.type": 0.30000001192092896,
             "filt1.cutoff": 0.06000003218650818,
             "env1.decay": 0.19499996304512024,
             "env1.sustain": 0.44999995827674866,
             "env1.release": 0.0,
             "env2.decay": 0.028284268453717232,
-            "env2.release": 0.009999999776482582,
-            "osc1.sample": 243.0
+            "env2.release": 0.009999999776482582
           }
         }
       ],
@@ -1521,12 +1514,13 @@
             "master": 0.08049999922513962,
             "capacity": 0.1746031790971756,
             "unison": 0.7333333492279053,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.coarse": 0.6041666865348816,
             "osc1.s1": 0.0,
             "osc1.s6": 1.0,
             "osc1.s7": 1.0,
-            "filt1.type": 0.125,
+            "osc1.sample": 475.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.0,
             "filt1.resonance": 0.2800000309944153,
             "env1.decay": 0.7999998927116394,
@@ -1534,11 +1528,10 @@
             "env1.release": 0.0,
             "env2.decay": 0.028284268453717232,
             "env2.release": 0.009999999776482582,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.20392157137393951,
             "mod1.amount": 1.0,
-            "mod1.operation": 1.0,
-            "osc1.sample": 475.0
+            "mod1.operation": 0.5
           }
         }
       ],
@@ -1607,18 +1600,18 @@
             "master": 0.07300000637769699,
             "capacity": 0.1587301641702652,
             "unison": 0.6666666865348816,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.s1": 0.0,
             "osc1.s2": 1.0,
             "osc1.s4": 1.0,
             "osc1.s6": 1.0,
-            "filt1.type": 0.125,
+            "osc1.sample": 1.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.0,
             "env1.release": 0.0,
             "env2.decay": 0.028284268453717232,
-            "env2.release": 0.009999999776482582,
-            "osc1.sample": 1.0
+            "env2.release": 0.009999999776482582
           },
           "samples": ["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"]
         }
@@ -1701,20 +1694,17 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.41999998688697815,
             "threshold": 0.8149999976158142,
             "foldover": 0.0,
             "dry_wet": 1.0,
             "shaper": 0.0,
             "oversampling": 0.5
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 1.0,
             "input_gain": 0.2149999737739563,
             "threshold": 1.0,
@@ -1722,8 +1712,7 @@
             "attack": 0.35499998927116394,
             "release": 0.4344993829727173,
             "output_gain": 0.625
-          },
-          "trailer": 32
+          }
         }
       ],
       "placements": [],
@@ -1746,14 +1735,15 @@
             "slide": 0.5399999618530273,
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.gain": 0.14875000715255737,
-            "osc2.type": 0.5,
+            "osc2.type": 0.1666666716337204,
             "osc2.gain": 0.20749999582767487,
-            "osc3.type": 0.5,
+            "osc3.type": 0.1666666716337204,
             "osc3.gain": 0.1875,
             "osc3.s0": 0.8050000071525574,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.2844994068145752,
             "env1.decay": 0.028284268453717232,
             "env1.sustain": 0.5,
@@ -1763,11 +1753,10 @@
             "env3.decay": 0.028284268453717232,
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.20392157137393951,
             "mod1.amount": 0.7121319770812988,
-            "mod1.operation": 1.0,
-            "noise.width": 0.0
+            "mod1.operation": 0.5
           }
         }
       ],
@@ -1790,15 +1779,14 @@
         {
           "kind": 71,
           "values": {
-            "mode": 1.0,
+            "mode": 0.6666666865348816,
             "room_size": 0.5,
             "feedback": 0.7599999904632568,
             "low_cut": 0.09491579979658127,
             "high_cut": 0.791980504989624,
             "dry_wet": 0.4650000035762787,
             "pre_delay": 0.0
-          },
-          "trailer": 28
+          }
         }
       ],
       "placements": [],
@@ -1821,15 +1809,16 @@
             "mode": 1.0,
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.s0": 0.004999999888241291,
             "osc1.s1": 1.0,
-            "osc2.type": 0.5,
+            "osc2.type": 0.1666666716337204,
             "osc2.s1": 0.0,
-            "osc3.type": 0.5,
+            "osc3.type": 0.1666666716337204,
             "osc3.s0": 1.0,
             "osc3.s1": 0.0,
-            "filt1.type": 0.5,
+            "noise.width": 0.0,
+            "filt1.type": 0.4000000059604645,
             "filt1.cutoff": 0.0,
             "env1.decay": 0.1582842618227005,
             "env1.sustain": 0.5,
@@ -1841,14 +1830,13 @@
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
             "lfo1.rate": 0.7242991924285889,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.5390868186950684,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.2222222238779068,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.125,
             "mod2.target": 0.20392157137393951,
-            "mod2.operation": 1.0,
-            "noise.width": 0.0
+            "mod2.operation": 0.5
           }
         }
       ],
@@ -1944,28 +1932,26 @@
         {
           "kind": 71,
           "values": {
-            "mode": 1.0,
+            "mode": 0.6666666865348816,
             "room_size": 0.5,
             "feedback": 0.3899998664855957,
             "low_cut": 0.09491579979658127,
             "high_cut": 0.6319805383682251,
             "dry_wet": 0.27000001072883606,
             "pre_delay": 0.41999998688697815
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 71,
           "values": {
-            "mode": 1.0,
+            "mode": 0.6666666865348816,
             "room_size": 1.0,
             "feedback": 0.3799999952316284,
             "low_cut": 0.0,
             "high_cut": 0.4150000214576721,
             "dry_wet": 0.33000001311302185,
             "pre_delay": 0.675000011920929
-          },
-          "trailer": 28
+          }
         }
       ],
       "placements": [],
@@ -1989,14 +1975,15 @@
             "mode": 1.0,
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
-            "osc1.type": 0.5,
-            "osc2.type": 0.5,
+            "osc1.type": 0.1666666716337204,
+            "osc2.type": 0.1666666716337204,
             "osc2.s0": 1.0,
             "osc2.s1": 0.7799999713897705,
-            "osc3.type": 0.5,
+            "osc3.type": 0.1666666716337204,
             "osc3.s0": 1.0,
             "osc3.s1": 0.0,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.5923614501953125,
             "filt1.resonance": 0.4962005615234375,
             "env1.decay": 0.028284268453717232,
@@ -2008,11 +1995,10 @@
             "env3.decay": 0.028284268453717232,
             "env3.sustain": 0.18000000715255737,
             "env3.release": 0.11499999463558197,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.20392157137393951,
             "mod1.amount": 0.8968626856803894,
-            "mod1.operation": 1.0,
-            "noise.width": 0.0
+            "mod1.operation": 0.5
           }
         }
       ],
@@ -2109,15 +2095,16 @@
             "slide": 1.0,
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.s1": 1.0,
-            "osc2.type": 0.5,
+            "osc2.type": 0.1666666716337204,
             "osc2.s1": 0.3149999976158142,
-            "osc3.type": 0.5,
+            "osc3.type": 0.1666666716337204,
             "osc3.gain": 0.1237499937415123,
             "osc3.s0": 0.675000011920929,
             "osc3.s1": 1.0,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.789306640625,
             "filt1.resonance": 0.06999999284744263,
             "env1.attack": 0.7749999761581421,
@@ -2131,11 +2118,10 @@
             "env3.decay": 0.028284268453717232,
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.20392157137393951,
             "mod1.amount": 1.0,
-            "mod1.operation": 1.0,
-            "noise.width": 0.0
+            "mod1.operation": 0.5
           }
         }
       ],
@@ -2227,28 +2213,25 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 1.0,
             "threshold": 1.0,
             "foldover": 0.9249999523162842,
             "dry_wet": 0.6150000095367432,
             "shaper": 0.0,
             "oversampling": 0.0
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 71,
           "values": {
-            "mode": 1.0,
+            "mode": 0.6666666865348816,
             "room_size": 0.0,
             "feedback": 0.2849999666213989,
             "low_cut": 0.30491578578948975,
             "high_cut": 0.6319805383682251,
             "dry_wet": 0.2999999523162842,
             "pre_delay": 0.4449999928474426
-          },
-          "trailer": 28
+          }
         }
       ],
       "placements": [],
@@ -2267,19 +2250,19 @@
             "master": 0.061500001698732376,
             "capacity": 0.4920634925365448,
             "unison": 1.0,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.s1": 0.0,
             "osc1.s4": 1.0,
             "osc1.s7": 1.0,
-            "filt1.type": 0.125,
+            "osc1.sample": 19.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.7050000429153442,
             "env1.decay": 0.2550000250339508,
             "env1.sustain": 0.025000035762786865,
             "env1.release": 0.0,
             "env2.decay": 0.0,
             "env2.sustain": 0.0,
-            "env2.release": 0.009999999776482582,
-            "osc1.sample": 19.0
+            "env2.release": 0.009999999776482582
           }
         }
       ],
@@ -2309,15 +2292,13 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.4999999403953552,
             "threshold": 0.6199999451637268,
             "foldover": 1.0,
             "dry_wet": 1.0,
             "shaper": 1.0,
             "oversampling": 0.5
-          },
-          "trailer": 28
+          }
         }
       ],
       "placements": [],
@@ -2336,18 +2317,18 @@
             "master": 0.05000000074505806,
             "capacity": 0.1746031790971756,
             "unison": 0.7333333492279053,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.s1": 0.0,
             "osc1.s2": 1.0,
             "osc1.s4": 1.0,
             "osc1.s6": 1.0,
-            "filt1.type": 0.125,
+            "osc1.sample": 1.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.0,
             "env1.release": 0.0,
             "env2.decay": 0.028284268453717232,
-            "env2.release": 0.009999999776482582,
-            "osc1.sample": 1.0
+            "env2.release": 0.009999999776482582
           },
           "samples": ["TQMAAL4fAAAxAAEARKwAAP0iAABBAAAAAgBAAYj6p9aEAhF0uQXxv6KOKzV7UDtlSSoD2VO8hgSnuKjOhaz8JU1wcGqLExf26oA2Nf0DcDJKWGqKKPvXjrK+zP6hydpf0uQqaBdWYjSli0ncJLLeUO2oFSfI3uguBopq176btF/iKNtc2iu0KSTwWKSRJwXdP0Leb9LGTfgukJJaxN0I6qOOkOZj3Un57pIypCQ1ReCKDQRoKtFdFSzkzuJi04CkXd4EYEE0quP6T9s63rsbV27XWipaXIhxeD2SrGhF9si4Yc6wK+RueXcdEfekDjK2EpTqhRy5bqUPVUcl+bblgpTc5QzkOt4u0aLJ8DSk3hzJtWo2JLYcNw7sOD61SzSSSOlfhoAeAxPWcXQJjqJmI9MDc6+CHCatug2vguDNVVV6hBviBMAc7LGqsE3bOqgwbgh1rDKkkasz+8QiyvfczHYF2COKgG9CUEZlkrLtYaGkiWSPLyKV6HN6j6sDI0cyEmeM310ELi80Ik2nglcmzEhs3fVSGvDOrdeKcSJGT9kIlUbpm0ni6gGoRpEqB7ahdCeafo3qQe0pkdtyL6FhqWQkhaA/okRrCpYpdAK7LBnWdrXJ7rcryJVlCJO0IAKN26ZQCfnhheIjgRM3bZ8w5+HfNrJfpWwhfMlNmhiPgdskjtyQiF9iZfgS1GTkypNLGcZ+drlttBJKSGSQLeAQxmqQ2qXK96eSBC1BWnlXpqKugfe2kRw1bKFKxG0DY21B49iR14GcP2pJKB2W3qCWuikYKJ7iuoXRHiJu3EZt9xJmTifNrkr4adakLiEpGc0rryphSNmS0ibrgds2ciJv7YCzeJdbrpB/KinOFsqB7cQxuwgCul0ndVIKSmqRtrLuDrjVLte6Tfat1qK0QB1Vd8mU7IBStESMAj9B6jjxbb3LYFvtbZXWdD6qceYKxGrcmtWwDJZo4pTQ7Qr8ab452ygdtpajhN2L+J0SI24BmLJWyYasYNA4ka0YhmAjfZf1ycbg5jRpXOBYv24x5A4wccpYErEO2Lf8ILq4DLStFH9KVgJOdpIiJtTU8xaD1EBkotWbu2tA7LXRDTXsQBk/SmP7LsCet64S92SdbinfCqiJi1It6hTYkiQ6bigEto0bx5EoAEiSI0mS"]
         }
@@ -2393,18 +2374,18 @@
             "master": 0.08400000631809235,
             "capacity": 0.1269841343164444,
             "unison": 0.5333333611488342,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.s1": 0.0,
             "osc1.s2": 1.0,
             "osc1.s4": 1.0,
             "osc1.s6": 1.0,
-            "filt1.type": 0.125,
+            "osc1.sample": 1.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.0,
             "env1.release": 0.0,
             "env2.decay": 0.028284268453717232,
-            "env2.release": 0.009999999776482582,
-            "osc1.sample": 1.0
+            "env2.release": 0.009999999776482582
           },
           "samples": ["mgYAABo/AAAxAAEARKwAAP0iAABBAAAAAgBAAVxKpZqG4ofUR5aNJSylacVt0FbMxWWFj2y2s2rjuHG6rqmVYknBhcBINEs2NW5SmyUiTWAw/lFVWD7QQkajVGqXHUpnnTTvRqo0U6XeMmhk4ksMmWppsytiKvkqqJPXT6HmobTiid1YtLeZa0PWnbKVKY6yNAUpjjQ5pDsdUb9ctlHXCaOZhvRwJEuNdDE2kRurUkTRUpfhp6Z1lWtXycib3UaJr1mKzkIjbGppRtwqh7T1JTN1GgVtVelu0DQZUgo59ZkZWaEa9rWbNmrTrqoUtZvwLsSKVFZF8tx1TTURzLSrhZ2wIW61TueNHjnMa4OrctBI6fRkyZFtfRGyVHd+ClZ1mQhZmcgNNBSlEGmHDrF45vZWGe9RnKJog43qkOpI7sm4jaydiege7Yat+M3yCrfyoB9k5ziHdVw3LbIMr3ZU31Ke+aCdOKvv9U6rpOqucEoaCoW+apBYyHU2JSVuZfmp9NSVThpqdgBF9exC1/beZlCUyLLEzkQgRLvV3Mqg8YXSpV4ZW2WYrM1i/6LL+E4toTxWP21tbxPG7pRkVs2ypU1H7ZkPWobf2mLUbcSYrfpUCmXbrdPyMHvtJrCz2nZ3AyCWnflcXZZNDQupeSz5rSudv6EMCa5s9q15itRq6y5wbWgDltJZitDaxoUn13D20lSXC0jWreDKSR3Db63ENuArU1Yc+p6dJKuMN7gxGjlryt4I0OTUTYsjh9F9FdeN4kS95uCZEF6KttK6GilJUc/yqGElKVblxiZ0l8eq9+g8npTGbVwpoalIL4xYrTEUac0o2KJGtFSv6qRqc0NDT6sdvzmZ1ZVRFo6pxChx37yGaMtIdZp4fkO7EFUc+WDKstZTUpXonfia4XiLqeNUkdg7y6rPWHjrlA3n8HVCKzlMSpDpR0y6nRIWivOQEn6/WEzFaGiG7wmp8YgaadeLiuGewhU6vbIaGt/dKOvIA9Nql9QtaYJ7a5LgyukttZlzZ6vFekY5sNeV8pllaYI+SUJU0c1OTD1UvhHrNpy4bKkL8myukc1GphspKZYqT4gsN3jU2BLm0Cl3RboNR8zM1sTiy8cWS1dIm5UwomXmgsrJYwlyvG7y9oNERuFSuuWbT5ncZBIpPE1xWQlfYqROJRxJ0W+2raVaq2GrS6+mYzhku9dM5RQlqxmHnRSeabZK5hUsR2zuZD5y9DaIzUKY7e06WLhMNE38Z4wYCp3ZBMuEmja3H9UspQpW2c3ZYmQFK27cei3DC6OOIWGZz+VpcTJE8mTWj70q1kIWu7noWjpqkMaO5DLi6M8srFf54FUUTmQkz37LWE0D8kpKH61NZMNGjtJsL6Ir5mkgcaESGmrIMkbvcwkxuCamh6wlu9cgpE1lsrxwOTYrlyJxmeme2eTqQnPvstSOEiKENs/sEq8CIFHbXCGshevKrW2BnW3eTeIi4vYEeul2LdRdym6q10okCeZ21rIorHYRhLKX+dyhRi7D2/oF07oug1o/nZXxS4PT5ypel8oj0ugi40CdkVlm1zyskiS79L4yxoHuvhboSrCNI+eJv0TIkSe3jdUJn2FWbiNt9UEaHzcDrjRlFMm24s2wVrwcS4NrlS78RpXyGW70JAzJnEHJxCIoKeSjGcsk1NLlJPN0K3wwFMlzVemg3XYvohzr7VAFLoNSUrLhh09kHNaN9JpKxGSzKf54hXHWTd8suEkFSnvYMEYMHrfQ9yrCpVMr+dAqdm/0REZS+Z7VFrai6TnJGgauASb7Wtw4LkJkWHIcGs2BwaJ1omuR8dFJwiIcU52/bl4juHYjppXeGJZto7DWziC2Ta+30Rf5ot3mzqGaTsleZfNhTqVaArz1YbO7YSwHS6GuW6xUVJEQmnHjGqqJXIel5BJea9yys0gnxoYkMTKyFO4UkjnGFvmeVWlLgeW/jUgVL0KkN3J6KFaBpH7BIzNNYgHZMlxCkY+dSekcmrVDqZriGtiL6zSa4h7CjdIo6tAUNkq0sogU2eDdFk+BbXqZNHsugVvHqK1zz2GrpmJkmQ5hSCyaLl2N7qVJwRxKbenFjugSWkaEtsPEEExmbMfWsRQmthEkWhQp2RHHaoFFRxYTS2uhY9+XKPXLIPlGDtDkCuHKpHEOU5XQXVHtFEyOfcm6sxxoacXYkPcSvmGUK4q9FKSVGmlXlRhXGjdvQZvsThqJNEEs6UeefkdA3cht24gCgBxJkhsJgnRhTSgASJIkSZIoAEiSJEmSKABIkiRJkigASJIkSZI="]
         }
@@ -2449,18 +2430,18 @@
           "values": {
             "master": 0.06499999761581421,
             "unison": 0.46666666865348816,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.s1": 0.0,
             "osc1.s2": 1.0,
             "osc1.s4": 1.0,
             "osc1.s6": 1.0,
-            "filt1.type": 0.125,
+            "osc1.sample": 1.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.0,
             "env1.release": 0.0,
             "env2.decay": 0.028284268453717232,
-            "env2.release": 0.009999999776482582,
-            "osc1.sample": 1.0
+            "env2.release": 0.009999999776482582
           },
           "samples": ["jgMAAIggAAAxAAEARKwAAP0iAABBAAAAAgBAAY9XVYmCghHTSJIrOUNpS7hOkOXMqerV0TUNNU20qnQBVIjXXHFQm6QQNkx+VKJod4nHgeGaZGexCcWohLqru9eOymhREcX1qyZpvZkJK62k1Qz3ErSOCApZoyBMTcO+f/uDiPZYUfjMmL3n3Hb3ztjRQ1LYMNsGqKO88Tjl+HbdupLLeFERBY+M5jm+JQdujGkQr5yGnUzKEDwzpSKsgKayG8uIFlUtwZLoni047nii5hvJxm24jJhgKsWR2NK2UeTK6YpoURHFrWk/w2WakSusHM+S0pYNBxrGIKKGVWgbin9ysYzXWFGplIpxfFntPGK0JYmiDfg8oowTr+a4peh+F/ixSGhTEbcCp26BGLp0zWaYFvfpBEflK11ThoxPJpjQZCeZiNcQTeA6tE3ZaerSclYbndqVwVJOxZijIGl1BkFx2ZFKeQ0REz+IKEee/warZuGgTF0OtkjjMGWbDMuJZ0lpGZeM9gxNsWpc9aTHTvFqFHKe2OhwPXZT2whq8Ero9l3TEkppzQyDXGhpyXbfChOJbMhhyoY7ZT4t7tJ264giyZsdp4zY0DDAPAAEEYvheEGyc2NGrLBfLC8766q4fISsbNmNCnnNDIUOZ+NEgsOI16anuA0ECfyEIbiR54lLxa40ZOCmjPiQUDhTQrIURRbwPoJxOu9KsSSaJyn3cOg2BK1NVfnJeMvMhK7CXSpu2RA0RHzHUt0ONETsBHAjsUukos+/5YqIt9Aw2DQkYKLgNdk6iFH1XNboLCpJ2ZihYDX4yaPAkMh4iQiD3+K71SjXjs2ElRIg24SuYmNr17f3DaMcN310h4x4UDD4REBtG4tyYDfY+pc3slhl9JGSJGlfNyyznj9XR4gLEZXNY1+7SZN4zgFmy7Lak26h2Tr6qAC2o90+VuOCdLrQUFgrBG3sSlpYLcrxLNVt0CQCKRLLduEY3nTtSo2Its0IhW5BlJQiD402gdPQiXQJFuGXOXrtck5BEaJpJcdYmM0w8A5qcjTbrkId2lpO1OywFkYByiaKahW4jSo3gdN03wBjDwGxlq7ZekyhKWm3VSxtoR0gaeWUzWBoU2UlX0X2UXDPDlhqs+aR8hakkqWdT2AJ5nIj3VFKFMRNg+aRZfia2kTuoOBGatuGImAjR47kiAKAJElyJIkCgCRJkiQJgnRhTSgASJIkSZIoAEiSJEmSKABIkiRJkigASJIkSZI="]
         }
@@ -2500,18 +2481,18 @@
             "master": 0.10000000149011612,
             "capacity": 0.2222222238779068,
             "unison": 0.9333333373069763,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.s1": 0.0,
             "osc1.s2": 1.0,
             "osc1.s4": 1.0,
             "osc1.s6": 1.0,
-            "filt1.type": 0.125,
+            "osc1.sample": 1.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.0,
             "env1.release": 0.0,
             "env2.decay": 0.028284268453717232,
-            "env2.release": 0.009999999776482582,
-            "osc1.sample": 1.0
+            "env2.release": 0.009999999776482582
           },
           "samples": ["XQcAAFRHAAAxAAEARKwAAP0iAABBAAAAAgBAAd4r56qDAmwdOzUXOxtNHPNw3/YrbYWYMdPI9XAr0zo468kRa1bzG0VZKqWnwOLwbjo8qsoaWarNt1CwAi/lmoTzX9usGaXUNWJZDbZzk3UkKekct6x1hVpWr8Its8oiuunetfDWMVtjdYwUq3PITsspfsUO7nSJpFdpVyhEOYgeeVHd+zDlRC5VHoFymnZU1Pi6DlRpTVQ7WfUUNQ0T4twGY+PFEBMK7DyZrRhz1bUSzeci3bm/VKcSi6iIuELHzZ49fh/8cHUmpbBOPzyvZmewisBUioLOccMzkl8oTvC1677YysXPHlPjDpsNVCas6fTCsJgPxuTceI9PJbvv/kZav1V3nQwv6uKur5q6SYshVQ8j5Rldf6sQ8ke9+cbqTxRJFGHQxdHaUsrc8A3QPliv6mafxEt768rQ9V4B8ezqwETTKjVdG7NhlS6wG69xtapK7CPlF6OnDQ9jhWkTl8tsTTuQr9fB8FZW99jmEixFburEljH1FO7zskSVc9KCddlWEqxEjV4M72ljT23V5l4NCcss5NepbRorjIXcjaA2r20LCTo688Xw2k498XpItRNaw9JUE9XHts/mdGrsuOn05sYRG72UHxxx8Ziuyjh/h2yF7k7dNF5j9i3sD7MtaraMLeTEYjPkvVHXbu7k2ujsaIvWrJxeOUUO6dA+Ti7Yhubc1ljOpBbdHK8tJUuMoqiPoZ/MrSudnNoEtI8dyGmF2iqPRN1y5MDFz95W1ezKJzm7OubOvJk5wcXSBMl0DoVavsQCdy/ITx8MsSnVtFBkYVIrJ68w59ZN3+iLzkz2Sp7qdFAb0S5L2b3wFnNt3fiI5EK7yvx0STaHXLrkLuiMWXm58kauWtGjHAyz8aitTgdFXtnDzAy1obPGaUzQWtSRRP4urHlmlfDQyRJXj8wCi7LzRJJZA1GSy2Kjs9zG8MW5qubYwF0dIwedDG/x2Gzvi7iG64qtDBT+RtvkDa1O7O7g++oPvDJd6sK9DhdzrtawOylh7HcPt1nRmXE11jbPEGU6wOTehpINLh78cLGGTo1ecbhYrlZQ64R6yinLcBuzqyP1S2wu8YE+4cnR2m7gBCkyH+pS7gbFarNntCoJUfZFUl60LHfBnFqR3AvxLVfMsEWLGsWjdVPUmVkUx0yvAlnis/bNcCMuQt7evRJXc/UsR8actmLPGndcVEnIcM8wnFdUGrkmc4/duMydHO0ldVZxYkWK/FLtsMvDLR/DSpNvKG6lsdTR9By2qf7B7xpWLyGdpA+siVcn5QU81sJFSTVhX6xtQD7VqNy229wcL25lhhLCU6oFze506/Rp1ppOVBRJFqL663Rwh94avcUR33LFMoGb7ahD0QTdrMSuKV4dFV5TKGfeFKexxke1nRtvdYeMMWvowOk1llONzJG6ditWJrWFX5SrUuWasbmxxREbk7tEx3exrmr1LC3Jxlp9xSaJciorReA8WQ5ks3NcHC9xOrRSXziSphhPk6k6UrrIClSzUu3izGpU+sV1HNXBEd9S0SZDUcTCDcsiM/Ipi47xVKttH6VHr0rdJ99cYdwbLybxq/ShB1WM0uzUW8qZ1NVOU6diXWSgy7UVt8ic0b0QW1LXVnvMhWhiwT49M1MuNutUubHTC8rpPq0UV9FtHBxx8YbL1IJq5aRnDpUht+rbJqxT7iSorsDuEG3lhKXRxfAWZ+I0G9KaxmNFJ0uopaHPrkI5kbxQT9sslzSXFxJd7G41bMyULFXxpMbtUZwLk5gb7JHKqpDHGjOSTTnZe8i5DxunSDtlldZAer0ek3QS92XiLoVXD2xOrCQdvaGX8N4cM97C7HKJZbIRyo5V3kI3M1qrsiWOR7azS9TmYOdcycHwXlbjdkMLpeWlvlaXsuhO6blmGeksWkbKXLkeG0lD3AszdaxNVi0n8ltCD/RtVLEr6c5yLTyWJwpPNKwjbrTA0dASz/YS7TQFudHTJsGPWU2s7Uz7gbXWYqoYbdBT4ifbDC+tGE0SDrvofGQuM+On8TiEr5JdiR1vMeuSWwm1Rry5LxtPyDIj2jGlfEVDnaXNN4LYOou6qa/w7FLFedG5Ul38cPFIl5SPSE58Mo23m3ZqGonKldtKKq0RrrU51U7r2sUN15K+RK1aVbMv5UoptZi1Xa1MF47bvtHYWil43caNWwzvKXcr9SAlb25W7lQk86WFWk/1HQnTWSytcyucmdzIzfHWcsVkr2wsozbVOkliZENutiC/yJVhk+FeM3rksmvbHDOxWmuWI7UvlLfqEbTgHhqlzXOeWDRoeS5zjI62GcfBD5eHuDB5Y6UHbuRKX9gUzhaqSsOLKEVj0ULpvdVoTF7sLnXMTtPTPD9EF+6T+MYlRLUNd/zEcSJ3rhRmo9JZ3sXt0qrgQIuSnGVd1Dytp7MhTvFSO9Eo3WirTDmmV+gm3NxwsSpudbXGwmRqr7JTxZPLDC9T09UNLZ/Kk5VlLLa6rTHmLClJQWlVWYkocL5aI0eSKAa4jRu3LSgASJIkSZI="]
         }
@@ -2569,20 +2550,17 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.29999998211860657,
             "threshold": 1.0,
             "foldover": 0.5849999785423279,
             "dry_wet": 1.0,
             "shaper": 0.5,
             "oversampling": 0.5
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 1.0,
             "input_gain": 0.3050000071525574,
             "threshold": 1.0,
@@ -2590,8 +2568,7 @@
             "attack": 0.0,
             "release": 1.0,
             "output_gain": 0.5600000619888306
-          },
-          "trailer": 32
+          }
         }
       ],
       "placements": [],
@@ -2610,20 +2587,20 @@
             "master": 0.08150000125169754,
             "capacity": 0.0793650820851326,
             "unison": 0.3333333432674408,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.coarse": 0.4583333432674408,
             "osc1.fine": 0.6899999976158142,
             "osc1.s1": 0.0,
             "osc1.s2": 1.0,
             "osc1.s4": 1.0,
             "osc1.s6": 1.0,
-            "filt1.type": 0.125,
+            "osc1.sample": 1.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.0,
             "env1.release": 0.0,
             "env2.decay": 0.028284268453717232,
-            "env2.release": 0.009999999776482582,
-            "osc1.sample": 1.0
+            "env2.release": 0.009999999776482582
           },
           "samples": ["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"]
         }
@@ -2657,18 +2634,18 @@
             "master": 0.08299999684095383,
             "capacity": 0.01587301678955555,
             "unison": 0.06666667014360428,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.s1": 0.0,
             "osc1.s2": 1.0,
             "osc1.s4": 1.0,
             "osc1.s6": 1.0,
-            "filt1.type": 0.125,
+            "osc1.sample": 1.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.0,
             "env1.release": 0.0,
             "env2.decay": 0.028284268453717232,
-            "env2.release": 0.009999999776482582,
-            "osc1.sample": 1.0
+            "env2.release": 0.009999999776482582
           },
           "samples": ["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"]
         }
@@ -2710,7 +2687,6 @@
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 1.0,
             "input_gain": 0.8199999332427979,
             "threshold": 1.0,
@@ -2718,8 +2694,7 @@
             "attack": 0.028284268453717232,
             "release": 0.19949936866760254,
             "output_gain": 0.8400000333786011
-          },
-          "trailer": 32
+          }
         }
       ],
       "placements": [],
@@ -2817,7 +2792,6 @@
       {
         "kind": 72,
         "values": {
-          "mode": 0.0,
           "sidechain": 1.0,
           "input_gain": 0.3649999499320984,
           "threshold": 1.0,
@@ -2825,8 +2799,7 @@
           "attack": 0.0,
           "release": 0.0,
           "output_gain": 0.32499998807907104
-        },
-        "trailer": 32
+        }
       }
     ],
     "placements": [],

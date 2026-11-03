@@ -1,518 +1,303 @@
 {
- "format": "song/1",
- "rate": 44100,
- "tempo": 128.0,
- "signature": [
-  4,
-  4
- ],
- "ticks_per_beat": 960,
- "length": 30720,
- "clips": [
-  {
-   "id": "kick-4",
-   "length": 3840,
-   "notes": [
-    [
-     0,
-     240,
-     36,
-     120
-    ],
-    [
-     960,
-     240,
-     36,
-     120
-    ],
-    [
-     1920,
-     240,
-     36,
-     120
-    ],
-    [
-     2880,
-     240,
-     36,
-     120
-    ]
-   ]
-  },
-  {
-   "id": "bass-a",
-   "length": 3840,
-   "notes": [
-    [
-     0,
-     220,
-     36,
-     100
-    ],
-    [
-     240,
-     220,
-     36,
-     80
-    ],
-    [
-     480,
-     220,
-     48,
-     80
-    ],
-    [
-     720,
-     220,
-     36,
-     80
-    ],
-    [
-     960,
-     220,
-     39,
-     100
-    ],
-    [
-     1200,
-     220,
-     36,
-     80
-    ],
-    [
-     1440,
-     220,
-     46,
-     80
-    ],
-    [
-     1680,
-     220,
-     36,
-     80
-    ],
-    [
-     1920,
-     220,
-     34,
-     100
-    ],
-    [
-     2160,
-     220,
-     34,
-     80
-    ],
-    [
-     2400,
-     220,
-     46,
-     80
-    ],
-    [
-     2640,
-     220,
-     34,
-     80
-    ],
-    [
-     2880,
-     220,
-     41,
-     100
-    ],
-    [
-     3120,
-     220,
-     39,
-     80
-    ],
-    [
-     3360,
-     220,
-     36,
-     80
-    ],
-    [
-     3600,
-     220,
-     34,
-     80
-    ]
-   ]
-  },
-  {
-   "id": "lead-a",
-   "length": 7680,
-   "notes": [
-    [
-     0,
-     1410,
-     72,
-     96
-    ],
-    [
-     1440,
-     450,
-     70,
-     96
-    ],
-    [
-     1920,
-     930,
-     67,
-     96
-    ],
-    [
-     2880,
-     930,
-     70,
-     96
-    ],
-    [
-     3840,
-     1410,
-     72,
-     96
-    ],
-    [
-     5280,
-     450,
-     75,
-     96
-    ],
-    [
-     5760,
-     1890,
-     74,
-     96
-    ]
-   ]
-  },
-  {
-   "id": "chords",
-   "length": 15360,
-   "notes": [
-    [
-     0,
-     3780,
-     60,
-     70
-    ],
-    [
-     0,
-     3780,
-     63,
-     70
-    ],
-    [
-     0,
-     3780,
-     67,
-     70
-    ],
-    [
-     3840,
-     3780,
-     58,
-     70
-    ],
-    [
-     3840,
-     3780,
-     62,
-     70
-    ],
-    [
-     3840,
-     3780,
-     65,
-     70
-    ],
-    [
-     7680,
-     3780,
-     56,
-     70
-    ],
-    [
-     7680,
-     3780,
-     60,
-     70
-    ],
-    [
-     7680,
-     3780,
-     63,
-     70
-    ],
-    [
-     11520,
-     3780,
-     58,
-     70
-    ],
-    [
-     11520,
-     3780,
-     62,
-     70
-    ],
-    [
-     11520,
-     3780,
-     67,
-     70
-    ]
-   ]
-  }
- ],
- "tracks": [
-  {
-   "id": "kick",
-   "name": "Kick",
-   "color": "#e06c75",
-   "volume": 0.9,
-   "mute": false,
-   "receives": [],
-   "devices": [
+  "format": "song/2",
+  "rate": 44100,
+  "tempo": 128.0,
+  "signature": [4, 4],
+  "ticks_per_beat": 960,
+  "length": 30720,
+  "clips": [
     {
-     "kind": 64,
-     "preset": "Kick 909-ish",
-     "values": {
-      "osc1.type": 0.25,
-      "osc1.coarse": 0.5,
-      "env1.attack": 0.0,
-      "env1.decay": 0.12,
-      "env1.sustain": 0.0,
-      "env1.release": 0.05
-     }
-    }
-   ],
-   "placements": [
-    {
-     "clip": "kick-4",
-     "start": 0,
-     "length": 30720,
-     "loop": true
-    }
-   ],
-   "lanes": []
-  },
-  {
-   "id": "bass",
-   "name": "Bass",
-   "color": "#61afef",
-   "volume": 0.6,
-   "mute": false,
-   "receives": [],
-   "devices": [
-    {
-     "kind": 64,
-     "preset": "Acid Bass",
-     "values": {
-      "capacity": 0.0,
-      "mode": 1.0,
-      "glide": 0.1,
-      "osc1.type": 0.5,
-      "filt1.type": 0.625,
-      "filt1.cutoff": 0.32,
-      "filt1.resonance": 0.45,
-      "env1.attack": 0.0,
-      "env1.decay": 0.2,
-      "env1.sustain": 0.6,
-      "env1.release": 0.08
-     }
-    },
-    {
-     "kind": 66,
-     "values": {
-      "mode": 0.0,
-      "vertical": 0.35,
-      "horizontal": 0.1,
-      "dry_wet": 0.4
-     }
-    }
-   ],
-   "placements": [
-    {
-     "clip": "bass-a",
-     "start": 0,
-     "length": 30720,
-     "loop": true
-    }
-   ],
-   "lanes": [
-    {
-     "device": 0,
-     "param": "filt1.cutoff",
-     "points": [
-      [
-       0,
-       0.25
-      ],
-      [
-       15360,
-       0.6
-      ],
-      [
-       30720,
-       0.3
+      "id": "kick-4",
+      "length": 3840,
+      "notes": [
+        [0, 240, 36, 120],
+        [960, 240, 36, 120],
+        [1920, 240, 36, 120],
+        [2880, 240, 36, 120]
       ]
-     ]
-    }
-   ]
-  },
-  {
-   "id": "lead",
-   "name": "Lead",
-   "color": "#e5c07b",
-   "volume": 0.35,
-   "mute": false,
-   "receives": [],
-   "devices": [
-    {
-     "kind": 64,
-     "preset": "Saw Lead",
-     "values": {
-      "osc1.type": 0.5,
-      "osc2.type": 0.5,
-      "osc2.fine": 0.55,
-      "filt1.type": 0.125,
-      "filt1.cutoff": 0.55,
-      "filt1.resonance": 0.2,
-      "env1.attack": 0.02,
-      "env1.decay": 0.3,
-      "env1.sustain": 0.7,
-      "env1.release": 0.25
-     }
     },
     {
-     "kind": 68,
-     "values": {
-      "mode": 0.0,
-      "feedback": 0.35,
-      "dry_wet": 0.3
-     }
-    }
-   ],
-   "placements": [
-    {
-     "clip": "lead-a",
-     "start": 15360,
-     "length": 15360,
-     "loop": true
-    }
-   ],
-   "lanes": []
-  },
-  {
-   "id": "pad",
-   "name": "Pad",
-   "color": "#c678dd",
-   "volume": 0.5,
-   "mute": false,
-   "receives": [],
-   "devices": [
-    {
-     "kind": 64,
-     "preset": "Glass Pad",
-     "values": {
-      "osc1.type": 0.75,
-      "env1.attack": 0.5,
-      "env1.decay": 0.4,
-      "env1.sustain": 0.8,
-      "env1.release": 0.55,
-      "master": 0.15
-     }
-    }
-   ],
-   "placements": [
-    {
-     "clip": "chords",
-     "start": 0,
-     "length": 30720,
-     "loop": true
-    }
-   ],
-   "lanes": []
-  },
-  {
-   "id": "verb",
-   "name": "Verb",
-   "color": "#56b6c2",
-   "volume": 0.8,
-   "mute": false,
-   "receives": [
-    {
-     "from": "lead",
-     "channel": "main",
-     "volume": 0.4
+      "id": "bass-a",
+      "length": 3840,
+      "notes": [
+        [0, 220, 36, 100],
+        [240, 220, 36, 80],
+        [480, 220, 48, 80],
+        [720, 220, 36, 80],
+        [960, 220, 39, 100],
+        [1200, 220, 36, 80],
+        [1440, 220, 46, 80],
+        [1680, 220, 36, 80],
+        [1920, 220, 34, 100],
+        [2160, 220, 34, 80],
+        [2400, 220, 46, 80],
+        [2640, 220, 34, 80],
+        [2880, 220, 41, 100],
+        [3120, 220, 39, 80],
+        [3360, 220, 36, 80],
+        [3600, 220, 34, 80]
+      ]
     },
     {
-     "from": "pad",
-     "channel": "main",
-     "volume": 0.5
-    }
-   ],
-   "devices": [
+      "id": "lead-a",
+      "length": 7680,
+      "notes": [
+        [0, 1410, 72, 96],
+        [1440, 450, 70, 96],
+        [1920, 930, 67, 96],
+        [2880, 930, 70, 96],
+        [3840, 1410, 72, 96],
+        [5280, 450, 75, 96],
+        [5760, 1890, 74, 96]
+      ]
+    },
     {
-     "kind": 71,
-     "values": {
-      "mode": 0.0,
-      "room": 0.8,
-      "dry_wet": 1.0
-     }
+      "id": "chords",
+      "length": 15360,
+      "notes": [
+        [0, 3780, 60, 70],
+        [0, 3780, 63, 70],
+        [0, 3780, 67, 70],
+        [3840, 3780, 58, 70],
+        [3840, 3780, 62, 70],
+        [3840, 3780, 65, 70],
+        [7680, 3780, 56, 70],
+        [7680, 3780, 60, 70],
+        [7680, 3780, 63, 70],
+        [11520, 3780, 58, 70],
+        [11520, 3780, 62, 70],
+        [11520, 3780, 67, 70]
+      ]
     }
-   ],
-   "placements": [],
-   "lanes": []
+  ],
+  "tracks": [
+    {
+      "id": "kick",
+      "name": "Kick",
+      "color": "#e06c75",
+      "volume": 0.8999999761581421,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "osc1.type": 0.0833333358168602,
+            "env1.decay": 0.11999999731779099,
+            "env1.sustain": 0.0,
+            "env1.release": 0.05000000074505806
+          },
+          "preset": "Kick 909-ish"
+        }
+      ],
+      "placements": [
+        {
+          "clip": "kick-4",
+          "start": 0,
+          "length": 30720,
+          "loop": true
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "id": "bass",
+      "name": "Bass",
+      "color": "#61afef",
+      "volume": 0.6000000238418579,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "capacity": 0.0,
+            "mode": 1.0,
+            "glide": 0.10000000149011612,
+            "osc1.type": 0.1666666716337204,
+            "filt1.type": 0.5,
+            "filt1.cutoff": 0.3199999928474426,
+            "filt1.resonance": 0.44999998807907104,
+            "env1.decay": 0.20000000298023224,
+            "env1.sustain": 0.6000000238418579,
+            "env1.release": 0.07999999821186066
+          },
+          "preset": "Acid Bass"
+        },
+        {
+          "kind": 66,
+          "values": {
+            "vertical": 0.3499999940395355,
+            "horizontal": 0.10000000149011612,
+            "dry_wet": 0.4000000059604645
+          }
+        }
+      ],
+      "placements": [
+        {
+          "clip": "bass-a",
+          "start": 0,
+          "length": 30720,
+          "loop": true
+        }
+      ],
+      "lanes": [
+        {
+          "device": 0,
+          "param": "filt1.cutoff",
+          "points": [
+            [0, 0.25],
+            [15360, 0.6000000238418579],
+            [30720, 0.30000001192092896]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lead",
+      "name": "Lead",
+      "color": "#e5c07b",
+      "volume": 0.3499999940395355,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "osc1.type": 0.1666666716337204,
+            "osc2.type": 0.1666666716337204,
+            "osc2.fine": 0.550000011920929,
+            "filt1.type": 0.10000000149011612,
+            "filt1.cutoff": 0.550000011920929,
+            "filt1.resonance": 0.20000000298023224,
+            "env1.attack": 0.019999999552965164,
+            "env1.sustain": 0.699999988079071,
+            "env1.release": 0.25
+          },
+          "preset": "Saw Lead"
+        },
+        {
+          "kind": 68,
+          "values": {
+            "feedback": 0.3499999940395355,
+            "dry_wet": 0.30000001192092896
+          }
+        }
+      ],
+      "placements": [
+        {
+          "clip": "lead-a",
+          "start": 15360,
+          "length": 15360,
+          "loop": true
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "id": "pad",
+      "name": "Pad",
+      "color": "#c678dd",
+      "volume": 0.5,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "master": 0.15000000596046448,
+            "osc1.type": 0.25,
+            "env1.attack": 0.5,
+            "env1.decay": 0.4000000059604645,
+            "env1.sustain": 0.800000011920929,
+            "env1.release": 0.550000011920929
+          },
+          "preset": "Glass Pad"
+        }
+      ],
+      "placements": [
+        {
+          "clip": "chords",
+          "start": 0,
+          "length": 30720,
+          "loop": true
+        }
+      ],
+      "lanes": []
+    },
+    {
+      "id": "verb",
+      "name": "Verb",
+      "color": "#56b6c2",
+      "volume": 0.800000011920929,
+      "mute": false,
+      "receives": [
+        {
+          "from": "lead",
+          "channel": "main",
+          "volume": 0.4000000059604645
+        },
+        {
+          "from": "pad",
+          "channel": "main",
+          "volume": 0.5
+        }
+      ],
+      "devices": [
+        {
+          "kind": 71,
+          "values": {
+            "room": 0.800000011920929,
+            "dry_wet": 1.0
+          }
+        }
+      ],
+      "placements": [],
+      "lanes": []
+    }
+  ],
+  "master": {
+    "id": "master",
+    "name": "Master",
+    "volume": 1.0,
+    "mute": false,
+    "receives": [
+      {
+        "from": "kick",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "bass",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "lead",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "pad",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "verb",
+        "channel": "main",
+        "volume": 1.0
+      }
+    ],
+    "devices": [
+      {
+        "kind": 72,
+        "values": {
+          "threshold": 0.699999988079071,
+          "ratio": 0.30000001192092896
+        }
+      }
+    ],
+    "placements": [],
+    "lanes": []
   }
- ],
- "master": {
-  "id": "master",
-  "name": "Master",
-  "volume": 1.0,
-  "mute": false,
-  "receives": [
-   {
-    "from": "kick",
-    "channel": "main",
-    "volume": 1.0
-   },
-   {
-    "from": "bass",
-    "channel": "main",
-    "volume": 1.0
-   },
-   {
-    "from": "lead",
-    "channel": "main",
-    "volume": 1.0
-   },
-   {
-    "from": "pad",
-    "channel": "main",
-    "volume": 1.0
-   },
-   {
-    "from": "verb",
-    "channel": "main",
-    "volume": 1.0
-   }
-  ],
-  "devices": [
-   {
-    "kind": 72,
-    "values": {
-     "mode": 0.0,
-     "threshold": 0.7,
-     "ratio": 0.3
-    }
-   }
-  ],
-  "placements": [],
-  "lanes": []
- }
 }

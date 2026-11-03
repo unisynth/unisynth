@@ -1,9 +1,9 @@
 {
-  "format": "song/1",
+  "format": "song/2",
   "meta": {
     "title": "No Remorse",
     "author": "Brain Control (the Tunefish authors; the composer is not named in the repository)",
-    "description": "No Remorse, a Tunefish 4 example module (16 instruments, 100 BPM) that ships with Tunefish. This is an adapted version, not the original recording: The Tunefish module (.tfm) was converted by `synth-convert tfm` to the unified synth (instrument kind 64 with its insert effects as track devices, kinds 65-73), then imported to song/1 with `song import` (lanes cut into 2-, 4- or 8-bar patterns with variants, notes rounded to 960 ticks per beat; track names from the original project where it has them). Events are placed at the start of the 512-frame block that fires them in the Tunefish player. Instruments and effects are the unified equivalents of the Tunefish ones and sound close to, not identical with, the original; the random per-voice detune GenSlop is not converted and the wavetable phases are drawn from a different random sequence.",
+    "description": "No Remorse, a Tunefish 4 example module (16 instruments, 100 BPM) that ships with Tunefish. This is an adapted version, not the original recording: The Tunefish module (.tfm) was converted by `synth-convert tfm` to the unified synth (instrument kind 64 with its insert effects as track devices, kinds 65-73), then imported with `song import` (lanes cut into 2-, 4- or 8-bar patterns with variants, notes rounded to 960 ticks per beat; track names from the original project where it has them). Events are placed at the start of the 512-frame block that fires them in the Tunefish player. Instruments and effects are the unified equivalents of the Tunefish ones and sound close to, not identical with, the original; the random per-voice detune GenSlop is not converted and the wavetable phases are drawn from a different random sequence.",
     "copyright": "Brain Control",
     "license": "GPL-3.0-or-later",
     "url": "https://github.com/paynebc/tunefish/blob/7e48ce8683155d5c37eb317b7ed509481c76a352/media/tf4modules/no_remorse.tfm",
@@ -4877,7 +4877,7 @@
             "velocity": 0.0,
             "noise_level": 0.18566489219665527,
             "env1_at_output": 0.0,
-            "osc1.type": 0.75,
+            "osc1.type": 0.25,
             "osc1.tracking": 1.0,
             "osc1.octave": 0.25,
             "osc1.fixed_hz": 0.4399999976158142,
@@ -4891,7 +4891,7 @@
             "noise.band_on": 1.0,
             "noise.hp": 0.04185393080115318,
             "noise.lp": 0.5107454061508179,
-            "filt1.type": 0.625,
+            "filt1.type": 0.5,
             "filt1.cutoff": 0.2511236071586609,
             "filt1.resonance": 0.09000000357627869,
             "filt2.cutoff": 0.022371867671608925,
@@ -4899,12 +4899,12 @@
             "filt3.resonance": 0.5,
             "filt4.cutoff": 0.5007501840591431,
             "filt4.resonance": 0.5,
-            "env1.law": 1.0,
+            "env1.law": 0.5,
             "env1.decay": 0.28999999165534973,
             "env1.sustain": 0.0,
             "env1.release": 0.23000000417232513,
             "env1.curve_slope": 1.0,
-            "env2.law": 1.0,
+            "env2.law": 0.5,
             "env2.decay": 0.029999999329447746,
             "env2.sustain": 0.27000001072883606,
             "env2.release": 0.1899999976158142,
@@ -4915,22 +4915,22 @@
             "lfo2.rate": 0.0,
             "lfo2.depth": 0.0,
             "lfo2.sync": 0.0,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.01568627543747425,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.019607843831181526,
             "mod2.amount": 0.5,
-            "mod3.source": 0.1111111119389534,
+            "mod3.source": 0.0625,
             "mod3.target": 0.1921568661928177,
             "mod3.amount": 0.5,
-            "mod4.source": 0.1111111119389534,
+            "mod4.source": 0.0625,
             "mod4.target": 0.20392157137393951,
             "mod4.amount": 0.5,
-            "mod9.source": 0.8888888955116272,
+            "mod9.source": 0.5,
             "mod9.target": 0.019607843831181526,
             "mod9.amount": 0.5,
-            "mod10.source": 0.8888888955116272,
+            "mod10.source": 0.5,
             "mod10.target": 0.1921568661928177,
             "mod10.amount": 0.5
           }
@@ -4938,21 +4938,19 @@
         {
           "kind": 65,
           "values": {
-            "mode": 1.0,
+            "mode": 0.6666666865348816,
             "amount": 0.36000001430511475
-          },
-          "trailer": 8
+          }
         },
         {
           "kind": 71,
           "values": {
-            "mode": 0.5,
+            "mode": 0.3333333432674408,
             "room": 0.3199999928474426,
             "damp": 0.20000000298023224,
             "wet": 0.15000000596046448,
             "width": 0.5
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -4993,7 +4991,7 @@
             "velocity": 0.0,
             "noise_level": 0.14564752578735352,
             "env1_at_output": 0.0,
-            "osc1.type": 0.75,
+            "osc1.type": 0.25,
             "osc1.tracking": 1.0,
             "osc1.octave": 0.625,
             "osc1.fixed_hz": 0.30000001192092896,
@@ -5008,19 +5006,19 @@
             "noise.hp": 0.022371867671608925,
             "noise.lp": 0.5507298111915588,
             "filt1.cutoff": 0.022371867671608925,
-            "filt2.type": 0.75,
+            "filt2.type": 0.6000000238418579,
             "filt2.cutoff": 0.08779355138540268,
             "filt2.resonance": 0.7200000286102295,
             "filt3.cutoff": 0.35443705320358276,
             "filt3.resonance": 0.5,
             "filt4.cutoff": 0.5007501840591431,
             "filt4.resonance": 0.5,
-            "env1.law": 1.0,
+            "env1.law": 0.5,
             "env1.decay": 0.14000000059604645,
             "env1.sustain": 0.0,
             "env1.release": 0.1899999976158142,
             "env1.curve_slope": 0.41999998688697815,
-            "env2.law": 1.0,
+            "env2.law": 0.5,
             "env2.decay": 0.23000000417232513,
             "env2.sustain": 0.11999999731779099,
             "env2.release": 0.1899999976158142,
@@ -5031,19 +5029,19 @@
             "lfo2.rate": 0.0,
             "lfo2.depth": 0.0,
             "lfo2.sync": 0.0,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.01568627543747425,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.019607843831181526,
             "mod2.amount": 0.5,
-            "mod3.source": 0.1111111119389534,
+            "mod3.source": 0.0625,
             "mod3.target": 0.1921568661928177,
             "mod3.amount": 0.5,
-            "mod9.source": 0.8888888955116272,
+            "mod9.source": 0.5,
             "mod9.target": 0.019607843831181526,
             "mod9.amount": 0.5,
-            "mod10.source": 0.8888888955116272,
+            "mod10.source": 0.5,
             "mod10.target": 0.1921568661928177,
             "mod10.amount": 0.5
           }
@@ -5051,31 +5049,28 @@
         {
           "kind": 65,
           "values": {
-            "mode": 1.0,
+            "mode": 0.6666666865348816,
             "amount": 0.3700000047683716
-          },
-          "trailer": 8
+          }
         },
         {
           "kind": 71,
           "values": {
-            "mode": 0.5,
+            "mode": 0.3333333432674408,
             "room": 0.6200000047683716,
             "damp": 0.9800000190734863,
             "wet": 0.28999999165534973,
             "width": 0.949999988079071
-          },
-          "trailer": 20
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.5699999928474426,
             "mid": 0.6600000262260437,
             "high": 0.7699999809265137
-          },
-          "trailer": 16
+          }
         }
       ],
       "placements": [
@@ -5109,7 +5104,7 @@
             "master": 0.24500000476837158,
             "velocity": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.75,
+            "osc1.type": 0.25,
             "osc1.octave": 0.25,
             "osc1.gain": 0.1880301535129547,
             "osc1.s0": 1.0,
@@ -5122,7 +5117,7 @@
             "noise.band_on": 1.0,
             "noise.hp": 0.022371867671608925,
             "noise.lp": 0.022371867671608925,
-            "filt1.type": 0.625,
+            "filt1.type": 0.5,
             "filt1.cutoff": 0.6007169485092163,
             "filt1.resonance": 0.03999999910593033,
             "filt2.cutoff": 0.022371867671608925,
@@ -5130,12 +5125,12 @@
             "filt3.resonance": 0.5,
             "filt4.cutoff": 0.5007501840591431,
             "filt4.resonance": 0.5,
-            "env1.law": 1.0,
+            "env1.law": 0.5,
             "env1.decay": 0.5600000023841858,
             "env1.sustain": 0.0,
             "env1.release": 0.800000011920929,
             "env1.curve_slope": 0.9399999976158142,
-            "env2.law": 1.0,
+            "env2.law": 0.5,
             "env2.decay": 0.25999999046325684,
             "env2.sustain": 0.25999999046325684,
             "env2.release": 0.7099999785423279,
@@ -5146,22 +5141,22 @@
             "lfo2.rate": 0.0,
             "lfo2.depth": 0.0,
             "lfo2.sync": 0.0,
-            "mod1.source": 0.1111111119389534,
+            "mod1.source": 0.0625,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.2222222238779068,
+            "mod2.source": 0.125,
             "mod2.target": 0.20392157137393951,
             "mod2.amount": 0.5,
-            "mod3.source": 0.2222222238779068,
+            "mod3.source": 0.125,
             "mod3.target": 0.04313725605607033,
             "mod3.amount": 0.5,
-            "mod4.source": 0.5555555820465088,
+            "mod4.source": 0.3125,
             "mod4.target": 0.20392157137393951,
             "mod4.amount": 0.5,
-            "mod9.source": 0.8888888955116272,
+            "mod9.source": 0.5,
             "mod9.target": 0.019607843831181526,
             "mod9.amount": 0.5,
-            "mod10.source": 0.8888888955116272,
+            "mod10.source": 0.5,
             "mod10.target": 0.1921568661928177,
             "mod10.amount": 0.5
           }
@@ -5204,7 +5199,7 @@
             "master": 0.1850000023841858,
             "velocity": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.75,
+            "osc1.type": 0.25,
             "osc1.octave": 0.375,
             "osc1.gain": 0.1880301535129547,
             "osc1.s0": 0.949999988079071,
@@ -5217,7 +5212,7 @@
             "noise.band_on": 1.0,
             "noise.hp": 0.022371867671608925,
             "noise.lp": 0.022371867671608925,
-            "filt1.type": 0.625,
+            "filt1.type": 0.5,
             "filt1.cutoff": 0.3908359408378601,
             "filt1.resonance": 0.10000000149011612,
             "filt2.cutoff": 0.022371867671608925,
@@ -5225,11 +5220,11 @@
             "filt3.resonance": 0.5,
             "filt4.cutoff": 0.5007501840591431,
             "filt4.resonance": 0.5,
-            "env1.law": 1.0,
+            "env1.law": 0.5,
             "env1.decay": 0.5,
             "env1.sustain": 0.5,
             "env1.release": 0.20000000298023224,
-            "env2.law": 1.0,
+            "env2.law": 0.5,
             "env2.decay": 0.0,
             "env2.sustain": 0.0,
             "env2.release": 0.0,
@@ -5240,16 +5235,16 @@
             "lfo2.rate": 0.0,
             "lfo2.depth": 0.0,
             "lfo2.sync": 0.0,
-            "mod1.source": 0.1111111119389534,
+            "mod1.source": 0.0625,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.20392157137393951,
             "mod2.amount": 0.5,
-            "mod9.source": 0.8888888955116272,
+            "mod9.source": 0.5,
             "mod9.target": 0.019607843831181526,
             "mod9.amount": 0.5,
-            "mod10.source": 0.8888888955116272,
+            "mod10.source": 0.5,
             "mod10.target": 0.1921568661928177,
             "mod10.amount": 0.5
           }
@@ -5257,12 +5252,11 @@
         {
           "kind": 68,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "left_time": 0.33000001311302185,
             "right_time": 0.3199999928474426,
             "decay": 0.5199999809265137
-          },
-          "trailer": 16
+          }
         }
       ],
       "placements": [
@@ -5297,7 +5291,7 @@
             "capacity": 0.0634920671582222,
             "velocity": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.75,
+            "osc1.type": 0.25,
             "osc1.octave": 0.375,
             "osc1.gain": 0.1316211223602295,
             "osc1.s0": 0.8199999928474426,
@@ -5310,19 +5304,19 @@
             "noise.band_on": 1.0,
             "noise.hp": 0.022371867671608925,
             "noise.lp": 0.022371867671608925,
-            "filt1.type": 0.625,
+            "filt1.type": 0.5,
             "filt1.cutoff": 0.9707431793212891,
             "filt2.cutoff": 0.022371867671608925,
             "filt3.cutoff": 0.35443705320358276,
             "filt3.resonance": 0.5,
             "filt4.cutoff": 0.5007501840591431,
             "filt4.resonance": 0.5,
-            "env1.law": 1.0,
+            "env1.law": 0.5,
             "env1.decay": 0.3100000023841858,
             "env1.sustain": 0.0,
             "env1.release": 0.18000000715255737,
             "env1.curve_slope": 0.9399999976158142,
-            "env2.law": 1.0,
+            "env2.law": 0.5,
             "env2.decay": 0.3700000047683716,
             "env2.sustain": 0.23000000417232513,
             "env2.release": 0.20999999344348907,
@@ -5333,19 +5327,19 @@
             "lfo2.rate": 0.0,
             "lfo2.depth": 0.0,
             "lfo2.sync": 0.0,
-            "mod1.source": 0.1111111119389534,
+            "mod1.source": 0.0625,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.2222222238779068,
+            "mod2.source": 0.125,
             "mod2.target": 0.20392157137393951,
             "mod2.amount": 0.5,
-            "mod3.source": 0.2222222238779068,
+            "mod3.source": 0.125,
             "mod3.target": 0.04313725605607033,
             "mod3.amount": 0.5,
-            "mod9.source": 0.8888888955116272,
+            "mod9.source": 0.5,
             "mod9.target": 0.019607843831181526,
             "mod9.amount": 0.5,
-            "mod10.source": 0.8888888955116272,
+            "mod10.source": 0.5,
             "mod10.target": 0.1921568661928177,
             "mod10.amount": 0.5
           }
@@ -5353,23 +5347,21 @@
         {
           "kind": 68,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "left_time": 0.3100000023841858,
             "right_time": 0.28999999165534973,
             "decay": 0.6200000047683716
-          },
-          "trailer": 16
+          }
         },
         {
           "kind": 71,
           "values": {
-            "mode": 0.5,
+            "mode": 0.3333333432674408,
             "room": 0.5099999904632568,
             "damp": 1.0,
             "wet": 0.23999999463558197,
             "width": 1.0
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -5404,7 +5396,7 @@
             "capacity": 0.0634920671582222,
             "velocity": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.75,
+            "osc1.type": 0.25,
             "osc1.octave": 0.25,
             "osc1.gain": 0.1316211223602295,
             "osc1.s0": 0.5099999904632568,
@@ -5417,19 +5409,19 @@
             "noise.band_on": 1.0,
             "noise.hp": 0.022371867671608925,
             "noise.lp": 0.022371867671608925,
-            "filt1.type": 0.625,
+            "filt1.type": 0.5,
             "filt1.cutoff": 0.4507806599140167,
             "filt2.cutoff": 0.022371867671608925,
             "filt3.cutoff": 0.35443705320358276,
             "filt3.resonance": 0.5,
             "filt4.cutoff": 0.5007501840591431,
             "filt4.resonance": 0.5,
-            "env1.law": 1.0,
+            "env1.law": 0.5,
             "env1.decay": 0.12999999523162842,
             "env1.sustain": 0.18000000715255737,
             "env1.release": 0.20999999344348907,
             "env1.curve_slope": 0.9399999976158142,
-            "env2.law": 1.0,
+            "env2.law": 0.5,
             "env2.decay": 0.3199999928474426,
             "env2.sustain": 0.1599999964237213,
             "env2.release": 0.1899999976158142,
@@ -5440,22 +5432,22 @@
             "lfo2.rate": 0.0,
             "lfo2.depth": 0.0,
             "lfo2.sync": 0.0,
-            "mod1.source": 0.1111111119389534,
+            "mod1.source": 0.0625,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.2222222238779068,
+            "mod2.source": 0.125,
             "mod2.target": 0.20392157137393951,
             "mod2.amount": 0.5,
-            "mod3.source": 0.2222222238779068,
+            "mod3.source": 0.125,
             "mod3.target": 0.04313725605607033,
             "mod3.amount": 0.5,
-            "mod4.source": 0.1111111119389534,
+            "mod4.source": 0.0625,
             "mod4.target": 0.0470588244497776,
             "mod4.amount": 0.5,
-            "mod9.source": 0.8888888955116272,
+            "mod9.source": 0.5,
             "mod9.target": 0.019607843831181526,
             "mod9.amount": 0.5,
-            "mod10.source": 0.8888888955116272,
+            "mod10.source": 0.5,
             "mod10.target": 0.1921568661928177,
             "mod10.amount": 0.5
           }
@@ -5463,23 +5455,21 @@
         {
           "kind": 68,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "left_time": 0.28999999165534973,
             "right_time": 0.30000001192092896,
             "decay": 0.41999998688697815
-          },
-          "trailer": 16
+          }
         },
         {
           "kind": 71,
           "values": {
-            "mode": 0.5,
+            "mode": 0.3333333432674408,
             "room": 0.25999999046325684,
             "damp": 0.49000000953674316,
             "wet": 0.10999999940395355,
             "width": 1.0
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -5513,7 +5503,7 @@
             "master": 0.07000000029802322,
             "velocity": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.75,
+            "osc1.type": 0.25,
             "osc1.gain": 0.1880301535129547,
             "osc1.s0": 0.5699999928474426,
             "osc1.s1": 0.20000000298023224,
@@ -5525,7 +5515,7 @@
             "noise.band_on": 1.0,
             "noise.hp": 0.022371867671608925,
             "noise.lp": 0.022371867671608925,
-            "filt1.type": 0.625,
+            "filt1.type": 0.5,
             "filt1.cutoff": 0.7907118797302246,
             "filt1.resonance": 0.09000000357627869,
             "filt2.cutoff": 0.022371867671608925,
@@ -5533,12 +5523,12 @@
             "filt3.resonance": 0.5,
             "filt4.cutoff": 0.5007501840591431,
             "filt4.resonance": 0.5,
-            "env1.law": 1.0,
+            "env1.law": 0.5,
             "env1.decay": 0.2199999988079071,
             "env1.sustain": 0.07000000029802322,
             "env1.release": 0.4699999988079071,
             "env1.curve_slope": 1.0,
-            "env2.law": 1.0,
+            "env2.law": 0.5,
             "env2.decay": 0.5600000023841858,
             "env2.sustain": 0.09000000357627869,
             "env2.release": 0.6700000166893005,
@@ -5549,16 +5539,16 @@
             "lfo2.rate": 0.0,
             "lfo2.depth": 0.0,
             "lfo2.sync": 0.0,
-            "mod1.source": 0.1111111119389534,
+            "mod1.source": 0.0625,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.2222222238779068,
+            "mod2.source": 0.125,
             "mod2.target": 0.20392157137393951,
             "mod2.amount": 0.5,
-            "mod9.source": 0.8888888955116272,
+            "mod9.source": 0.5,
             "mod9.target": 0.019607843831181526,
             "mod9.amount": 0.5,
-            "mod10.source": 0.8888888955116272,
+            "mod10.source": 0.5,
             "mod10.target": 0.1921568661928177,
             "mod10.amount": 0.5
           }
@@ -5566,31 +5556,28 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.5,
+            "mode": 0.3333333432674408,
             "room": 0.5899999737739563,
             "damp": 0.1899999976158142,
             "wet": 0.23999999463558197,
             "width": 0.9700000286102295
-          },
-          "trailer": 20
+          }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 1.0,
+            "mode": 0.6666666865348816,
             "amount": 0.1899999976158142
-          },
-          "trailer": 8
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "left_time": 0.44999998807907104,
             "right_time": 0.44999998807907104,
             "decay": 0.75
-          },
-          "trailer": 16
+          }
         }
       ],
       "placements": [
@@ -5624,7 +5611,7 @@
             "master": 0.1550000011920929,
             "velocity": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.75,
+            "osc1.type": 0.25,
             "osc1.octave": 0.125,
             "osc1.gain": 0.1880301535129547,
             "osc1.s0": 1.0,
@@ -5638,7 +5625,7 @@
             "noise.band_on": 1.0,
             "noise.hp": 0.022371867671608925,
             "noise.lp": 0.022371867671608925,
-            "filt1.type": 0.625,
+            "filt1.type": 0.5,
             "filt1.cutoff": 0.6007169485092163,
             "filt1.resonance": 0.03999999910593033,
             "filt2.cutoff": 0.022371867671608925,
@@ -5646,12 +5633,12 @@
             "filt3.resonance": 0.5,
             "filt4.cutoff": 0.5007501840591431,
             "filt4.resonance": 0.5,
-            "env1.law": 1.0,
+            "env1.law": 0.5,
             "env1.decay": 0.5600000023841858,
             "env1.sustain": 0.0,
             "env1.release": 0.800000011920929,
             "env1.curve_slope": 0.9399999976158142,
-            "env2.law": 1.0,
+            "env2.law": 0.5,
             "env2.decay": 0.25999999046325684,
             "env2.sustain": 0.25999999046325684,
             "env2.release": 0.7099999785423279,
@@ -5662,22 +5649,22 @@
             "lfo2.rate": 0.0,
             "lfo2.depth": 0.0,
             "lfo2.sync": 0.0,
-            "mod1.source": 0.1111111119389534,
+            "mod1.source": 0.0625,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.2222222238779068,
+            "mod2.source": 0.125,
             "mod2.target": 0.20392157137393951,
             "mod2.amount": 0.5,
-            "mod3.source": 0.2222222238779068,
+            "mod3.source": 0.125,
             "mod3.target": 0.04313725605607033,
             "mod3.amount": 0.5,
-            "mod4.source": 0.5555555820465088,
+            "mod4.source": 0.3125,
             "mod4.target": 0.20392157137393951,
             "mod4.amount": 0.5,
-            "mod9.source": 0.8888888955116272,
+            "mod9.source": 0.5,
             "mod9.target": 0.019607843831181526,
             "mod9.amount": 0.5,
-            "mod10.source": 0.8888888955116272,
+            "mod10.source": 0.5,
             "mod10.target": 0.1921568661928177,
             "mod10.amount": 0.5
           }
@@ -5721,7 +5708,7 @@
             "velocity": 0.0,
             "noise_level": 0.0891905352473259,
             "env1_at_output": 0.0,
-            "osc1.type": 0.75,
+            "osc1.type": 0.25,
             "osc1.octave": 1.0,
             "osc1.gain": 0.0,
             "osc1.s1": 0.0,
@@ -5736,12 +5723,12 @@
             "filt4.resonance": 0.5,
             "env1.decay": 0.0,
             "env1.release": 0.053814440965652466,
-            "env2.law": 1.0,
+            "env2.law": 0.5,
             "env2.decay": 0.07999999821186066,
             "env2.sustain": 0.0,
             "env2.release": 0.1899999976158142,
             "env2.curve_slope": 0.49000000953674316,
-            "env3.law": 1.0,
+            "env3.law": 0.5,
             "env3.decay": 0.0,
             "env3.sustain": 0.0,
             "env3.release": 0.0,
@@ -5752,13 +5739,13 @@
             "lfo2.rate": 0.0,
             "lfo2.depth": 0.0,
             "lfo2.sync": 0.0,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.1921568661928177,
             "mod1.amount": 0.5,
-            "mod9.source": 0.8888888955116272,
+            "mod9.source": 0.5,
             "mod9.target": 0.019607843831181526,
             "mod9.amount": 0.5,
-            "mod10.source": 0.8888888955116272,
+            "mod10.source": 0.5,
             "mod10.target": 0.1921568661928177,
             "mod10.amount": 0.5
           }
@@ -5766,13 +5753,12 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.5,
+            "mode": 0.3333333432674408,
             "room": 0.10999999940395355,
             "damp": 0.6399999856948853,
             "wet": 0.17000000178813934,
             "width": 0.49000000953674316
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -5806,7 +5792,7 @@
             "master": 0.17499999701976776,
             "velocity": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.75,
+            "osc1.type": 0.25,
             "osc1.octave": 0.375,
             "osc1.gain": 0.1772022396326065,
             "osc1.pan": 0.633874237537384,
@@ -5820,7 +5806,7 @@
             "noise.band_on": 1.0,
             "noise.hp": 0.022371867671608925,
             "noise.lp": 0.022371867671608925,
-            "filt1.type": 0.625,
+            "filt1.type": 0.5,
             "filt1.cutoff": 0.42080527544021606,
             "filt1.resonance": 0.10000000149011612,
             "filt2.cutoff": 0.022371867671608925,
@@ -5828,12 +5814,12 @@
             "filt3.resonance": 0.5,
             "filt4.cutoff": 0.5007501840591431,
             "filt4.resonance": 0.5,
-            "env1.law": 1.0,
+            "env1.law": 0.5,
             "env1.decay": 0.41999998688697815,
             "env1.sustain": 0.14000000059604645,
             "env1.release": 0.44999998807907104,
             "env1.curve_slope": 0.36000001430511475,
-            "env2.law": 1.0,
+            "env2.law": 0.5,
             "env2.decay": 0.5,
             "env2.sustain": 0.5,
             "env2.release": 0.20000000298023224,
@@ -5843,28 +5829,28 @@
             "lfo2.rate": 0.0,
             "lfo2.depth": 0.0,
             "lfo2.sync": 0.0,
-            "mod1.source": 0.1111111119389534,
+            "mod1.source": 0.0625,
             "mod1.target": 0.03921568766236305,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.019607843831181526,
             "mod2.amount": 0.5,
-            "mod3.source": 0.2222222238779068,
+            "mod3.source": 0.125,
             "mod3.target": 0.20392157137393951,
             "mod3.amount": 0.5,
-            "mod4.source": 0.5555555820465088,
+            "mod4.source": 0.3125,
             "mod4.target": 0.20392157137393951,
             "mod4.amount": 0.5,
-            "mod5.source": 0.1111111119389534,
+            "mod5.source": 0.0625,
             "mod5.target": 0.04313725605607033,
             "mod5.amount": 0.5,
-            "mod6.source": 0.5555555820465088,
+            "mod6.source": 0.3125,
             "mod6.target": 0.07058823853731155,
             "mod6.amount": 0.5,
-            "mod9.source": 0.8888888955116272,
+            "mod9.source": 0.5,
             "mod9.target": 0.019607843831181526,
             "mod9.amount": 0.5,
-            "mod10.source": 0.8888888955116272,
+            "mod10.source": 0.5,
             "mod10.target": 0.1921568661928177,
             "mod10.amount": 0.5
           }
@@ -5872,23 +5858,21 @@
         {
           "kind": 68,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "left_time": 0.30000001192092896,
             "right_time": 0.30000001192092896,
             "decay": 0.46000000834465027
-          },
-          "trailer": 16
+          }
         },
         {
           "kind": 71,
           "values": {
-            "mode": 0.5,
+            "mode": 0.3333333432674408,
             "room": 0.6000000238418579,
             "damp": 0.20000000298023224,
             "wet": 0.3100000023841858,
             "width": 0.5
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -5923,7 +5907,7 @@
             "velocity": 0.0,
             "noise_level": 0.15731731057167053,
             "env1_at_output": 0.0,
-            "osc1.type": 0.75,
+            "osc1.type": 0.25,
             "osc1.octave": 1.0,
             "osc1.gain": 0.0,
             "osc1.s1": 0.0,
@@ -5937,12 +5921,12 @@
             "filt4.resonance": 0.5,
             "env1.decay": 0.0,
             "env1.release": 0.053814440965652466,
-            "env2.law": 1.0,
+            "env2.law": 0.5,
             "env2.decay": 0.14000000059604645,
             "env2.sustain": 0.0,
             "env2.release": 0.20000000298023224,
             "env2.curve_slope": 0.4699999988079071,
-            "env3.law": 1.0,
+            "env3.law": 0.5,
             "env3.decay": 0.0,
             "env3.sustain": 0.0,
             "env3.release": 0.0,
@@ -5953,13 +5937,13 @@
             "lfo2.rate": 0.0,
             "lfo2.depth": 0.0,
             "lfo2.sync": 0.0,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.1921568661928177,
             "mod1.amount": 0.5,
-            "mod9.source": 0.8888888955116272,
+            "mod9.source": 0.5,
             "mod9.target": 0.019607843831181526,
             "mod9.amount": 0.5,
-            "mod10.source": 0.8888888955116272,
+            "mod10.source": 0.5,
             "mod10.target": 0.1921568661928177,
             "mod10.amount": 0.5
           }
@@ -5967,13 +5951,12 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.5,
+            "mode": 0.3333333432674408,
             "room": 0.3499999940395355,
             "damp": 0.17000000178813934,
             "wet": 0.5,
             "width": 1.0
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -6008,7 +5991,7 @@
             "velocity": 0.0,
             "noise_level": 0.25051093101501465,
             "env1_at_output": 0.0,
-            "osc1.type": 0.75,
+            "osc1.type": 0.25,
             "osc1.octave": 0.25,
             "osc1.gain": 0.1880301535129547,
             "osc1.s0": 1.0,
@@ -6022,17 +6005,17 @@
             "noise.band_on": 1.0,
             "noise.hp": 0.29092031717300415,
             "noise.lp": 0.5907190442085266,
-            "filt1.type": 0.625,
+            "filt1.type": 0.5,
             "filt1.resonance": 0.07000000029802322,
             "filt2.cutoff": 0.022371867671608925,
             "filt3.cutoff": 0.3261999487876892,
             "filt4.cutoff": 0.8607211112976074,
-            "env1.law": 1.0,
+            "env1.law": 0.5,
             "env1.decay": 0.03999999910593033,
             "env1.sustain": 0.0,
             "env1.release": 0.38999998569488525,
             "env1.curve_slope": 1.0,
-            "env2.law": 1.0,
+            "env2.law": 0.5,
             "env2.attack": 0.1899999976158142,
             "env2.decay": 0.2800000011920929,
             "env2.sustain": 0.8100000023841858,
@@ -6043,19 +6026,19 @@
             "lfo2.rate": 0.0,
             "lfo2.depth": 0.0,
             "lfo2.sync": 0.0,
-            "mod1.source": 0.1111111119389534,
+            "mod1.source": 0.0625,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.1921568661928177,
             "mod2.amount": 0.5,
-            "mod3.source": 0.2222222238779068,
+            "mod3.source": 0.125,
             "mod3.target": 0.20392157137393951,
             "mod3.amount": 0.5,
-            "mod9.source": 0.8888888955116272,
+            "mod9.source": 0.5,
             "mod9.target": 0.019607843831181526,
             "mod9.amount": 0.5,
-            "mod10.source": 0.8888888955116272,
+            "mod10.source": 0.5,
             "mod10.target": 0.1921568661928177,
             "mod10.amount": 0.5
           }
@@ -6063,33 +6046,30 @@
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.5,
             "mid": 0.5,
             "high": 0.36000001430511475
-          },
-          "trailer": 16
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "left_time": 0.20000000298023224,
             "right_time": 0.20000000298023224,
             "decay": 0.20000000298023224
-          },
-          "trailer": 16
+          }
         },
         {
           "kind": 71,
           "values": {
-            "mode": 0.5,
+            "mode": 0.3333333432674408,
             "room": 0.2800000011920929,
             "damp": 0.4699999988079071,
             "wet": 0.27000001072883606,
             "width": 1.0
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -6123,7 +6103,7 @@
             "master": 0.12999999523162842,
             "velocity": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.75,
+            "osc1.type": 0.25,
             "osc1.gain": 0.1806921660900116,
             "osc1.pan": 0.4136960208415985,
             "osc1.s0": 0.949999988079071,
@@ -6137,7 +6117,7 @@
             "noise.band_on": 1.0,
             "noise.hp": 0.022371867671608925,
             "noise.lp": 0.022371867671608925,
-            "filt1.type": 0.625,
+            "filt1.type": 0.5,
             "filt1.cutoff": 0.3908359408378601,
             "filt1.resonance": 0.10000000149011612,
             "filt2.cutoff": 0.022371867671608925,
@@ -6145,12 +6125,12 @@
             "filt3.resonance": 0.5,
             "filt4.cutoff": 0.5007501840591431,
             "filt4.resonance": 0.5,
-            "env1.law": 1.0,
+            "env1.law": 0.5,
             "env1.decay": 0.17000000178813934,
             "env1.sustain": 0.20000000298023224,
             "env1.release": 0.20000000298023224,
             "env1.curve_slope": 0.0,
-            "env2.law": 1.0,
+            "env2.law": 0.5,
             "env2.decay": 0.5,
             "env2.sustain": 0.3499999940395355,
             "env2.release": 0.20000000298023224,
@@ -6161,16 +6141,16 @@
             "lfo2.rate": 0.0,
             "lfo2.depth": 0.0,
             "lfo2.sync": 0.0,
-            "mod1.source": 0.1111111119389534,
+            "mod1.source": 0.0625,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.2222222238779068,
+            "mod2.source": 0.125,
             "mod2.target": 0.20392157137393951,
             "mod2.amount": 0.5,
-            "mod9.source": 0.8888888955116272,
+            "mod9.source": 0.5,
             "mod9.target": 0.019607843831181526,
             "mod9.amount": 0.5,
-            "mod10.source": 0.8888888955116272,
+            "mod10.source": 0.5,
             "mod10.target": 0.1921568661928177,
             "mod10.amount": 0.5
           }
@@ -6178,23 +6158,21 @@
         {
           "kind": 68,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "left_time": 0.28999999165534973,
             "right_time": 0.28999999165534973,
             "decay": 0.5199999809265137
-          },
-          "trailer": 16
+          }
         },
         {
           "kind": 71,
           "values": {
-            "mode": 0.5,
+            "mode": 0.3333333432674408,
             "room": 0.7300000190734863,
             "damp": 0.20000000298023224,
             "wet": 0.15000000596046448,
             "width": 1.0
-          },
-          "trailer": 20
+          }
         }
       ],
       "placements": [
@@ -6241,7 +6219,7 @@
             "velocity": 0.0,
             "noise_level": 0.18326912820339203,
             "env1_at_output": 0.0,
-            "osc1.type": 0.75,
+            "osc1.type": 0.25,
             "osc1.tracking": 1.0,
             "osc1.octave": 0.625,
             "osc1.fixed_hz": 0.3199999928474426,
@@ -6255,19 +6233,19 @@
             "noise.hp": 0.14324986934661865,
             "noise.lp": 0.4607735872268677,
             "filt1.cutoff": 0.022371867671608925,
-            "filt2.type": 0.75,
+            "filt2.type": 0.6000000238418579,
             "filt2.cutoff": 0.08779355138540268,
             "filt2.resonance": 0.699999988079071,
             "filt3.cutoff": 0.35443705320358276,
             "filt3.resonance": 0.5,
             "filt4.cutoff": 0.5007501840591431,
             "filt4.resonance": 0.5,
-            "env1.law": 1.0,
+            "env1.law": 0.5,
             "env1.decay": 0.05999999865889549,
             "env1.sustain": 0.0,
             "env1.release": 0.1899999976158142,
             "env1.curve_slope": 0.0,
-            "env2.law": 1.0,
+            "env2.law": 0.5,
             "env2.decay": 0.029999999329447746,
             "env2.sustain": 0.0,
             "env2.release": 0.1899999976158142,
@@ -6278,19 +6256,19 @@
             "lfo2.rate": 0.0,
             "lfo2.depth": 0.0,
             "lfo2.sync": 0.0,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.01568627543747425,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.019607843831181526,
             "mod2.amount": 0.5,
-            "mod3.source": 0.1111111119389534,
+            "mod3.source": 0.0625,
             "mod3.target": 0.1921568661928177,
             "mod3.amount": 0.5,
-            "mod9.source": 0.8888888955116272,
+            "mod9.source": 0.5,
             "mod9.target": 0.019607843831181526,
             "mod9.amount": 0.5,
-            "mod10.source": 0.8888888955116272,
+            "mod10.source": 0.5,
             "mod10.target": 0.1921568661928177,
             "mod10.amount": 0.5
           }
@@ -6298,23 +6276,21 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.5,
+            "mode": 0.3333333432674408,
             "room": 0.4000000059604645,
             "damp": 0.4000000059604645,
             "wet": 0.3100000023841858,
             "width": 0.949999988079071
-          },
-          "trailer": 20
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "low": 0.38999998569488525,
             "mid": 0.6499999761581421,
             "high": 0.75
-          },
-          "trailer": 16
+          }
         }
       ],
       "placements": [
@@ -6348,7 +6324,7 @@
             "master": 0.15000000596046448,
             "velocity": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.75,
+            "osc1.type": 0.25,
             "osc1.octave": 0.25,
             "osc1.gain": 0.1880301535129547,
             "osc1.s0": 1.0,
@@ -6362,7 +6338,7 @@
             "noise.band_on": 1.0,
             "noise.hp": 0.022371867671608925,
             "noise.lp": 0.022371867671608925,
-            "filt1.type": 0.625,
+            "filt1.type": 0.5,
             "filt1.cutoff": 0.8607211112976074,
             "filt1.resonance": 0.03999999910593033,
             "filt2.cutoff": 0.022371867671608925,
@@ -6370,12 +6346,12 @@
             "filt3.resonance": 0.5,
             "filt4.cutoff": 0.5007501840591431,
             "filt4.resonance": 0.5,
-            "env1.law": 1.0,
+            "env1.law": 0.5,
             "env1.decay": 0.20999999344348907,
             "env1.sustain": 0.0,
             "env1.release": 0.05000000074505806,
             "env1.curve_slope": 0.9399999976158142,
-            "env2.law": 1.0,
+            "env2.law": 0.5,
             "env2.decay": 0.20000000298023224,
             "env2.sustain": 0.10000000149011612,
             "env2.release": 0.1599999964237213,
@@ -6386,19 +6362,19 @@
             "lfo2.rate": 0.0,
             "lfo2.depth": 0.0,
             "lfo2.sync": 0.0,
-            "mod1.source": 0.1111111119389534,
+            "mod1.source": 0.0625,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.2222222238779068,
+            "mod2.source": 0.125,
             "mod2.target": 0.20392157137393951,
             "mod2.amount": 0.5,
-            "mod3.source": 0.2222222238779068,
+            "mod3.source": 0.125,
             "mod3.target": 0.04313725605607033,
             "mod3.amount": 0.5,
-            "mod9.source": 0.8888888955116272,
+            "mod9.source": 0.5,
             "mod9.target": 0.019607843831181526,
             "mod9.amount": 0.5,
-            "mod10.source": 0.8888888955116272,
+            "mod10.source": 0.5,
             "mod10.target": 0.1921568661928177,
             "mod10.amount": 0.5
           }
@@ -6406,23 +6382,21 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.5,
+            "mode": 0.3333333432674408,
             "room": 0.49000000953674316,
             "damp": 0.5099999904632568,
             "wet": 0.20000000298023224,
             "width": 1.0
-          },
-          "trailer": 20
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "left_time": 0.28999999165534973,
             "right_time": 0.30000001192092896,
             "decay": 0.4699999988079071
-          },
-          "trailer": 16
+          }
         }
       ],
       "placements": [
@@ -6462,7 +6436,7 @@
             "master": 0.06499999761581421,
             "velocity": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.75,
+            "osc1.type": 0.25,
             "osc1.octave": 0.375,
             "osc1.gain": 0.1880301535129547,
             "osc1.s0": 0.949999988079071,
@@ -6475,7 +6449,7 @@
             "noise.band_on": 1.0,
             "noise.hp": 0.022371867671608925,
             "noise.lp": 0.022371867671608925,
-            "filt1.type": 0.625,
+            "filt1.type": 0.5,
             "filt1.cutoff": 0.3908359408378601,
             "filt1.resonance": 0.10000000149011612,
             "filt2.cutoff": 0.022371867671608925,
@@ -6483,11 +6457,11 @@
             "filt3.resonance": 0.5,
             "filt4.cutoff": 0.5007501840591431,
             "filt4.resonance": 0.5,
-            "env1.law": 1.0,
+            "env1.law": 0.5,
             "env1.decay": 0.5,
             "env1.sustain": 0.5,
             "env1.release": 0.20000000298023224,
-            "env2.law": 1.0,
+            "env2.law": 0.5,
             "env2.decay": 0.0,
             "env2.sustain": 0.0,
             "env2.release": 0.0,
@@ -6498,16 +6472,16 @@
             "lfo2.rate": 0.0,
             "lfo2.depth": 0.0,
             "lfo2.sync": 0.0,
-            "mod1.source": 0.1111111119389534,
+            "mod1.source": 0.0625,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.5555555820465088,
+            "mod2.source": 0.3125,
             "mod2.target": 0.20392157137393951,
             "mod2.amount": 0.5,
-            "mod9.source": 0.8888888955116272,
+            "mod9.source": 0.5,
             "mod9.target": 0.019607843831181526,
             "mod9.amount": 0.5,
-            "mod10.source": 0.8888888955116272,
+            "mod10.source": 0.5,
             "mod10.target": 0.1921568661928177,
             "mod10.amount": 0.5
           }
@@ -6515,12 +6489,11 @@
         {
           "kind": 68,
           "values": {
-            "mode": 1.0,
+            "mode": 0.5,
             "left_time": 0.3499999940395355,
             "right_time": 0.3199999928474426,
             "decay": 0.5199999809265137
-          },
-          "trailer": 16
+          }
         }
       ],
       "placements": [
