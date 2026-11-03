@@ -255,3 +255,29 @@ fn running_open_filters_is_a_listening_switch_off_by_default() {
     assert!(hf(&got) < hf(&want), "{} vs {}", hf(&got), hf(&want));
     r.set_run_open_filters(false);
 }
+
+/// A V2-style strip send (the instrument's extra output pair 1, `send: 1` on the receiving bus) sounds live exactly as
+/// in the player: the host's device wrapper must forward `run_ext` (it played every strip send silent: converted V2
+/// songs lost their reverb and delay live, up to 18 dB on fr-041 debris-main).
+#[test]
+fn strip_sends_sound_live_as_in_the_player() {
+    let song = |send: f64| {
+        let mut v = song_json(64);
+        let lead = &mut v["tracks"][0];
+        lead["devices"][0]["values"]["strip.on"] = serde_json::json!(1.0);
+        lead["devices"][0]["values"]["strip.send_reverb"] = serde_json::json!(send);
+        v["tracks"].as_array_mut().unwrap().push(serde_json::json!({
+            "id": "rev", "name": "Reverb", "volume": 1.0, "mute": false,
+            "receives": [{ "from": "lead", "channel": "main", "send": 1, "volume": 1.0 }],
+            "devices": [], "placements": [], "lanes": [] }));
+        v["master"]["receives"].as_array_mut().unwrap().push(serde_json::json!({ "from": "rev", "channel": "main", "volume": 1.0 }));
+        blob(&v)
+    };
+    let (b, dry) = (song(0.75), song(0.0));
+    let want = player(&b, 44100 * 2);
+    assert!(want != player(&dry, 44100 * 2), "the send is heard in the player");
+    let mut h = loaded(&b);
+    h.play(0);
+    let got = live(&mut h, 44100 * 2, 128);
+    assert!(got == want, "first difference at {:?}", got.iter().zip(&want).position(|(a, b)| a != b));
+}

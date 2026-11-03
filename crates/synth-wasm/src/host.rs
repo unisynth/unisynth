@@ -8,7 +8,7 @@
 //! preallocated storage.
 
 use song::blob::BlobM;
-use synth_core::device::{Ctx, Device, EventKind, Io};
+use synth_core::device::{Ctx, Device, EventKind, Io, LaneLerp};
 use synth_core::mix::{DEFAULT_SUB, Env, Kinds, LoadError, Mixer, Receive, Source, TrackSource};
 use synth_core::pool::Pool;
 use unisynth::rng::Xorshift;
@@ -60,7 +60,31 @@ impl Slot {
     }
 }
 
+// Forwards every `Device` method, defaults included: a missing one silently plays the device with the trait default
+// (a missing `run_ext` muted every strip send live: V2 reverb/delay sends).
 impl Device for Slot {
+    fn run_ext(&mut self, io: &mut Io, ext: &mut [&mut [f32]], n: usize, ctx: &mut Ctx) {
+        if let Some(d) = &mut self.dev {
+            d.run_ext(io, ext, n, ctx)
+        }
+    }
+    fn automation(&self) -> Result<(), u8> {
+        self.dev.as_ref().map_or(Ok(()), Device::automation)
+    }
+    fn lane_lerp(&self) -> LaneLerp {
+        self.dev.as_ref().map_or_else(LaneLerp::default, Device::lane_lerp)
+    }
+    fn quiet_after(&self) -> Option<u32> {
+        self.dev.as_ref().and_then(Device::quiet_after)
+    }
+    fn quiet_skip(&self) -> bool {
+        self.dev.as_ref().is_some_and(Device::quiet_skip)
+    }
+    fn wake(&mut self, skipped: u32) {
+        if let Some(d) = &mut self.dev {
+            d.wake(skipped)
+        }
+    }
     fn param_count(&self) -> usize {
         self.dev.as_ref().map_or(0, Device::param_count)
     }
