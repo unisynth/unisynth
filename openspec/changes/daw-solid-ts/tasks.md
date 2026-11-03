@@ -344,8 +344,11 @@ before → `AGENTS.md` rows → land on `main`.
   point per 2 px, the keyboard reaches the kept points only; zooming in gives every point its handle. Dense undo
   1,449 → 10.5 ms; bench tbl-stash-over2 undo 88 → 10, scroll p95 26–30 → 18, trashpanda undo 9.7 → 2.0 ms.
   Full suite 183/183 twice (no todo left).
-- [ ] 9.6 `docs/synth/daw.md` UI structure (components, stores, display state), `packages/daw/AGENTS.md` (remove the
+- [x] 9.6 `docs/synth/daw.md` UI structure (components, stores, display state), `packages/daw/AGENTS.md` (remove the
   `app.js` sidecar, add `src/ui/**` directory `AGENTS.md`), and memory of the conventions.
+  Done: `docs/synth/daw.md` "UI structure" (layers, undo snapshots, mounting and windowing, budgets); the `app.js`
+  sidecar went in 9.1; the 67 `src/ui/**` rows moved into 12 directory `AGENTS.md` files (package file 53 → 25 KB,
+  pointer rows left); project memory: write ratchet updated, UI conventions added.
 
 ## Workflow follow-up
 

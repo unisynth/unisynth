@@ -187,6 +187,40 @@ Tunefish 4 programs and the instruments of the WaveSabre reference songs load fr
 local lab); the server attaches each entry's devices to `/api/library`. Loading replaces the track's instrument and puts
 a Tunefish program's insert effects right after it.
 
+## UI structure
+
+TypeScript (strict) + SolidJS (change daw-solid-ts). `src/main.ts` boots the engine and tables, then
+`src/ui/App.tsx` `start(daw)` mounts the panels and wires the session modules. Per-file detail: the `AGENTS.md` in
+each `src/ui/` directory.
+
+| Layer | Where | Rule |
+|---|---|---|
+| Model helpers | `src/ui/model/` | Pure: parameter tables, value text (`fmtVal`), track and device helpers, base64/GM. |
+| Song store | `src/ui/state/song.ts` | One Solid store of the editor model. Components read through it; hot paths read `raw()`. Restores reconcile per top-level key (`restoreSong`) or per track (`restoreTracks`), never at the root. |
+| Display state | `src/ui/state/` | Signals and small stores for view state: selection, tabs, scroll/zoom and row windows (`arrange.ts`), playhead, meters and automation values at the playhead (`live.ts`, `device.ts`), audition, and the layout (splitter sizes, persisted via `persist.ts`). Never part of the song, never undone. |
+| Session logic | `src/ui/app/` | The only code that writes the song (`test/write-ratchet.test.ts` counts the writes and only lets the count fall). Edit core `core.ts`: `snap()` before a gesture, `commit(before, msg)` after it (one undo step), `undo`/`redo`. |
+| Components | `src/ui/<panel>/` | Transport bar, files, library, arrangement (`arrange/`), piano roll, device panel, mixer, footer, shared knob/splitter/menu/dialog (`common/`). Same ids, classes and ARIA as before the port. |
+
+**Undo snapshots** (design D2). A `Snap` keeps each track's body and its lane headers as JSON, with one cached
+string per lane's points (keyed by the points array). Lane points are copy-on-write: an edit assigns a new array and
+never changes one in place. Verify mode, on in browser tests, re-serializes cached lanes and throws on a mismatch.
+Undo restores only the tracks that differ and refills only their automation rows (`restored(ids)`). The history has
+an epoch, bumped on a song load, so a gesture or async action that began before the load commits nothing.
+
+**Mounting and windowing.** The Device panel and the piano roll exist only while their tab shows (design D5). The
+arrangement mounts the rows in view (`windowRows`) and the clips of the bars around it (`barWindow`). An automation
+lane draws its line thinned per pixel column and builds point handles only around the view, at most the lowest and
+highest point per 4 px. A press still takes the nearest point; the keyboard reaches every point after zooming in.
+Selects with more than 16 options (mod source/target) hold only the current option until first used, so tests
+`focus()` them before `selectOption`. Lane SVGs, the roll canvas and the device screens are drawn imperatively; the
+rest is components.
+
+**Budgets.** `test/budgets.test.ts` checks the spec budgets on a generated 50-track song and on a dense-automation
+song (≈ 6 MB of lane points). Every edit (select, fader, knob, mute, solo, send level, select with the Device tab
+shown, undo) must finish within one 60 Hz frame (16.7 ms), and 95 % of frames during playback must stay under 20 ms.
+`bench/ui.ts` measures released songs, and `bench/ui-profile.ts` (`SELECT`, `TAB`, `SCROLL`, `PLAY`, knob + undo)
+gives a CPU profile per caller. The production build pins Solid's production runtime (`vite.config.ts`).
+
 ## Using the DAW
 
 ```bash
