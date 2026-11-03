@@ -214,8 +214,20 @@ test("dense automation (≈ 6 MB of lane points, like tbl-stash-over2): knob ste
   expect(mute).toBeLessThan(FRAME);
   expect(errors).toEqual([]);
 }, 60_000);
-// Undo on the dense song: the snapshot side is cheap since 9.3 (per-track restore, ~9 ms reconcile), but a restore
-// rebuilds the mounted rows and redraws every automation lane as an SVG with one element per point (7 000 here):
-// ~1.4 s. Lane rendering, not undo state; see openspec daw-solid-ts tasks.
-test.todo("dense automation: undo of one step within one frame");
+// Undo on the dense song (runs after the test above: its 7 mute steps on Track 3 are on top of the history). A
+// restore reconciles only the tracks that differ (9.3) and refills only their lane rows (9.5); a lane builds handles
+// for the points in view only. Before 9.5: ~1.4 s (every mounted lane redrawn twice, one element per point).
+test("dense automation: undo of one step within one frame; only the restored track's lanes change", async () => {
+  const d0: number = await page.evaluate(() => (window as any).DAW.debug.undoDepth());
+  const lanes = await page.locator("#lanes .lane.auto").count();
+  expect(lanes).toBeGreaterThan(3);  // several tracks' lanes are mounted
+  let ms = 0;
+  const hit = await mutatedBy("#lanes", ".lane.auto", async () => {
+    ms = await timeEdit("dense undo", () => document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true })));
+  });
+  expect(await page.evaluate(() => (window as any).DAW.debug.undoDepth())).toBe(d0 - 7);
+  expect(ms).toBeLessThan(FRAME);
+  expect(hit.filter((h) => !/^Track 3 /.test(h) && !h.startsWith("("))).toEqual([]);
+  expect(errors).toEqual([]);
+}, 60_000);
 

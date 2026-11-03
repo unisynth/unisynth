@@ -326,7 +326,7 @@ before → `AGENTS.md` rows → land on `main`.
   cached per PCM; `slotKeys` cached. Bench select-dev trashpanda 25.6 → 8.2, tbl-stash-over2 23.4 → 14.1 ms; tab-dev
   17/54 → 10/34 and 19/84 → 12/35 ms (handler/frame). Budget test "select with the Device tab shown" 41.7 → 13.6 ms.
   Full suite 177/177 (+1 todo) twice.
-- [ ] 9.5 Dense automation lanes (from 9.3): one undo on the generated dense song (45 tracks, 7000 points per lane)
+- [x] 9.5 Dense automation lanes (from 9.3): one undo on the generated dense song (45 tracks, 7000 points per lane)
   takes ~1.4 s although the snapshot restore is ~9 ms. Cause: `hooks.restored` → `rebuildTracks` → `relayout` redraws
   every mounted lane (`addLane` `draw`: `innerHTML` SVG with a focusable `<g>` + two circles per point) and pads the
   headers. Fix: (a) a restore redraws only lanes of tracks it changed (`restoreStats`), `relayout` only on a length or
@@ -335,6 +335,15 @@ before → `AGENTS.md` rows → land on `main`.
   focused by keyboard stays reachable. Verify: the dense undo `test.todo` in `test/budgets.test.ts` becomes a test
   under 16.7 ms, automation editing tests green (mouse + keyboard point editor, record), axe test green, bench
   tbl-stash-over2 undo and scroll p95 not worse.
+  Done: (a) `restored(ids)` → `rebuildTracks(ids)` bumps per-track `trackRev`, no relayout/hdrPad; a lane mount no
+  longer runs `applyAutomation` (once per caller instead of once per lane). (b) `ui/arrange/lanePlot.ts`: line thinned
+  per pixel column, handles around the view (`laneBars`) thinned to lowest/highest per 4 px; a view move refills the
+  handle group only, spread over frames (≤ 4 ms each). Review (cross-model, 1 cycle): a press on a culled point added
+  a point instead of taking it → `nearPoint`; remounted lanes lost the override mark → set at mount; per-track signal
+  map kept (one signal per track id, pruning would orphan live subscriptions). Trade-off: on a lane denser than one
+  point per 2 px, the keyboard reaches the kept points only; zooming in gives every point its handle. Dense undo
+  1,449 → 10.5 ms; bench tbl-stash-over2 undo 88 → 10, scroll p95 26–30 → 18, trashpanda undo 9.7 → 2.0 ms.
+  Full suite 183/183 twice (no todo left).
 - [ ] 9.6 `docs/synth/daw.md` UI structure (components, stores, display state), `packages/daw/AGENTS.md` (remove the
   `app.js` sidecar, add `src/ui/**` directory `AGENTS.md`), and memory of the conventions.
 

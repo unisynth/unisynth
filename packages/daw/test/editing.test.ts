@@ -207,6 +207,11 @@ test("5.6b knobs follow automation at the playhead; a hand edit overrides until 
   await k.focus();
   await k.press("End");
   expect(await page.locator("#reauto").count()).toBe(1);
+  // the lane header shows the override, also after the lane rows remount (9.5: mounting no longer applies automation)
+  const ah = page.locator('.thdr.auto:has(select[aria-label="Bass automation target"])'), ab = page.locator('.thdr.track[data-track="bass"] .autobtn');
+  expect(await ah.getAttribute("class")).toContain("ovr");
+  await ab.click(); await ab.click();
+  expect(await ah.getAttribute("class")).toContain("ovr");
   await page.locator("#reauto").click();
   await page.mouse.click(ruler.x + 4 * BW + 1, ruler.y + ruler.height - 4);
   await page.waitForTimeout(100);

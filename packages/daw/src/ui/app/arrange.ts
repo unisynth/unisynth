@@ -66,8 +66,10 @@ export function initArrange(h: ArrangeHooks): void {
   lw.addEventListener("gesturestart", e => { e.preventDefault(); g0 = BW; });
   lw.addEventListener("gesturechange", e => { e.preventDefault(); zoomArr(g0 * (e as unknown as { scale: number }).scale / BW, (e as unknown as MouseEvent).clientX, true); });
 }
-/** Mounted rows refill (add/delete/reorder/undo): relayout, automation, header padding. */
-export function rebuildTracks(): void {
+/** Mounted rows refill (add/delete/reorder/undo): relayout, automation, header padding. `ids`: only these tracks'
+ *  rows refill (a partial undo restore: track list and song length unchanged, so no relayout). */
+export function rebuildTracks(ids?: readonly string[]): void {
+  if (ids) { arrange.bumpTracks(ids); if (lw) applyAutomation(); return; }  // same lane width: no hdrPad
   arrange.setRev((v) => v + 1);
   if (!lw) return;  // before initArrange
   relayout(); applyAutomation(); hdrPad(); hdrs.scrollTop = lw.scrollTop;

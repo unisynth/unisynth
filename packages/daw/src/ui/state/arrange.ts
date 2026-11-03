@@ -2,7 +2,7 @@
 // not in the song (armed, focused, renaming). Row heights come from the model (fixed CSS heights, border-box): a track
 // row is --track-h, plus its automation lanes and the "+ lane" row while open. Rows meeting the view plus one screen
 // above and below exist; the selected and the focused row always exist; spacers keep offsets and the scroll extent.
-import { createSignal } from "solid-js";
+import { createMemo, createRoot, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 
 export const TRACK_H = 56, AUTO_H = 40, ADD_H = 24;
@@ -40,6 +40,11 @@ export const [focusedId, setFocusedId] = createSignal<string | null>(null);
 export const [renamingId, setRenamingId] = createSignal<string | null>(null);
 /** Bumped by rebuildTracks(): rows refill their imperative content (clips, automation lanes). */
 export const [rev, setRev] = createSignal(0);
+const trackRevs = new Map<string, ReturnType<typeof createSignal<number>>>();
+const revOf = (id: string) => { let s = trackRevs.get(id); if (!s) trackRevs.set(id, s = createSignal(0)); return s; };
+/** One track's refill counter (a partial undo restore refills only the tracks it changed, daw-solid-ts 9.5). */
+export const trackRev = (id: string): number => revOf(id)[0]();
+export const bumpTracks = (ids: readonly string[]): void => { for (const id of ids) revOf(id)[1]((v) => v + 1); };
 /** Pixels per bar (arrangement zoom) and the horizontal scroll: clips are culled to the bars in view ± one screen. */
 export const [bw, setBw] = createSignal(44);
 export const [scrollLeft, setScrollLeft] = createSignal(0);
@@ -50,6 +55,9 @@ export function barWindow(left: number, view: number, pxPerBar: number): [number
   const page = Math.floor(left / Math.max(1, view));
   return [1 + ((page - 1) * view) / pxPerBar, 1 + ((page + 3) * view) / pxPerBar];
 }
+/** Bars automation lanes build point handles for (as `barWindow`; everything until the view width is known). */
+export const laneBars = createRoot(() => createMemo((): [number, number] => viewW() > 0 ? barWindow(scrollLeft(), viewW(), bw()) : [-Infinity, Infinity],
+  undefined, { equals: (x, y) => x[0] === y[0] && x[1] === y[1] }));
 /** Per-track content version: renderLane(t) bumps it, the lane's clip thumbnails redraw. */
 export const [laneVer, setLaneVer] = createStore<Record<string, number>>({});
 export const bumpLane = (id: string) => setLaneVer(id, (v) => (v ?? 0) + 1);

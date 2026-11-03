@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import type { Browser, Page } from "playwright";
 import { startServer, type Server } from "../../cli/src/server.ts";
 import { buildDaw, DIST } from "../build.ts";
-import { BIG_TRACKS, bigSong } from "./fixtures.ts";
+import { BIG_TRACKS, bigSong, denseSong } from "./fixtures.ts";
 
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const root = mkdtempSync(join(tmpdir(), "daw-arr-"));
@@ -23,6 +23,10 @@ const BW = 44; // px per bar at the default zoom
 beforeAll(async () => {
   mkdirSync(music, { recursive: true });
   cpSync(join(ROOT, "project/music/demo.song.json"), join(music, "demo.song.json"));
+  { const j = JSON.parse(readFileSync(join(music, "demo.song.json"), "utf8")), ln = j.tracks.find((t: any) => t.lanes?.length).lanes[0];
+    ln.points = Array.from({ length: 4000 }, (_, k) => [Math.round(k * j.length / 4000), [0, 1, 0.5][k % 3]]);  // jagged: middles far from both extremes
+    writeFileSync(join(music, "jagged.song.json"), JSON.stringify(j)); }
+  writeFileSync(join(music, "dense.song.json"), JSON.stringify(denseSong(JSON.parse(readFileSync(join(music, "demo.song.json"), "utf8")))));
   writeFileSync(join(music, "big.song.json"), JSON.stringify(bigSong(JSON.parse(readFileSync(join(music, "demo.song.json"), "utf8"))), null, 1));
   await buildDaw({ wasm: false });
   s = await startServer({ port: 0, root, build: false, dawDist: DIST, headless: false });
@@ -223,6 +227,67 @@ test("automation: click adds a point, arrows edit it, Delete removes it, the las
   await page.locator(".thdr.auto .rm").last().click();
   expect(track(await song(), "bass").lanes.length).toBe(1);
   expect(await hdr("bass").locator(".autobtn").textContent()).toBe("A1");
+}, 30_000);
+
+// daw-solid-ts 9.5: a lane builds point handles for the bars around the view only, thinned on dense lanes; focusing a
+// point can scroll the view (and move that window), and the point keeps focus through a keyboard edit.
+test("automation: handles follow the view; a focused point keeps focus after zoom + scroll; dense lanes are thinned", async () => {
+  await open("demo");
+  for (let i = 0; i < 5; i++) await page.keyboard.press("+");
+  // from the end (past the last point: no handles there), scroll left a half view at a time until handles appear
+  const steps = await page.evaluate(async () => {
+    const lw = document.getElementById("lanes-wrap")!, al = document.querySelector(".lane.auto")!, raf = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    lw.scrollLeft = lw.scrollWidth; await raf();
+    const atEnd = al.querySelectorAll(".pt").length;
+    let k = 0; while (!al.querySelector(".pt") && lw.scrollLeft > 0) { lw.scrollLeft -= lw.clientWidth / 2; await raf(); k++; }
+    // the last handle just left of the view (the window reaches a page further left), so focusing it
+    // scrolls the view back (and moves the window: the lane redraws while its point has focus)
+    const pts = al.querySelectorAll<SVGElement>(".pt"), cx = Number(pts[pts.length - 1]!.querySelector("circle")!.getAttribute("cx"));
+    lw.scrollLeft = Math.ceil((cx + 1) / lw.clientWidth) * lw.clientWidth; await raf();  // on a page boundary
+    return { atEnd, k, left0: lw.scrollLeft };
+  });
+  expect(steps.atEnd).toBe(0);
+  expect(steps.k).toBeGreaterThan(0);
+  const last = page.locator(".lane.auto").first().locator(".pt").last(), i0 = await last.getAttribute("data-i");
+  await last.focus();
+  expect(await page.evaluate(() => document.getElementById("lanes-wrap")!.scrollLeft)).toBeLessThan(steps.left0);  // focus scrolled
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));  // the scroll's redraw
+  expect(await page.evaluate(() => (document.activeElement as SVGElement).dataset?.i)).toBe(i0!);
+  const v0 = Number(await last.getAttribute("aria-valuenow"));
+  await page.keyboard.press("ArrowUp");
+  const f = await page.evaluate(() => { const a = document.activeElement as SVGElement; return { cls: a.getAttribute("class"), i: a.dataset.i, v: Number(a.getAttribute("aria-valuenow")) }; });
+  expect(f.cls).toContain("pt");
+  expect(f.i).toBe(i0!);
+  expect(f.v).toBeGreaterThan(v0);
+  await open("dense");
+  const n = await page.evaluate(() => (window as any).DAW.debug.song().tracks[0].lanes[0].points.length);
+  const h = await page.locator(".lane.auto").first().locator(".pt").count();
+  expect(n).toBe(7000);
+  expect(h).toBeGreaterThan(10);
+  expect(h).toBeLessThan(n / 10);
+  // a press on a point without a handle takes that point (no new point, no undo step): on a jagged lane the middle
+  // value of a 4 px column is more than 8 px (the hit radius) from both kept handles
+  await open("jagged");
+  const lane0 = await page.evaluate(() => (window as any).DAW.debug.song().tracks.findIndex((t: any) => t.lanes?.length));
+  const at = await page.evaluate((ti) => {
+    const al = document.querySelector(".lane.auto")!, svg = al.querySelector("svg")!, lw = document.getElementById("lanes-wrap")!;
+    const pts = (window as any).DAW.debug.song().tracks[ti].lanes[0].points as [number, number][];
+    const hs = [...al.querySelectorAll<SVGElement>(".pt")].map((g) => { const c = g.querySelector("circle")!; return { i: +g.dataset.i!, cx: +c.getAttribute("cx")!, cy: +c.getAttribute("cy")! }; });
+    const a = hs[0]!, z = hs[hs.length - 1]!, cx = (k: number) => a.cx + (pts[k]![0] - pts[a.i]![0]) * (z.cx - a.cx) / (pts[z.i]![0] - pts[a.i]![0]);
+    const r = svg.getBoundingClientRect(), view = lw.getBoundingClientRect(), has = new Set(hs.map((h) => h.i));
+    let k = -1;
+    for (let i = 0; i < pts.length && k < 0; i++) { const x = cx(i); if (!has.has(i) && pts[i]![1] === 0.5 && r.left + x > view.left + 20 && r.left + x < view.right - 20) k = i; }
+    const y = 36 - 32 * pts[k]![1], nearest = Math.min(...hs.map((h) => Math.hypot(h.cx - cx(k), h.cy - y)));
+    return { k, x: r.left + cx(k), y: r.top + y, nearest, n: pts.length };
+  }, lane0);
+  expect(at.k).toBeGreaterThanOrEqual(0);
+  expect(at.nearest).toBeGreaterThan(8);  // no handle under the press
+  const d0 = await depth();
+  await page.mouse.click(at.x, at.y);
+  expect((await song()).tracks[lane0].lanes[0].points.length).toBe(at.n);
+  expect(await depth()).toBe(d0);
+  const sel = Number(await page.locator(".lane.auto").first().locator(".pt.sel").getAttribute("data-i"));
+  expect(Math.abs(sel - at.k)).toBeLessThan(5);
 }, 30_000);
 
 test("follow: while playing, the view pages when the playhead reaches the right edge; a hand scroll pauses follow", async () => {

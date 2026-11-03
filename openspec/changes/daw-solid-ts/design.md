@@ -75,7 +75,10 @@ in one step. Each point below was checked against solid-js 1.9 in the browser bu
   every browser test) re-serializes cached lanes and throws on a mismatch. `restoreSong` drops the cache (reconcile
   keeps array identity with new contents) and the restore re-primes it from the restored snapshot. Undo and redo
   reconcile only the tracks that differ from the current state while the track list is the same. The history has an
-  epoch (bumped on a song load): a gesture begun before the load commits nothing.
+  epoch (bumped on a song load): a gesture begun before the load commits nothing. The restore names the tracks it
+  changed (`restored(ids)`), and only their automation rows refill (per-track `trackRev`, 9.5); a dense lane draws
+  its line thinned per pixel column and point handles only around the view, thinned to the lowest and highest point
+  per 4 px (a press still takes the nearest point within 4 × 8 px; keyboard reaches every point after zooming in).
 - **Per-frame values are never song state.** Automation playback values, meters and the playhead live in
   `ui/state/live.ts` (D3). They are not undoable, never pushed to the engine, and knobs show the live value if
   present, otherwise the song value. `toSong` and canvases read raw data outside tracking scopes; canvases redraw on a

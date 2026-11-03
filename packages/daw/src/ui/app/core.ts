@@ -10,8 +10,9 @@ import { overrides, rollClips } from "../state/view.ts";
 import { armed, master, selected, setArmed, setSelected, song, tracks } from "./session.ts";
 
 export interface CoreHooks {
-  /** After a restore: views rebuilt for the restored song and selection. */
-  restored(): void;
+  /** After a restore: views rebuilt for the restored song and selection. `ids`: only these tracks changed (the track
+   *  list is the same); absent: a full restore. */
+  restored(ids?: readonly string[]): void;
   /** After any committed change (and restore): unsaved state and the engine follow. */
   changed(): void;
 }
@@ -53,20 +54,22 @@ function restore1(s: Snap, now?: Snap): void {
   // the roll's clip by name/start (restored clips merge by position: an object reference could now hold another
   // clip's values)
   for (const [id, c] of rollClips) if (c) { const r = c as { name: string; start: number }; rollClips.set(id, { name: r.name, start: r.start }); }
+  let changedIds: string[] | undefined;
   const same = !!now && now.master.id === s.master.id && now.tracks.length === s.tracks.length && now.tracks.every((t, i) => t.id === s.tracks[i]!.id);
   if (same) {
     const at = s.tracks.flatMap((ts, i): [number, UITrack][] => trackSnapEqual(ts, now!.tracks[i]!) ? [] : [[i, trackState(ts)]]);
     const m = trackSnapEqual(s.master, now!.master) ? undefined : trackState(s.master);
     restoreTracks(song, at, m);
     restoreStats.last = `tracks ${at.length}${m ? " + master" : ""}`;
+    changedIds = [...at.map(([i]) => s.tracks[i]!.id), ...(m ? [s.master.id] : [])];
   } else {
     restoreSong(song, snapState(s));  // tracks by id, then master; unchanged objects keep identity
-    restoreStats.last = "full";
+    restoreStats.last = "full"; changedIds = undefined;
   }
   primeSnap(raw(tracks), raw(master), s);  // the reconciled lane arrays now hold `s`'s points
   setSelected(tracks.find((t) => t.id === d.sel) || (d.sel === "master" ? master : tracks[0]!));
   setArmed(tracks.find((t) => t.id === d.armed) || null);
-  hooks.restored(); hooks.changed();
+  hooks.restored(changedIds); hooks.changed();
 }
 /** One undo step from `before` to now, unless nothing changed or `before` was taken before the history was cleared
  * (a gesture across a song load); says `msg`. */

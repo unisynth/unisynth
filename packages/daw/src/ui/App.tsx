@@ -87,7 +87,7 @@ export function start(daw: Daw): void {
   mountMixer(el("mixer"), song, mixerActions());
   // A restore rebuilds the views for the restored song and selection.
   initCore({
-    restored: () => { rebuildTracks(); selectTrack(selected); updateArmed(); },
+    restored: (ids) => { rebuildTracks(ids); selectTrack(selected); updateArmed(); },
     changed: () => { dirtyUpd(); livePush(); },
   });
   initClips({

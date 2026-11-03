@@ -17,6 +17,8 @@ import { livePush, pushSong } from "./engine.ts";
 import { BW } from "./arrange.ts";
 import { css } from "./theme.ts";
 import type { Snap } from "../state/snapshot.ts";
+import { laneLine, lanePlot } from "../arrange/lanePlot.ts";
+import { createEffect, on, untrack } from "solid-js";
 
 type Lane = UITrack["lanes"][number];
 /** A mounted automation lane row: redraw, refresh its value readout. */
@@ -102,6 +104,15 @@ export function knobEdited(t: UITrack, d: UIDevice, p: Param): void {
 // One automation lane: header (.thdr.auto) and lane (.lane.auto) elements for the row (ui/arrange/Tracks.tsx inserts
 // them, one pair per t.lanes entry); the SVG draw and the point editor stay imperative (design D4). Returns the
 // elements and a dispose that unregisters the lane from laneVals.
+/** Lane handle refills waiting for a frame: run up to ~4 ms per frame, so a page crossing never stalls scrolling. */
+const handleQueue = new Set<() => void>();
+let handleRaf = 0;
+function queueHandles(f: () => void): void { handleQueue.add(f); if (!handleRaf) handleRaf = requestAnimationFrame(flushHandles); }
+function flushHandles(): void {
+  handleRaf = 0; const t0 = performance.now();
+  for (const f of handleQueue) { handleQueue.delete(f); f(); if (performance.now() - t0 > 4) break; }
+  if (handleQueue.size) handleRaf = requestAnimationFrame(flushHandles);
+}
 export function addLane(t: UITrack, ln: Lane): { ah: HTMLElement; al: HTMLElement; dispose(): void } {
   // the target list (every parameter of every device, hundreds of options) is built when the select is first used;
   // until then it holds the current target only (rows mount while scrolling: design D6)
@@ -117,27 +128,53 @@ export function addLane(t: UITrack, ln: Lane): { ah: HTMLElement; al: HTMLElemen
   // Point editor. Mouse: click empty = add, drag point = move (snap 1/16 bar, Alt = free; time stays between
   // neighbours), double-click / right-click point = delete. Keyboard (point focused): ←/→ time, ↑/↓ value
   // (Shift = fine), Delete/Backspace = delete. Every gesture is one undo step in the real app.
-  const H = 40, X = (b: number) => (b - 1) * BW, Y = (v: number) => H - 4 - v * (H - 8);
+  const H = 40, HANDLE_PX = 4, X = (b: number) => (b - 1) * BW, Y = (v: number) => H - 4 - v * (H - 8);
   type Drag = { i: number; moved: boolean; x0: number; y0: number; before: Snap; add?: false } | { add: true; x0: number; y0: number; before: Snap };
   let selI = -1, drag: Drag | null = null, lastDown: { i: number; t: number } | null = null;
   const fmtBar = (b: number) => { const t = Math.round((b - 1) * 16); return `${1 + Math.floor(t / 16)}.${1 + Math.floor((t % 16) / 4)}.${(t % 4) * 240}`; };
-  const draw = (focus = false): void => {
-    const lp = raw(ln.pts), dname = devicesOf(t)[ln.dev];  // read-only: raw points, name once (not per point)
-    const W = (BARS + PAD_BARS) * BW;
-    const pts: LanePoint[] = [[1, lp[0]![1]], ...lp, [BARS + 1, lp[lp.length - 1]![1]]];
+  // Dense lanes (daw-solid-ts 9.5): the line thinned per pixel column (laneLine), handles (focusable, one element
+  // each) only for the bars around the view and thinned too (lanePlot); the view moving refills the handles only.
+  const handles = (lp: readonly LanePoint[], c: string): string => {
+    const dname = devicesOf(t)[ln.dev], [w0, w1] = untrack(arrange.laneBars);  // name once, not per point
+    return lanePlot(lp, w0, w1, X, HANDLE_PX, selI).handles.map((i) => { const [b, v] = lp[i]!; return `<g class="pt${i === selI ? " sel" : ""}" data-i="${i}" tabindex="0" role="slider" aria-label="${dname} ${ln.param} point ${i + 1} at ${fmtBar(b)}" aria-valuemin="0" aria-valuemax="1" aria-valuenow="${v.toFixed(3)}" aria-valuetext="${laneText(t, ln, v)} at bar ${fmtBar(b)}"><circle class="hit" cx="${X(b)}" cy="${Y(v)}" r="8"/><circle class="dot" cx="${X(b)}" cy="${Y(v)}" r="${i === selI ? 4 : 3}" fill="${i === selI ? c : css("--bg")}" stroke="${c}"/></g>`; }).join("");
+  };
+  const refocus = (): void => { if (selI >= 0) al.querySelector<SVGElement>(`.pt[data-i="${selI}"]`)?.focus(); };
+  const draw = (focus = false, apply = true): void => {
+    const lp = raw(ln.pts), W = (BARS + PAD_BARS) * BW, n = lp.length;  // read-only: raw points
+    const pts: LanePoint[] = [[1, lp[0]![1]], ...laneLine(lp, X).map((i) => lp[i]!), [BARS + 1, lp[n - 1]![1]]];
+    const xy = pts.map(([b, v]) => `${X(b)},${Y(v)}`).join(" ");
     const c = css(t.col);
-    al.innerHTML = `<svg width="${W}" height="${H}"><polygon fill="${c}1f" points="${X(1)},${H} ${pts.map(([b, v]) => `${X(b)},${Y(v)}`).join(" ")} ${X(BARS + 1)},${H}"/><polyline fill="none" stroke="${c}" stroke-width="1.5" points="${pts.map(([b, v]) => `${X(b)},${Y(v)}`).join(" ")}"/>${
-      lp.map(([b, v], i) => `<g class="pt${i === selI ? " sel" : ""}" data-i="${i}" tabindex="0" role="slider" aria-label="${dname} ${ln.param} point ${i + 1} at ${fmtBar(b)}" aria-valuemin="0" aria-valuemax="1" aria-valuenow="${v.toFixed(3)}" aria-valuetext="${laneText(t, ln, v)} at bar ${fmtBar(b)}"><circle class="hit" cx="${X(b)}" cy="${Y(v)}" r="8"/><circle class="dot" cx="${X(b)}" cy="${Y(v)}" r="${i === selI ? 4 : 3}" fill="${i === selI ? c : css("--bg")}" stroke="${c}"/></g>`).join("")
-    }${drag && !drag.add && drag.moved ? (() => { const [b, v] = lp[(drag as { i: number }).i]!; const tx = Math.min(W - 120, X(b) + 8); return `<rect x="${tx - 3}" y="2" width="118" height="14" rx="3" fill="${css("--panel")}" stroke="${css("--line")}"/><text x="${tx}" y="12" font-size="10" fill="${css("--fg")}" font-family="ui-monospace,monospace">${fmtBar(b)} · ${laneText(t, ln, v)}</text>`; })() : ""}</svg>`;
-    valEl.textContent = cur(); applyAutomation();
-    if (focus && selI >= 0) al.querySelector<SVGElement>(`.pt[data-i="${selI}"]`)?.focus();
+    al.innerHTML = `<svg width="${W}" height="${H}"><polygon fill="${c}1f" points="${X(1)},${H} ${xy} ${X(BARS + 1)},${H}"/><polyline fill="none" stroke="${c}" stroke-width="1.5" points="${xy}"/><g class="hs">${handles(lp, c)}</g>${drag && !drag.add && drag.moved ? (() => { const [b, v] = lp[(drag as { i: number }).i]!; const tx = Math.min(W - 120, X(b) + 8); return `<rect x="${tx - 3}" y="2" width="118" height="14" rx="3" fill="${css("--panel")}" stroke="${css("--line")}"/><text x="${tx}" y="12" font-size="10" fill="${css("--fg")}" font-family="ui-monospace,monospace">${fmtBar(b)} · ${laneText(t, ln, v)}</text>`; })() : ""}</svg>`;
+    valEl.textContent = cur(); if (apply) applyAutomation();
+    if (focus) refocus();
+  };
+  const drawHandles = (): void => {
+    const g = al.querySelector("g.hs"); if (!g) return;
+    const focus = al.contains(document.activeElement);
+    g.innerHTML = handles(raw(ln.pts), css(t.col));
+    if (focus) refocus();
   };
   const valEl = ah.querySelector(".val")!;
-  const entry: LaneView = { draw, t, ln, ah, val: () => { valEl.textContent = cur(); } }; laneVals.push(entry); draw();
+  const entry: LaneView = { draw, t, ln, ah, val: () => { valEl.textContent = cur(); } }; laneVals.push(entry); draw(false, false);  // mounting changes no lane: callers apply automation once
+  ah.classList.toggle("ovr", !!overrides.get(t.id)?.has(ln.dev + ":" + ln.param));  // as applyAutomation marks it
+  // handles follow the view, spread over frames (the old window still covers the view after a page crossing); a lane
+  // holding focus refills at once (focusing a point can scroll the view). The row's owner disposes the effect.
+  createEffect(on(arrange.laneBars, () => { if (al.contains(document.activeElement)) drawHandles(); else queueHandles(drawHandles); }, { defer: true }));
   const toBV = (e: PointerEvent, free: boolean): [number, number] => {
     const r = al.getBoundingClientRect();
     const raw = 1 + (e.clientX - r.left) / BW, b = free ? raw : 1 + Math.round((raw - 1) * 16) / 16;
     return [Math.min(BARS + 1, Math.max(1, b)), Math.min(1, Math.max(0, (r.top + H - 4 - e.clientY) / (H - 8)))];
+  };
+  /** The point within 4 px in time and 8 px in value of the press (the nearest in time), else -1. */
+  const nearPoint = (e: PointerEvent): number => {
+    const lp = raw(ln.pts), r = al.getBoundingClientRect(), b = 1 + (e.clientX - r.left) / BW, y = e.clientY - r.top;
+    let lo = 0, hi = lp.length; while (lo < hi) { const m = (lo + hi) >> 1; if (lp[m]![0] < b) lo = m + 1; else hi = m; }
+    let best = -1, bd = Infinity;
+    for (const dir of [-1, 1]) for (let i = dir < 0 ? lo - 1 : lo; i >= 0 && i < lp.length && Math.abs(X(lp[i]![0]) - X(b)) <= 4; i += dir) {
+      const dy = Math.abs(Y(lp[i]![1]) - y), dx = Math.abs(X(lp[i]![0]) - X(b));
+      if (dy <= 8 && dx + dy < bd) { bd = dx + dy; best = i; }
+    }
+    return best;
   };
   const clampTime = (i: number, b: number): number => {
     const lo = i > 0 ? ln.pts[i - 1]![0] + 1 / 64 : 1, hi = i < ln.pts.length - 1 ? ln.pts[i + 1]![0] - 1 / 64 : BARS + 1;
@@ -151,8 +188,10 @@ export function addLane(t: UITrack, ln: Lane): { ah: HTMLElement; al: HTMLElemen
     if (e.button !== 0) return;
     const g = (e.target as Element).closest<SVGElement>(".pt");
     al.setPointerCapture(e.pointerId);
-    if (g) {
-      const i = +g.dataset.i!, now = performance.now();
+    // dense lanes build fewer handles than points (lanePlot): a press near a point without one still takes that point
+    const near = g ? -1 : nearPoint(e);
+    if (g || near >= 0) {
+      const i = g ? +g.dataset.i! : near, now = performance.now();
       if (lastDown && lastDown.i === i && now - lastDown.t < 400) { lastDown = null; drag = null; remove(i); return; }  // double-click
       lastDown = { i, t: now };
       selI = i; drag = { i, moved: false, x0: e.clientX, y0: e.clientY, before: snap() }; draw();
@@ -175,7 +214,7 @@ export function addLane(t: UITrack, ln: Lane): { ah: HTMLElement; al: HTMLElemen
     if (drag?.before) commit(drag.before, announced());
     drag = null; draw(true);
   });
-  al.addEventListener("contextmenu", e => { const g = (e.target as Element).closest<SVGElement>(".pt"); if (g) { e.preventDefault(); remove(+g.dataset.i!); } });
+  al.addEventListener("contextmenu", e => { const g = (e.target as Element).closest<SVGElement>(".pt"), i = g ? +g.dataset.i! : nearPoint(e as PointerEvent); if (i >= 0) { e.preventDefault(); remove(i); } });
   al.addEventListener("focusin", e => { const g = (e.target as Element).closest<SVGElement>(".pt"); if (g && +g.dataset.i! !== selI) { selI = +g.dataset.i!; draw(true); } });
   al.addEventListener("keydown", e => {
     const g = (e.target as Element).closest<SVGElement>(".pt"); if (!g) return;
@@ -197,7 +236,7 @@ export function addLane(t: UITrack, ln: Lane): { ah: HTMLElement; al: HTMLElemen
   ah.querySelector(".rm")!.addEventListener("click", () => {
     const before = snap(); t.lanes.splice(t.lanes.indexOf(ln), 1); applyAutomation(); commit(before, `${t.name}: lane ${ln.param} removed`);
   });
-  return { ah, al, dispose: () => { const i = laneVals.indexOf(entry); if (i >= 0) laneVals.splice(i, 1); } };
+  return { ah, al, dispose: () => { const i = laneVals.indexOf(entry); if (i >= 0) laneVals.splice(i, 1); handleQueue.delete(drawHandles); } };
 }
 // "+ lane": the next free automatable parameter (filter cutoff first), one undo step; the row shows it (store).
 export function addAutoLane(t: UITrack): void {
@@ -207,5 +246,5 @@ export function addAutoLane(t: UITrack): void {
   const free = cand.find(([, p]) => pref.includes(p.name)) || cand[0];
   if (!free) { announce(`${t.name}: ${t.devices.length ? "every automatable parameter already has a lane" : "add a device first"}`); return; }
   const [di, p] = free, d = t.devices[di]!, before = snap(), ln: Lane = { dev: di, param: p.name, pts: [[1, d.values[p.name] ?? p.default]] };
-  t.lanes.push(ln); commit(before, `${t.name}: lane ${devicesOf(t)[di]} · ${p.name} added`);
+  t.lanes.push(ln); applyAutomation(); commit(before, `${t.name}: lane ${devicesOf(t)[di]} · ${p.name} added`);
 }

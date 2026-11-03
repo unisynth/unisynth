@@ -8,7 +8,7 @@ import { batch, createEffect, createMemo, createRoot, For, mapArray, on, onClean
 import { insert, render } from "solid-js/web";
 import { laneEl, selectedId } from "../state/view.ts";
 import { Clip, type PatternOf } from "./Clip.tsx";
-import { armedId, barWindow, bw, focusedId, labelRev, renamingId, rev, rowHeight, scrollLeft, scrollTop, segments, setFocusedId, setRenamingId, setScrollLeft, setScrollTop, setViewH, setViewW, viewH, viewW, windowRows } from "../state/arrange.ts";
+import { armedId, barWindow, bw, focusedId, labelRev, renamingId, rev, trackRev, rowHeight, scrollLeft, scrollTop, segments, setFocusedId, setRenamingId, setScrollLeft, setScrollTop, setViewH, setViewW, viewH, viewW, windowRows } from "../state/arrange.ts";
 
 /** The parts of a track the rows read (a song store proxy). */
 export interface Track { id: string; name: string; col: string; vol: number; mute?: boolean; solo?: boolean; bus?: boolean; open?: boolean; lanes: unknown[]; about?: unknown; clips: { name: string; start: number; len: number; loop?: boolean; sel?: boolean }[] }
@@ -151,11 +151,11 @@ function Rename(p: { t: Track; a: TrackActions }): JSX.Element {
 
 /** One column's half of the open automation group. The lanes side fills both halves: one header + lane pair per
  *  `t.lanes` entry (reactive list: adding or removing a lane needs no rebuild), then the "+ lane" row; refilled on
- *  `rev` (undo reconciles lanes by position, so their contents change in place). */
+ *  `rev`, or this track's `trackRev` (undo reconciles lanes by position, so their contents change in place). */
 function AutoGroup(p: { r: Row; a: TrackActions; side: "h" | "l" }): JSX.Element {
   if (p.side === "l") {
     const { t, box } = p.r, a = p.a;
-    createEffect(on([rev, p.r.inView], ([, v]) => {
+    createEffect(on([rev, () => trackRev(t.id), p.r.inView], ([, , v]) => {
       if (v) fillRow(() => createRoot((dispose) => {
         const pairs = mapArray(() => t.lanes, (ln) => { const r = a.autoLane(t, ln); onCleanup(r.dispose); return r; });
         insert(box.h, () => <>
