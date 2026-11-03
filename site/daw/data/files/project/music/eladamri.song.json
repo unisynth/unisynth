@@ -1,9 +1,9 @@
 {
-  "format": "song/1",
+  "format": "song/2",
   "meta": {
     "title": "Try Stopping (triplet issue)",
     "author": "eladamri (named in the file name; a contribution to the WaveSabre test suite)",
-    "description": "A small Ableton Live 11 project from the WaveSabre converter test suite that reproduces a triplet-timing issue. This is an adapted version, not the original recording: The project was converted to a WaveSabre song (the `synth-mix` layout), then by `synth-convert ws` to the unified synth (instrument kind 64, effects kinds 65-73), then imported to song/1 with `song import` (lanes cut into 2-, 4- or 8-bar patterns with variants, notes rounded to 960 ticks per beat; track names from the original project where it has them). Instruments and effects are the unified equivalents of the WaveSabre devices and sound close to, not identical with, the original (parity target: 1 dB loudness, 3 dB per octave band).",
+    "description": "A small Ableton Live 11 project from the WaveSabre converter test suite that reproduces a triplet-timing issue. This is an adapted version, not the original recording: The project was converted to a WaveSabre song (the `synth-mix` layout), then by `synth-convert ws` to the unified synth (instrument kind 64, effects kinds 65-73), then imported with `song import` (lanes cut into 2-, 4- or 8-bar patterns with variants, notes rounded to 960 ticks per beat; track names from the original project where it has them). Instruments and effects are the unified equivalents of the WaveSabre devices and sound close to, not identical with, the original (parity target: 1 dB loudness, 3 dB per octave band).",
     "copyright": "Copyright 2012-2021 WaveSabre Team",
     "license": "MIT",
     "url": "https://github.com/logicomacorp/WaveSabre/blob/9245fb822c6ab74da607315a55b5149e80329114/Tests/WaveSabreConvertTests/Tests/eladamri-Try_Stopping_abl11_triplet_issue.als",
@@ -1390,20 +1390,21 @@
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
             "noise_level": 0.07499999552965164,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.fine": 0.5425000190734863,
             "osc1.s0": 0.5649999976158142,
             "osc1.s1": 0.18000000715255737,
-            "osc2.type": 0.5,
+            "osc2.type": 0.1666666716337204,
             "osc2.fine": 0.550000011920929,
             "osc2.gain": 0.1824999898672104,
             "osc2.s0": 1.0,
             "osc2.s1": 0.23500001430511475,
-            "osc3.type": 0.5,
+            "osc3.type": 0.1666666716337204,
             "osc3.gain": 0.19499999284744263,
             "osc3.s0": 0.23999999463558197,
             "osc3.s1": 0.3799999952316284,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.1882842481136322,
             "env1.sustain": 0.0,
@@ -1412,14 +1413,12 @@
             "env2.release": 0.009999999776482582,
             "env3.decay": 0.02828427031636238,
             "env3.sustain": 0.5,
-            "env3.release": 0.0,
-            "noise.width": 0.0
+            "env3.release": 0.0
           }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.25,
             "left_fine": 0.0,
             "right_coarse": 0.25,
@@ -1429,8 +1428,7 @@
             "feedback": 0.33000001311302185,
             "cross": 0.2149999886751175,
             "dry_wet": 0.03500000014901161
-          },
-          "trailer": 40
+          }
         }
       ],
       "placements": [
@@ -1532,21 +1530,22 @@
             "unison": 0.20000000298023224,
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.gain": 0.13624998927116394,
             "osc1.s0": 0.6200000047683716,
             "osc1.s1": 0.2749999761581421,
-            "osc2.type": 0.5,
+            "osc2.type": 0.1666666716337204,
             "osc2.fine": 0.5575000047683716,
             "osc2.gain": 0.1262499988079071,
             "osc2.s0": 0.35499998927116394,
             "osc2.s1": 0.6699999570846558,
-            "osc3.type": 0.5,
+            "osc3.type": 0.1666666716337204,
             "osc3.fine": 0.6100000143051147,
             "osc3.gain": 0.1224999949336052,
             "osc3.s0": 0.9849998950958252,
             "osc3.s1": 0.7849999666213989,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.02828427031636238,
             "env1.sustain": 0.5,
@@ -1555,8 +1554,7 @@
             "env2.release": 0.009999999776482582,
             "env3.decay": 0.02828427031636238,
             "env3.sustain": 0.5,
-            "env3.release": 0.009999999776482582,
-            "noise.width": 0.0
+            "env3.release": 0.009999999776482582
           }
         }
       ],
@@ -1630,11 +1628,11 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.s0": 0.19499999284744263,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.s0": 0.28999999165534973,
             "env1.decay": 0.02828427031636238,
             "env1.sustain": 0.75,
@@ -1645,14 +1643,14 @@
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
             "lfo1.rate": 0.5917141437530518,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.5,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.2222222238779068,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.125,
             "mod2.target": 0.019607843831181526,
             "mod2.amount": 0.5,
-            "mod3.source": 0.1111111119389534,
+            "mod3.source": 0.0625,
             "mod3.target": 0.0784313753247261,
             "mod3.amount": 0.5
           }
@@ -1660,7 +1658,6 @@
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.0,
             "peak1_freq": 0.0364702008664608,
@@ -1675,8 +1672,7 @@
             "high_cut": 0.14500001072883606,
             "high_cut_q": 0.2549999952316284,
             "master": 0.5299999713897705
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -1949,13 +1945,13 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.ratio_fine": 0.5649999976158142,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.4049999713897705,
             "osc1.s0": 0.45499998331069946,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio": 0.14499999582767487,
             "osc2.ratio_fine": 0.38499999046325684,
             "osc2.feedback": 0.5414581298828125,
@@ -1969,14 +1965,14 @@
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
             "lfo1.rate": 0.7145562767982483,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.548947274684906,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.2222222238779068,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.125,
             "mod2.target": 0.019607843831181526,
             "mod2.amount": 0.5,
-            "mod3.source": 0.1111111119389534,
+            "mod3.source": 0.0625,
             "mod3.target": 0.0784313753247261,
             "mod3.amount": 0.5
           }
@@ -1984,15 +1980,13 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.3149999976158142,
             "threshold": 0.8299999833106995,
             "foldover": 0.7699999809265137,
             "dry_wet": 1.0,
             "shaper": 0.5,
             "oversampling": 0.5
-          },
-          "trailer": 28
+          }
         }
       ],
       "placements": [
@@ -2068,18 +2062,18 @@
             "master": 0.10000000149011612,
             "capacity": 0.1587301641702652,
             "unison": 0.6666666865348816,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.s1": 0.0,
             "osc1.s2": 1.0,
             "osc1.s4": 1.0,
             "osc1.s6": 1.0,
-            "filt1.type": 0.125,
+            "osc1.sample": 1.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.0,
             "env1.release": 0.10599999874830246,
             "env2.decay": 0.02828427031636238,
-            "env2.release": 0.009999999776482582,
-            "osc1.sample": 1.0
+            "env2.release": 0.009999999776482582
           },
           "samples": ["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"]
         }
@@ -2169,25 +2163,24 @@
             "master": 0.10000000149011612,
             "capacity": 0.2063492089509964,
             "unison": 0.8666666746139526,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.s1": 0.0,
             "osc1.s2": 1.0,
             "osc1.s4": 1.0,
             "osc1.s6": 1.0,
-            "filt1.type": 0.125,
+            "osc1.sample": 1.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.0,
             "env1.release": 0.032999999821186066,
             "env2.decay": 0.02828427031636238,
-            "env2.release": 0.009999999776482582,
-            "osc1.sample": 1.0
+            "env2.release": 0.009999999776482582
           },
           "samples": ["WQYAAFg+AAAxAAEARKwAAP0iAABBAAAAAgBAAVUKn8GEYpuCNkbcG4sXzE97ZLuttSXy8MpmBVbktm0lL6UrUi3BWDdya1tovgI1qR16LtsmedZVW1LrIttRedtJF6qm0VSvstOakSPo7RHJtjgKM4zQ0H6y1aRLkd0x92VrnUvOSegCz/Z/yLZlRflVKzmxxj45ldqCLdAom3DbRAnY2uicYixyaMfNGfuKsPx7cf55LpLtp17nVo7QfYVtRF6pjs5RwUo5ciOmje8yywjkImy8DBuUUN1p9fLeiN09rtfKqJiyjFPVvs0li4qze0m94uLK0CoGMYE8zVJhJc1IWqmNTirwRAlwE8dyLQAzjr1IyssKfb1kWHGt9FZPlFk9V+umpPKOsOMyeNDKyy/FmD8DqO3tQFOstB3N0SNXScVGsW7OKfAWFX/7uHBeFbnXzFbV89DGE1u9r8TMDhShLU7W6+yYctURWjdrmvnKTqjV+1B9DXHz8Fam+EqPpMGUe0e1bhIqxg67aV3InskKA2xMSjLA+uRpa/dV8BLFveMsqpbr5hyF6q8ssmkFr4tOt1LS3NRLsAtRqywHD7DKNHXrV7VwDkraBlmXfMFN6/aGJZJIRdgM1e6Kdirl1LqSZx3D1bpkHbXkjyLZs9O27o7e860NcK5qrOA4yA4tDmWnsG5ZvUtWcfQSQXIes5Gv4u6OZQhXqebqCaOz8vDs6KETt3GVCykdY8+tmqFta14PbYEGVTNpTJATz6ki52sM322W3VKxMOZQx872WtIrD0D7SnLDtWrb9JQI3COJt/Y2lrop9Vb75BEFLU0Z7Rt6AXQNKx0dnEvtbxOhtNXKLU/VNAqlWbFNDi5A38QtNNmhYc/4KTMytbrqWJOlBonIskiGdyviVvuo1VCPLNXNavwqqyzamV21dtdu0rBJ68jqDNy6z8xYtU3aMMLktLevyo61rCLX1Zv58crOZKHjcLbgtG3fVFEW26IN48pql0g1iO6N7Ly2kKqosm+bS63s4Mps1DuNuk6tjJZJw9KoUSaUbrGkPrtiOebWtPpQLCq085TixULiLdXLpNnWTExGzRLzKUyNur1ulRoLbObHbuIGrctLA4XbQ62MFjXzzO4Fs8dgv6xEbSxWiOeu9IghlqeovKjyrFwRU9tiGYesa/y4dRscz+q86NxrLKsLe9GkXOj1S2LfgbJZsUxiMbfCNmjmJpXixNaIwyiaeNfoTBOtCveSwO2zqLHT2mLZVGzpP00W5lSP6mrE7WN79ozkAJdcF8tpGQlGv0K5Th4xcLOIRto4zfKKSML9ag3vrLiyHtev9Ih8Zt5WeVLboBElS0xaN5AkpvyJm+aUUPpMyX0/fixIjinlS38tVa1OFk3LghJY/nlkZMN4heS+ha6itGqboKjuZoZe0aVkEbvgTYXv64tICRi7amkdF5efug1JG6n1PVftiXZOUtNEtcqRMbxyjGVUdivwjOLBI8KVr5pEUS2JNMuSkq2nS6rTqqARpWsJYdme5wyuRbqW70LljUjuQ2JT6U0nHsMd0jexTNZYzH7KGCP1gK58mPacSwbAapxy7wKp1lrM9VxAlFP7pgXlsuSEZesIrCrn8rVspDyrBJoLaRaeDqU9oI1p66jr3VD3bB5BIze154qocWE29rNUWjKB3N+7clRfGx5R08qcBcXM6Gy3jRR378SjFC4NQa5FJGBOEMeqI0VOtuwbpelZUe5i6nLp7qqtSNotB01Rq0KIGZ/i+6lMgAUTmV8TyyIRBS9k0yCN/aizBukmiZ0FKwQb7s9zNY7kHZtyhTuxKlJNvjBEMmZD/twyFhBou03sUKC1CzEv6FpCjqXoDBOb2hWjikOPWU/iXG7k7ug9oz2so9NaYfSITkTERtZjNaEN3jDqdoZ24zpJt0CWxmcmIcsyxJpLd5rMRspaa9n0U8ogDqVNpB854TbJbGQiVFBbGQ0jkZ6EphhuI+jKKhwosWsSUvYkTnx2qXPuJojOEno69CRcUZpA1OEiSuBxV23TumQRo06CY6n18ZvOA1Q9ctzyq2MCLW5ZyaOiqaBqpEe1bZYx2jjIkfrItfg0WH5iSvK2GFaJ3RRC3hJ6Ek8XTlS7oBVDLUF6yLqciA1BbNt0E6eGoNE2Mpy87CArQ/KNFKkPIVGtCDKRLUluUQbmUSzFzmAE1I7aunFkAkZuJDeS"]
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.125,
             "left_fine": 0.10499999672174454,
             "right_coarse": 0.1875,
@@ -2197,21 +2190,19 @@
             "feedback": 0.16699999570846558,
             "cross": 0.6510000228881836,
             "dry_wet": 0.054794520139694214
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 71,
           "values": {
-            "mode": 1.0,
+            "mode": 0.6666666865348816,
             "room_size": 0.5,
             "feedback": 0.13899993896484375,
             "low_cut": 0.12991580367088318,
             "high_cut": 0.7119805216789246,
             "dry_wet": 0.24657534062862396,
             "pre_delay": 0.014999999664723873
-          },
-          "trailer": 28
+          }
         }
       ],
       "placements": [
@@ -2287,18 +2278,18 @@
             "master": 0.10000000149011612,
             "capacity": 0.0317460335791111,
             "unison": 0.13333334028720856,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.s1": 0.0,
             "osc1.s2": 1.0,
             "osc1.s4": 1.0,
             "osc1.s6": 1.0,
-            "filt1.type": 0.125,
+            "osc1.sample": 1.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.0,
             "env1.release": 0.0,
             "env2.decay": 0.02828427031636238,
-            "env2.release": 0.009999999776482582,
-            "osc1.sample": 1.0
+            "env2.release": 0.009999999776482582
           },
           "samples": ["FAUAACAxAAAxAAEARKwAAP0iAABBAAAAAgBAAeFMsXqHolTks5EgtfMxjUVOuho1thtzySpno1CHix3kJNITK5PCCjMTrfTodif1yBSLo8AqyZREV1VCBMNS+jRSYE2xOttOsqhhkRsF1HDN4a2riM3UWkfK0/6eE6kejiUVvlZvd7402cmpca3wRGWRa9Pp9xIxT232gexEG10jKT1jfa+qaVNzfPihMXHL8iWsZ2xmjfI6yKJPS8+0Ejk98ibStVpKK025VXpKjqkiK5IktRLhAquteMxY8g7ZOevmGCI9MWpGFfIb57Ah2VQQxtNxlIp2cc2Mw7HSStEhO+pgKdb0Zrv28FAZtGac7yj1iSMNd7EO6cyi9uheJUFS3A5WI01xcpnUk5wejqtmTLFac1W5xjWOBjfKxdUukM9M1GkjzvSiUjfnqCtcl8viCjejzDN2Uf26xeqYw0IVq6qjjjKiPDEqdSvusByuOYgsslsJb90K71GluM0pcYzvXMzUWBXW9GJvbc0uhmSordu8xmNlxxzT0rw5zmGm5e6ow9s40uIcdbaKFE/x8ozd7MqMcY6SDMvNjzjTrSOVtK2dSOpoF9Yxr4+7tI6uKa6S99yWcnK6nHjJQJVkWlHl3biNy7eV4Txz8ngvrfn0rPEGzEqWGevgyBWNmfEt5ZarbKua4pkDyhXjtkfLiqo4Q1K5vHJGZ/Y4ypzyrCOdlUCvMlsxVVhgPLFy1xbtUTeqm/4rTAcrx1Into25OE5lSiyIowx7nRHW9eJy38zYcdWlT+iiPqOe6EVJrTCnMHM8rbZemMxFbuIcNfaIc2wjRYrUwxZt7LbCop5LqczIHeVYTcyoxXGzCspy32Yrz1SjIytSsKQ44tLKtOSaYlH4dDxkVZo1xnXwYCwzavQ0a8xzXOnGVmyqquaZRfaoecbNaTz3zNkxUxYbxjKnaqzSxlFldsxIu0BuzEUyt5yOqvHKTd7WqqMOK1JhHDXyJq6pIllY5drtaDoKj6M+lEgwcXikvAoH3jqLWy7SEiOTXWskziJzOPB8yi7Ho7m4jGKV4rhD9aoeGuU2kiFt8TEHy6jp2BwVJw3o2Y6H24pHaGRziRZuzWkjqVW7JM4U20b0gq6NpVjlw5LyVN3IlXSNuOYp1xi0dmBq3ZwSoSwx8gi15zAsPZ1lzshh841akwvIYr6xMjFTx6BVbkX7wXOnrzWFtIfs1jHsbKp12UeuRHOiUmNeWHE7epcrLB4iLTH2mLSIzMeNFAnLI9JVic0HzWVfLFbk1quExDlSWxPSUiNvsySM5o7WuOZAslHkDnJaPxjtMriqvEzgjZQ6riBNb3LXzMOkmjKnSrejK9lsBe9KJIeZkuK21uNhmdEhKM4Tr3bbRBJPEXFtsCoat5UcXdpMdjmdx5HfMJq1I1XqIUzvKoWMQmTlVC/q9IKNJ5KwcIzjkzVqnjprQ+XWVDMY0lOfbuUq2IVU9ag5I2RqVl5x2xoka6vzTPIk0DoEbeVgLDGuxk5DTVXmGnksQh8riuO4DaIsm8+qNy+CK3GOIxPKMyNvwhTqlFok7ccUCK2qLEPpEjItDh023yLIzajWWeE8Ly73y2FS1W2XWu1hDrl9qdQqwZqsVWX+CwEbdHMrA9IS707lEkptLGdU5RLosNbMhVQN9PhkwLvPFLRRYccT4Tzvbbgr4RQ5qRNNqwA8YZVhPC4hS8Uo3FbuwBJFrhMV1pCiUdcMTJijS3HvCjqTHUmOKALGkSRJkigASJIkSZI="]
         }
@@ -2380,22 +2371,23 @@
             "mode": 1.0,
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.fine": 0.5649999976158142,
             "osc1.gain": 0.12999999523162842,
             "osc1.s0": 0.35499998927116394,
             "osc1.s1": 0.7849999666213989,
-            "osc2.type": 0.5,
+            "osc2.type": 0.1666666716337204,
             "osc2.fine": 0.5400000214576721,
             "osc2.gain": 0.1287499964237213,
             "osc2.s0": 0.7199999690055847,
             "osc2.s1": 0.10000002384185791,
-            "osc3.type": 0.5,
+            "osc3.type": 0.1666666716337204,
             "osc3.fine": 0.5525000095367432,
             "osc3.gain": 0.125,
             "osc3.s0": 0.6200000047683716,
             "osc3.s1": 0.7200000286102295,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.31000006198883057,
             "env1.sustain": 0.20499999821186066,
@@ -2407,11 +2399,10 @@
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
             "lfo1.rate": 0.5117295384407043,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.5338501930236816,
-            "mod1.operation": 1.0,
-            "noise.width": 0.0
+            "mod1.operation": 0.5
           }
         }
       ],
@@ -2502,21 +2493,22 @@
             "uni_detune": 0.26499998569488525,
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.gain": 0.13249999284744263,
             "osc1.s0": 1.0,
             "osc1.s1": 0.10500001907348633,
-            "osc2.type": 0.5,
+            "osc2.type": 0.1666666716337204,
             "osc2.fine": 0.6225000023841858,
             "osc2.gain": 0.1237499937415123,
             "osc2.s0": 1.0,
             "osc2.s1": 0.699999988079071,
-            "osc3.type": 0.5,
+            "osc3.type": 0.1666666716337204,
             "osc3.fine": 0.5325000286102295,
             "osc3.gain": 0.1224999949336052,
             "osc3.s0": 1.0,
             "osc3.s1": 0.3799999952316284,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.attack": 0.009999999776482582,
             "env1.decay": 0.15328426659107208,
@@ -2526,8 +2518,7 @@
             "env2.release": 0.009999999776482582,
             "env3.decay": 0.02828427031636238,
             "env3.sustain": 0.5,
-            "env3.release": 0.009999999776482582,
-            "noise.width": 0.0
+            "env3.release": 0.009999999776482582
           }
         }
       ],
@@ -2646,7 +2637,6 @@
       {
         "kind": 67,
         "values": {
-          "mode": 0.0,
           "low_cut": 0.0013698592083528638,
           "low_cut_q": 0.5,
           "peak1_freq": 0.2214702069759369,
@@ -2661,13 +2651,11 @@
           "high_cut": 0.8630136847496033,
           "high_cut_q": 0.5,
           "master": 1.0
-        },
-        "trailer": 60
+        }
       },
       {
         "kind": 72,
         "values": {
-          "mode": 0.0,
           "sidechain": 0.0,
           "input_gain": 0.5,
           "threshold": 0.15500003099441528,
@@ -2675,8 +2663,7 @@
           "attack": 0.0,
           "release": 0.19949936866760254,
           "output_gain": 0.6438356041908264
-        },
-        "trailer": 32
+        }
       }
     ],
     "placements": [],

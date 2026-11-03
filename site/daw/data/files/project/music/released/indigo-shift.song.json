@@ -1,5 +1,5 @@
 {
-  "format": "song/1",
+  "format": "song/2",
   "meta": {
     "title": "Indigo Shift",
     "author": "liqube",
@@ -9676,10 +9676,10 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.feedback": 0.009100137278437614,
             "env1.decay": 0.028284268453717232,
             "env1.sustain": 0.75,
@@ -9690,14 +9690,14 @@
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
             "lfo1.rate": 0.5274924635887146,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.5235702395439148,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.2222222238779068,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.125,
             "mod2.target": 0.019607843831181526,
             "mod2.amount": 0.5,
-            "mod3.source": 0.1111111119389534,
+            "mod3.source": 0.0625,
             "mod3.target": 0.0784313753247261,
             "mod3.amount": 0.5
           }
@@ -9705,7 +9705,6 @@
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -9720,34 +9719,30 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 71,
           "values": {
-            "mode": 1.0,
+            "mode": 0.6666666865348816,
             "room_size": 1.0,
             "feedback": 0.7300000190734863,
             "low_cut": 0.1049157977104187,
             "high_cut": 0.6319805383682251,
             "dry_wet": 0.21500009298324585,
             "pre_delay": 0.16499999165534973
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.28999999165534973,
             "threshold": 0.800000011920929,
             "foldover": 0.0,
             "dry_wet": 1.0,
             "shaper": 0.0,
             "oversampling": 0.5
-          },
-          "trailer": 28
+          }
         }
       ],
       "placements": [
@@ -9851,10 +9846,10 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.feedback": 0.2320534884929657,
             "env1.decay": 0.0,
             "env1.release": 0.0,
@@ -9865,14 +9860,14 @@
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
             "lfo1.rate": 0.5274924635887146,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.5235702395439148,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.2222222238779068,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.125,
             "mod2.target": 0.019607843831181526,
             "mod2.amount": 0.5,
-            "mod3.source": 0.1111111119389534,
+            "mod3.source": 0.0625,
             "mod3.target": 0.0784313753247261,
             "mod3.amount": 0.5
           }
@@ -9880,7 +9875,6 @@
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.12647020816802979,
@@ -9895,13 +9889,11 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.6666666865348816,
             "amount": 0.13999998569488525,
             "feedback": 0.0,
@@ -9911,8 +9903,7 @@
             "low_cut": 0.0,
             "high_cut": 1.0,
             "dry_wet": 1.0
-          },
-          "trailer": 40
+          }
         }
       ],
       "placements": [
@@ -10027,13 +10018,13 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.2574999928474426,
             "osc1.feedback": 0.10499998182058334,
             "osc1.s0": 0.33000001311302185,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio_fine": 0.550000011920929,
             "osc2.feedback": 0.29575443267822266,
             "osc2.s0": 0.47999998927116394,
@@ -10049,14 +10040,14 @@
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
             "lfo1.rate": 0.5117295384407043,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.5276385545730591,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.2222222238779068,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.125,
             "mod2.target": 0.019607843831181526,
             "mod2.amount": 0.5,
-            "mod3.source": 0.1111111119389534,
+            "mod3.source": 0.0625,
             "mod3.target": 0.0784313753247261,
             "mod3.amount": 0.5
           }
@@ -10064,7 +10055,6 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.0,
             "amount": 0.009999999776482582,
             "feedback": 0.0,
@@ -10074,13 +10064,11 @@
             "low_cut": 0.0,
             "high_cut": 0.8350000381469727,
             "dry_wet": 0.5299999713897705
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -10095,13 +10083,11 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.054999999701976776,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -10116,13 +10102,11 @@
             "high_cut": 0.9049999713897705,
             "high_cut_q": 0.3449999988079071,
             "master": 0.7200000286102295
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.375,
             "left_fine": 0.0,
             "right_coarse": 0.1875,
@@ -10132,26 +10116,22 @@
             "feedback": 0.6500000357627869,
             "cross": 0.0,
             "dry_wet": 0.2549999952316284
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.2849999964237213,
             "threshold": 0.800000011920929,
             "foldover": 0.0,
             "dry_wet": 1.0,
             "shaper": 0.0,
             "oversampling": 1.0
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.6666666865348816,
             "amount": 0.13999998569488525,
             "feedback": 0.0,
@@ -10161,8 +10141,7 @@
             "low_cut": 0.0,
             "high_cut": 1.0,
             "dry_wet": 1.0
-          },
-          "trailer": 40
+          }
         }
       ],
       "placements": [
@@ -10236,19 +10215,20 @@
             "slide": 0.23999999463558197,
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.s1": 0.6700000166893005,
-            "osc2.type": 0.5,
+            "osc2.type": 0.1666666716337204,
             "osc2.fine": 0.5899999737739563,
             "osc2.gain": 0.09874999523162842,
             "osc2.s0": 0.5149999856948853,
             "osc2.s1": 0.15999996662139893,
-            "osc3.type": 0.5,
+            "osc3.type": 0.1666666716337204,
             "osc3.fine": 0.6624999642372131,
             "osc3.gain": 0.16499999165534973,
             "osc3.s0": 0.6499999761581421,
             "osc3.s1": 0.7350000143051147,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.8594993352890015,
             "env1.decay": 0.20499999821186066,
             "env1.sustain": 0.5,
@@ -10259,27 +10239,23 @@
             "env3.sustain": 0.5,
             "env3.release": 0.13500000536441803,
             "lfo1.rate": 0.5155695080757141,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.5176776647567749,
-            "mod1.operation": 1.0,
-            "noise.width": 0.0
+            "mod1.operation": 0.5
           }
         },
         {
           "kind": 66,
           "values": {
-            "mode": 0.0,
             "vertical": 0.7299999594688416,
             "horizontal": 0.0,
             "dry_wet": 1.0
-          },
-          "trailer": 16
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.1875,
             "left_fine": 0.07999999821186066,
             "right_coarse": 0.1875,
@@ -10289,13 +10265,11 @@
             "feedback": 0.2549999952316284,
             "cross": 0.0,
             "dry_wet": 0.3499999940395355
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.7849999666213989,
             "threshold": 1.0,
@@ -10303,13 +10277,11 @@
             "attack": 0.08328427374362946,
             "release": 0.044499367475509644,
             "output_gain": 0.6150000095367432
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.07499999552965164,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -10324,26 +10296,22 @@
             "high_cut": 0.9599999785423279,
             "high_cut_q": 0.6049999594688416,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20000000298023224,
             "threshold": 0.800000011920929,
             "foldover": 0.0,
             "dry_wet": 0.675000011920929,
             "shaper": 0.0,
             "oversampling": 0.0
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.6666666865348816,
             "amount": 0.3399999737739563,
             "feedback": 0.23999997973442078,
@@ -10353,13 +10321,11 @@
             "low_cut": 0.054999999701976776,
             "high_cut": 1.0,
             "dry_wet": 0.794999897480011
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -10374,8 +10340,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 0.9828497171401978
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -10479,7 +10444,6 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 1.0,
             "amount": 0.675000011920929,
             "feedback": 0.9149999618530273,
@@ -10489,13 +10453,11 @@
             "low_cut": 0.0,
             "high_cut": 1.0,
             "dry_wet": 0.21500003337860107
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.041470207273960114,
@@ -10510,13 +10472,11 @@
             "high_cut": 0.0,
             "high_cut_q": 0.4750000238418579,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.8400000333786011,
             "threshold": 0.7450000047683716,
@@ -10524,8 +10484,7 @@
             "attack": 0.0,
             "release": 0.25949937105178833,
             "output_gain": 0.8349999785423279
-          },
-          "trailer": 32
+          }
         }
       ],
       "placements": [],
@@ -10586,12 +10545,12 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.13249999284744263,
             "osc1.feedback": 0.10374999791383743,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "env1.decay": 0.028284268453717232,
             "env1.sustain": 0.75,
             "env1.release": 0.009999999776482582,
@@ -10600,10 +10559,10 @@
             "env3.decay": 0.028284268453717232,
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5
           }
@@ -10611,7 +10570,6 @@
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.375,
             "left_fine": 0.0,
             "right_coarse": 0.625,
@@ -10621,26 +10579,22 @@
             "feedback": 0.7649999856948853,
             "cross": 0.0,
             "dry_wet": 0.35499998927116394
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.21000000834465027,
             "threshold": 0.19000005722045898,
             "foldover": 0.29499998688697815,
             "dry_wet": 0.20500001311302185,
             "shaper": 0.5,
             "oversampling": 0.0
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.7700000405311584,
             "threshold": 0.7749999761581421,
@@ -10648,13 +10602,11 @@
             "attack": 0.0,
             "release": 0.19949936866760254,
             "output_gain": 0.7749999761581421
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -10669,8 +10621,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -10722,7 +10673,6 @@
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.044999998062849045,
             "low_cut_q": 0.16999998688697815,
             "peak1_freq": 0.2214702069759369,
@@ -10737,13 +10687,11 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 0.7516988515853882
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -10758,13 +10706,11 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.7199999690055847,
             "threshold": 0.8450000286102295,
@@ -10772,8 +10718,7 @@
             "attack": 0.03500000014901161,
             "release": 0.19949933886528015,
             "output_gain": 0.5999999642372131
-          },
-          "trailer": 32
+          }
         }
       ],
       "placements": [],
@@ -10796,13 +10741,14 @@
             "uni_spread": 0.0,
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
-            "osc1.type": 0.5,
-            "osc3.type": 0.5,
+            "osc1.type": 0.1666666716337204,
+            "osc3.type": 0.1666666716337204,
             "osc3.fine": 0.6274999976158142,
             "osc3.gain": 0.12999999523162842,
             "osc3.s0": 0.6549999713897705,
             "osc3.s1": 0.32999998331069946,
-            "filt1.type": 0.25,
+            "noise.width": 0.0,
+            "filt1.type": 0.20000000298023224,
             "filt1.cutoff": 0.8044993877410889,
             "env1.decay": 0.48328423500061035,
             "env1.sustain": 0.5,
@@ -10814,19 +10760,18 @@
             "env3.sustain": 0.5,
             "env3.release": 0.38333332538604736,
             "lfo1.rate": 0.772077739238739,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.5338501930236816,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.2222222238779068,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.125,
             "mod2.target": 0.20392157137393951,
             "mod2.amount": 0.08768945932388306,
-            "mod2.operation": 1.0,
-            "mod3.source": 0.3333333432674408,
+            "mod2.operation": 0.5,
+            "mod3.source": 0.1875,
             "mod3.target": 0.003921568859368563,
             "mod3.amount": 0.19313403964042664,
-            "mod3.operation": 1.0,
-            "noise.width": 0.0
+            "mod3.operation": 0.5
           }
         }
       ],
@@ -10864,13 +10809,13 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.ratio_fine": 0.5049999952316284,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.10749999433755875,
             "osc1.feedback": 0.057499997317790985,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio": 0.06999999284744263,
             "osc2.ratio_fine": 0.7599999904632568,
             "osc2.feedback": 0.3367050588130951,
@@ -10884,34 +10829,32 @@
             "env3.sustain": 0.5,
             "env3.release": 0.0,
             "lfo1.rate": 0.5364769697189331,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.5328083634376526,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.2222222238779068,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.125,
             "mod2.target": 0.019607843831181526,
             "mod2.amount": 0.5,
-            "mod3.source": 0.1111111119389534,
+            "mod3.source": 0.0625,
             "mod3.target": 0.0784313753247261,
             "mod3.amount": 0.5,
-            "mod4.source": 0.3333333432674408,
+            "mod4.source": 0.1875,
             "mod4.target": 0.07450980693101883,
             "mod4.amount": 0.09999999403953552,
-            "mod4.operation": 1.0
+            "mod4.operation": 0.5
           }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.5049999952316284,
             "threshold": 0.7850000262260437,
             "foldover": 0.49000000953674316,
             "dry_wet": 1.0,
             "shaper": 0.5,
             "oversampling": 0.5
-          },
-          "trailer": 28
+          }
         }
       ],
       "placements": [
@@ -10945,11 +10888,11 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.s0": 0.6899999976158142,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.s0": 0.5600000023841858,
             "env1.decay": 0.028284268453717232,
             "env1.sustain": 0.75,
@@ -10959,10 +10902,10 @@
             "env3.decay": 0.028284268453717232,
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5
           }
@@ -10970,15 +10913,13 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.38499999046325684,
             "threshold": 0.800000011920929,
             "foldover": 0.0,
             "dry_wet": 1.0,
             "shaper": 0.0,
             "oversampling": 0.0
-          },
-          "trailer": 28
+          }
         }
       ],
       "placements": [],
@@ -10998,10 +10939,11 @@
             "capacity": 0.0,
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.s0": 0.1350000500679016,
             "osc1.s1": 0.2900000214576721,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9994993805885315,
             "env1.decay": 0.028284268453717232,
             "env1.sustain": 0.5,
@@ -11010,8 +10952,7 @@
             "env2.release": 0.009999999776482582,
             "env3.decay": 0.028284268453717232,
             "env3.sustain": 0.5,
-            "env3.release": 0.009999999776482582,
-            "noise.width": 0.0
+            "env3.release": 0.009999999776482582
           }
         }
       ],
@@ -11035,12 +10976,13 @@
             "slide": 0.36500003933906555,
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
-            "osc2.type": 0.5,
+            "osc2.type": 0.1666666716337204,
             "osc2.coarse": 0.6458333134651184,
             "osc2.gain": 0.17124998569488525,
             "osc2.s0": 0.32999998331069946,
             "osc2.s1": 0.6299999952316284,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "env1.attack": 0.05999999865889549,
             "env1.decay": 0.0,
             "env1.sustain": 0.33500000834465027,
@@ -11051,17 +10993,15 @@
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
             "lfo1.rate": 0.5117295384407043,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.5322748422622681,
-            "mod1.operation": 1.0,
-            "noise.width": 0.0
+            "mod1.operation": 0.5
           }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.25,
             "left_fine": 0.0,
             "right_coarse": 0.25,
@@ -11071,8 +11011,7 @@
             "feedback": 0.6299999952316284,
             "cross": 0.22499999403953552,
             "dry_wet": 0.35999998450279236
-          },
-          "trailer": 40
+          }
         }
       ],
       "placements": [],
@@ -11093,12 +11032,12 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.ratio": 0.4050000011920929,
             "osc1.ratio_fine": 0.38499999046325684,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.s0": 0.48499998450279236,
             "env1.decay": 0.028284268453717232,
             "env1.sustain": 0.75,
@@ -11108,22 +11047,21 @@
             "env3.decay": 0.028284268453717232,
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5,
-            "mod3.source": 0.3333333432674408,
+            "mod3.source": 0.1875,
             "mod3.target": 0.01568627543747425,
             "mod3.amount": 0.22161176800727844,
-            "mod3.operation": 1.0
+            "mod3.operation": 0.5
           }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.25,
             "left_fine": 0.0,
             "right_coarse": 0.25,
@@ -11133,21 +11071,18 @@
             "feedback": 0.6299999952316284,
             "cross": 0.22499999403953552,
             "dry_wet": 0.35999998450279236
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.3699999451637268,
             "threshold": 0.5750000476837158,
             "foldover": 0.3700000047683716,
             "dry_wet": 0.29500001668930054,
             "shaper": 0.5,
             "oversampling": 0.0
-          },
-          "trailer": 28
+          }
         }
       ],
       "placements": [
@@ -11236,12 +11171,12 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.ratio": 0.4050000011920929,
             "osc1.ratio_fine": 0.38499999046325684,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.feedback": 0.5733086466789246,
             "osc2.s0": 0.48499998450279236,
             "env1.decay": 0.028284268453717232,
@@ -11252,16 +11187,16 @@
             "env3.decay": 0.028284268453717232,
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5,
-            "mod3.source": 0.3333333432674408,
+            "mod3.source": 0.1875,
             "mod3.target": 0.01568627543747425,
             "mod3.amount": 0.22161176800727844,
-            "mod3.operation": 1.0
+            "mod3.operation": 0.5
           }
         }
       ],
@@ -11291,9 +11226,10 @@
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
             "noise_level": 0.051369864493608475,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.s1": 1.0,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.resonance": 0.6550000309944153,
             "env1.decay": 0.5032842755317688,
             "env1.sustain": 0.5,
@@ -11305,34 +11241,30 @@
             "env3.decay": 0.028284268453717232,
             "env3.sustain": 0.5,
             "env3.release": 0.3799999952316284,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.20392157137393951,
             "mod1.amount": 0.2550511062145233,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.3333333432674408,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.1875,
             "mod2.target": 0.003921568859368563,
             "mod2.amount": 0.45000001788139343,
-            "mod2.operation": 1.0,
-            "noise.width": 0.0
+            "mod2.operation": 0.5
           }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.29499998688697815,
             "threshold": 0.800000011920929,
             "foldover": 0.0,
             "dry_wet": 1.0,
             "shaper": 0.0,
             "oversampling": 0.0
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.8149999976158142,
             "threshold": 0.800000011920929,
@@ -11340,13 +11272,11 @@
             "attack": 0.0,
             "release": 0.35449934005737305,
             "output_gain": 0.8500000238418579
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.6666666865348816,
             "amount": 0.8799999952316284,
             "feedback": 0.6300000548362732,
@@ -11356,26 +11286,23 @@
             "low_cut": 0.0,
             "high_cut": 0.9994993805885315,
             "dry_wet": 0.4050000011920929
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 71,
           "values": {
-            "mode": 1.0,
+            "mode": 0.6666666865348816,
             "room_size": 0.0,
             "feedback": 0.0550001859664917,
             "low_cut": 0.09491579979658127,
             "high_cut": 0.9269804954528809,
             "dry_wet": 0.4099999666213989,
             "pre_delay": 0.2549999952316284
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0949999988079071,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -11390,8 +11317,7 @@
             "high_cut": 0.7450000047683716,
             "high_cut_q": 0.18000000715255737,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -11529,17 +11455,18 @@
             "slide": 0.2200000137090683,
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
-            "osc1.type": 0.5,
-            "osc2.type": 0.5,
+            "osc1.type": 0.1666666716337204,
+            "osc2.type": 0.1666666716337204,
             "osc2.coarse": 0.75,
             "osc2.gain": 0.05875001102685928,
             "osc2.s1": 0.0,
-            "osc3.type": 0.5,
+            "osc3.type": 0.1666666716337204,
             "osc3.coarse": 1.0,
             "osc3.gain": 0.04500000178813934,
             "osc3.s0": 0.6899999976158142,
             "osc3.s1": 0.824999988079071,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.2694994807243347,
             "filt1.resonance": 0.009999990463256836,
             "env1.decay": 0.25999999046325684,
@@ -11552,38 +11479,34 @@
             "env3.sustain": 0.5,
             "env3.release": 0.4449999928474426,
             "lfo1.rate": 0.6302927136421204,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.5176776647567749,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.2222222238779068,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.125,
             "mod2.target": 0.20392157137393951,
             "mod2.amount": 0.3999999165534973,
-            "mod2.operation": 1.0,
-            "mod3.source": 0.3333333432674408,
+            "mod2.operation": 0.5,
+            "mod3.source": 0.1875,
             "mod3.target": 0.003921568859368563,
             "mod3.amount": 0.42928946018218994,
-            "mod3.operation": 1.0,
-            "noise.width": 0.0
+            "mod3.operation": 0.5
           }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.6737313270568848,
             "threshold": 0.800000011920929,
             "foldover": 0.0,
             "dry_wet": 1.0,
             "shaper": 0.0,
             "oversampling": 0.0
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.25,
             "left_fine": 0.0,
             "right_coarse": 0.1875,
@@ -11593,13 +11516,11 @@
             "feedback": 0.8300000429153442,
             "cross": 0.0,
             "dry_wet": 0.30000001192092896
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.659900963306427,
             "threshold": 0.824999988079071,
@@ -11607,13 +11528,11 @@
             "attack": 0.0,
             "release": 0.19949936866760254,
             "output_gain": 0.565000057220459
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.7450000047683716,
             "threshold": 0.8799999952316284,
@@ -11621,8 +11540,7 @@
             "attack": 0.0,
             "release": 0.19949936866760254,
             "output_gain": 0.8400000333786011
-          },
-          "trailer": 32
+          }
         }
       ],
       "placements": [
@@ -11770,14 +11688,15 @@
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
             "noise_level": 0.05011986568570137,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.s1": 1.0,
-            "osc3.type": 0.5,
+            "osc3.type": 0.1666666716337204,
             "osc3.coarse": 0.75,
             "osc3.fine": 0.6274999976158142,
             "osc3.gain": 0.0,
             "osc3.s1": 0.6650000214576721,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.resonance": 0.6550000309944153,
             "env1.decay": 0.5032842755317688,
             "env1.sustain": 0.5,
@@ -11789,34 +11708,30 @@
             "env3.decay": 0.028284268453717232,
             "env3.sustain": 0.5,
             "env3.release": 0.3799999952316284,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.20392157137393951,
             "mod1.amount": 0.2550511062145233,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.3333333432674408,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.1875,
             "mod2.target": 0.003921568859368563,
             "mod2.amount": 0.45000001788139343,
-            "mod2.operation": 1.0,
-            "noise.width": 0.0
+            "mod2.operation": 0.5
           }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.38805970549583435,
             "threshold": 0.800000011920929,
             "foldover": 0.0,
             "dry_wet": 1.0,
             "shaper": 0.0,
             "oversampling": 0.0
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.6200000643730164,
             "threshold": 0.5199999809265137,
@@ -11824,13 +11739,11 @@
             "attack": 0.0,
             "release": 0.09949934482574463,
             "output_gain": 0.7949999570846558
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.6666666865348816,
             "amount": 1.0,
             "feedback": 0.40500006079673767,
@@ -11840,13 +11753,11 @@
             "low_cut": 0.0,
             "high_cut": 0.9994993805885315,
             "dry_wet": 1.0
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.9350000619888306,
             "threshold": 0.8249998688697815,
@@ -11854,13 +11765,11 @@
             "attack": 0.11999999731779099,
             "release": 0.13449937105178833,
             "output_gain": 0.6800000071525574
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -11875,13 +11784,11 @@
             "high_cut": 0.7750000357627869,
             "high_cut_q": 0.675000011920929,
             "master": 0.9370079040527344
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.6666666865348816,
             "amount": 0.0,
             "feedback": 0.2149999886751175,
@@ -11891,8 +11798,7 @@
             "low_cut": 0.0,
             "high_cut": 0.9994993805885315,
             "dry_wet": 0.5149999856948853
-          },
-          "trailer": 40
+          }
         }
       ],
       "placements": [
@@ -12211,7 +12117,6 @@
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.7450000047683716,
             "threshold": 0.7500000596046448,
@@ -12219,13 +12124,11 @@
             "attack": 0.10328420996665955,
             "release": 0.2194993793964386,
             "output_gain": 0.48499998450279236
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -12240,8 +12143,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 0.32294249534606934
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [],
@@ -12261,20 +12163,21 @@
             "capacity": 0.0,
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.s0": 0.7699999809265137,
             "osc1.s1": 0.6599999666213989,
-            "osc2.type": 0.5,
+            "osc2.type": 0.1666666716337204,
             "osc2.fine": 0.8349999785423279,
             "osc2.gain": 0.16750000417232513,
             "osc2.s0": 0.5149999856948853,
             "osc2.s1": 0.5199999809265137,
-            "osc3.type": 0.5,
+            "osc3.type": 0.1666666716337204,
             "osc3.fine": 0.637499988079071,
             "osc3.gain": 0.1574999988079071,
             "osc3.s0": 0.7049999833106995,
             "osc3.s1": 0.7450000047683716,
-            "filt1.type": 0.375,
+            "noise.width": 0.0,
+            "filt1.type": 0.30000001192092896,
             "filt1.cutoff": 0.6844994425773621,
             "filt1.resonance": 0.3050000071525574,
             "env1.decay": 0.0,
@@ -12287,40 +12190,34 @@
             "env3.decay": 0.0,
             "env3.sustain": 0.5,
             "env3.release": 0.0,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.20392157137393951,
             "mod1.amount": 0.10948750376701355,
-            "mod1.operation": 1.0,
-            "noise.width": 0.0
+            "mod1.operation": 0.5
           }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.73499995470047,
             "threshold": 0.5199999809265137,
             "foldover": 0.4599999785423279,
             "dry_wet": 1.0,
             "shaper": 0.5,
             "oversampling": 0.0
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 66,
           "values": {
-            "mode": 0.0,
             "vertical": 0.7100000381469727,
             "horizontal": 0.38499996066093445,
             "dry_wet": 1.0
-          },
-          "trailer": 16
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.22499999403953552,
             "right_coarse": 0.0,
@@ -12330,13 +12227,11 @@
             "feedback": 0.48000001907348633,
             "cross": 1.0,
             "dry_wet": 0.5299999713897705
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 1.0,
             "amount": 1.0,
             "feedback": 0.8149999380111694,
@@ -12346,13 +12241,11 @@
             "low_cut": 0.19499999284744263,
             "high_cut": 0.9994993805885315,
             "dry_wet": 0.5099999904632568
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.9599999785423279,
             "damp": 0.4650000035762787,
@@ -12361,13 +12254,11 @@
             "high_cut": 0.9994993805885315,
             "dry_wet": 0.49000000953674316,
             "pre_delay": 0.0
-          },
-          "trailer": 36
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.6850000023841858,
             "threshold": 0.824999988079071,
@@ -12375,8 +12266,7 @@
             "attack": 0.028284268453717232,
             "release": 0.19949936866760254,
             "output_gain": 0.5299999713897705
-          },
-          "trailer": 32
+          }
         }
       ],
       "placements": [
@@ -12423,9 +12313,10 @@
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
             "noise_level": 0.08500000089406967,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.s1": 1.0,
-            "filt1.type": 0.25,
+            "noise.width": 0.0,
+            "filt1.type": 0.20000000298023224,
             "filt1.cutoff": 0.0,
             "filt1.resonance": 0.5450000166893005,
             "env1.decay": 0.0,
@@ -12438,34 +12329,30 @@
             "env3.decay": 0.028284268453717232,
             "env3.sustain": 0.5,
             "env3.release": 0.2150000035762787,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.20392157137393951,
             "mod1.amount": 0.2654792070388794,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.3333333432674408,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.1875,
             "mod2.target": 0.003921568859368563,
             "mod2.amount": 0.45000001788139343,
-            "mod2.operation": 1.0,
-            "noise.width": 0.0
+            "mod2.operation": 0.5
           }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.9561448097229004,
             "threshold": 0.800000011920929,
             "foldover": 0.0,
             "dry_wet": 1.0,
             "shaper": 0.0,
             "oversampling": 0.0
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.3333333432674408,
             "amount": 0.6899999380111694,
             "feedback": 0.5700000524520874,
@@ -12475,13 +12362,11 @@
             "low_cut": 0.12999999523162842,
             "high_cut": 0.9544994235038757,
             "dry_wet": 1.0
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.8650000095367432,
             "threshold": 0.8250000476837158,
@@ -12489,13 +12374,11 @@
             "attack": 0.10828426480293274,
             "release": 0.19949936866760254,
             "output_gain": 0.4050000011920929
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.054999999701976776,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -12510,13 +12393,11 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0625,
@@ -12526,8 +12407,7 @@
             "feedback": 0.0,
             "cross": 0.0,
             "dry_wet": 0.14500001072883606
-          },
-          "trailer": 40
+          }
         }
       ],
       "placements": [
@@ -12622,11 +12502,11 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.feedback": 0.0012499988079071045,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.feedback": 0.33215489983558655,
             "env1.decay": 0.028284268453717232,
             "env1.sustain": 0.75,
@@ -12638,43 +12518,40 @@
             "env3.sustain": 0.5350000262260437,
             "env3.release": 0.009999999776482582,
             "lfo1.rate": 0.5130515098571777,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.5204124450683594,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.2222222238779068,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.125,
             "mod2.target": 0.019607843831181526,
             "mod2.amount": 0.5,
-            "mod3.source": 0.1111111119389534,
+            "mod3.source": 0.0625,
             "mod3.target": 0.0784313753247261,
             "mod3.amount": 0.5,
-            "mod4.source": 0.3333333432674408,
+            "mod4.source": 0.1875,
             "mod4.target": 0.01568627543747425,
             "mod4.amount": 0.31291714310646057,
-            "mod4.operation": 1.0,
-            "mod5.source": 0.3333333432674408,
+            "mod4.operation": 0.5,
+            "mod5.source": 0.1875,
             "mod5.target": 0.07450980693101883,
             "mod5.amount": 0.2500000596046448,
-            "mod5.operation": 1.0
+            "mod5.operation": 0.5
           }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.40500006079673767,
             "threshold": 0.7100000381469727,
             "foldover": 0.0,
             "dry_wet": 1.0,
             "shaper": 0.0,
             "oversampling": 0.0
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.05000000074505806,
             "low_cut_q": 0.3700000047683716,
             "peak1_freq": 0.2214702069759369,
@@ -12689,13 +12566,11 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 0.9049999713897705
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0625,
             "left_fine": 0.0,
             "right_coarse": 0.0625,
@@ -12705,13 +12580,11 @@
             "feedback": 0.6549999713897705,
             "cross": 0.0,
             "dry_wet": 0.21500004827976227
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.7649999856948853,
             "threshold": 0.5199999809265137,
@@ -12719,13 +12592,11 @@
             "attack": 0.003284274833276868,
             "release": 0.29449936747550964,
             "output_gain": 0.7049999237060547
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.6499999761581421,
             "damp": 0.0,
@@ -12734,13 +12605,11 @@
             "high_cut": 0.9994993805885315,
             "dry_wet": 0.3349999785423279,
             "pre_delay": 0.0
-          },
-          "trailer": 36
+          }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.6666666865348816,
             "amount": 0.8350000977516174,
             "feedback": 0.824999988079071,
@@ -12750,13 +12619,11 @@
             "low_cut": 0.03500000014901161,
             "high_cut": 0.7994993925094604,
             "dry_wet": 0.4950000047683716
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -12771,8 +12638,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -12870,13 +12736,13 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.2576008439064026,
             "osc1.feedback": 0.07750000059604645,
             "osc1.s0": 0.6899999976158142,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio_fine": 0.4950000047683716,
             "osc2.s0": 0.5600000023841858,
             "env1.decay": 0.1882842630147934,
@@ -12887,26 +12753,25 @@
             "env3.decay": 0.0,
             "env3.sustain": 0.16999998688697815,
             "env3.release": 0.9549999833106995,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5,
-            "mod3.source": 0.3333333432674408,
+            "mod3.source": 0.1875,
             "mod3.target": 0.01568627543747425,
             "mod3.amount": 0.2820550501346588,
-            "mod3.operation": 1.0,
-            "mod4.source": 0.3333333432674408,
+            "mod3.operation": 0.5,
+            "mod4.source": 0.1875,
             "mod4.target": 0.07450980693101883,
             "mod4.amount": 0.32679492235183716,
-            "mod4.operation": 1.0
+            "mod4.operation": 0.5
           }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.23147021234035492,
@@ -12921,26 +12786,22 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.7450000047683716,
             "threshold": 0.7850000262260437,
             "foldover": 0.0,
             "dry_wet": 1.0,
             "shaper": 0.0,
             "oversampling": 0.0
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 1.0,
             "amount": 0.0,
             "feedback": 0.934999942779541,
@@ -12950,13 +12811,11 @@
             "low_cut": 0.0,
             "high_cut": 0.9994993805885315,
             "dry_wet": 0.5
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.6666666865348816,
             "amount": 0.01499999687075615,
             "feedback": 0.5,
@@ -12966,26 +12825,22 @@
             "low_cut": 0.0,
             "high_cut": 1.0,
             "dry_wet": 1.0
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.2602739632129669,
             "threshold": 1.0,
             "foldover": 0.0,
             "dry_wet": 1.0,
             "shaper": 0.5,
             "oversampling": 0.0
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.019999999552965164,
             "low_cut_q": 0.38499993085861206,
             "peak1_freq": 0.691470205783844,
@@ -13000,13 +12855,11 @@
             "high_cut": 0.8399999737739563,
             "high_cut_q": 0.8949999809265137,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.1875,
             "left_fine": 0.0,
             "right_coarse": 0.25,
@@ -13016,13 +12869,11 @@
             "feedback": 0.0,
             "cross": 0.0,
             "dry_wet": 0.003105590119957924
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -13037,8 +12888,7 @@
             "high_cut": 0.75,
             "high_cut_q": 0.5,
             "master": 0.8013158440589905
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -13186,7 +13036,6 @@
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.7650001049041748,
             "threshold": 0.6749999523162842,
@@ -13194,13 +13043,11 @@
             "attack": 0.0,
             "release": 0.27949926257133484,
             "output_gain": 0.7550000548362732
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -13215,8 +13062,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 0.3681371808052063
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [],
@@ -13238,12 +13084,12 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.10500000417232513,
             "osc1.feedback": 0.15125000476837158,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.feedback": 0.36400550603866577,
             "env1.decay": 0.0,
             "env1.sustain": 0.8799999952316284,
@@ -13255,22 +13101,21 @@
             "env3.decay": 0.0,
             "env3.sustain": 0.6000000238418579,
             "env3.release": 0.0,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5,
-            "mod3.source": 0.3333333432674408,
+            "mod3.source": 0.1875,
             "mod3.target": 0.07450980693101883,
             "mod3.amount": 0.4499998688697815,
-            "mod3.operation": 1.0
+            "mod3.operation": 0.5
           }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.6666666865348816,
             "amount": 0.3800000548362732,
             "feedback": 0.79082190990448,
@@ -13280,13 +13125,11 @@
             "low_cut": 0.0,
             "high_cut": 1.0,
             "dry_wet": 1.0
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.6666666865348816,
             "amount": 0.7350000143051147,
             "feedback": 0.7649999856948853,
@@ -13296,26 +13139,22 @@
             "low_cut": 0.0,
             "high_cut": 1.0,
             "dry_wet": 1.0
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.20343005657196045,
             "threshold": 1.0,
             "foldover": 0.0,
             "dry_wet": 0.4700000286102295,
             "shaper": 0.0,
             "oversampling": 0.5
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.6666666865348816,
             "amount": 1.0,
             "feedback": 0.7099999189376831,
@@ -13325,13 +13164,11 @@
             "low_cut": 0.0,
             "high_cut": 0.6100000143051147,
             "dry_wet": 0.8199999928474426
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.009999997913837433,
             "low_cut_q": 0.5,
             "peak1_freq": 0.08647020161151886,
@@ -13346,13 +13183,11 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 0.3799999952316284
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 1.0,
             "input_gain": 0.6850000023841858,
             "threshold": 0.8400000929832458,
@@ -13360,8 +13195,7 @@
             "attack": 0.0,
             "release": 0.11449935287237167,
             "output_gain": 0.45500001311302185
-          },
-          "trailer": 32
+          }
         }
       ],
       "placements": [
@@ -13516,12 +13350,12 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.05249999836087227,
             "osc1.feedback": 0.08999999612569809,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio_fine": 0.36500000953674316,
             "osc2.feedback": 0.2548038363456726,
             "osc2.s0": 0.10999999940395355,
@@ -13535,24 +13369,23 @@
             "env3.decay": 0.4949999749660492,
             "env3.sustain": 0.4699999988079071,
             "env3.release": 0.824999988079071,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5,
-            "mod3.source": 0.3333333432674408,
+            "mod3.source": 0.1875,
             "mod3.target": 0.01568627543747425,
-            "mod3.operation": 1.0,
-            "mod4.source": 0.3333333432674408,
+            "mod3.operation": 0.5,
+            "mod4.source": 0.1875,
             "mod4.target": 0.07450980693101883,
-            "mod4.operation": 1.0
+            "mod4.operation": 0.5
           }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 1.0,
             "threshold": 0.7200000286102295,
@@ -13560,26 +13393,22 @@
             "attack": 0.20500001311302185,
             "release": 0.004999999888241291,
             "output_gain": 0.6899999380111694
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.25999999046325684,
             "threshold": 1.0,
             "foldover": 0.0,
             "dry_wet": 0.24000000953674316,
             "shaper": 0.5,
             "oversampling": 0.5
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.6666666865348816,
             "amount": 0.6600000262260437,
             "feedback": 0.8699999451637268,
@@ -13589,13 +13418,11 @@
             "low_cut": 0.0,
             "high_cut": 0.8844993710517883,
             "dry_wet": 0.7950000762939453
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.13647021353244781,
@@ -13610,13 +13437,11 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.8400000333786011,
             "threshold": 0.8350000381469727,
@@ -13624,8 +13449,7 @@
             "attack": 0.08000001311302185,
             "release": 0.10000000149011612,
             "output_gain": 0.6000000238418579
-          },
-          "trailer": 32
+          }
         }
       ],
       "placements": [
@@ -13739,12 +13563,12 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.05249999836087227,
             "osc1.feedback": 0.08999999612569809,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio_fine": 0.36500000953674316,
             "osc2.feedback": 0.2548038363456726,
             "osc2.s0": 0.10999999940395355,
@@ -13758,24 +13582,23 @@
             "env3.decay": 0.4949999749660492,
             "env3.sustain": 0.4699999988079071,
             "env3.release": 0.824999988079071,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5,
-            "mod3.source": 0.3333333432674408,
+            "mod3.source": 0.1875,
             "mod3.target": 0.01568627543747425,
-            "mod3.operation": 1.0,
-            "mod4.source": 0.3333333432674408,
+            "mod3.operation": 0.5,
+            "mod4.source": 0.1875,
             "mod4.target": 0.07450980693101883,
-            "mod4.operation": 1.0
+            "mod4.operation": 0.5
           }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.6666666865348816,
             "amount": 0.0,
             "feedback": 0.8699999451637268,
@@ -13785,13 +13608,11 @@
             "low_cut": 0.0,
             "high_cut": 0.8844993710517883,
             "dry_wet": 0.8050000667572021
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.07000000029802322,
             "low_cut_q": 0.3099999725818634,
             "peak1_freq": 0.13147026300430298,
@@ -13806,13 +13627,11 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 0.6450000405311584
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.8400000333786011,
             "threshold": 0.8350000381469727,
@@ -13820,8 +13639,7 @@
             "attack": 0.08000001311302185,
             "release": 0.10000000149011612,
             "output_gain": 0.4449999928474426
-          },
-          "trailer": 32
+          }
         }
       ],
       "placements": [
@@ -13939,7 +13757,6 @@
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -13954,8 +13771,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 0.6100000143051147
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [],
@@ -13979,12 +13795,12 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.05249999836087227,
             "osc1.feedback": 0.08999999612569809,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio_fine": 0.36500000953674316,
             "osc2.feedback": 0.2548038363456726,
             "osc2.s0": 0.10999999940395355,
@@ -13997,25 +13813,24 @@
             "env3.decay": 1.0,
             "env3.sustain": 0.0,
             "env3.release": 0.33000001311302185,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5,
-            "mod3.source": 0.3333333432674408,
+            "mod3.source": 0.1875,
             "mod3.target": 0.01568627543747425,
-            "mod3.operation": 1.0,
-            "mod4.source": 0.3333333432674408,
+            "mod3.operation": 0.5,
+            "mod4.source": 0.1875,
             "mod4.target": 0.07450980693101883,
             "mod4.amount": 0.01266026496887207,
-            "mod4.operation": 1.0
+            "mod4.operation": 0.5
           }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.6864702701568604,
@@ -14030,13 +13845,11 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 0.3750000298023224
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 1.0,
             "threshold": 0.8400000333786011,
@@ -14044,13 +13857,11 @@
             "attack": 0.05999999865889549,
             "release": 0.25949937105178833,
             "output_gain": 0.7499999403953552
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.6666666865348816,
             "amount": 0.6133334040641785,
             "feedback": 0.8399999737739563,
@@ -14060,8 +13871,7 @@
             "low_cut": 0.0716666579246521,
             "high_cut": 0.6266666650772095,
             "dry_wet": 0.4950000047683716
-          },
-          "trailer": 40
+          }
         }
       ],
       "placements": [
@@ -14109,12 +13919,12 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.2474999874830246,
             "osc1.feedback": 0.09874999523162842,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio_fine": 0.36500000953674316,
             "osc2.feedback": 0.910013735294342,
             "osc2.s0": 0.10999999940395355,
@@ -14128,24 +13938,23 @@
             "env3.decay": 0.2549999952316284,
             "env3.sustain": 0.2549999952316284,
             "env3.release": 0.4516666829586029,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5,
-            "mod3.source": 0.3333333432674408,
+            "mod3.source": 0.1875,
             "mod3.target": 0.01568627543747425,
-            "mod3.operation": 1.0,
-            "mod4.source": 0.3333333432674408,
+            "mod3.operation": 0.5,
+            "mod4.source": 0.1875,
             "mod4.target": 0.07450980693101883,
-            "mod4.operation": 1.0
+            "mod4.operation": 0.5
           }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.1249999850988388,
             "low_cut_q": 0.5,
             "peak1_freq": 0.7514702677726746,
@@ -14160,13 +13969,11 @@
             "high_cut": 1.0,
             "high_cut_q": 0.18999998271465302,
             "master": 0.7300000190734863
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 1.0,
             "threshold": 0.7150000333786011,
@@ -14174,13 +13981,11 @@
             "attack": 0.13499999046325684,
             "release": 0.0,
             "output_gain": 0.2399998903274536
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.0,
             "left_fine": 0.0,
             "right_coarse": 0.0,
@@ -14190,8 +13995,7 @@
             "feedback": 0.429999977350235,
             "cross": 0.0,
             "dry_wet": 1.0
-          },
-          "trailer": 40
+          }
         }
       ],
       "placements": [
@@ -14286,8 +14090,9 @@
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
             "noise_level": 0.25,
-            "osc1.type": 0.5,
-            "filt1.type": 0.25,
+            "osc1.type": 0.1666666716337204,
+            "noise.width": 0.0,
+            "filt1.type": 0.20000000298023224,
             "filt1.cutoff": 0.6399999856948853,
             "filt1.resonance": 0.13499999046325684,
             "env1.decay": 0.16999998688697815,
@@ -14300,20 +14105,18 @@
             "env3.decay": 0.0,
             "env3.sustain": 0.5149999856948853,
             "env3.release": 0.0,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.20392157137393951,
             "mod1.amount": 0.19586190581321716,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.3333333432674408,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.1875,
             "mod2.target": 0.003921568859368563,
-            "mod2.operation": 1.0,
-            "noise.width": 0.0
+            "mod2.operation": 0.5
           }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.1249999850988388,
             "low_cut_q": 0.5,
             "peak1_freq": 0.7914702296257019,
@@ -14328,8 +14131,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5149999856948853,
             "master": 0.8350000381469727
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -14412,7 +14214,7 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.ratio": 1.0,
             "osc1.ratio_fine": 0.0,
             "osc1.gain": 0.910013735294342,
@@ -14420,7 +14222,7 @@
             "osc1.pm_out": 0.35750001668930054,
             "osc1.feedback": 0.10624998807907104,
             "osc1.s0": 1.0,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio": 1.0,
             "osc2.ratio_fine": 1.0,
             "osc2.feedback": 0.2093030959367752,
@@ -14435,25 +14237,24 @@
             "env3.decay": 0.1282842606306076,
             "env3.sustain": 0.0949999988079071,
             "env3.release": 0.0,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5,
-            "mod3.source": 0.3333333432674408,
+            "mod3.source": 0.1875,
             "mod3.target": 0.01568627543747425,
             "mod3.amount": 1.0,
-            "mod3.operation": 1.0,
-            "mod4.source": 0.3333333432674408,
+            "mod3.operation": 0.5,
+            "mod4.source": 0.1875,
             "mod4.target": 0.07450980693101883,
-            "mod4.operation": 1.0
+            "mod4.operation": 0.5
           }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.024999991059303284,
             "low_cut_q": 0.5,
             "peak1_freq": 0.7914702296257019,
@@ -14468,13 +14269,11 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5149999856948853,
             "master": 0.8350000381469727
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 1.0,
             "threshold": 0.8349999785423279,
@@ -14482,13 +14281,11 @@
             "attack": 0.16999998688697815,
             "release": 0.07000000029802322,
             "output_gain": 0.40499988198280334
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.6666666865348816,
             "amount": 0.0,
             "feedback": 0.0,
@@ -14498,8 +14295,7 @@
             "low_cut": 0.0,
             "high_cut": 0.9994993805885315,
             "dry_wet": 0.4950000047683716
-          },
-          "trailer": 40
+          }
         }
       ],
       "placements": [
@@ -14602,7 +14398,6 @@
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.6666666865348816,
             "amount": 0.0,
             "feedback": 0.8749999403953552,
@@ -14612,13 +14407,11 @@
             "low_cut": 0.0,
             "high_cut": 1.0,
             "dry_wet": 0.30500003695487976
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 1.0,
             "threshold": 0.5450000166893005,
@@ -14626,13 +14419,11 @@
             "attack": 0.19499999284744263,
             "release": 0.07000000029802322,
             "output_gain": 0.34499987959861755
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -14647,8 +14438,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 0.5800000429153442
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [],
@@ -14706,7 +14496,6 @@
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.3399999439716339,
             "threshold": 0.6399999856948853,
@@ -14714,13 +14503,11 @@
             "attack": 0.0,
             "release": 0.18449926376342773,
             "output_gain": 0.8500000238418579
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -14735,8 +14522,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 0.36986300349235535
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [],
@@ -14759,12 +14545,12 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.11749999970197678,
             "osc1.feedback": 0.08124999701976776,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio_fine": 0.0,
             "osc2.feedback": 0.1820027381181717,
             "osc2.s0": 0.5099999904632568,
@@ -14778,47 +14564,42 @@
             "env3.decay": 0.0,
             "env3.sustain": 0.0,
             "env3.release": 0.0,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5,
-            "mod3.source": 0.3333333432674408,
+            "mod3.source": 0.1875,
             "mod3.target": 0.01568627543747425,
-            "mod3.operation": 1.0,
-            "mod4.source": 0.3333333432674408,
+            "mod3.operation": 0.5,
+            "mod4.source": 0.1875,
             "mod4.target": 0.07450980693101883,
-            "mod4.operation": 1.0
+            "mod4.operation": 0.5
           }
         },
         {
           "kind": 66,
           "values": {
-            "mode": 0.0,
             "vertical": 0.699999988079071,
             "horizontal": 0.5049999952316284,
             "dry_wet": 0.5249999761581421
-          },
-          "trailer": 16
+          }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.2749999761581421,
             "threshold": 0.7749999761581421,
             "foldover": 0.0,
             "dry_wet": 1.0,
             "shaper": 0.5,
             "oversampling": 0.5
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.8450000286102295,
             "threshold": 0.49000006914138794,
@@ -14826,13 +14607,11 @@
             "attack": 0.08499999344348907,
             "release": 0.09999998658895493,
             "output_gain": 0.9600000381469727
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.32499998807907104,
@@ -14847,13 +14626,11 @@
             "high_cut": 0.8149999976158142,
             "high_cut_q": 0.38999995589256287,
             "master": 0.5299999713897705
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.9249999523162842,
             "threshold": 0.6850000023841858,
@@ -14861,13 +14638,11 @@
             "attack": 0.08328427374362946,
             "release": 0.034499362111091614,
             "output_gain": 0.6449999809265137
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.0,
             "peak1_freq": 0.2214702069759369,
@@ -14882,8 +14657,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 0.7397260069847107
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -15010,13 +14784,13 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.06749999523162842,
             "osc1.feedback": 0.25,
             "osc1.s0": 1.0,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio_fine": 1.0,
             "osc2.feedback": 0.5005075931549072,
             "env1.decay": 0.20000000298023224,
@@ -15028,25 +14802,24 @@
             "env3.decay": 0.0,
             "env3.sustain": 0.36000001430511475,
             "env3.release": 0.0,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5,
-            "mod3.source": 0.3333333432674408,
+            "mod3.source": 0.1875,
             "mod3.target": 0.01568627543747425,
-            "mod3.operation": 1.0,
-            "mod4.source": 0.3333333432674408,
+            "mod3.operation": 0.5,
+            "mod4.source": 0.1875,
             "mod4.target": 0.07450980693101883,
             "mod4.amount": 1.0,
-            "mod4.operation": 1.0
+            "mod4.operation": 0.5
           }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.06499999761581421,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2914702296257019,
@@ -15061,13 +14834,11 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.8449999690055847,
             "threshold": 0.8550000786781311,
@@ -15075,13 +14846,11 @@
             "attack": 0.11999999731779099,
             "release": 0.2794993817806244,
             "output_gain": 0.8899999856948853
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.3333333432674408,
             "amount": 0.32499998807907104,
             "feedback": 0.7699999809265137,
@@ -15091,13 +14860,11 @@
             "low_cut": 0.12999999523162842,
             "high_cut": 1.0,
             "dry_wet": 0.51500004529953
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -15112,13 +14879,11 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.7999999523162842,
             "threshold": 0.8299999833106995,
@@ -15126,13 +14891,11 @@
             "attack": 0.09328426420688629,
             "release": 0.19949936866760254,
             "output_gain": 0.7199999690055847
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -15147,8 +14910,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 0.543414831161499
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -15185,13 +14947,13 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.19249999523162842,
             "osc1.feedback": 0.25,
             "osc1.s0": 1.0,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio_fine": 1.0,
             "osc2.feedback": 0.2821042537689209,
             "osc2.s0": 1.0,
@@ -15204,25 +14966,24 @@
             "env3.decay": 0.5099999904632568,
             "env3.sustain": 0.2250000238418579,
             "env3.release": 0.0,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5,
-            "mod3.source": 0.3333333432674408,
+            "mod3.source": 0.1875,
             "mod3.target": 0.01568627543747425,
             "mod3.amount": 0.5499999523162842,
-            "mod3.operation": 1.0,
-            "mod4.source": 0.3333333432674408,
+            "mod3.operation": 0.5,
+            "mod4.source": 0.1875,
             "mod4.target": 0.07450980693101883,
-            "mod4.operation": 1.0
+            "mod4.operation": 0.5
           }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.7252269387245178,
             "low_cut_q": 0.5,
             "peak1_freq": 0.22147022187709808,
@@ -15237,26 +14998,23 @@
             "high_cut": 0.824999988079071,
             "high_cut_q": 0.5,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 71,
           "values": {
-            "mode": 1.0,
+            "mode": 0.6666666865348816,
             "room_size": 0.0,
             "feedback": 0.0,
             "low_cut": 0.3749157786369324,
             "high_cut": 0.6219805479049683,
             "dry_wet": 0.26500004529953003,
             "pre_delay": 0.304999977350235
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.8199999928474426,
             "threshold": 0.8200000524520874,
@@ -15264,13 +15022,11 @@
             "attack": 0.17000000178813934,
             "release": 0.2794993817806244,
             "output_gain": 0.7900000214576721
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.07000000029802322,
             "low_cut_q": 0.040000010281801224,
             "peak1_freq": 0.04647020995616913,
@@ -15285,8 +15041,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 0.7123287916183472
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -15432,7 +15187,7 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.ratio": 0.35999995470046997,
             "osc1.ratio_fine": 1.0,
             "osc1.gain": 0.910013735294342,
@@ -15440,7 +15195,7 @@
             "osc1.pm_out": 0.16749998927116394,
             "osc1.feedback": 0.1537500023841858,
             "osc1.s0": 0.26499998569488525,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio_fine": 0.5133333206176758,
             "osc2.feedback": 0.41860631108283997,
             "osc2.s0": 0.4350000023841858,
@@ -15454,26 +15209,25 @@
             "env3.decay": 0.04999999329447746,
             "env3.sustain": 0.0,
             "env3.release": 0.0,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5,
-            "mod3.source": 0.3333333432674408,
+            "mod3.source": 0.1875,
             "mod3.target": 0.01568627543747425,
             "mod3.amount": 0.45000001788139343,
-            "mod3.operation": 1.0,
-            "mod4.source": 0.3333333432674408,
+            "mod3.operation": 0.5,
+            "mod4.source": 0.1875,
             "mod4.target": 0.07450980693101883,
             "mod4.amount": 1.0,
-            "mod4.operation": 1.0
+            "mod4.operation": 0.5
           }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.3333333432674408,
             "amount": 0.304999977350235,
             "feedback": 0.6299999952316284,
@@ -15483,13 +15237,11 @@
             "low_cut": 0.34999996423721313,
             "high_cut": 1.0,
             "dry_wet": 0.6649999618530273
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.7449999451637268,
             "threshold": 0.8300000429153442,
@@ -15497,13 +15249,11 @@
             "attack": 0.0,
             "release": 0.1244993805885315,
             "output_gain": 1.0
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.7999999523162842,
             "threshold": 0.44999998807907104,
@@ -15511,13 +15261,11 @@
             "attack": 0.0,
             "release": 0.19949936866760254,
             "output_gain": 1.0
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -15532,8 +15280,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 0.40350401401519775
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -15582,12 +15329,12 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.1716417819261551,
             "osc1.feedback": 0.25,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "env1.decay": 0.028284268453717232,
             "env1.sustain": 0.75,
             "env1.release": 0.009999999776482582,
@@ -15598,28 +15345,27 @@
             "env3.sustain": 0.0,
             "env3.release": 0.0,
             "lfo1.rate": 0.519303560256958,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.5282596945762634,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.2222222238779068,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.125,
             "mod2.target": 0.019607843831181526,
             "mod2.amount": 0.5,
-            "mod3.source": 0.1111111119389534,
+            "mod3.source": 0.0625,
             "mod3.target": 0.0784313753247261,
             "mod3.amount": 0.5,
-            "mod4.source": 0.3333333432674408,
+            "mod4.source": 0.1875,
             "mod4.target": 0.01568627543747425,
-            "mod4.operation": 1.0,
-            "mod5.source": 0.3333333432674408,
+            "mod4.operation": 0.5,
+            "mod5.source": 0.1875,
             "mod5.target": 0.07450980693101883,
-            "mod5.operation": 1.0
+            "mod5.operation": 0.5
           }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.8700000047683716,
             "threshold": 0.8999999761581421,
@@ -15627,13 +15373,11 @@
             "attack": 0.10828426480293274,
             "release": 0.19949936866760254,
             "output_gain": 0.9299999475479126
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.1875,
             "left_fine": 0.0,
             "right_coarse": 0.25,
@@ -15643,13 +15387,11 @@
             "feedback": 0.8400000333786011,
             "cross": 0.0,
             "dry_wet": 0.0
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -15664,8 +15406,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -15745,13 +15486,13 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.06749999523162842,
             "osc1.feedback": 0.25,
             "osc1.s0": 1.0,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio_fine": 1.0,
             "osc2.feedback": 0.5005075931549072,
             "env1.decay": 0.20000000298023224,
@@ -15763,25 +15504,24 @@
             "env3.decay": 0.0,
             "env3.sustain": 0.36000001430511475,
             "env3.release": 0.0,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5,
-            "mod3.source": 0.3333333432674408,
+            "mod3.source": 0.1875,
             "mod3.target": 0.01568627543747425,
-            "mod3.operation": 1.0,
-            "mod4.source": 0.3333333432674408,
+            "mod3.operation": 0.5,
+            "mod4.source": 0.1875,
             "mod4.target": 0.07450980693101883,
             "mod4.amount": 1.0,
-            "mod4.operation": 1.0
+            "mod4.operation": 0.5
           }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.06499999761581421,
             "low_cut_q": 0.5,
             "peak1_freq": 0.22147022187709808,
@@ -15796,26 +15536,23 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 71,
           "values": {
-            "mode": 1.0,
+            "mode": 0.6666666865348816,
             "room_size": 0.0,
             "feedback": 0.0,
             "low_cut": 0.2299157977104187,
             "high_cut": 0.8119805455207825,
             "dry_wet": 0.18000000715255737,
             "pre_delay": 0.20166659355163574
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.25,
             "left_fine": 0.03999999910593033,
             "right_coarse": 0.0,
@@ -15825,13 +15562,11 @@
             "feedback": 0.10000000894069672,
             "cross": 0.0,
             "dry_wet": 0.2749999761581421
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.7649999856948853,
             "threshold": 0.8200000524520874,
@@ -15839,13 +15574,11 @@
             "attack": 0.17000000178813934,
             "release": 0.2794993817806244,
             "output_gain": 0.8849999904632568
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -15860,13 +15593,11 @@
             "high_cut": 1.0,
             "high_cut_q": 0.6550000309944153,
             "master": 0.9700000286102295
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.9883333444595337,
             "damp": 0.12999999523162842,
@@ -15875,13 +15606,11 @@
             "high_cut": 0.9044994115829468,
             "dry_wet": 0.0,
             "pre_delay": 0.0
-          },
-          "trailer": 36
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -15896,8 +15625,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -15979,12 +15707,12 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.5,
             "osc1.feedback": 0.25,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio_fine": 0.6850000023841858,
             "osc2.feedback": 0.910013735294342,
             "env1.decay": 0.11999999731779099,
@@ -15995,26 +15723,25 @@
             "env3.decay": 1.0,
             "env3.sustain": 0.0,
             "env3.release": 0.0,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5,
-            "mod3.source": 0.3333333432674408,
+            "mod3.source": 0.1875,
             "mod3.target": 0.01568627543747425,
             "mod3.amount": 0.21277186274528503,
-            "mod3.operation": 1.0,
-            "mod4.source": 0.3333333432674408,
+            "mod3.operation": 0.5,
+            "mod4.source": 0.1875,
             "mod4.target": 0.07450980693101883,
             "mod4.amount": 0.24019238352775574,
-            "mod4.operation": 1.0
+            "mod4.operation": 0.5
           }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.5999999642372131,
             "low_cut_q": 0.5,
             "peak1_freq": 0.386470228433609,
@@ -16029,26 +15756,22 @@
             "high_cut": 0.7300000190734863,
             "high_cut_q": 0.5,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.25,
             "threshold": 1.0,
             "foldover": 0.0,
             "dry_wet": 1.0,
             "shaper": 0.0,
             "oversampling": 0.0
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.9100000858306885,
             "threshold": 0.8899999856948853,
@@ -16056,13 +15779,11 @@
             "attack": 0.1550000011920929,
             "release": 0.10949937254190445,
             "output_gain": 0.9100000262260437
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.3333333432674408,
             "amount": 0.8100000619888306,
             "feedback": 0.7949999570846558,
@@ -16072,21 +15793,19 @@
             "low_cut": 0.0,
             "high_cut": 0.7894993424415588,
             "dry_wet": 0.3850000202655792
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 71,
           "values": {
-            "mode": 1.0,
+            "mode": 0.6666666865348816,
             "room_size": 0.0,
             "feedback": 0.0,
             "low_cut": 0.09491579979658127,
             "high_cut": 0.49698054790496826,
             "dry_wet": 1.0,
             "pre_delay": 0.0
-          },
-          "trailer": 28
+          }
         }
       ],
       "placements": [
@@ -16260,12 +15979,12 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.5,
             "osc1.feedback": 0.25,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio_fine": 0.6850000023841858,
             "osc2.feedback": 0.910013735294342,
             "env1.decay": 0.14999999105930328,
@@ -16276,26 +15995,25 @@
             "env3.decay": 1.0,
             "env3.sustain": 0.0,
             "env3.release": 0.0,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5,
-            "mod3.source": 0.3333333432674408,
+            "mod3.source": 0.1875,
             "mod3.target": 0.01568627543747425,
             "mod3.amount": 0.21277186274528503,
-            "mod3.operation": 1.0,
-            "mod4.source": 0.3333333432674408,
+            "mod3.operation": 0.5,
+            "mod4.source": 0.1875,
             "mod4.target": 0.07450980693101883,
             "mod4.amount": 0.24019238352775574,
-            "mod4.operation": 1.0
+            "mod4.operation": 0.5
           }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.5999999642372131,
             "low_cut_q": 0.5,
             "peak1_freq": 0.386470228433609,
@@ -16310,13 +16028,11 @@
             "high_cut": 0.7300000190734863,
             "high_cut_q": 0.5,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.8899999856948853,
             "threshold": 0.8600000143051147,
@@ -16324,26 +16040,22 @@
             "attack": 0.3100000023841858,
             "release": 0.25949937105178833,
             "output_gain": 0.5649999976158142
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.2900000214576721,
             "threshold": 1.0,
             "foldover": 0.0,
             "dry_wet": 1.0,
             "shaper": 0.0,
             "oversampling": 0.5
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.08999999612569809,
             "low_cut_q": 0.1550000011920929,
             "peak1_freq": 0.2214702069759369,
@@ -16358,13 +16070,11 @@
             "high_cut": 0.7950000166893005,
             "high_cut_q": 0.1900000274181366,
             "master": 0.8849999904632568
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.6666666865348816,
             "amount": 0.0,
             "feedback": 0.0,
@@ -16374,8 +16084,7 @@
             "low_cut": 0.0,
             "high_cut": 0.9394993185997009,
             "dry_wet": 0.9950000047683716
-          },
-          "trailer": 40
+          }
         }
       ],
       "placements": [
@@ -16473,12 +16182,12 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.5,
             "osc1.feedback": 0.25,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio_fine": 0.6850000023841858,
             "osc2.feedback": 0.910013735294342,
             "env1.decay": 0.2150000035762787,
@@ -16489,26 +16198,25 @@
             "env3.decay": 1.0,
             "env3.sustain": 0.0,
             "env3.release": 0.0,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5,
-            "mod3.source": 0.3333333432674408,
+            "mod3.source": 0.1875,
             "mod3.target": 0.01568627543747425,
             "mod3.amount": 0.21277186274528503,
-            "mod3.operation": 1.0,
-            "mod4.source": 0.3333333432674408,
+            "mod3.operation": 0.5,
+            "mod4.source": 0.1875,
             "mod4.target": 0.07450980693101883,
             "mod4.amount": 0.24019238352775574,
-            "mod4.operation": 1.0
+            "mod4.operation": 0.5
           }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.17999999225139618,
             "low_cut_q": 0.5,
             "peak1_freq": 0.24647022783756256,
@@ -16523,13 +16231,11 @@
             "high_cut": 0.7300000190734863,
             "high_cut_q": 0.5,
             "master": 1.0
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.8199999928474426,
             "threshold": 0.8400000333786011,
@@ -16537,26 +16243,22 @@
             "attack": 0.17000000178813934,
             "release": 0.25949937105178833,
             "output_gain": 0.5649999976158142
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.6349999904632568,
             "threshold": 1.0,
             "foldover": 0.3400000035762787,
             "dry_wet": 0.5900000333786011,
             "shaper": 1.0,
             "oversampling": 0.0
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.05999999865889549,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -16571,8 +16273,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 0.675000011920929
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -16679,7 +16380,8 @@
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
             "noise_level": 0.25,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.32449936866760254,
             "filt1.resonance": 0.3450000286102295,
             "env1.decay": 0.3782842755317688,
@@ -16691,25 +16393,23 @@
             "env3.sustain": 0.0,
             "env3.release": 0.0,
             "lfo1.rate": 0.7095469236373901,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.5645497441291809,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.2222222238779068,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.125,
             "mod2.target": 0.20392157137393951,
             "mod2.amount": 1.0,
-            "mod2.operation": 1.0,
-            "mod3.source": 0.3333333432674408,
+            "mod2.operation": 0.5,
+            "mod3.source": 0.1875,
             "mod3.target": 0.003921568859368563,
             "mod3.amount": 1.0,
-            "mod3.operation": 1.0,
-            "noise.width": 0.0
+            "mod3.operation": 0.5
           }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.125,
             "low_cut_q": 0.5,
             "peak1_freq": 0.33647021651268005,
@@ -16724,13 +16424,11 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 0.8349999785423279
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.7899999618530273,
             "threshold": 0.7550000548362732,
@@ -16738,13 +16436,11 @@
             "attack": 0.18000000715255737,
             "release": 0.11449937522411346,
             "output_gain": 1.0
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 68,
           "values": {
-            "mode": 0.0,
             "left_coarse": 0.1875,
             "left_fine": 0.0,
             "right_coarse": 0.25,
@@ -16754,8 +16450,7 @@
             "feedback": 0.8199999928474426,
             "cross": 0.0,
             "dry_wet": 0.5
-          },
-          "trailer": 40
+          }
         }
       ],
       "placements": [
@@ -16833,14 +16528,14 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.ratio": 1.0,
             "osc1.ratio_fine": 0.0,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.5,
             "osc1.feedback": 0.25,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio_fine": 0.42500001192092896,
             "osc2.feedback": 0.910013735294342,
             "osc2.s0": 1.0,
@@ -16853,26 +16548,25 @@
             "env3.decay": 1.0,
             "env3.sustain": 0.0,
             "env3.release": 0.0,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5,
-            "mod3.source": 0.3333333432674408,
+            "mod3.source": 0.1875,
             "mod3.target": 0.01568627543747425,
             "mod3.amount": 0.21277186274528503,
-            "mod3.operation": 1.0,
-            "mod4.source": 0.3333333432674408,
+            "mod3.operation": 0.5,
+            "mod4.source": 0.1875,
             "mod4.target": 0.07450980693101883,
             "mod4.amount": 0.24019238352775574,
-            "mod4.operation": 1.0
+            "mod4.operation": 0.5
           }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.17999999225139618,
             "low_cut_q": 0.3700000047683716,
             "peak1_freq": 0.24647022783756256,
@@ -16887,13 +16581,11 @@
             "high_cut": 0.7300000190734863,
             "high_cut_q": 0.5,
             "master": 0.26999998092651367
-          },
-          "trailer": 60
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.7950000166893005,
             "threshold": 0.7900000214576721,
@@ -16901,13 +16593,11 @@
             "attack": 0.17000000178813934,
             "release": 0.25949937105178833,
             "output_gain": 0.7849999666213989
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 70,
           "values": {
-            "mode": 0.0,
             "type": 0.6666666865348816,
             "amount": 0.0,
             "feedback": 0.47499996423721313,
@@ -16917,26 +16607,22 @@
             "low_cut": 0.03999999910593033,
             "high_cut": 0.8844993710517883,
             "dry_wet": 0.7300000190734863
-          },
-          "trailer": 40
+          }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.3499999940395355,
             "threshold": 0.800000011920929,
             "foldover": 0.0,
             "dry_wet": 1.0,
             "shaper": 0.0,
             "oversampling": 0.0
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0949999988079071,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -16951,8 +16637,7 @@
             "high_cut": 0.9800000190734863,
             "high_cut_q": 0.5,
             "master": 0.7549999952316284
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -17102,7 +16787,6 @@
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.6499999761581421,
             "threshold": 0.7799999713897705,
@@ -17110,13 +16794,11 @@
             "attack": 0.12328426539897919,
             "release": 0.094499371945858,
             "output_gain": 0.4899999797344208
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.05999999865889549,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -17131,8 +16813,7 @@
             "high_cut": 0.9150000810623169,
             "high_cut_q": 0.29500001668930054,
             "master": 0.8550739288330078
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [],
@@ -17153,12 +16834,12 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.20000000298023224,
             "osc1.feedback": 0.02124999836087227,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.feedback": 0.3549053966999054,
             "osc2.s0": 0.4999999701976776,
             "env1.decay": 0.028284268453717232,
@@ -17170,41 +16851,38 @@
             "env3.sustain": 0.5,
             "env3.release": 0.0949999988079071,
             "lfo1.rate": 0.5117295384407043,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.5204124450683594,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.2222222238779068,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.125,
             "mod2.target": 0.019607843831181526,
             "mod2.amount": 0.5,
-            "mod3.source": 0.1111111119389534,
+            "mod3.source": 0.0625,
             "mod3.target": 0.0784313753247261,
             "mod3.amount": 0.5,
-            "mod4.source": 0.3333333432674408,
+            "mod4.source": 0.1875,
             "mod4.target": 0.01568627543747425,
-            "mod4.operation": 1.0,
-            "mod5.source": 0.3333333432674408,
+            "mod4.operation": 0.5,
+            "mod5.source": 0.1875,
             "mod5.target": 0.07450980693101883,
-            "mod5.operation": 1.0
+            "mod5.operation": 0.5
           }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 1.0,
             "threshold": 0.9399999976158142,
             "foldover": 0.0,
             "dry_wet": 1.0,
             "shaper": 0.0,
             "oversampling": 0.0
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 0.0,
             "input_gain": 0.7900000214576721,
             "threshold": 1.0,
@@ -17212,13 +16890,11 @@
             "attack": 0.0982842743396759,
             "release": 0.19949936866760254,
             "output_gain": 0.6200000047683716
-          },
-          "trailer": 32
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.023333333432674408,
             "low_cut_q": 0.5,
             "peak1_freq": 0.8764702081680298,
@@ -17233,8 +16909,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 0.39003339409828186
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -17343,13 +17018,13 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.ratio_fine": 0.3500000238418579,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.45249998569488525,
             "osc1.s0": 0.9149999618530273,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.ratio_fine": 0.4650000035762787,
             "osc2.feedback": 0.21385326981544495,
             "env1.decay": 0.20328426361083984,
@@ -17361,41 +17036,38 @@
             "env3.sustain": 0.3500000238418579,
             "env3.release": 0.1550000011920929,
             "lfo1.rate": 0.5117295384407043,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.5204124450683594,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.2222222238779068,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.125,
             "mod2.target": 0.019607843831181526,
             "mod2.amount": 0.5,
-            "mod3.source": 0.1111111119389534,
+            "mod3.source": 0.0625,
             "mod3.target": 0.0784313753247261,
             "mod3.amount": 0.5,
-            "mod4.source": 0.3333333432674408,
+            "mod4.source": 0.1875,
             "mod4.target": 0.01568627543747425,
-            "mod4.operation": 1.0,
-            "mod5.source": 0.3333333432674408,
+            "mod4.operation": 0.5,
+            "mod5.source": 0.1875,
             "mod5.target": 0.07450980693101883,
-            "mod5.operation": 1.0
+            "mod5.operation": 0.5
           }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.875,
             "threshold": 0.9399999976158142,
             "foldover": 0.0,
             "dry_wet": 0.7099999189376831,
             "shaper": 0.0,
             "oversampling": 0.0
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 67,
           "values": {
-            "mode": 0.0,
             "low_cut": 0.0,
             "low_cut_q": 0.5,
             "peak1_freq": 0.2214702069759369,
@@ -17410,8 +17082,7 @@
             "high_cut": 1.0,
             "high_cut_q": 0.5,
             "master": 0.767123281955719
-          },
-          "trailer": 60
+          }
         }
       ],
       "placements": [
@@ -17494,15 +17165,14 @@
         {
           "kind": 71,
           "values": {
-            "mode": 1.0,
+            "mode": 0.6666666865348816,
             "room_size": 0.0,
             "feedback": 0.49499988555908203,
             "low_cut": 0.12991578876972198,
             "high_cut": 0.5069804787635803,
             "dry_wet": 1.0,
             "pre_delay": 0.0
-          },
-          "trailer": 28
+          }
         }
       ],
       "placements": [],
@@ -17554,7 +17224,6 @@
         {
           "kind": 71,
           "values": {
-            "mode": 0.0,
             "freeze": 0.0,
             "room": 0.0,
             "damp": 0.46000003814697266,
@@ -17563,8 +17232,7 @@
             "high_cut": 0.6294993758201599,
             "dry_wet": 1.0,
             "pre_delay": 0.1599999964237213
-          },
-          "trailer": 36
+          }
         }
       ],
       "placements": [],
@@ -17677,7 +17345,6 @@
       {
         "kind": 71,
         "values": {
-          "mode": 0.0,
           "freeze": 0.0,
           "room": 0.09499999135732651,
           "damp": 0.0,
@@ -17686,13 +17353,11 @@
           "high_cut": 0.8100000023841858,
           "dry_wet": 0.07999999821186066,
           "pre_delay": 0.12833333015441895
-        },
-        "trailer": 36
+        }
       },
       {
         "kind": 67,
         "values": {
-          "mode": 0.0,
           "low_cut": 0.0,
           "low_cut_q": 0.05500003322958946,
           "peak1_freq": 0.2214702069759369,
@@ -17707,8 +17372,7 @@
           "high_cut": 1.0,
           "high_cut_q": 0.3999999463558197,
           "master": 1.0
-        },
-        "trailer": 60
+        }
       }
     ],
     "placements": [],

@@ -1,5 +1,5 @@
 {
-  "format": "song/1",
+  "format": "song/2",
   "meta": {
     "title": "Lint:C",
     "author": "Teo (Digital Dynamite)",
@@ -1034,9 +1034,10 @@
             "uni_spread": 0.8549999594688416,
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.s1": 0.3450000286102295,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.9998626112937927,
             "env1.decay": 0.1849999874830246,
             "env1.sustain": 0.3649999797344208,
@@ -1049,15 +1050,14 @@
             "env3.sustain": 0.7150000333786011,
             "env3.release": 0.0,
             "lfo1.rate": 0.772077739238739,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.5294627547264099,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.2222222238779068,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.125,
             "mod2.target": 0.20392157137393951,
             "mod2.amount": 0.9311144351959229,
-            "mod2.operation": 1.0,
-            "noise.width": 0.0
+            "mod2.operation": 0.5
           }
         }
       ],
@@ -1161,28 +1161,25 @@
         {
           "kind": 71,
           "values": {
-            "mode": 1.0,
+            "mode": 0.6666666865348816,
             "room_size": 0.5,
             "feedback": 0.4150000810623169,
             "low_cut": 0.09491579979658127,
             "high_cut": 0.6319805383682251,
             "dry_wet": 0.27000001072883606,
             "pre_delay": 0.0
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.29499998688697815,
             "threshold": 1.0,
             "foldover": 0.11499999463558197,
             "dry_wet": 0.0,
             "shaper": 1.0,
             "oversampling": 0.0
-          },
-          "trailer": 28
+          }
         }
       ],
       "placements": [],
@@ -1203,11 +1200,12 @@
             "unison": 0.4000000059604645,
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.s1": 1.0,
-            "osc3.type": 0.5,
+            "osc3.type": 0.1666666716337204,
             "osc3.s1": 0.0,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.005000011064112186,
             "env1.decay": 0.5600000023841858,
             "env1.sustain": 0.2849999666213989,
@@ -1217,8 +1215,7 @@
             "env2.release": 0.009999999776482582,
             "env3.decay": 0.0,
             "env3.sustain": 0.0,
-            "env3.release": 0.009999999776482582,
-            "noise.width": 0.0
+            "env3.release": 0.009999999776482582
           }
         }
       ],
@@ -1255,13 +1252,13 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.ratio_fine": 1.0,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.09749998897314072,
             "osc1.feedback": 0.0637499988079071,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "osc2.feedback": 0.19110287725925446,
             "env1.decay": 0.9199999570846558,
             "env1.sustain": 0.6000000238418579,
@@ -1272,16 +1269,16 @@
             "env3.decay": 0.5732842683792114,
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5,
-            "mod3.source": 0.3333333432674408,
+            "mod3.source": 0.1875,
             "mod3.target": 0.07450980693101883,
             "mod3.amount": 0.4292893409729004,
-            "mod3.operation": 1.0
+            "mod3.operation": 0.5
           }
         }
       ],
@@ -1322,7 +1319,6 @@
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 1.0,
             "input_gain": 1.0,
             "threshold": 1.0,
@@ -1330,8 +1326,7 @@
             "attack": 0.0,
             "release": 0.3349999785423279,
             "output_gain": 0.6449999809265137
-          },
-          "trailer": 32
+          }
         }
       ],
       "placements": [],
@@ -1353,14 +1348,14 @@
             "velocity": 0.0,
             "start_spread": 0.0,
             "env1_at_output": 0.0,
-            "osc1.type": 0.25,
+            "osc1.type": 0.0833333358168602,
             "osc1.ratio": 0.04999999701976776,
             "osc1.ratio_fine": 0.0,
             "osc1.gain": 0.910013735294342,
             "osc1.mix": 0.0,
             "osc1.pm_out": 0.5,
             "osc1.s0": 1.0,
-            "osc2.type": 0.25,
+            "osc2.type": 0.0833333358168602,
             "env1.decay": 0.19828426837921143,
             "env1.sustain": 0.45499998331069946,
             "env1.release": 0.009999999776482582,
@@ -1370,20 +1365,20 @@
             "env3.decay": 0.21000000834465027,
             "env3.sustain": 0.0,
             "env3.release": 0.3499999940395355,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.019607843831181526,
             "mod1.amount": 0.5,
-            "mod2.source": 0.1111111119389534,
+            "mod2.source": 0.0625,
             "mod2.target": 0.0784313753247261,
             "mod2.amount": 0.5,
-            "mod3.source": 0.3333333432674408,
+            "mod3.source": 0.1875,
             "mod3.target": 0.01568627543747425,
             "mod3.amount": 1.0,
-            "mod3.operation": 1.0,
-            "mod4.source": 0.3333333432674408,
+            "mod3.operation": 0.5,
+            "mod4.source": 0.1875,
             "mod4.target": 0.07450980693101883,
             "mod4.amount": 1.0,
-            "mod4.operation": 1.0
+            "mod4.operation": 0.5
           }
         }
       ],
@@ -1461,17 +1456,17 @@
           "values": {
             "master": 0.10000000149011612,
             "unison": 1.0,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.s4": 1.0,
             "osc1.s7": 1.0,
-            "filt1.type": 0.375,
+            "osc1.sample": 243.0,
+            "filt1.type": 0.30000001192092896,
             "filt1.cutoff": 0.06000003218650818,
             "env1.decay": 0.19499996304512024,
             "env1.sustain": 0.44999995827674866,
             "env1.release": 0.0,
             "env2.decay": 0.028284268453717232,
-            "env2.release": 0.009999999776482582,
-            "osc1.sample": 243.0
+            "env2.release": 0.009999999776482582
           }
         }
       ],
@@ -1534,12 +1529,13 @@
             "master": 0.10000000149011612,
             "capacity": 0.3333333432674408,
             "unison": 0.6666666865348816,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.coarse": 0.6041666865348816,
             "osc1.s1": 0.0,
             "osc1.s6": 1.0,
             "osc1.s7": 1.0,
-            "filt1.type": 0.125,
+            "osc1.sample": 475.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.0,
             "filt1.resonance": 0.2800000309944153,
             "env1.decay": 0.7999998927116394,
@@ -1547,11 +1543,10 @@
             "env1.release": 0.0,
             "env2.decay": 0.028284268453717232,
             "env2.release": 0.009999999776482582,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.20392157137393951,
             "mod1.amount": 1.0,
-            "mod1.operation": 1.0,
-            "osc1.sample": 475.0
+            "mod1.operation": 0.5
           }
         }
       ],
@@ -1610,20 +1605,17 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.41999998688697815,
             "threshold": 0.8149999976158142,
             "foldover": 0.0,
             "dry_wet": 1.0,
             "shaper": 0.0,
             "oversampling": 0.0
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 72,
           "values": {
-            "mode": 0.0,
             "sidechain": 1.0,
             "input_gain": 0.19999998807907104,
             "threshold": 1.0,
@@ -1631,8 +1623,7 @@
             "attack": 0.35499998927116394,
             "release": 0.4344993829727173,
             "output_gain": 0.625
-          },
-          "trailer": 32
+          }
         }
       ],
       "placements": [],
@@ -1654,14 +1645,15 @@
             "uni_spread": 0.0,
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.gain": 0.14875000715255737,
-            "osc2.type": 0.5,
+            "osc2.type": 0.1666666716337204,
             "osc2.gain": 0.20749999582767487,
-            "osc3.type": 0.5,
+            "osc3.type": 0.1666666716337204,
             "osc3.gain": 0.1875,
             "osc3.s0": 0.8050000071525574,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.2844994068145752,
             "env1.decay": 0.028284268453717232,
             "env1.sustain": 0.5,
@@ -1671,11 +1663,10 @@
             "env3.decay": 0.028284268453717232,
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.20392157137393951,
             "mod1.amount": 0.7121319770812988,
-            "mod1.operation": 1.0,
-            "noise.width": 0.0
+            "mod1.operation": 0.5
           }
         }
       ],
@@ -1717,15 +1708,14 @@
         {
           "kind": 71,
           "values": {
-            "mode": 1.0,
+            "mode": 0.6666666865348816,
             "room_size": 0.5,
             "feedback": 0.7599999904632568,
             "low_cut": 0.09491579979658127,
             "high_cut": 0.791980504989624,
             "dry_wet": 0.4650000035762787,
             "pre_delay": 0.0
-          },
-          "trailer": 28
+          }
         }
       ],
       "placements": [],
@@ -1748,15 +1738,16 @@
             "uni_spread": 0.7649999856948853,
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.s0": 0.004999999888241291,
             "osc1.s1": 1.0,
-            "osc2.type": 0.5,
+            "osc2.type": 0.1666666716337204,
             "osc2.s1": 0.0,
-            "osc3.type": 0.5,
+            "osc3.type": 0.1666666716337204,
             "osc3.s0": 1.0,
             "osc3.s1": 0.0,
-            "filt1.type": 0.5,
+            "noise.width": 0.0,
+            "filt1.type": 0.4000000059604645,
             "filt1.cutoff": 0.0,
             "env1.decay": 0.1582842618227005,
             "env1.sustain": 0.5,
@@ -1768,14 +1759,13 @@
             "env3.sustain": 0.5,
             "env3.release": 0.009999999776482582,
             "lfo1.rate": 0.7242991924285889,
-            "mod1.source": 0.5555555820465088,
+            "mod1.source": 0.3125,
             "mod1.target": 0.003921568859368563,
             "mod1.amount": 0.5390868186950684,
-            "mod1.operation": 1.0,
-            "mod2.source": 0.2222222238779068,
+            "mod1.operation": 0.5,
+            "mod2.source": 0.125,
             "mod2.target": 0.20392157137393951,
-            "mod2.operation": 1.0,
-            "noise.width": 0.0
+            "mod2.operation": 0.5
           }
         }
       ],
@@ -1841,15 +1831,14 @@
         {
           "kind": 71,
           "values": {
-            "mode": 1.0,
+            "mode": 0.6666666865348816,
             "room_size": 0.5,
             "feedback": 0.3899998664855957,
             "low_cut": 0.09491579979658127,
             "high_cut": 0.6319805383682251,
             "dry_wet": 0.27000001072883606,
             "pre_delay": 0.0
-          },
-          "trailer": 28
+          }
         }
       ],
       "placements": [],
@@ -1872,14 +1861,15 @@
             "uni_spread": 0.8299999833106995,
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
-            "osc1.type": 0.5,
-            "osc2.type": 0.5,
+            "osc1.type": 0.1666666716337204,
+            "osc2.type": 0.1666666716337204,
             "osc2.s0": 1.0,
             "osc2.s1": 0.7799999713897705,
-            "osc3.type": 0.5,
+            "osc3.type": 0.1666666716337204,
             "osc3.s0": 1.0,
             "osc3.s1": 0.0,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.8094993829727173,
             "env1.decay": 0.028284268453717232,
             "env1.sustain": 0.1850000023841858,
@@ -1890,11 +1880,10 @@
             "env3.decay": 0.028284268453717232,
             "env3.sustain": 0.18000000715255737,
             "env3.release": 0.11499999463558197,
-            "mod1.source": 0.2222222238779068,
+            "mod1.source": 0.125,
             "mod1.target": 0.20392157137393951,
             "mod1.amount": 0.8968626856803894,
-            "mod1.operation": 1.0,
-            "noise.width": 0.0
+            "mod1.operation": 0.5
           }
         }
       ],
@@ -1977,12 +1966,13 @@
             "uni_spread": 0.7799999713897705,
             "velocity": 0.0,
             "start_spread": 0.5165349841117859,
-            "osc1.type": 0.5,
+            "osc1.type": 0.1666666716337204,
             "osc1.s1": 0.0,
-            "osc3.type": 0.5,
+            "osc3.type": 0.1666666716337204,
             "osc3.gain": 0.20499999821186066,
             "osc3.s1": 0.0,
-            "filt1.type": 0.125,
+            "noise.width": 0.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.21449941396713257,
             "filt1.resonance": 0.6850000023841858,
             "env1.decay": 0.028284268453717232,
@@ -1992,8 +1982,7 @@
             "env2.release": 0.009999999776482582,
             "env3.decay": 0.028284268453717232,
             "env3.sustain": 0.5,
-            "env3.release": 0.009999999776482582,
-            "noise.width": 0.0
+            "env3.release": 0.009999999776482582
           }
         }
       ],
@@ -2049,28 +2038,25 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.9099999666213989,
             "threshold": 0.5900000333786011,
             "foldover": 0.9249999523162842,
             "dry_wet": 0.6150000095367432,
             "shaper": 0.0,
             "oversampling": 0.0
-          },
-          "trailer": 28
+          }
         },
         {
           "kind": 71,
           "values": {
-            "mode": 1.0,
+            "mode": 0.6666666865348816,
             "room_size": 0.0,
             "feedback": 0.5399999618530273,
             "low_cut": 0.30491578578948975,
             "high_cut": 0.6319805383682251,
             "dry_wet": 0.2999999523162842,
             "pre_delay": 0.0
-          },
-          "trailer": 28
+          }
         }
       ],
       "placements": [],
@@ -2089,19 +2075,19 @@
             "master": 0.061500001698732376,
             "capacity": 0.4920634925365448,
             "unison": 1.0,
-            "osc1.type": 1.0,
+            "osc1.type": 0.3333333432674408,
             "osc1.s1": 0.0,
             "osc1.s4": 1.0,
             "osc1.s7": 1.0,
-            "filt1.type": 0.125,
+            "osc1.sample": 19.0,
+            "filt1.type": 0.10000000149011612,
             "filt1.cutoff": 0.7050000429153442,
             "env1.decay": 0.2550000250339508,
             "env1.sustain": 0.025000035762786865,
             "env1.release": 0.0,
             "env2.decay": 0.0,
             "env2.sustain": 0.0,
-            "env2.release": 0.009999999776482582,
-            "osc1.sample": 19.0
+            "env2.release": 0.009999999776482582
           }
         }
       ],
@@ -2131,15 +2117,13 @@
         {
           "kind": 65,
           "values": {
-            "mode": 0.0,
             "drive": 0.4999999403953552,
             "threshold": 0.6199999451637268,
             "foldover": 1.0,
             "dry_wet": 1.0,
             "shaper": 1.0,
             "oversampling": 0.0
-          },
-          "trailer": 28
+          }
         }
       ],
       "placements": [],
@@ -2197,7 +2181,6 @@
       {
         "kind": 72,
         "values": {
-          "mode": 0.0,
           "sidechain": 0.0,
           "input_gain": 0.10500001907348633,
           "threshold": 0.8700000047683716,
@@ -2205,8 +2188,7 @@
           "attack": 0.02828427031636238,
           "release": 0.19949936866760254,
           "output_gain": 0.5849999785423279
-        },
-        "trailer": 32
+        }
       }
     ],
     "placements": [],
