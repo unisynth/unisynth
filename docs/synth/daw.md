@@ -89,7 +89,7 @@ packages/daw (served at /daw by packages/cli)
 | | Live (AudioWorklet) | Bounce (Worker), `song render` |
 |---|---|---|
 | Code | `Host`: `Mixer` + editable schedule | `Player` on the exported blob |
-| Equal to the intro | Bit-identical from frame 0 when nothing was edited since play (tested at call sizes 1–4096, and wasm vs native on the demo song) | Always (the WAV equals `song render` byte for byte) |
+| Equal to the intro | Bit-identical from frame 0 when nothing was edited since play (tested at call sizes 1–4096, and wasm vs native on the demo song), up to the subnormal steps below | As the native render (the WAV equals `song render` byte for byte natively; wasm differs only by the subnormal steps below) |
 | After edits | Applied per track at the next 100-frame sub-block: values via `set_param`, structural changes rebuild that track's devices, note edits swap that track's schedule, routing rebuilds the mixer; the transport shows "edited since play" | — |
 | Seek / loop | Devices reset at the target, held notes re-triggered ("chase"); no silent pre-roll | Renders from frame 0 |
 | Threads | One (AudioWorklet) | `song render --threads <n>` renders independent tracks on `n` threads, same WAV byte for byte (change add-synth-threads). The browser bounce uses `synth-mt.wasm` on up to 8 Web Workers when the page is cross-origin isolated (the local server sends COOP/COEP), else one thread; same samples either way (change add-wasm-threads) |
@@ -134,7 +134,13 @@ A load that climbs while playing and only falls on Stop → Play is state buildi
 cannot switch the CPU into flush-to-zero mode (the native player does, `denormal::Guard`), so effect feedback decaying
 into subnormal floats made every later sample many times slower on x86. `engage` went from ~45 % at bar 37 to over
 100 % by bar 41. Feedback state, filter state and each device's output now pass `denormal::flush` in wasm builds
-(nothing natively; wasm bounces still equal the native render). `bun packages/daw/bench/perbar.ts` (`SONG=…`,
+(nothing natively). This flushing is partial: a subnormal arising elsewhere (inside a voice, between two flush points)
+stays in wasm and is 0 natively, so a song whose state decays through one differs from `song render` by a last-bit step
+in a few samples. `engage`: 28 of 19.4 M samples, ±1 in 16 bit, first at 84.9 s; `demo` is bit-identical. Native
+with the wasm policy (no FTZ/DAZ, the same flush points) equals wasm bit for bit, so the policy is the whole difference;
+making them equal would mean dropping FTZ natively (changes the intro's output, risks slow subnormals) or a flush after
+every operation in wasm, so the native render stays the reference. `packages/daw/test/wasm-native.test.ts` pins both
+(demo exact, engage ±1 in < 1e-5 of the samples). `bun packages/daw/bench/perbar.ts` (`SONG=…`,
 `RESTART=<bar>`, `MUTE`/`KEEP` to bisect) prints the load per bar.
 
 

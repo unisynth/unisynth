@@ -1,6 +1,6 @@
 # crates/synth-wasm
 
-std cdylib + rlib (change add-synth-daw, spec synth-live-host; not in default-members): the DAW engine module. Live `Host` = `synth_core::mix::Mixer` over an editable source, built from the exported blob with the player's device load order and `Xorshift::new(song::render::SEED)` → bit-identical to `Player` from frame 0 without edits (any call size; also wasm32 vs native, checked on the demo song). Plus `song` crate functions behind the C ABI. Build: `cargo build -p synth-wasm --release --target wasm32-unknown-unknown` → `target/wasm32-unknown-unknown/release/synth_wasm.wasm` (~500 KB; one import `env.host_now_ms() -> f64`). Toolchain `PATH="$HOME/.cargo/bin:$PATH"`.
+std cdylib + rlib (change add-synth-daw, spec synth-live-host; not in default-members): the DAW engine module. Live `Host` = `synth_core::mix::Mixer` over an editable source, built from the exported blob with the player's device load order and `Xorshift::new(song::render::SEED)` → bit-identical to `Player` from frame 0 without edits (any call size; wasm32 vs native: demo bit-identical, otherwise ±1 LSB where a subnormal survives wasm's partial `denormal::flush` but native FTZ/DAZ zeroes it, see docs/synth/daw.md, test `packages/daw/test/wasm-native.test.ts`). Plus `song` crate functions behind the C ABI. Build: `cargo build -p synth-wasm --release --target wasm32-unknown-unknown` → `target/wasm32-unknown-unknown/release/synth_wasm.wasm` (~500 KB; one import `env.host_now_ms() -> f64`). Toolchain `PATH="$HOME/.cargo/bin:$PATH"`.
 
 | File | Purpose |
 |---|---|
