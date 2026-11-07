@@ -5,7 +5,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.cargo/bin:$PATH"
-MODULES="us-osc-pm us-osc-blit us-osc-wt us-osc-sample us-sample-gsm us-sample-dls us-noise
+MODULES="us-osc-pm us-osc-blit us-osc-wt us-osc-sample us-sample-gsm us-sample-dls us-sample-stereo us-noise
          us-flt-svf us-flt-ladder us-flt-rbj us-flt-notch us-env-seconds us-env-rate
          us-voice-lfo us-voice-glide us-voice-mono us-voice-unison us-voice-oneshot us-matrix us-matrix-add us-speech us-automation
          us-osc-naive us-flt-feedback us-flt-parallel us-drive us-env-frame us-lfo-frame us-voice-out us-strip us-chunk-wide

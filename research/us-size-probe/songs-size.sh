@@ -3,7 +3,8 @@
 # baked with each song's own feature list (measure.sh's compo flags), prints raw / xz -9e / squishy 0.1.3 bytes.
 # Songs: the seven reference songs from out/songs plus V2 songs converted by this tree's synth-convert
 # (fr08 brullwurfel candytron kkrieger debris platinum; skipped when $V2_SONGS is absent).
-#   research/us-size-probe/songs-size.sh [tree]     (default: this checkout; ONLY=<song regex> measures a subset)
+#   research/us-size-probe/songs-size.sh [tree]     (default: this checkout; ONLY=<song regex> measures a subset;
+#   EXTRA_FEATS=<cargo features> adds features to every song's list)
 set -u
 T=$(cd "${1:-$(dirname "$0")/../..}" && pwd)
 export PATH="$HOME/.cargo/bin:$PATH" WINEDEBUG=-all WINEPREFIX="${WINEPREFIX:-$HOME/.wine-64k}"
@@ -24,6 +25,7 @@ cd "$T/research/us-size-probe"
 for s in "$D"/*.song; do
   [ -n "${ONLY:-}" ] && ! [[ "$(basename "$s" .song)" =~ ^($ONLY)$ ]] && continue
   feats=$("$C" features "$s" 2>/dev/null | head -1 | tr ',' '\n' | sed 's|^|unisynth/|' | paste -sd, -)
+  [ -n "${EXTRA_FEATS:-}" ] && feats="$feats,$EXTRA_FEATS"   # e.g. unisynth/us-sample-stereo (cost of a feature)
   US_SONG="$s" RUSTFLAGS="$F" cargo build -q --release --features "baked${feats:+,$feats}" --target i686-pc-windows-msvc || { echo "$(basename "$s"): build failed"; continue; }
   e=target/i686-pc-windows-msvc/release/us-size-probe.exe
   rm -f "$D/sq.exe"; [ -x "$W" ] && [ -f "$SQ" ] && "$W" "$SQ" -i "$e" -o "$D/sq.exe" >/dev/null 2>&1

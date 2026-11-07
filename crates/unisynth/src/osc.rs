@@ -537,7 +537,7 @@ const INV_TAU: f32 = 1.0 / (2.0 * core::f32::consts::PI);
 /// One sample of a slot: `(left, right, send)` = its output after mix, before the pan (the voice pans and combines
 /// it), and the phase-mod send for the next slot in radians. `pm_in` is the previous slot's send.
 #[inline]
-pub fn sample(slot: &mut Slot, wt: Option<&mut Wt>, src: &smp::Source, r: &mut SlotRamps, pm_in: f32) -> (f32, f32, f32) {
+pub fn sample(slot: &mut Slot, wt: Option<&mut Wt>, smp: &smp::Sample, r: &mut SlotRamps, pm_in: f32) -> (f32, f32, f32) {
     let inc = r.inc.next();
     let gain = r.gain.next();
     let mix = r.mix.next();
@@ -558,7 +558,13 @@ pub fn sample(slot: &mut Slot, wt: Option<&mut Wt>, src: &smp::Source, r: &mut S
             (y * mix, y * mix, y * send)
         }
         Kind::Sampler if cfg!(feature = "us-osc-sample") => {
-            let y = slot.smp.next(src, inc, &r.smp) * gain;
+            // a stereo pair (change add-gmplus-bank D6): the left wave left, its partner right, one position
+            #[cfg(feature = "us-sample-stereo")]
+            if !matches!(smp.right, smp::Source::None) {
+                let (yl, yr) = slot.smp.next_pair(&smp.src, &smp.right, inc, &r.smp);
+                return (yl * gain * mix, yr * gain * mix, yl * gain * send);
+            }
+            let y = slot.smp.next(&smp.src, inc, &r.smp) * gain;
             (y * mix, y * mix, y * send)
         }
         Kind::Blit if cfg!(feature = "us-osc-blit") => {
@@ -921,7 +927,7 @@ mod tests {
             let (mut r1, mut r2) = (SlotRamps::default(), SlotRamps::default());
             r1.set(&slot_t(440.0, combine::ADD));
             r2.set(&slot_t(110.0, second));
-            let src = smp::Source::None;
+            let src = smp::Sample::NONE;
             (0..44_100)
                 .map(|_| {
                     let mut s = (0.0, 0.0, 0.0);
@@ -1272,7 +1278,7 @@ mod tests {
             s.clocked_start(0.0, &clk);
             let mut r = SlotRamps::default();
             r.set(&SlotT { inc: 211.0 * clock / 65536.0, gain: 1.0, mix: 1.0, pan_l: 1.0, pan_r: 1.0, clk, ..SlotT::default() });
-            (0..n).map(|_| sample(&mut s, None, &smp::Source::None, &mut r, 0.0).0).collect()
+            (0..n).map(|_| sample(&mut s, None, &smp::Sample::NONE, &mut r, 0.0).0).collect()
         }
 
         #[test]

@@ -971,7 +971,7 @@ impl<'a> Voice<'a> {
                     let y = osc::v2_sample(slot, ramps, mono, ax);
                     (y, y, 0.0)
                 } else {
-                    osc::sample(slot, wt.as_deref_mut(), &smp.src, ramps, send)
+                    osc::sample(slot, wt.as_deref_mut(), smp, ramps, send)
                 };
                 // one combine for every slot: add (panned), multiply (ring) or replace
                 let (pl, pr) = ramps.pan();

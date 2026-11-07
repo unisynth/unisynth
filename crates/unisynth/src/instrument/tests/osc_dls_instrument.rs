@@ -370,3 +370,27 @@ fn an_instrument_that_the_real_bank_lacks_is_silent() {
     assert!(dls::Dls::parse(&bank).unwrap().find(false, 127, 127).is_none());
     assert!(play(&slot(packed(false, 127, 127), &[]), &bank, 60, 300).iter().all(|v| *v == 0.0));
 }
+
+/// Spec "Stereo DLS waves" (change add-gmplus-bank D6): a region whose wave has a `stpr` partner plays the left wave
+/// left and the partner right, sample-aligned; without `us-sample-stereo` (or for a malformed pair) both channels play
+/// the left wave as before.
+#[test]
+fn a_stereo_pair_plays_left_and_right() {
+    let mut b = bank(&[W::new(10, 60), W::new(30, 60)], &[(false, 0, 0, vec![(0, 127, 0, 127, 0, None)])]);
+    let pair = riff(b"pair", &[0u32.to_le_bytes(), 1u32.to_le_bytes()].concat());
+    b.extend(list(b"stpr", &[pair]));
+    let size = (b.len() - 8) as u32;
+    b[4..8].copy_from_slice(&size.to_le_bytes());
+    let idx = packed(false, 0, 0);
+    let (l, r) = with_bank(&chunk_of(&slot(idx, &[]), &[]), Some(&b), 44100.0, |ins| render(ins, 44100.0, &[on(0, 60)], 400, 4096));
+    assert!(err(&l, 10.0, 1.0, 1.0, 100, 380) < 5e-4, "left follows the left wave");
+    let want_right = if cfg!(feature = "us-sample-stereo") { 30.0 } else { 10.0 };
+    assert!(err(&r, want_right, 1.0, 1.0, 100, 380) < 5e-4, "right follows the partner (slope {want_right})");
+    // a pair whose partner differs in rate is ignored: mono
+    let mut b2 = bank(&[W::new(10, 60), W { rate: 22050, ..W::new(30, 60) }], &[(false, 0, 0, vec![(0, 127, 0, 127, 0, None)])]);
+    b2.extend(list(b"stpr", &[riff(b"pair", &[0u32.to_le_bytes(), 1u32.to_le_bytes()].concat())]));
+    let size = (b2.len() - 8) as u32;
+    b2[4..8].copy_from_slice(&size.to_le_bytes());
+    let (_, r2) = with_bank(&chunk_of(&slot(idx, &[]), &[]), Some(&b2), 44100.0, |ins| render(ins, 44100.0, &[on(0, 60)], 400, 4096));
+    assert!(err(&r2, 10.0, 1.0, 1.0, 100, 380) < 5e-4, "malformed pair plays mono");
+}

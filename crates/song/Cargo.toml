@@ -11,6 +11,8 @@ serde_json = { version = "1", features = ["preserve_order", "float_roundtrip"] }
 serde_path_to_error = "0.1"
 synth-core.workspace = true
 unisynth = { path = "../unisynth", features = ["std"] }
+# `--bank plus` (change add-gmplus-bank): the gmplus procedural bank.
+gmgen = { path = "../gmgen", features = ["plus"] }
 
 [features]
 default = ["threads"]

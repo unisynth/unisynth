@@ -637,6 +637,21 @@ stores as −20 dB (kit) to −113 dB (piano) and makes up for in the articulati
 shape the sound. Checked against the real macOS bank (skipped when absent): Piano 1 note 36 plays wave 289 (region
 0–38) and note 72 wave 294 (region 68–74); the Standard kit's 36 and 38 play waves 376 and 161, each at its own root.
 
+### Stereo DLS pairs (`us-sample-stereo`)
+
+A bank may pair waves with a top-level `LIST 'stpr' { pair }` chunk of `u32` (left, right) indices (the gmplus bank,
+change add-gmplus-bank D5/D6). With `us-sample-stereo` (implies `us-sample-dls`, in `us-all`), a DLS-instrument or
+DLS-wave slot whose wave has a valid partner (`dls::Dls::partner`: both waves parse with equal rate, length and loop)
+plays the left wave on its left output and the partner on its right, read at one position (`smp::State::next_pair`);
+the slot's pan gains then apply per side. An unpaired wave, a malformed pair or a build without the feature plays the
+left wave on both outputs, exactly as before (`next` is unchanged; `next_pair` is a separate copy so builds without the
+feature keep `next`'s inlining). Test: `osc_dls_instrument.rs` `a_stereo_pair_plays_left_and_right`.
+
+Size (i686 compo probe, `research/us-size-probe/songs-size.sh`, 2026-11-06): without the feature the change is neutral
+(engage 48 160 / elysian 53 924 / no-remorse 28 564 B xz against HEAD 48 176 / 53 916 / 28 556, same squishy); with it,
+engage (a DLS song) costs +748 B xz, +512 B squishy (`EXTRA_FEATS=unisynth/us-sample-stereo`). `needs.rs` does not
+derive it: the chunk does not say which bank the build ships; a build that ships the plus bank adds it.
+
 ## Noise and filters
 
 After the oscillators the voice adds the noise source, runs the sum through the four filter slots in series, and only
@@ -885,6 +900,7 @@ build lacks fails at load with `UnsupportedModule(id)` (`module.rs` names the id
 | `us-osc-pm`, `us-osc-blit`, `us-osc-wt`, `us-osc-sample` | the four oscillator types | the slot's type |
 | `us-osc-clocked` | the clocked oscillator (change add-cauldron-xm-import) | the slot's type |
 | `us-sample-gsm`, `us-sample-dls` | sampler sources (imply `us-osc-sample`) | the sampler's source, at chunk parse |
+| `us-sample-stereo` | stereo DLS pairs (implies `us-sample-dls`) | not checked: without it a pair plays mono |
 | `us-noise` | noise source | level set above 0, or any matrix slot targeting the noise level |
 | `us-flt-svf`, `-ladder`, `-rbj`, `-notch` | filter families | each filter slot's type |
 | `us-env-seconds`, `us-env-rate` | timed (WaveSabre) and rate (Tunefish) envelope modes | the mode of envelope 1, and of any envelope a matrix slot reads |

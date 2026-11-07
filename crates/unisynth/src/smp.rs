@@ -66,10 +66,42 @@ pub struct Inst<'a>(core::marker::PhantomData<&'a ()>);
 pub struct Sample<'a> {
     pub src: Source<'a>,
     pub sample_loop: (i32, i32),
+    /// Right channel: the wave's stereo partner (`dls::Dls::partner`: same rate, length and loop), else `None`.
+    #[cfg(feature = "us-sample-stereo")]
+    pub right: Source<'a>,
 }
 
 impl Sample<'_> {
-    pub const NONE: Sample<'static> = Sample { src: Source::None, sample_loop: (0, 0) };
+    pub const NONE: Sample<'static> = Sample::mono(Source::None, (0, 0));
+}
+
+impl<'a> Sample<'a> {
+    pub const fn mono(src: Source<'a>, sample_loop: (i32, i32)) -> Sample<'a> {
+        Sample {
+            src,
+            sample_loop,
+            #[cfg(feature = "us-sample-stereo")]
+            right: Source::None,
+        }
+    }
+
+    /// A DLS wave by pool index with its loop, and its stereo partner with the feature.
+    #[cfg(feature = "us-sample-dls")]
+    fn wave(bank: &dls::Dls<'a>, index: u32, w: dls::Wave<'a>, looped: Option<(u32, u32)>) -> Sample<'a> {
+        let len = Source::Wave(w).len();
+        let sample_loop = match looped {
+            Some((st, l)) => (st.min(i32::MAX as u32) as i32, l.min(i32::MAX as u32) as i32),
+            None => (0, len),
+        };
+        #[cfg(not(feature = "us-sample-stereo"))]
+        let _ = (bank, index);
+        Sample {
+            src: Source::Wave(w),
+            sample_loop,
+            #[cfg(feature = "us-sample-stereo")]
+            right: bank.partner(index).and_then(|r| bank.wave(r)).map_or(Source::None, Source::Wave),
+        }
+    }
 }
 
 /// How the region a note-on picked changes a slot's playback: the root note (in semitones, fine tune folded in) and the
@@ -93,19 +125,14 @@ impl Adj {
 pub fn pick<'a>(inst: &Inst<'a>, key: u8, vel: u8, song_rate: f32) -> (Sample<'a>, Adj) {
     #[cfg(feature = "us-sample-dls")]
     {
-        let hit = inst.ins.region_for(key, vel).and_then(|r| inst.bank.sampler(&r));
+        let hit = inst.ins.region_for(key, vel).and_then(|r| inst.bank.sampler(&r).map(|s| (r.wave, s)));
         return match hit {
-            Some((w, ws)) if !w.is_empty() => {
-                let len = Source::Wave(w).len();
-                let sample_loop = match ws.looped {
-                    Some((st, l)) => (st.min(i32::MAX as u32) as i32, l.min(i32::MAX as u32) as i32),
-                    None => (0, len),
-                };
+            Some((index, (w, ws))) if !w.is_empty() => {
                 let adj = Adj {
                     root: ws.unity_note as f32 - ws.fine_tune as f32 / 100.0,
                     rate: w.rate as f32 / song_rate,
                 };
-                (Sample { src: Source::Wave(w), sample_loop }, adj)
+                (Sample::wave(&inst.bank, index, w, ws.looped), adj)
             }
             _ => (Sample::NONE, Adj::UNITY),
         };
@@ -261,6 +288,79 @@ impl State {
         }
         sample
     }
+
+    /// `next` for a stereo pair (change add-gmplus-bank D6; `right` has the same length and loop): both channels at
+    /// one position. A separate copy, so builds without the feature keep `next` (and its inlining) unchanged.
+    #[cfg(feature = "us-sample-stereo")]
+    #[inline]
+    pub fn next_pair(&mut self, src: &Source, right: &Source, step: f32, c: &Cfg) -> (f32, f32) {
+        if !self.active {
+            return (0.0, 0.0);
+        }
+        let fl = libm::floor(self.pos);
+        let fract = self.pos - fl;
+        let len = src.len();
+        // range check in f64: an out-of-range position never wraps into the sample
+        if fl < 0.0 || fl >= len as f64 {
+            self.active = false;
+            return (0.0, 0.0);
+        }
+        let i = fl as i32;
+        let sample = match c.interp {
+            Interp::Nearest => src.at(i),
+            Interp::Linear => {
+                let left = src.at(i);
+                let mut ri = i + 1;
+                if c.mode == Loop::Repeat && ri == c.loop_e {
+                    ri = c.loop_s;
+                }
+                // a degenerate loop reads 0 like an out-of-range right index
+                let right = if (0..len).contains(&ri) { src.at(ri) } else { 0.0 };
+                (left as f64 * (1.0 - fract) + right as f64 * fract) as f32
+            }
+        };
+        let right_sample = match c.interp {
+            Interp::Nearest => right.at(i),
+            Interp::Linear => {
+                let left = right.at(i);
+                let mut ri = i + 1;
+                if c.mode == Loop::Repeat && ri == c.loop_e {
+                    ri = c.loop_s;
+                }
+                // a degenerate loop reads 0 like an out-of-range right index
+                let right = if (0..len).contains(&ri) { right.at(ri) } else { 0.0 };
+                (left as f64 * (1.0 - fract) + right as f64 * fract) as f32
+            }
+        };
+        let delta = if self.rev { -(step as f64) } else { step as f64 };
+        self.pos += delta;
+        match c.mode {
+            Loop::Repeat => {
+                // loop_l ≥ 1, so these terminate (one step per loop length, like the original)
+                let (s, e, l) = (c.loop_s as f64, c.loop_e as f64, c.loop_l as f64);
+                if delta > 0.0 {
+                    while self.pos >= e {
+                        self.pos -= l;
+                    }
+                } else if self.pos < s {
+                    while self.pos < s {
+                        self.pos += l;
+                    }
+                }
+            }
+            Loop::PingPong => {
+                if delta > 0.0 && self.pos >= c.loop_e as f64 {
+                    self.pos = (c.loop_e - 1) as f64;
+                    self.rev = !self.rev;
+                } else if delta < 0.0 && self.pos < c.loop_s as f64 {
+                    self.pos = c.loop_s as f64;
+                    self.rev = !self.rev;
+                }
+            }
+            Loop::Off => {}
+        }
+        (sample, right_sample)
+    }
 }
 
 impl Default for State {
@@ -363,13 +463,8 @@ pub fn load<'a>(
             #[cfg(feature = "us-sample-dls")]
             if idx > 0 {
                 // as a C `(int)v − 1`; no bank or an index past it is silence
-                if let Some(w) = bank.and_then(|b| b.wave(idx - 1)) {
-                    let len = Source::Wave(w).len();
-                    let sample_loop = match w.wsmp.looped {
-                        Some((s, l)) => (s.min(i32::MAX as u32) as i32, l.min(i32::MAX as u32) as i32),
-                        None => (0, len),
-                    };
-                    out[i] = Sample { src: Source::Wave(w), sample_loop };
+                if let Some((b, w)) = bank.and_then(|b| b.wave(idx - 1).map(|w| (b, w))) {
+                    out[i] = Sample::wave(&b, idx - 1, w, w.wsmp.looped);
                 }
             }
             #[cfg(not(feature = "us-sample-dls"))]
@@ -383,7 +478,7 @@ pub fn load<'a>(
             {
                 let g = chunk.sample(idx as usize - 1).ok_or(LoadError::BadChunk)?;
                 let data = g.decode(pool)?;
-                out[i] = Sample { src: Source::F32(data), sample_loop: (0, data.len().min(i32::MAX as usize) as i32) };
+                out[i] = Sample::mono(Source::F32(data), (0, data.len().min(i32::MAX as usize) as i32));
             }
             #[cfg(not(feature = "us-sample-gsm"))]
             {
@@ -438,7 +533,7 @@ mod tests {
         sh[shape::SMP_LOOP_START] = 0.25;
         sh[shape::SMP_LOOP_LENGTH] = 0.5;
         let data = [0.0f32; 1000];
-        let s = Sample { src: Source::F32(&data), sample_loop: (10, 20) };
+        let s = Sample::mono(Source::F32(&data), (10, 20));
         let c = Cfg::from_shape(&sh, &s);
         assert_eq!((c.mode, c.loop_s, c.loop_l, c.loop_e), (Loop::Repeat, 250, 500, 750));
         sh[shape::SMP_BOUNDARY] = 0.0;

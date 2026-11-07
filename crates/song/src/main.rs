@@ -4,14 +4,15 @@
 //! song export <song.json> -o <blob>           validate + export the synth-mix blob
 //! song import <blob> -o <song.json> [--meta <meta.json>] [--one-clip]   blob → song/2 (lanes cut into patterns, or
 //!                                             one clip per lane), with authorship, track names and descriptions
-//! song render <song.json|blob> -o <wav> [--f32] [--bank gm.dls] [--threads <n>]   through the song player (16-bit
+//! song render <song.json|blob> -o <wav> [--f32] [--bank gm.dls|plus] [--threads <n>]   through the song player (16-bit
 //!                                             default); n ≥ 2 renders independent tracks on n threads, same output
 //! song info <song.json|blob>                  tracks, devices, length, required cargo features
-//! song check <song.json|blob> [--bank gm.dls]  validate, export and load into the song player without rendering
+//! song check <song.json|blob> [--bank gm.dls|plus]  validate, export and load into the song player without rendering
 //!                                             (exit 0 = loads); prints the file's format (a song/1 file migrates)
 //! song migrate <song.json|patch.json> [-o <out>]   a song/1 or us-patch/1 file saved as song/2 or us-patch/2 (in
 //!                                             place without -o); a /2 file is written back unchanged
 //! ```
+//! `--bank plus` generates the gmplus procedural bank (change add-gmplus-bank) instead of reading a file.
 //! Errors print as `<json pointer>: <reason>` on stderr; any failure exits non-zero and writes no output.
 
 use std::process::exit;
@@ -43,6 +44,15 @@ fn is_json(path: &str, bytes: &[u8]) -> bool {
 fn blob_of(path: &str) -> Vec<u8> {
     let b = read(path);
     if is_json(path, &b) { song::export(&load_song(path)).unwrap_or_else(|_| exit(1)) } else { b }
+}
+
+/// The GM bank: `--bank <path>` or `GM_DLS` (empty = none); `--bank plus` generates the gmplus procedural bank.
+fn bank_of(opt: Option<String>) -> Option<Vec<u8>> {
+    match opt.or_else(|| std::env::var("GM_DLS").ok()).filter(|p| !p.is_empty()) {
+        Some(p) if p == "plus" => Some(gmgen::plus::build(None)),
+        Some(p) => Some(read(&p)),
+        None => None,
+    }
 }
 
 fn write(path: &str, bytes: &[u8]) {
@@ -90,7 +100,7 @@ fn main() {
                 Some(n) => n.parse::<usize>().ok().filter(|&n| n >= 1).unwrap_or_else(|| die(format!("--threads {n}: expected a whole number ≥ 1"))),
             };
             let b = blob_of(&input);
-            let bank = opt("--bank").or_else(|| std::env::var("GM_DLS").ok()).filter(|p| !p.is_empty()).map(|p| read(&p)); // empty GM_DLS = no bank
+            let bank = bank_of(opt("--bank"));
             #[cfg(feature = "threads")]
             let pcm = song::render::render_threads(&b, bank.as_deref(), threads).unwrap_or_else(|e| die(e));
             #[cfg(not(feature = "threads"))]
@@ -129,7 +139,7 @@ fn main() {
                 "blob".into()
             };
             let b = blob_of(&input);
-            let bank = opt("--bank").or_else(|| std::env::var("GM_DLS").ok()).filter(|p| !p.is_empty()).map(|p| read(&p));
+            let bank = bank_of(opt("--bank"));
             let frames = song::render::load(&b, bank.as_deref()).unwrap_or_else(|e| die(format!("{input}: {e}")));
             println!("{input}: loads ({format}, {frames} frames)");
         }

@@ -31,6 +31,9 @@ us-osc-wt = []
 us-osc-sample = []
 us-sample-gsm = ["us-osc-sample", "dep:gsm"]
 us-sample-dls = ["us-osc-sample", "dep:dls"]
+# stereo DLS pairs (change add-gmplus-bank D6): a wave with a `stpr` partner plays left/right; without it the left
+# wave plays mono, which is correct for any bank
+us-sample-stereo = ["us-sample-dls"]
 us-noise = []
 us-flt-svf = []
 us-flt-ladder = []
@@ -124,4 +127,4 @@ us-env = ["us-env-seconds", "us-env-rate", "us-env-frame"]
 us-fx = ["us-fx-distortion", "us-fx-crusher", "us-fx-eq", "us-fx-delay", "us-fx-chorus", "us-fx-flanger",
          "us-fx-reverb", "us-fx-compressor", "us-fx-compressor-lookahead", "us-fx-formant"]
 us-voice = ["us-voice-lfo", "us-voice-glide", "us-voice-mono", "us-voice-unison", "us-voice-oneshot", "us-drive", "us-lfo-frame", "us-voice-out"]
-us-all = ["us-osc", "us-noise", "us-flt", "us-env", "us-voice", "us-matrix", "us-matrix-add", "us-quirk", "us-speech", "us-strip", "us-chunk-wide", "us-automation", "us-quiet", "us-fx"]
+us-all = ["us-osc", "us-sample-stereo", "us-noise", "us-flt", "us-env", "us-voice", "us-matrix", "us-matrix-add", "us-quirk", "us-speech", "us-strip", "us-chunk-wide", "us-automation", "us-quiet", "us-fx"]
