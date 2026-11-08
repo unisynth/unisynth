@@ -18,7 +18,7 @@ the same voice and checked against the originals.
 | `crates/synth-core/` | Shared no_std layer: `Device` contract, DSP primitives, song blob `Player` |
 | `crates/wavesabre/`, `crates/tfsynth/`, `crates/glorp/` | Legacy engines (WaveSabre, Tunefish 4, Glorp) the unified synth is checked against |
 | `crates/gsm/` | GSM 06.10 decoder (WaveSabre samples) |
-| `crates/song/`, `crates/synth-convert/` | `song/1` source format + `song` CLI; converter from WaveSabre/Tunefish/V2/XM songs |
+| `crates/song/`, `crates/synth-convert/` | `song/2` source format + `song` CLI; converter from WaveSabre/Tunefish/V2/XM songs |
 | `crates/synth-wasm/`, `packages/daw/` | The DAW: WebAssembly engine module and the SolidJS browser UI |
 | `packages/cli/` | Local DAW dev server (`bun packages/cli/src/cli.ts serve` → http://127.0.0.1:6464/daw/) |
 | `project/music/` | Song library (demo songs, converted released songs; see `NOTICE.md`) |

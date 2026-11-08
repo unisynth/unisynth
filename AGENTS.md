@@ -29,3 +29,35 @@ scripts/build-daw.sh && scripts/build-songs.sh         # rebuild site/daw and si
 ## OpenSpec
 
 Spec-driven changes live in `openspec/changes/<name>/`; specs in `openspec/specs/`.
+When authoring a proposal, add a `## Discipline Skills` line to `proposal.md`
+naming the `eng-disciplines` skills its tasks will trigger (mapped via the
+checkpoint table below); omit only when none apply. This needs no edit to any
+openspec skill — the implement loop reads the proposal artifact unchanged, so
+the named skills enter its context and get invoked.
+
+## Discipline Skills
+
+During implementation, invoke the matching `eng-disciplines` skill when a task
+signal appears. Skills auto-trigger on natural language, but the implement loop
+may never utter the phrase — this table makes the mapping explicit (signals are
+observable in the diff / `tasks.md`, not vague intent):
+
+| Task signal (in diff / tasks.md) | Skill |
+|---|---|
+| touches auth, untrusted input, secrets, webhooks, PII | `security-hardening` |
+| spec has a latency/throughput budget, or a large-data / high-traffic path | `performance-optimization` |
+| new endpoint, job, external call, or "can't tell what happened in prod" | `observability-instrumentation` |
+| non-trivial/irreversible step (migration, public API, cross-boundary) BEFORE it stands | `doubt-driven-review` |
+| a bug surfaces mid-implementation | `systematic-debugging` |
+| runtime state opaque, `console.log` insufficient | `node-inspect-debugger` |
+| feature works + tests pass but the implementation feels heavy | `code-simplification` |
+
+The end gates (`code-review`, `code-quality`) remain unchanged and run at completion before commit.
+
+<!-- dox-doctrine -->
+
+## DOX doctrine
+
+Per-turn DOX doctrine — the kb-first READ discipline and the directory `AGENTS.md`
+WRITE discipline — is injected by the `pi-dashboard-kb-extension`. Tune it in
+`.pi/dashboard/knowledge_base.json` under the `doctrine` key (`inject`, `write`).

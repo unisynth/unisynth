@@ -1,0 +1,8 @@
+# src/mix/song.rs (sidecar: full detail of the AGENTS.md row)
+
+Pull-only (not auto-injected). Zero-copy decoder of the WaveSabre song blob (little endian; layout in the module doc: header tempo i32, rate i32, length f64; devices, lanes, tracks sections).
+
+- `Song::parse(&[u8]) -> Result<Song, LoadError>` validates once: counts vs remaining bytes (min record sizes: device 5, lane 4, event 5, track 20, receive/automation 12, point 5), indices (`BadIndex`), receive track in range, receive channel (`recv::valid(c, cfg!(feature = "pairs"))`: 0/2; with `pairs` byte 0 receiving pair 0/2/4/6, byte 1 sending pair 0–4), trailing bytes, tempo/rate > 0, length finite ≥ 0, ≥ 1 track. Event deltas ≥ 0; automation point times signed (converters emit points before song start), accumulate with wrapping.
+- Fields `tempo`, `rate`, `length` (s). Views: `device_count/lane_count/track_count`, `devices()` → `DeviceRec{kind,chunk}`, `lanes()`/`lane(i)` → `Lane` (`len`, `is_empty`, `events()` → `LaneEvents` of `(delta, EventKind)`; note byte bit 7 = note-off), `tracks()` → `Track{volume, lane}` with `receives()` → `Receive{track,channel,volume}`, `device_count()`, `devices()` (song-level indices, chain order), `automations()` → `Automation{device (index into track's devices), param}` (`len`, `is_empty`, `points()` → `Points` of `(i32 abs time, byte/255 via f64 → f32)`).
+- `Song::sections()` → `[(count, bytes); 3]` (devices, lanes, tracks); `#[doc(hidden)] const fn Song::from_sections(tempo, rate, length, sections)` rebuilds a parsed song unchecked (generated code of `synth-convert rust`).
+- History: See change: shrink-unified-synth, add-v2-import.

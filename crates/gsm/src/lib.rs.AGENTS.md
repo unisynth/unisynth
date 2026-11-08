@@ -1,0 +1,11 @@
+# src/lib.rs (sidecar: full detail of the AGENTS.md row)
+
+Pull-only (not auto-injected). `#![cfg_attr(not(test), no_std)]`; declares `mod encode` and re-exports `blocks_for`, `encode`, `GsmEncoder`.
+
+- Decoder: bit-exact port of libgsm 1.0.24 (`gsm_decode.c` WAV49 branch, `decode.c`, `rpe.c`, `long_term.c`, `short_term.c`, `add.c`, `table.c`, `private.h`). Saturating `add/sub`, `mult_r` rounding, arithmetic `>>` on negatives. libgsm COPYRIGHT kept verbatim in the module doc (applies to `encode.rs` too).
+- API: consts `BLOCK_BYTES` 65, `BLOCK_SAMPLES` 320; `GsmDecoder::new()`, `decode_block(&[u8;65], &mut [i16;320])` (WAV49 33+32-byte frame chain); `decode(data, &mut [f32]) -> Result<usize, GsmError>` with one fresh decoder: out = `(s as f64 / 32768.0) as f32`, writes ≤ `out.len()` samples (last block may be cut), trailing partial block (`len % 65`) ignored, empty → `Ok(0)`.
+- All bit patterns decode: `GsmError::Malformed` is never returned (kept for API stability).
+- `GsmChunk<'a>` (WaveSabre sample chunk: `{comp i32, uncomp i32}` + WAVEFORMATEX at byte 8 (tag 0x31, mono) + `cbSize` at byte 24 + extra + compressed blocks): fields `blocks`, `samples`, `rest` (bytes after the compressed data: Specimen params + trailing size). `parse` (empty → `Ok(None)`; short / tag ≠ 0x31 / channels ≠ 1 / negative comp / blocks out of range → `BadChunk`); `samples` = `uncomp` when `0 < uncomp < blocks·320`, else `blocks·320`; `pool_need(chunk)` = `Pool::need::<f32>(samples)` (0 when empty); `decode(&self, &mut Pool) -> &[f32]` (decode failure → `BadChunk`).
+- `CHUNK_HEADER` = 28; `write_chunk_header(compressed, samples, &mut [u8;28])` = inverse of `parse` with cbSize 2: tag 0x31, mono, 44100 Hz, avg 8957 B/s, align 65, bits 0, extra 320. The uncomp field holds the sample count so `parse` returns exactly `samples`; real ACM files store bytes ≈ samples·2, which `parse` ignores (exceeds decoded length) and falls back to `blocks·320`.
+- Tests (`mod tests`, vs libgsm vectors): `vector_sizes`, `decode_block_matches_libgsm_exactly`, `decode_f32_matches_and_respects_len`, `garbage_blocks_do_not_panic`, `encoder_matches_libgsm`, `encode_f32_matches_libgsm`, `encoder_round_trip_decodes_like_reference` (SNR), `chunk_header_round_trip`, `chunk_header_layout_matches_real_chunk`.
+- History: See change: add-unified-synth.

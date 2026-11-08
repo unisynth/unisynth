@@ -33,3 +33,9 @@ project/music/.library.json
 # Listening page build (tools/song-page/build.ts)
 tools/song-page/out/
 __pycache__/
+
+# pi dashboard local knowledge-base index
+.pi/dashboard/kb/
+
+# Icon mockup screenshots
+mockups/icon/shots/

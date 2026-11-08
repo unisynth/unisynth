@@ -1,0 +1,5 @@
+# tests/reference32.rs (sidecar: full detail of the AGENTS.md row)
+
+Pull-only (not auto-injected).
+
+- Env-gated (`GLORP_REF_ROOT`; unset ⇒ explicit skip, set + any fixture file missing ⇒ panic): song devices 22/23/24 replayed from block 0 over the **whole song** (78,292 blocks) from full taps `taps32/devNN.tap`, `ev_full.csv` writes through `set_param`, tolerance `SONG_TOL` 1e-4 (measured max 3.04e-5 / 7.0e-6 / 4.8e-5); per-instance report of active windows (output ≠ input: dev 22 only blocks 3802..7604 = 4.9 %, its legacy 0..600 tap window is pass-through, mix 0; dev 23 always; dev 24 3 windows 19.9 %) and the legacy 600-block windows; 10 synthetic Wine vectors `id32vec/vec01..10` (both modes, extremes, automation, mode/voice switches, bypass, buffer-edge delay 2060 samples; 4 bit-exact, rest ≤ 3.4e-5); asserts the aux pair untouched; negative controls: flipped reference bit, forced mode/params on vectors, 1/255 nudges of P1–P6/P9 on dev 23 (tighter control-only `CONTROL_TOL` 5e-5: faithful 7.0e-6, nudged first error ≈1.0e-4; song tolerance unchanged), dropped automation on dev 24.
