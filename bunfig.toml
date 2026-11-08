@@ -1,0 +1,5 @@
+# bun test scans the whole tree and holds one file descriptor per directory it visits; skip the trees that hold no
+# tests (cargo target dirs, research probes, the built site) so posix_spawn does not fail with EBADF.
+[test]
+preload = ["./packages/daw/test/solid-browser.preload.ts"]  # solid-js browser build for DAW unit tests
+pathIgnorePatterns = ["target/**", "research/**", "node_modules/**", "**/target/**", "build/**", "renders/**", "openspec/**", "site/**"]

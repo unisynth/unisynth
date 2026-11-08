@@ -1,9 +1,9 @@
 #!/bin/bash
-# Rebuild site/songs (the listening page: every converted song, played live in the browser by the synth) from the 64k
-# working tree (until the sources move into this repo). The page loads the GM bank from ../daw/data/bank.dls, the one
+# Rebuild site/songs (the listening page: every converted song, played live in the browser by the synth) from this
+# source tree. The page loads the GM bank from ../daw/data/bank.dls, the one
 # published with the DAW, so the 17 songs with GM.DLS samplers need site/daw/data/bank.dls (see NOTICE.md).
 set -euo pipefail
-SRC=${SRC:-$HOME/Project/64k}
+SRC=${SRC:-$(cd "$(dirname "$0")/.." && pwd)}
 OUT=$(cd "$(dirname "$0")/.." && pwd)/site/songs
 ( cd "$SRC" && cargo build -q --release -p song && bun tools/song-page/build.ts )
 test -f "$(dirname "$OUT")/daw/data/bank.dls" || echo "warning: site/daw/data/bank.dls is missing: the GM-bank songs will not play" >&2

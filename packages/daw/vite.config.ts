@@ -2,7 +2,7 @@
 // build: only the page entry `src/main.ts` → `dist/main.js` (fixed name, no hash; index.html, style.css, the
 //   worklet, the bounce workers and the engine modules stay with build.ts, so the CLI server, build-static.ts and
 //   the token injection see the same dist/ as before).
-// dev (`pnpm --filter @64k/daw dev`, needs `bun packages/cli/src/cli.ts serve --no-headless` on DAW_API):
+// dev (`pnpm --filter @unisynth/daw dev`, needs `bun packages/cli/src/cli.ts serve --no-headless` on DAW_API):
 //   serves src/ at /daw/ with hot reload of components; /api and the engine files come from the CLI server.
 import { defineConfig, type Plugin } from "vite";
 import solid from "vite-plugin-solid";

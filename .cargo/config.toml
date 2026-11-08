@@ -1,0 +1,7 @@
+# Cross-link Windows PE from macOS/Linux with rust-lld (raw-dylib => no SDK import libs).
+# build-std is passed per command (tools/build-compo.sh) so host std crates are unaffected.
+[target.x86_64-pc-windows-msvc]
+linker = "rust-lld"
+
+[target.i686-pc-windows-msvc]
+linker = "rust-lld"

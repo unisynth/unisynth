@@ -1,2 +1,35 @@
 .DS_Store
 .shots/
+node_modules/
+target/
+dist/
+build/
+
+# Local audio renders (third-party music, never committed)
+renders/
+
+# Large binaries and media (renders, third-party samples, GM.DLS) — except the published site, which ships them
+*.wasm
+*.bin
+*.wav
+*.mp3
+*.ogg
+*.flac
+*.dls
+*.sf2
+!site/**
+
+# Archives
+*.tar
+*.tar.gz
+*.tgz
+*.xz
+*.lzma
+*.zip
+
+# DAW library conversions built from the local synth lab (synth-convert example library)
+project/music/.library.json
+
+# Listening page build (tools/song-page/build.ts)
+tools/song-page/out/
+__pycache__/

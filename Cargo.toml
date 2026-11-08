@@ -1,0 +1,35 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+exclude = ["research"]
+default-members = ["crates/gsm", "crates/synth-core", "crates/wavesabre", "crates/tfsynth", "crates/unisynth", "crates/glorp", "crates/song"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[workspace.dependencies]
+libm = { version = "0.2", default-features = false }
+synth-core = { path = "crates/synth-core" }
+wavesabre = { path = "crates/wavesabre", default-features = false }
+tfsynth = { path = "crates/tfsynth", default-features = false }
+gsm = { path = "crates/gsm" }
+# Procedural GM bank + DLS reader live in https://github.com/unisynth/gm-procedural (pinned; bump rev to pick up a new bank).
+dls = { git = "https://github.com/unisynth/gm-procedural", rev = "cb6013304149d69b0abfe1aeea76bc8da44ab4bb" }
+gmgen = { git = "https://github.com/unisynth/gm-procedural", rev = "cb6013304149d69b0abfe1aeea76bc8da44ab4bb" }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+debug = false
+strip = true
+incremental = false
+
+# Host tools that time the synths (tools/unisynth-parity): the release profile, but built for speed. The shipped player
+# stays on `release`, which is built for size.
+[profile.fast]
+inherits = "release"
+opt-level = 3

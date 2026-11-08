@@ -1,0 +1,16 @@
+{
+  "name": "unisynth",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "ajv": "^8",
+    "axe-core": "^4.14.0",
+    "typescript": "^5.9.0"
+  }
+}
