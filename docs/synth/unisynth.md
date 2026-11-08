@@ -36,7 +36,7 @@ flowchart LR
     params --> chunk
     law --> inst
     gsm["crates/gsm"] --> chunk
-    dls["crates/dls"] --> inst
+    dls["gm-procedural/dls"] --> inst
 ```
 
 ## The instrument

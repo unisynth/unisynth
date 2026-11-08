@@ -63,7 +63,7 @@ flowchart TB
         cathedral["cathedral.rs"]
     end
     core["synth-core<br/>VoicePool, Events, Ring, Comb, AllPass, Biquad"]
-    dls["crates/dls<br/>GM.DLS reader"]
+    dls["gm-procedural/dls<br/>GM.DLS reader"]
 
     dev --> inst & fx
     falcon & slaughter --> synth
