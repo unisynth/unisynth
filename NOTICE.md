@@ -43,12 +43,13 @@ and "over2" and "bluish" (Stash, 1st at The Party 1997), titles from Demozoo, `t
 from the intros' XMs with their synthesized samples played by the unified synth's cauldron oscillator
 (`research/tbl-mini-cauldron/tools/make_demos.py`); same rules: no licence, published pending permission, adapted version.
 
-`released/v2/` holds 357 Farbrausch V2 songs, every `.v2m` of the local corpus that parses, once per checksum, written
+`released/v2/` holds 358 Farbrausch V2 songs, every `.v2m` of the local corpus that parses, once per checksum, written
 by `tools/v2-extract/make-demos.py`:
 - 13 carved by v2redux from farbrausch / .theprodukkt release executables
 - 14 from farbrausch's fr_public repository, including the two version-6 acceptance songs
 - 320 from the V2M collection of jgilje/v2m-player, which points to modland
 - 10 by Teo from modland's own V2 directory (`pub/modules/V2/Teo/`, `teo-*.song.json`), published with his permission
+- 1 carved by v2redux from Teo's release executable Ivory (Revision 2015, after `upx -d`), `teo-ivory.song.json`, published with his permission
 
 Credits come only from where each file was found: the demo for carved songs, the repository path, or modland's
 `Author--title` file name. Composers the source does not name are not guessed (7 songs say "not named"). 18 songs are
@@ -60,9 +61,9 @@ adapted version. `modland/KB--fr-013_flybye-loader.v2m` does not parse and is no
 
 Teo gave permission on 2026-11-09 to publish his music here as adapted versions and pointed to his V2 songs on modland
 (<https://ftpmirror.infania.net/sites/modland/pub/modules/V2/Teo/>). This covers the WaveSabre songs `hydra`
-(Hydra, 2020), `lint-c` (Lint:C by Digital Dynamite, 2019) and `ouefvoke` (Ouefvoke by Rebels, 2023), and the ten V2
+(Hydra, 2020), `lint-c` (Lint:C by Digital Dynamite, 2019) and `ouefvoke` (Ouefvoke by Rebels, 2023), and the eleven V2
 songs `v2/teo-*.song.json` (damptraktor, downdraft, f14a, himiko, k0rnmeister, spark, speedway, sunbeam,
-tranceformator (bozon), unlzx). The music belongs to Teo; each file's `meta` says so, and a song is removed at his
+tranceformator (bozon), unlzx from modland; Ivory, Revision 2015 executable music, carved from its release). The music belongs to Teo; each file's `meta` says so, and a song is removed at his
 request.
 
 ## MIT (WaveSabre)

@@ -18,7 +18,13 @@ SONGS = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("V2_SONGS", os.path
 PLAYER = os.path.join(os.path.dirname(SONGS), "v2m-player/v2m")
 OUT = os.path.join(ROOT, "project/music/released/v2")
 BIN = os.path.join(ROOT, "target/release")
-ORDER = {"acceptance": 0, "fr_public": 1, "modland": 2, "modland_ftp": 3}
+ORDER = {"acceptance": 0, "fr_public": 1, "modland": 2, "modland_ftp": 3, "release": 4}
+# release/<Author>--<title>.v2m: carved by v2redux (`era carve`) from a release executable after `upx -d`
+RELEASES = {
+    "Teo--ivory": ("Ivory", "Teo", "https://demozoo.org/music/136370/",
+                   "the release executable of Ivory (executable music, 4th at Revision 2015, scene.org `teo-ivory.zip`), "
+                   "unpacked with `upx -d` and carved by v2redux"),
+}
 # modland_ftp/<Author>--<title>.v2m: files the author pointed us to in modland's own V2 directory (infania mirror)
 MODLAND_FTP = "https://ftpmirror.infania.net/sites/modland/pub/modules/V2"
 
@@ -82,6 +88,8 @@ def credits(file):
         path = name.replace("__", "/")
         title = os.path.basename(path)[:-4].replace("_", " ")
         return title, "farbrausch", f"https://github.com/farbrausch/fr_public/blob/master/{path}", f"farbrausch's fr_public repository (`{path}`)"
+    if kind == "release":
+        return RELEASES[stem]
     if kind == "modland_ftp":
         a, t = stem.split("--", 1)
         orig = t.replace("_", " ") + ".v2m"
