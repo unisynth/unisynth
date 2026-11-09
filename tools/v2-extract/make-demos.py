@@ -6,8 +6,9 @@ permission; see project/music/NOTICE.md).
   python3 tools/v2-extract/make-demos.py [<v2songs dir>]   # default $V2_SONGS or ~/Downloads/64k-tools/synth-lab/v2songs
 
 Reads survey.json (from `bun tools/v2-extract/v2.ts survey`) and converts every song that parses, once per sha256
-(acceptance before fr_public before modland). Credits come only from where each file was found: the v2redux carve
-table (acceptance), the fr_public path, or the modland-style `Author--title` file name of the v2m-player collection.
+(acceptance before fr_public before modland before modland_ftp). Credits come only from where each file was found: the v2redux carve
+table (acceptance), the fr_public path, or the modland `Author--title` file name (v2m-player collection, or modland_ftp/:
+files from modland's own V2 directory). Authors in PERMITTED gave permission; the others get LICENCE.
 Composers that the source does not name are not guessed. Uses target/release/{synth-convert,song}.
 """
 import json, os, re, subprocess, sys, tempfile
@@ -17,7 +18,9 @@ SONGS = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("V2_SONGS", os.path
 PLAYER = os.path.join(os.path.dirname(SONGS), "v2m-player/v2m")
 OUT = os.path.join(ROOT, "project/music/released/v2")
 BIN = os.path.join(ROOT, "target/release")
-ORDER = {"acceptance": 0, "fr_public": 1, "modland": 2}
+ORDER = {"acceptance": 0, "fr_public": 1, "modland": 2, "modland_ftp": 3}
+# modland_ftp/<Author>--<title>.v2m: files the author pointed us to in modland's own V2 directory (infania mirror)
+MODLAND_FTP = "https://ftpmirror.infania.net/sites/modland/pub/modules/V2"
 
 # acceptance songs: demo as in research/v2-intros.md (v2redux corpus/embedded/PROVENANCE.md); the two version-6
 # files are fr_public `v2/v2m/`
@@ -51,6 +54,11 @@ PARITY = {
 }
 LICENCE = ("No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy "
            "while its authors are asked for permission, and is removed at any author's request.")
+# authors who gave permission to publish their songs here (keyed by the song's author credit)
+PERMITTED = {
+    "Teo": ("Teo gave permission (2026-11-09) to publish his music here as adapted versions; the music belongs to "
+            "him and is removed at his request."),
+}
 
 
 def slug(s):
@@ -74,6 +82,11 @@ def credits(file):
         path = name.replace("__", "/")
         title = os.path.basename(path)[:-4].replace("_", " ")
         return title, "farbrausch", f"https://github.com/farbrausch/fr_public/blob/master/{path}", f"farbrausch's fr_public repository (`{path}`)"
+    if kind == "modland_ftp":
+        a, t = stem.split("--", 1)
+        orig = t.replace("_", " ") + ".v2m"
+        url = f"{MODLAND_FTP}/{a}/{orig.replace(' ', '%20')}"
+        return t.replace("_", " "), a.replace("_", " "), url, f"modland's V2 collection (`pub/modules/V2/{a}/{orig}`)"
     # modland: the v2m-player collection; modland names files `Author--title`
     orig = next((f for f in (stem + ".v2mz", name) if os.path.exists(os.path.join(PLAYER, f))), name)
     url = f"https://github.com/jgilje/v2m-player/blob/master/v2m/{orig}"
@@ -174,7 +187,7 @@ def main():
             + ("" if author else "The source does not name the author. ")
             + f"{song['tempo']:g} BPM, {int(secs // 60)}:{int(secs % 60):02d}, {len(tracks)} tracks. " + trimmed
             + "This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified "
-            "synth (instrument kind 64) and imported with `song import`. " + par + " " + LICENCE
+            "synth (instrument kind 64) and imported with `song import`. " + par + " " + PERMITTED.get(author, LICENCE)
         )
         meta = {
             "title": title,

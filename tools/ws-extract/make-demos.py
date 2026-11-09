@@ -15,6 +15,11 @@ WS = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser("~/Downloads/64k-t
 DLS = os.path.expanduser("~/Downloads/64k-tools/synth-lab/ws/gm.dls")
 OUT = os.path.join(ROOT, "project/music/released")
 BIN = os.path.join(ROOT, "target/release")
+# music authors who gave permission to publish their songs here (keyed by Demozoo music credit)
+PERMITTED = {
+    "Teo": ("Teo gave permission (2026-11-09) to publish his music here as adapted versions; the music belongs to "
+            "him and is removed at his request."),
+}
 KINDS = ["Falcon", "Slaughter", "Thunder", "Scissor", "Leveller", "Crusher", "Echo", "Smasher", "Chamber", "Twister",
          "Cathedral", "Adultery", "Specimen", "Screwdriver"]  # 13: qm210 fork waveshaper
 SYNTH = {"Falcon": "FM synth", "Slaughter": "subtractive synth", "Thunder": "GSM sample player",
@@ -236,9 +241,10 @@ def main():
             "patterns, notes rounded to 960 ticks per beat). Against the bit-exact WaveSabre port it differs by "
             f"{dl:+.2f} dB loudness and at most {band:.2f} dB in any octave band from 63 Hz to 8 kHz (16 kHz up to 3 dB "
             "brighter, a known difference of the unified engine). Track names are derived here from each track's "
-            "instrument and notes; the executable does not store the authors' names. No licence is stated: the music "
-            "belongs to its authors. It is published here as an adapted reference copy while its authors are asked for "
-            "permission, and is removed at any author's request."
+            "instrument and notes; the executable does not store the authors' names. "
+            + next((PERMITTED[a] for a in music or [by] if a in PERMITTED),
+                   "No licence is stated: the music belongs to its authors. It is published here as an adapted reference "
+                   "copy while its authors are asked for permission, and is removed at any author's request.")
         )
         meta = {
             "title": d["title"],

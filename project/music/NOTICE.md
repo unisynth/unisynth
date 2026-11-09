@@ -33,23 +33,35 @@ Each file's `meta` names the production, its authors and music credit (Demozoo),
 or Demozoo link, and says that it is an adapted version (converted to the unified synth, within 0.5 dB loudness and
 ~1 dB per octave band of the original engine). Track names are derived from instrument and notes, not the authors'.
 The full list and the productions that could not be extracted are in `research/wavesabre-intros.md`.
+Exception: Teo gave permission (2026-11-09) for his music, so `hydra`, `lint-c` and `ouefvoke` are published with
+his permission (see below).
 
 It also holds three songs of The Black Lotus's 1997 64K intros, music by Probe: "Smokeout" (Jizz, 1st at Wired 1997)
 and "over2" and "bluish" (Stash, 1st at The Party 1997), titles from Demozoo, `tbl-*.song.json`. They are converted
 from the intros' XMs with their synthesized samples played by the unified synth's cauldron oscillator
 (`research/tbl-mini-cauldron/tools/make_demos.py`); same rules: no licence, published pending permission, adapted version.
 
-`released/v2/` holds 347 Farbrausch V2 songs, every `.v2m` of the local corpus that parses, once per checksum, written
+`released/v2/` holds 357 Farbrausch V2 songs, every `.v2m` of the local corpus that parses, once per checksum, written
 by `tools/v2-extract/make-demos.py`:
 - 13 carved by v2redux from farbrausch / .theprodukkt release executables
 - 14 from farbrausch's fr_public repository, including the two version-6 acceptance songs
 - 320 from the V2M collection of jgilje/v2m-player, which points to modland
+- 10 by Teo from modland's own V2 directory (`pub/modules/V2/Teo/`, `teo-*.song.json`), published with his permission
 
 Credits come only from where each file was found: the demo for carved songs, the repository path, or modland's
 `Author--title` file name. Composers the source does not name are not guessed (7 songs say "not named"). 18 songs are
 parity-checked against the v2redux reference; the others say they were not. Songs whose V2 file runs far past the
 music end 4 s after the last note, as their description says. Same rules: no licence, published pending permission,
 adapted version. `modland/KB--fr-013_flybye-loader.v2m` does not parse and is not included.
+
+### Published with permission
+
+Teo gave permission on 2026-11-09 to publish his music here as adapted versions and pointed to his V2 songs on modland
+(<https://ftpmirror.infania.net/sites/modland/pub/modules/V2/Teo/>). This covers the WaveSabre songs `hydra`
+(Hydra, 2020), `lint-c` (Lint:C by Digital Dynamite, 2019) and `ouefvoke` (Ouefvoke by Rebels, 2023), and the ten V2
+songs `v2/teo-*.song.json` (damptraktor, downdraft, f14a, himiko, k0rnmeister, spark, speedway, sunbeam,
+tranceformator (bozon), unlzx). The music belongs to Teo; each file's `meta` says so, and a song is removed at his
+request.
 
 ## MIT (WaveSabre)
 
