@@ -41,6 +41,13 @@ and "over2" and "bluish" (Stash, 1st at The Party 1997), titles from Demozoo, `t
 from the intros' XMs with their synthesized samples played by the unified synth's cauldron oscillator
 (`research/tbl-mini-cauldron/tools/make_demos.py`); same rules: no licence, published pending permission, adapted version.
 
+It also holds two songs of Brain Control's 64K intros, music by Skyrunner, made with Tunefish 4: "Aten Hotep"
+(5th at Revision 2019) and "Naumachia Insianis" (2nd at Revision 2024), `aten-hotep.song.json` and
+`naumachia-insianis.song.json`. They were read from the running intros' memory with `tools/tf-extract` and converted by
+`synth-convert tfm` (within 0.1 dB loudness and 1.5 dB per octave band of the upstream Tunefish 4 player). **No licence
+is stated: the music belongs to Brain Control.** Tunefish 4's GPL-3.0 covers the synth, not songs made with it. Same
+rules: published pending Brain Control's permission, removed at their request, adapted version.
+
 It also holds two songs of Brain Control's 64K intros made with Tunefish 3 (Enigma Studio 3): "Transplant", music by
 mad (2nd at The Ultimate Meeting 2011), and "Train Control", music by payne (4th at Revision 2012),
 `transplant.song.json` and `train-control.song.json`. They were read from the released executables with

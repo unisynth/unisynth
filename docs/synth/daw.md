@@ -260,6 +260,7 @@ modules: a hot-reloaded module re-runs, and a store defined next to components w
 
 The song list also shows `project/music/released/`: 25 WaveSabre songs from released intros and executable music
 (and, in `released/v2/`, 358 Farbrausch V2 songs from `tools/v2-extract/make-demos.py`, eleven of them by Teo with his permission),
+two Tunefish 4 songs of Brain Control's intros (Aten Hotep, Naumachia Insianis) from `tools/tf-extract/make-demos.py`,
 built locally by `python3 tools/ws-extract/make-demos.py` (no licence; committed while the authors are asked for permission, see `project/music/NOTICE.md`).
 Songs with Adultery (GM.DLS) instruments sound as released only with the Windows bank: start the server with
 `GM_DLS=<path to gm.dls>`.

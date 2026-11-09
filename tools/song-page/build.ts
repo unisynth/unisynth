@@ -72,10 +72,14 @@ export function groupOf(rel: string, url = ""): string {
     return "Farbrausch productions";
   }
   if (basename(rel).startsWith("tbl-")) return "The Black Lotus, 1997";
+  if (TUNEFISH_INTROS.includes(basename(rel, ".song.json"))) return "Brain Control 64K intros (Tunefish)";
   return "64K intros and executable music (WaveSabre)";
 }
 
-export const GROUPS = ["Demo songs", "64K intros and executable music (WaveSabre)", "The Black Lotus, 1997", "Farbrausch productions", "V2M collection (via modland)"];
+/** Brain Control intro songs of `tools/tf-extract` (Tunefish 4) and `tools/tf3-extract` (Tunefish 3). */
+export const TUNEFISH_INTROS = ["aten-hotep", "naumachia-insianis", "train-control", "transplant"];
+
+export const GROUPS = ["Demo songs", "64K intros and executable music (WaveSabre)", "Brain Control 64K intros (Tunefish)", "The Black Lotus, 1997", "Farbrausch productions", "V2M collection (via modland)"];
 
 /** A URL-safe id from the path relative to project/music (`released/v2/foo.song.json` → `v2-foo`). */
 export function slugOf(rel: string): string {
