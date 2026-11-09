@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
-import { GROUPS, groupOf, needsBank, page, slugOf, songFiles } from "./build.ts";
+import { GROUPS, groupOf, needsBank, page, sizeOf, slugOf, songFiles } from "./build.ts";
 
 const MUSIC = fileURLToPath(new URL("../../project/music/", import.meta.url));
 
@@ -38,7 +38,7 @@ test("exactly the songs with a GM.DLS sampler need the bank", () => {
   expect(needsBank(osc(1, 0))).toBe(false); // no sample
 });
 
-const entry = { slug: "x", file: "x.song.json", group: "Demo songs", title: "</script><b>", author: "a&b", description: "d", seconds: 61, blob: "songs/x.bin", bytes: 1, bank: false };
+const entry = { slug: "x", file: "x.song.json", group: "Demo songs", title: "</script><b>", author: "a&b", description: "d", seconds: 61, blob: "songs/x.bin", bytes: 1, bank: false, tracks: 3, devices: 7 };
 
 test("the page escapes song text and keeps the script closed", () => {
   const html = page([entry]);
@@ -54,4 +54,25 @@ test("the page plays song files with the synth, not audio files", () => {
   expect(html).toContain("synth.wasm");
   expect(html).toContain("registerProcessor");
   expect(html).toContain("bounce_open");
+});
+
+test("a song's size counts its tracks and devices", () => {
+  expect(sizeOf({ tracks: [{ devices: [{}, {}] }, { devices: [{}] }, {}] })).toEqual({ tracks: 3, devices: 3 });
+  expect(sizeOf({})).toEqual({ tracks: 0, devices: 0 });
+});
+
+test("the page is the listening app: deck with a seek canvas, a filterable list and a detail panel", () => {
+  const html = page([entry, { ...entry, slug: "y", group: "The Black Lotus, 1997" }]);
+  for (const id of ['id="deck"', 'class="seek"', "<canvas", 'id="q"', 'id="chips"', 'id="sort"', 'id="list"', 'id="detail"', 'class="loop"'])
+    expect(html).toContain(id);
+  expect(html).toContain("createAnalyser"); // live spectrum in the seek bar
+  expect(html).toContain('"tracks":3'); // stat cards come from the entries
+  expect(html).toContain('href="../"'); // back to the site
+});
+
+test("the page's inline script is valid JavaScript and its description links survive escaping", () => {
+  const html = page([{ ...entry, description: "see `synth-mix` (http://a.b/c?d=1)." }]);
+  const code = html.slice(html.indexOf("<script>") + 8, html.indexOf("</script>"));
+  expect(() => new Function(code)).not.toThrow(); // a template-literal escape slip (\s → s) breaks the whole page
+  expect(code).toContain("https?:\\/\\/[^\\s)<]");
 });
