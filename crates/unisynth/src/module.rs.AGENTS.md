@@ -9,3 +9,4 @@ Pull-only (not auto-injected).
 ## History
 
 - See change: shrink-unified-synth, add-v2-import, add-cauldron-xm-import, unify-v2-algorithms 1.3, 6.5–6.8
+- `FX_CHORUS_TF3 = 65` "us-fx-chorus-tf3" (chorus, one-tap mode; add-tf3-import 6.4).

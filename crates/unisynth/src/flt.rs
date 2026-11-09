@@ -38,9 +38,13 @@ pub enum Kind {
     /// [`P4Form`]).
     Pole4Lp,
     Pole4Hp,
+    /// RBJ high/band-pass; in Tunefish 3's form (`f::FORM` 1, add-tf3-import) resonance reaches 0.95 and the band-pass
+    /// takes Tunefish 3's shelf-slope bandwidth ([`coefs`]).
     RbjHp,
     RbjBp,
     Notch,
+    /// Tunefish 3's notch: the notch type in form 1, an RBJ notch with the shelf-slope bandwidth (no latency).
+    Tf3Notch,
 }
 
 impl Kind {
@@ -63,10 +67,16 @@ impl Kind {
             ft::P4_HP => (Kind::Pole4Hp, fb),
             ft::RBJ_HP => (Kind::RbjHp, (module::FILTER_RBJ, cfg!(feature = "us-flt-rbj"))),
             ft::RBJ_BP => (Kind::RbjBp, (module::FILTER_RBJ, cfg!(feature = "us-flt-rbj"))),
+            ft::NOTCH if forms.feedback => (Kind::Tf3Notch, (module::FILTER_NOTCH, cfg!(feature = "us-flt-notch"))),
             ft::NOTCH => (Kind::Notch, (module::FILTER_NOTCH, cfg!(feature = "us-flt-notch"))),
             _ => return Ok(Kind::Off),
         };
-        if on { Ok(kind) } else { Err(LoadError::UnsupportedModule(id)) }
+        if !on {
+            return Err(LoadError::UnsupportedModule(id));
+        }
+        // Tunefish 3's form of the RBJ and notch types is a form like the others: `us-flt-feedback`
+        let tf3 = forms.feedback && matches!(kind, Kind::RbjHp | Kind::RbjBp | Kind::Tf3Notch);
+        if tf3 && !fb.1 { Err(LoadError::UnsupportedModule(fb.0)) } else { Ok(kind) }
     }
 
     /// At run time: a type automated to a module this build lacks bypasses (the load already rejected the patch's own).
@@ -81,7 +91,8 @@ impl Kind {
             Kind::SvfLp | Kind::SvfHp | Kind::SvfBp | Kind::SvfNotch | Kind::SvfAll => 1,
             Kind::Pole4Lp | Kind::Pole4Hp => 2,
             Kind::RbjHp | Kind::RbjBp => 3,
-            Kind::Notch => 4,
+            // the notch's two forms share the biquad state: a lane on its form keeps it
+            Kind::Notch | Kind::Tf3Notch => 4,
         }
     }
 }
@@ -266,7 +277,27 @@ pub fn coefs(kind: Kind, hz: f32, res: f32, rate: f32, forms: Forms) -> [f32; NC
         Kind::Pole4Lp | Kind::Pole4Hp if cfg!(feature = "us-flt-ladder") || FORMS => {
             p4_coefs(p4_f_hz(hz, rate, forms.p4()), res, forms.p4())
         }
+        Kind::RbjBp | Kind::Tf3Notch
+            if cfg!(feature = "us-flt-feedback")
+                && ((kind == Kind::RbjBp && forms.feedback && cfg!(feature = "us-flt-rbj")) || (kind == Kind::Tf3Notch && cfg!(feature = "us-flt-notch"))) =>
+        {
+            // Tunefish 3 (spec §3.5): BW = 1 − clamp(q, 0, 0.95), α = sin ω0/2 · √((A + 1/A)(1/BW − 1) + 2) with the
+            // cookbook's shelf-slope A; constant-skirt band-pass or RBJ notch
+            const A: f32 = 1.059253725;
+            let bw = 1.0 - res.max(0.0).min(0.95);
+            let w0 = 2.0 * core::f32::consts::PI * hz / rate;
+            let (sin, cos) = crate::fm::sincosf(w0);
+            let alpha = sin / 2.0 * libm::sqrtf((A + 1.0 / A) * (1.0 / bw - 1.0) + 2.0);
+            let a0 = 1.0 + alpha;
+            if kind == Kind::RbjBp {
+                [sin / 2.0 / a0, 0.0, -(sin / 2.0) / a0, -2.0 * cos / a0, (1.0 - alpha) / a0]
+            } else {
+                [1.0 / a0, -2.0 * cos / a0, 1.0 / a0, -2.0 * cos / a0, (1.0 - alpha) / a0]
+            }
+        }
         Kind::RbjHp | Kind::RbjBp if cfg!(feature = "us-flt-rbj") => {
+            // Tunefish 3's form takes resonance up to 0.95 (its high-pass law is this one)
+            let q = if forms.feedback && cfg!(feature = "us-flt-feedback") { res.max(0.0).min(0.95) } else { q };
             let w0 = 2.0 * core::f32::consts::PI * hz / rate;
             let (sin, cos) = crate::fm::sincosf(w0);
             // the reference's log₁₀2 (not ln 2) bandwidth law
@@ -355,7 +386,7 @@ impl Slot {
             match kind {
                 Kind::SvfLp => (s[0], s[2]) = (x, x),
                 Kind::SvfHp | Kind::SvfBp | Kind::SvfNotch | Kind::SvfAll => s[2] = x,
-                Kind::Pole4Lp | Kind::Pole4Hp | Kind::RbjHp | Kind::RbjBp | Kind::Notch => s.iter_mut().for_each(|v| *v = x),
+                Kind::Pole4Lp | Kind::Pole4Hp | Kind::RbjHp | Kind::RbjBp | Kind::Notch | Kind::Tf3Notch => s.iter_mut().for_each(|v| *v = x),
                 Kind::Off => {}
             }
         }
@@ -476,6 +507,7 @@ pub fn run(kind: Kind, c: &[f32; NC], s: &mut [f32; NS], x: f32) -> f32 {
             if kind == Kind::Pole4Hp { x - y } else { y }
         }
         Kind::RbjHp | Kind::RbjBp if cfg!(feature = "us-flt-rbj") => biquad(c, s, x),
+        Kind::Tf3Notch if cfg!(feature = "us-flt-notch") => biquad(c, s, x),
         Kind::Notch if cfg!(feature = "us-flt-notch") => {
             let y = biquad(c, s, s[4]);
             s[4] = x;
@@ -544,6 +576,63 @@ mod tests {
 
     fn worst(a: &[f32], b: &[f32]) -> f32 {
         a.iter().zip(b).fold(0.0f32, |m, (x, y)| m.max((x - y).abs()))
+    }
+
+    /// Tunefish 3's form (form 1 on the RBJ and notch types; add-tf3-import).
+    const TF3: Forms = Forms { feedback: true, held: false, steps: false };
+
+    fn gain_in(kind: Kind, forms: Forms, cutoff: f32, res: f32, hz: f32) -> f32 {
+        let n = (RATE as usize) / 2;
+        let x: std::vec::Vec<f32> = (0..n).map(|i| libm::sinf(2.0 * core::f32::consts::PI * hz * i as f32 / RATE)).collect();
+        let mut f = Slot::new();
+        f.set(kind, &coefs(kind, cutoff, res, RATE, forms));
+        let y: std::vec::Vec<f32> = x.iter().map(|v| f.process(*v, *v).0).collect();
+        let rms = |v: &[f32]| (v.iter().map(|a| (*a as f64).powi(2)).sum::<f64>() / v.len() as f64).sqrt();
+        (rms(&y[n / 2..]) / rms(&x[n / 2..])) as f32
+    }
+
+    #[cfg(all(feature = "us-flt-rbj", feature = "us-flt-feedback"))]
+    #[test]
+    fn tunefish_3_band_pass_is_the_shelf_slope_alpha_with_constant_skirt_gain() {
+        // spec §3.5: α = sin ω0/2 · √((A + 1/A)(1/BW − 1) + 2), BW = 1 − clamp(q, 0, 0.95); peak gain = Q = 1/√(…)
+        let a = 1.059253725f64;
+        for q in [0.0f32, 0.5, 0.95] {
+            let s = ((a + 1.0 / a) * (1.0 / (1.0 - q as f64) - 1.0) + 2.0).sqrt();
+            let g = gain_in(Kind::RbjBp, TF3, 1000.0, q, 1000.0) as f64;
+            assert!((g - 1.0 / s).abs() < 0.01, "q {q}: peak gain {g}, want {}", 1.0 / s);
+        }
+        // 0.99 clamps to 0.95
+        assert_eq!(coefs(Kind::RbjBp, 1000.0, 0.99, RATE, TF3), coefs(Kind::RbjBp, 1000.0, 0.95, RATE, TF3));
+        // wide: an octave away the low-Q band-pass is only a few dB down
+        assert!(db(gain_in(Kind::RbjBp, TF3, 1000.0, 0.5, 2000.0)) > db(gain_in(Kind::RbjBp, TF3, 1000.0, 0.5, 1000.0)) - 6.0);
+        // form 0 keeps the unified (Tunefish 4) band-pass
+        assert_ne!(coefs(Kind::RbjBp, 1000.0, 0.5, RATE, TF3), coefs(Kind::RbjBp, 1000.0, 0.5, RATE, Forms::PLAIN));
+    }
+
+    #[cfg(all(feature = "us-flt-rbj", feature = "us-flt-feedback"))]
+    #[test]
+    fn tunefish_3_high_pass_takes_resonance_up_to_0_95() {
+        assert_ne!(coefs(Kind::RbjHp, 1000.0, 0.95, RATE, TF3), coefs(Kind::RbjHp, 1000.0, 0.85, RATE, TF3));
+        assert_eq!(coefs(Kind::RbjHp, 1000.0, 0.5, RATE, TF3), coefs(Kind::RbjHp, 1000.0, 0.5, RATE, Forms::PLAIN), "same law below 0.85");
+    }
+
+    #[cfg(all(feature = "us-flt-notch", feature = "us-flt-feedback"))]
+    #[test]
+    fn tunefish_3_notch_is_an_rbj_notch_without_latency() {
+        assert_eq!(Kind::check(crate::params::filter_type::NOTCH, TF3), Ok(Kind::Tf3Notch));
+        assert_eq!(Kind::check(crate::params::filter_type::NOTCH, Forms::PLAIN), Ok(Kind::Notch));
+        assert!(db(gain_in(Kind::Tf3Notch, TF3, 1000.0, 0.5, 1000.0)) < -40.0, "a zero at the centre");
+        let a = 1.059253725f64;
+        let s = ((a + 1.0 / a) * (1.0 / 0.5 - 1.0) + 2.0).sqrt();
+        let w0 = 2.0 * core::f64::consts::PI * 1000.0 / 44100.0;
+        let alpha = w0.sin() / 2.0 * s;
+        let c = coefs(Kind::Tf3Notch, 1000.0, 0.5, RATE, TF3);
+        assert!((c[0] as f64 - 1.0 / (1.0 + alpha)).abs() < 1e-6, "b0 = 1/a0");
+        // no latency: the first output is b0·x
+        let mut f = Slot::new();
+        f.set(Kind::Tf3Notch, &c);
+        assert_eq!(f.process(1.0, 1.0).0, c[0]);        // the notch's forms are one family: a form lane keeps the state
+        assert_eq!(Kind::Notch.family(), Kind::Tf3Notch.family());
     }
 
     /// WaveSabre's state-variable filter in f64, written out independently.

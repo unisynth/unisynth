@@ -58,6 +58,14 @@ main { flex: 1; display: grid; grid-template-columns: var(--browser-w, 200px) 6p
 #browser li button[aria-current="true"] { background: var(--sel); }
 #browser .kind { font-size: 11px; color: var(--dim); }
 #browser button[aria-current="true"] .kind { color: var(--fg); opacity: .75; }
+/* Song rows: title + length, composer (or file name) + track count, as in the songs page player */
+#song-q { width: 100%; font-size: 12px; margin-bottom: 6px; }
+#browser #songlist button { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; row-gap: 1px; padding: 4px 6px; }
+#songlist .tt, #songlist .by { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#songlist .du { font-size: 11px; color: var(--dim); text-align: right; }
+#songlist .by { font-size: 11px; color: var(--dim); }
+#songlist button[aria-current="true"] .by, #songlist button[aria-current="true"] .du { color: var(--fg); opacity: .75; }
+#songs-none { font-size: 12px; margin: 4px 6px; }
 
 /* Work area */
 #work { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
@@ -339,6 +347,12 @@ footer kbd { font-family: inherit; border: 1px solid var(--line); border-radius:
 .grp.slot .rt { font-size: 10px; padding-left: 20px; margin-top: -3px; color: color-mix(in srgb, var(--acc) 80%, var(--fg)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .grp.slot.unrouted .rt { color: var(--dim); }
 .grp.slot.unrouted:not(.off) .knobs { opacity: .55; }
+/* a Points slot's points (add-tf3-import): a column per point, then the last segment */
+.pts { display: flex; gap: 4px; margin: 4px 0 6px; flex-wrap: wrap; }
+.pts .pt { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 2px 3px; border: 1px solid var(--line); border-radius: 4px; }
+.pts .pth { font-size: 10px; color: var(--dim); }
+.pts .pt .pchoice { display: flex; flex-direction: column; align-items: center; gap: 0; font-size: 10px; }
+.pts .pt .pchoice select { width: 64px; font-size: 10px; }
 .swap { align-self: center; font-size: 10px; padding: 0 6px; line-height: 13px; color: var(--dim); margin: -2px 0; }
 .mm { border-collapse: collapse; font-size: 11px; width: 100%; }
 .mm th { font-weight: 400; color: var(--dim); font-size: 10px; text-align: left; padding: 0 2px; }
@@ -382,3 +396,28 @@ footer kbd { font-family: inherit; border: 1px solid var(--line); border-radius:
 .smpwrap { position: relative; align-self: flex-start; }
 .smpwrap .smpnote { position: absolute; left: 6px; top: 50%; transform: translateY(-50%); font-size: 10px; color: var(--dim); pointer-events: none; white-space: nowrap; overflow: hidden; max-width: calc(100% - 12px); }
 .smpwrap .smplive { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+/* Phone width: one column, the browser becomes a drawer opened by the transport bar's Songs button (ui/App.tsx initDrawer) */
+#browse-btn { display: none; }
+#scrim { position: fixed; inset: 0; z-index: 40; background: #0009; }
+#scrim[hidden] { display: none; }
+@media (max-width: 760px) {
+  :root { --hdr-w: 168px; }
+  body { height: 100dvh; }
+  #browse-btn { display: inline-block; flex: none; }
+  main { grid-template-columns: minmax(0, 1fr); }
+  #split-v { display: none; }
+  #browser { position: fixed; top: 0; bottom: 0; left: 0; z-index: 45; width: min(86vw, 340px); background: var(--panel); border-right: 1px solid var(--line);
+    box-shadow: 0 0 24px #000a; transform: translateX(-105%); visibility: hidden; transition: transform .18s ease-out, visibility 0s .18s; }
+  #browser.open { transform: none; visibility: visible; transition: transform .18s ease-out; }
+  footer { flex-wrap: wrap; row-gap: 2px; }
+  footer .hints, footer .rate { display: none; }
+  .thdr .btns button { padding: 0 3px; }
+}
+@media (prefers-reduced-motion: reduce) { #browser, #browser.open { transition: none; } }
+/* Touch: finger-sized targets in the bars and lists */
+@media (pointer: coarse) {
+  header button, #tabs button { min-height: 36px; min-width: 36px; }
+  #songlist button, #lib li button { padding-top: 8px; padding-bottom: 8px; }
+  #song-q, #lib-q { font-size: 16px; }  /* 16px: iOS does not zoom into the field */
+}

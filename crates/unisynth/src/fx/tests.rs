@@ -256,6 +256,7 @@ fn a_mode_the_build_lacks_is_named_at_load() {
             m::FX_COMPRESSOR_LOOKAHEAD => cfg!(feature = "us-fx-compressor-lookahead"),
             m::FX_DISTORTION_WRAP => cfg!(feature = "us-fx-distortion-wrap"),
             m::FX_FLANGER_COMB => cfg!(feature = "us-fx-flanger-comb"),
+            m::FX_CHORUS_TF3 => cfg!(feature = "us-fx-chorus-tf3"),
             _ => false,
         };
         if built {

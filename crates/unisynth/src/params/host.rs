@@ -194,6 +194,14 @@ pub fn law_of(i: usize) -> Law {
     if (i >= QUIRK && i < QUIRK + quirk::LEN) || i == ch::ON || i == ch::DC_FILTER || i == speech::ON {
         return Choice(2);
     }
+    if let Some(fld) = group(PTS, pt::LEN, OSC_SLOTS) {
+        return match fld {
+            pt::COUNT_ => Count(1, 4),
+            pt::LAYERS => Count(1, 11),
+            pt::DETUNE | pt::SPREAD => Shape,
+            _ => Choice(3),
+        };
+    }
     if i < COUNT {
         return Steps;
     }
@@ -261,8 +269,12 @@ pub fn name(i: usize) -> String {
         slot(MOD2 - MOD_SLOTS1 * m::LEN, m::LEN, &M, "mod")
     } else if i < SPEECH {
         format!("ctl.cc{}", i - CC + 2)
-    } else if i < COUNT {
+    } else if i < PTS {
         format!("speech.{}", ["on", "select", "pitch"][i - SPEECH])
+    } else if i < COUNT {
+        const P: [&str; pt::LEN] =
+            ["points", "mode1", "mode2", "mode3", "mode4", "mode_last", "layers", "layer_detune", "layer_spread"];
+        slot(PTS, pt::LEN, &P, "osc")
     } else {
         format!("param{i}")
     }

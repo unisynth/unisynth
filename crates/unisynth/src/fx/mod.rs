@@ -8,7 +8,7 @@
 //! | 66 crusher | 0 crusher (WaveSabre) |
 //! | 67 EQ | 0 parametric (WaveSabre Leveller), 1 3band (Tunefish) |
 //! | 68 delay | 0 tempo (WaveSabre Echo), 1 ms (Tunefish) |
-//! | 69 chorus | 0 chorus (Tunefish) |
+//! | 69 chorus | 0 chorus (Tunefish), 1 one tap (Tunefish 3, change add-tf3-import) |
 //! | 70 flanger | 0 phaser (WaveSabre Twister), 1 ring (Tunefish) |
 //! | 71 reverb | 0 freeverb (WaveSabre Cathedral), 1 compact (Tunefish), 2 rooms (WaveSabre Chamber) |
 //! | 72 compressor | 0 compressor (WaveSabre Smasher) |
@@ -65,6 +65,8 @@ mod svf;
 mod phaser;
 #[cfg(feature = "us-fx-chorus")]
 mod chorus;
+#[cfg(feature = "us-fx-chorus-tf3")]
+mod chorus3;
 #[cfg(feature = "us-fx-delay-ms")]
 mod delay_ms;
 #[cfg(feature = "us-fx-distortion-power")]
@@ -129,7 +131,7 @@ trait Effect<'a>: Sized {
 pub const TAG: [u8; 4] = 0xFFFF_FF03u32.to_le_bytes();
 
 /// `(kind, mode, module id)` for every mode of every kind, in mode order (the mode id is its `Choice(n)` position).
-const MODES: [(u8, usize, u8); 22] = [
+const MODES: [(u8, usize, u8); 23] = [
     (kind::DISTORTION, 0, m::FX_DISTORTION_SHAPER),
     (kind::DISTORTION, 1, m::FX_DISTORTION_CURVE),
     (kind::DISTORTION, 2, m::FX_DISTORTION_POWER),
@@ -153,6 +155,8 @@ const MODES: [(u8, usize, u8); 22] = [
     // change add-cauldron-xm-import: stored at the free positions (distortion 0.25, flanger 0.5)
     (kind::DISTORTION, 3, m::FX_DISTORTION_WRAP),
     (kind::FLANGER, 2, m::FX_FLANGER_COMB),
+    // change add-tf3-import: the chorus had one mode, stored as 0, which stays mode 0
+    (kind::CHORUS, 1, m::FX_CHORUS_TF3),
 ];
 
 /// Modes per kind before change add-v2-import: the old layout's expanded mode choice (the migration decodes it).
@@ -294,6 +298,7 @@ modes! {
     "us-fx-compressor-lookahead" COMPRESSOR 1 CompressorV2 v2::CompressorV2<'a>,
     "us-fx-distortion-wrap" DISTORTION 3 Wrap wrap::Wrap,
     "us-fx-flanger-comb" FLANGER 2 Comb comb::Comb<'a>,
+    "us-fx-chorus-tf3" CHORUS 1 Chorus3 chorus3::Chorus3<'a>,
 }
 
 /// The chunk's form: whole values and the version tag (a trusted build: generated songs, checked on the host). A

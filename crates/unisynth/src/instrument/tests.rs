@@ -878,6 +878,25 @@ fn lfo_1hz(k: usize, synced: bool) -> Vec<(usize, f32)> {
     ]
 }
 
+/// v3-layout edits: LFO `k` at 1 Hz, depth 1, sine, key-synced (add-tf3-import tests).
+#[allow(dead_code)]
+fn lfo_1hz_v3(k: usize) -> Vec<(usize, f32)> {
+    use crate::params as p3;
+    vec![(p3::lfo(k, p3::l::RATE), 0.5), (p3::lfo(k, p3::l::DEPTH), 1.0), (p3::lfo(k, p3::l::SHAPE), 0.0), (p3::lfo(k, p3::l::SYNC), 1.0)]
+}
+
+/// v3-layout edits: a Scale route of mod slot `i` (add-tf3-import tests).
+#[allow(dead_code)]
+fn route_v3(i: usize, src: usize, tgt: u8, amount: f32) -> Vec<(usize, f32)> {
+    use crate::params as p3;
+    vec![
+        (p3::modslot(i, p3::m::SOURCE), p3::choice_value(src, source::COUNT)),
+        (p3::modslot(i, p3::m::TARGET), inv::inv_index(tgt)),
+        (p3::modslot(i, p3::m::OPERATION), p3::choice_value(crate::modmx::op::SCALE, crate::modmx::op::COUNT)),
+        (p3::modslot(i, p3::m::AMOUNT), inv::inv_scale_amount(amount)),
+    ]
+}
+
 fn merged(parts: &[Vec<(usize, f32)>]) -> Vec<(usize, f32)> {
     parts.iter().flatten().copied().collect()
 }
@@ -1048,6 +1067,12 @@ mod osc_blit;
 
 #[cfg(all(feature = "us-osc-pm", feature = "us-osc-wt"))]
 mod osc_wt;
+
+#[cfg(all(feature = "us-osc-pm", feature = "us-osc-points", feature = "us-chunk-wide"))]
+mod osc_pts;
+
+#[cfg(all(feature = "us-osc-pm", feature = "us-osc-pad"))]
+mod osc_pad;
 
 #[cfg(all(feature = "us-osc-pm", feature = "us-osc-sample", feature = "us-sample-dls", feature = "us-sample-gsm"))]
 mod osc_sample;

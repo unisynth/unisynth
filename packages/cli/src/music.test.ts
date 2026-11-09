@@ -131,6 +131,22 @@ test("library attaches converted entries only from a us-library/2 file (unify-v2
   }
 });
 
+test("library lists the converted Tunefish 3 presets by number, with name and devices (add-tf3-import)", () => {
+  const f = join(root, "project/music/.library.json");
+  const dev = { devices: [{ kind: 64, values: {} }], warnings: [] };
+  writeFileSync(f, JSON.stringify({ format: "us-library/2", tunefish: {}, wavesabre: {}, tunefish3: { "12": { ...dev, name: "Bass" }, "3": { ...dev, name: "Snare" }, "5": { name: "Broken" } } }));
+  try {
+    const cat = library(root, loadSynth(), { GM_DLS: "", SYNTH_LAB: "/nonexistent" } as NodeJS.ProcessEnv);
+    expect(cat.tunefish3.programs.map((p: any) => [p.n, p.name])).toEqual([[3, "Snare"], [12, "Bass"]]); // unconverted left out
+    expect(cat.tunefish3.programs[0].conv.devices[0].kind).toBe(64);
+    expect(cat.counts.tunefish3).toBe(2);
+    writeFileSync(f, JSON.stringify({ format: "us-library/2", tunefish: {}, wavesabre: {} }));
+    expect(library(root, loadSynth(), { GM_DLS: "", SYNTH_LAB: "/nonexistent" } as NodeJS.ProcessEnv).tunefish3).toBeUndefined();
+  } finally {
+    rmSync(f);
+  }
+});
+
 test("/api/bank is 404 without a bank and the bytes with one", async () => {
   expect((await api("/api/bank")).status).toBe(404);
   const fake = join(root, "fake.dls");

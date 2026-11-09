@@ -13,9 +13,9 @@ fn bytes() -> impl Iterator<Item = f32> {
 
 #[test]
 fn groups_are_contiguous_and_fill_the_patch() {
-    // the frozen v3 layout (design "v3 layout (frozen, task 6.4)")
-    assert_eq!([VS, OSC, NOISE, FILT, ENV, LFO, MOD, CTL, DRIVE, QUIRK, STRIP, MOD2, CC, SPEECH, COUNT],
-               [16, 23, 98, 102, 126, 162, 178, 218, 221, 225, 230, 261, 285, 291, 294]);
+    // the frozen v3 layout (design "v3 layout (frozen, task 6.4)"), then the add-tf3-import point fields
+    assert_eq!([VS, OSC, NOISE, FILT, ENV, LFO, MOD, CTL, DRIVE, QUIRK, STRIP, MOD2, CC, SPEECH, PTS, COUNT],
+               [16, 23, 98, 102, 126, 162, 178, 218, 221, 225, 230, 261, 285, 291, 294, 321]);
     assert_eq!((vs::AMP_SOURCE, vs::BALANCE), (16, 22));
     assert_eq!((o::LEN, f::LEN, e::LEN, l::LEN, m::LEN), (25, 6, 9, 8, 4));
     assert_eq!(osc(2, o::LEN - 1) + 1, NOISE);
@@ -28,7 +28,9 @@ fn groups_are_contiguous_and_fill_the_patch() {
     assert_eq!(STRIP + ch::LEN, MOD2);
     assert_eq!(ch::COMP + ch::COMP_LEN, MOD2);
     assert_eq!(cc(7) + 1, SPEECH);
-    assert_eq!(speech::PITCH + 1, COUNT);
+    assert_eq!(speech::PITCH + 1, PTS);
+    assert_eq!(pts(2, pt::LEN - 1) + 1, COUNT);
+    assert_eq!(pt::MODE + pt::MODES, pt::LAYERS);
     assert_eq!(o::SHAPE + o::SHAPES, o::SAMPLE);
     // the one-byte range ends inside the strip, after its ten most-set fields
     assert_eq!(ch::FXROUTE + 1, crate::chunk::SHORT);
@@ -56,6 +58,9 @@ fn names_are_unique_and_readable() {
     assert_eq!(names[ch::DC_FILTER], "strip.dc_filter");
     assert_eq!(names[osc(2, o::COMBINE)], "osc3.combine");
     assert_eq!(names[ch::COMP + 4], "strip.comp_threshold");
+    assert_eq!(names[pts(0, pt::COUNT_)], "osc1.points");
+    assert_eq!(names[pts(2, pt::MODE + 4)], "osc3.mode_last");
+    assert_eq!(names[pts(1, pt::DETUNE)], "osc2.layer_detune");
     assert!(names.iter().all(|n| !n.starts_with("param")), "every index has a real name");
 }
 
@@ -65,7 +70,11 @@ fn every_index_has_a_law_of_the_right_kind() {
     assert_eq!(law_of(v::MASTER), Gain);
     assert_eq!(law_of(v::CAPACITY), Count(1, 64));
     assert_eq!(law_of(v::UNISON), Count(1, 16));
-    assert_eq!(law_of(osc(2, o::TYPE)), Choice(13));
+    assert_eq!(law_of(osc(2, o::TYPE)), Choice(25));
+    assert_eq!(law_of(pts(1, pt::COUNT_)), Count(1, 4));
+    assert_eq!(law_of(pts(1, pt::MODE + 4)), Choice(3));
+    assert_eq!(law_of(pts(2, pt::LAYERS)), Count(1, 11));
+    assert_eq!(law_of(pts(0, pt::SPREAD)), Shape);
     assert_eq!(law_of(osc(0, o::SHAPE + 4)), Shape);
     assert_eq!(law_of(osc(1, o::FEEDBACK)), Feedback);
     assert_eq!(law_of(NOISE + n::HP), Cutoff);
@@ -501,3 +510,109 @@ fn the_player_reads_no_format_version() {
     assert!(bad.is_empty(), "format-version reads in the player:\n{}", bad.join("\n"));
 }
 
+
+// ---- oscillator types (change add-tf3-import, design D5) ----
+
+#[test]
+fn every_earlier_type_keeps_its_stored_value_at_twice_its_old_id() {
+    let old = ["OFF", "PM", "BLIT", "WAVETABLE", "SAMPLER", "NAIVE_SAW", "NAIVE_PULSE", "SINE", "NOISE", "FM", "AUX_A", "AUX_B", "CLOCKED"];
+    let ids = [osc_type::OFF, osc_type::PM, osc_type::BLIT, osc_type::WAVETABLE, osc_type::SAMPLER, osc_type::NAIVE_SAW,
+        osc_type::NAIVE_PULSE, osc_type::SINE, osc_type::NOISE, osc_type::FM, osc_type::AUX_A, osc_type::AUX_B, osc_type::CLOCKED];
+    for (k, (&id, name)) in ids.iter().zip(old).enumerate() {
+        let stored = choice_value(k, 13); // the value every chunk before the change holds
+        assert_eq!(id, 2 * k, "{name}");
+        assert_eq!(osc_type::encode(id).to_bits(), stored.to_bits(), "{name}: same bits");
+        assert_eq!(osc_type::decode(stored), id, "{name}");
+        assert!(!osc_type::is_gap(id), "{name}");
+    }
+}
+
+#[test]
+fn new_types_take_odd_positions_and_the_rest_are_gaps() {
+    assert_eq!((osc_type::POINTS, osc_type::PAD, osc_type::COUNT), (1, 3, 25));
+    for t in [osc_type::POINTS, osc_type::PAD] {
+        assert_eq!(osc_type::decode(osc_type::encode(t)), t);
+        assert!(!osc_type::is_gap(t) && !osc_type::is_naive(t));
+    }
+    let gaps: std::vec::Vec<usize> = (0..osc_type::COUNT + 2).filter(|&t| osc_type::is_gap(t)).collect();
+    assert_eq!(gaps, [5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 26]);
+}
+
+#[test]
+fn naive_types_are_the_even_ids_from_saw_to_aux_b() {
+    let naive: std::vec::Vec<usize> = (0..osc_type::COUNT).filter(|&t| osc_type::is_naive(t)).collect();
+    assert_eq!(naive, [10, 12, 14, 16, 18, 20, 22]);
+    let modes: std::vec::Vec<u8> = naive.iter().map(|&t| crate::osc::naive_mode(t)).collect();
+    assert_eq!(modes, [1, 2, 3, 4, 5, 6, 7]);
+}
+
+#[test]
+#[cfg(feature = "us-chunk-wide")] // the point fields have two-byte indices
+fn point_fields_survive_a_chunk_round_trip() {
+    let mut v = DEFAULTS;
+    v[osc(0, o::TYPE)] = osc_type::encode(osc_type::POINTS);
+    v[osc(1, o::TYPE)] = osc_type::encode(osc_type::PAD);
+    v[osc(0, o::SHAPE + shape::PTS_POINT + 3)] = 0.7;
+    v[osc(1, o::SHAPE + shape::PAD_PROFILE)] = choice_value(3, 4);
+    v[pts(0, pt::COUNT_)] = 2.0 / 3.0; // 3 points
+    for (k, m) in [pt::STEP, pt::LINEAR, pt::SPLINE, pt::LINEAR, pt::SPLINE].into_iter().enumerate() {
+        v[pts(0, pt::MODE + k)] = choice_value(m, 3);
+    }
+    v[pts(0, pt::LAYERS)] = 0.4; // 5 layers
+    v[pts(0, pt::DETUNE)] = 0.3;
+    v[pts(1, pt::DETUNE)] = 0.2;
+    v[pts(2, pt::SPREAD)] = 0.9;
+    let c = crate::chunk::encode(&v, &[]);
+    let back = crate::chunk::Chunk::parse(&c).unwrap().values();
+    assert_eq!(back.map(f32::to_bits), v.map(f32::to_bits));
+    assert_eq!(osc_type::decode(back[osc(0, o::TYPE)]), osc_type::POINTS);
+    assert_eq!(osc_type::decode(back[osc(1, o::TYPE)]), osc_type::PAD);
+    assert_eq!(law::count(back[pts(0, pt::COUNT_)], 1, 4), 3);
+    assert_eq!(law::count(back[pts(0, pt::LAYERS)], 1, 11), 5);
+    let modes: std::vec::Vec<usize> = (0..pt::MODES).map(|k| law::choice(back[pts(0, pt::MODE + k)], 3)).collect();
+    assert_eq!(modes, [0, 1, 2, 1, 2]);
+}
+
+#[test]
+#[cfg(feature = "std")]
+fn needs_names_the_new_modules_and_refuses_gaps_like_the_loader() {
+    let with = |t: usize| {
+        let mut v = DEFAULTS;
+        v[osc(0, o::TYPE)] = osc_type::encode(t);
+        crate::needs::instrument(&crate::chunk::encode(&v, &[]), &|_| None)
+    };
+    assert!(with(osc_type::POINTS).unwrap().contains(&crate::module::OSC_POINTS));
+    assert!(with(osc_type::PAD).unwrap().contains(&crate::module::OSC_PAD));
+    assert!(!with(osc_type::POINTS).unwrap().contains(&crate::module::CHUNK_WIDE), "no point field set");
+    assert!(matches!(with(9), Err(synth_core::mix::LoadError::BadChunk)));
+}
+
+#[test]
+fn a_pad_slots_table_inputs_are_load_time_values() {
+    let mut v = [0.0f32; COUNT];
+    v[osc(1, o::TYPE)] = osc_type::encode(osc_type::PAD);
+    for k in [shape::PAD_BANDWIDTH, shape::PAD_SCALE, shape::PAD_DAMP, shape::PAD_HARMONICS, shape::PAD_PROFILE] {
+        assert!(is_load_time(&v, osc(1, o::SHAPE + k)), "PAD slot shape {k} builds the table");
+        assert!(!is_load_time(&v, osc(0, o::SHAPE + k)), "slot 0 is off: shape {k} is live");
+    }
+    assert!(!is_load_time(&v, osc(1, o::SHAPE + shape::PAD_DRIVE)), "drive plays live");
+    assert!(!is_load_time(&v, osc(1, o::GAIN)));
+    assert!(is_load_time(&v, osc(0, o::TYPE)), "structural parameters stay load-time");
+    v[osc(1, o::TYPE)] = osc_type::encode(osc_type::POINTS);
+    assert!(!is_load_time(&v, osc(1, o::SHAPE + shape::PAD_BANDWIDTH)), "a points slot's shape plays live");
+}
+
+#[cfg(feature = "std")]
+#[test]
+fn needs_names_the_feedback_module_for_tunefish_3_filter_forms() {
+    let with = |t: usize, form: f32| {
+        let mut v = DEFAULTS;
+        v[filt(0, f::TYPE)] = filter_type::encode(t);
+        v[filt(0, f::FORM)] = form;
+        crate::needs::instrument(&crate::chunk::encode(&v, &[]), &|_| None).unwrap()
+    };
+    for t in [filter_type::RBJ_BP, filter_type::RBJ_HP, filter_type::NOTCH] {
+        assert!(!with(t, 0.0).contains(&crate::module::FILTER_FEEDBACK), "type {t}, form 0");
+        assert!(with(t, 1.0).contains(&crate::module::FILTER_FEEDBACK), "type {t}: Tunefish 3's form");
+    }
+}

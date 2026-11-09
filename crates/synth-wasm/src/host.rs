@@ -1020,7 +1020,8 @@ fn diff(a: &(u8, Vec<u8>), b: &(u8, Vec<u8>)) -> Diff {
         let mut out = vec![];
         for i in 0..params::COUNT {
             if vx[i].to_bits() != vy[i].to_bits() {
-                if params::is_structural(i) {
+                // structural values and a PAD slot's table inputs take effect at load
+                if params::is_load_time(&vx, i) || params::is_load_time(&vy, i) {
                     return Diff::Rebuild;
                 }
                 out.push((i, vx[i]));

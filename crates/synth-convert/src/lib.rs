@@ -5,6 +5,7 @@
 pub mod auto;
 pub mod capacity;
 pub mod cauldron;
+pub mod e3prj;
 pub mod features;
 pub mod fx;
 pub mod instr;
@@ -13,6 +14,8 @@ pub mod model;
 pub mod patch;
 pub mod rust;
 pub mod tf;
+pub mod tf3;
+pub mod tf3song;
 pub mod tfm;
 pub mod v2conv;
 pub mod v2m;

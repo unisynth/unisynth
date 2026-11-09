@@ -175,6 +175,13 @@ pub fn wt_spread(p: f32) -> f32 {
     10.0 * q * q
 }
 
+/// Point-oscillator drive before the hard clip: `1 + 32p³` (Tunefish 3's oscillator).
+#[inline]
+pub fn pts_drive(p: f32) -> f32 {
+    let p = c01(p);
+    1.0 + 32.0 * p * p * p
+}
+
 /// Wavetable drive before the hard clip: `1 + 32p`.
 #[inline]
 pub fn wt_drive(p: f32) -> f32 {

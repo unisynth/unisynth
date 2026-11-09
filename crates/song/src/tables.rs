@@ -86,6 +86,7 @@ pub const EFFECT_MODES: &[(u8, usize)] = &[
     (kind::COMPRESSOR, 1),
     (kind::DISTORTION, 3),
     (kind::FLANGER, 2),
+    (kind::CHORUS, 1),
 ];
 
 pub fn kind_name(k: u8) -> &'static str {
@@ -110,7 +111,7 @@ pub fn mode_names(k: u8) -> &'static [&'static str] {
         kind::CRUSHER => &["Crusher"],
         kind::EQ => &["Parametric", "3-band", "Cut"],
         kind::DELAY => &["Tempo", "Ms", "Modulated"],
-        kind::CHORUS => &["Chorus"],
+        kind::CHORUS => &["Chorus", "One tap"],
         kind::FLANGER => &["Phaser", "Ring", "Comb"],
         kind::REVERB => &["Freeverb", "Compact", "Rooms", "Comb"],
         kind::COMPRESSOR => &["Compressor", "Look-ahead"],
@@ -150,6 +151,8 @@ fn effect_params(k: u8, mode: usize) -> Vec<(&'static str, f32)> {
         ],
         (kind::DELAY, 1) => vec![("left_time", 0.0), ("right_time", 0.0), ("decay", 0.0)],
         (kind::CHORUS, 0) => vec![("rate", 0.0), ("depth", 0.0), ("gain", 0.0)],
+        // the one-tap chorus (change add-tf3-import)
+        (kind::CHORUS, 1) => vec![("rate", 0.0), ("depth", 0.0), ("gain", 0.0)],
         (kind::FLANGER, 0) => vec![
             ("type", 0.0), ("amount", 0.0), ("feedback", 0.0), ("spread", 0.0), ("vibrato_freq", 0.0),
             ("vibrato_amount", 0.0), ("low_cut", hz(20.0)), ("high_cut", hz(19_980.0)), ("dry_wet", 0.5),
@@ -202,10 +205,13 @@ fn choice_options(i: usize, law: Law) -> Vec<String> {
             let at = |b: usize, stride: usize, slots: usize, fld: usize| base(b, stride, slots) && (i - b) % stride == fld;
             let in_mod = (0..params::MOD_SLOTS).any(|s| params::modslot(s, 0) <= i && i < params::modslot(s, 0) + params::m::LEN);
             if at(params::OSC, params::o::LEN, params::OSC_SLOTS, params::o::TYPE) {
+                // the id is the stored position; free positions of the expanded choice show "—" (change add-tf3-import)
                 &[
-                    "Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive saw/tri", "Naive pulse", "Sine", "Coloured noise", "FM", "Aux in A",
-                    "Aux in B", "Clocked",
+                    "Off", "Points", "Phase mod", "PAD table", "Saw/pulse", "—", "Wavetable", "—", "Sampler", "—", "Naive saw/tri", "—", "Naive pulse",
+                    "—", "Sine", "—", "Coloured noise", "—", "FM", "—", "Aux in A", "—", "Aux in B", "—", "Clocked",
                 ]
+            } else if i >= params::PTS && i < params::COUNT && n == 3 {
+                &["Step", "Linear", "Spline"]
             } else if at(params::OSC, params::o::LEN, params::OSC_SLOTS, params::o::COMBINE) {
                 &["Add", "Multiply (ring)", "Replace"]
             } else if at(params::OSC, params::o::LEN, params::OSC_SLOTS, params::o::LAW) {

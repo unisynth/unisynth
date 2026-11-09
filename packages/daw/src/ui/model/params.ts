@@ -30,8 +30,8 @@ export const modeOf = (d: Device): number => { const r = raw(d); return r.kind =
 export const tableOf = (d: Device): Table | undefined => { const k = raw(d).kind, m = modeOf(d); return TABLES.find((t) => t.kind === k && t.mode === m); };
 export const paramOf = (d: Device, name: string): Param | undefined => tableOf(d)?.params.find((p) => p.name === name);
 export const devName = (d: Device): string => d.kind === 64 ? (d.preset || "Unisynth") : tableOf(d)?.label ?? `kind ${d.kind}`;
-/** Automation targets: every non-structural parameter of a device. */
-export const autoParams = (d: Device): Param[] => (tableOf(d)?.params || []).filter((p) => !p.structural && !p.raw);
+/** Automation targets: every parameter of a device that plays live (not structural, raw or a PAD table input). */
+export const autoParams = (d: Device): Param[] => (tableOf(d)?.params || []).filter((p) => !loadTime(d, p) && !p.raw);
 /** Effects that can be added (every table but the instrument's). */
 export const effectChoices = (): Table[] => TABLES.filter((tb) => tb.kind !== 64);
 
@@ -46,10 +46,27 @@ export function optName(d: Device, name: string): string | undefined { const p =
 export function envRate(v: number): boolean { const o = ip("env1.law").options; return o[choice(v, o.length)] === "Rate"; }
 /** The stored value of a choice parameter's option `label` (from the engine's table, so no encoding is assumed here). */
 export function optValue(name: string, label: string): number { const o = ip(name).options || [], i = o.indexOf(label); return i <= 0 || o.length < 2 ? 0 : i / (o.length - 1); }
-/** Oscillator kind id (unisynth `osc_type`): 0 Off … 4 Sampler, 5–11 the naive generators, 12 Clocked. */
+/** The label of a free position of an expanded choice (the engine's tables; never offered). */
+export const GAP = "—";
+/**
+ * Oscillator kind of slot `i`, by its option label (not the engine's stored position, which add-tf3-import expanded):
+ * 0 Off … 4 Sampler, 5–11 the naive generators, 12 Clocked, 13 Points, 14 PAD table.
+ */
 export function oscType(d: Device, i: number): number {
   return Math.max(0, ["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive saw/tri", "Naive pulse", "Sine", "Coloured noise", "FM",
-    "Aux in A", "Aux in B", "Clocked"].indexOf(optName(d, `osc${i}.type`) ?? ""));
+    "Aux in A", "Aux in B", "Clocked", "Points", "PAD table"].indexOf(optName(d, `osc${i}.type`) ?? ""));
+}
+/** PAD table profiles (`osc<i>.s4` of a PAD slot, a choice over 4; engine `pad`). */
+export const PAD_PROFILES = ["single", "detune", "spread", "gauss"];
+/**
+ * Whether `p` takes effect only when the instrument loads (mirrors unisynth `params::is_load_time`): the structural
+ * parameters and a PAD slot's table inputs (`osc<i>.s0`–`s4`). The engine rebuilds the device when one changes, so a
+ * knob drag on one pushes once, on release, and it is no automation target.
+ */
+export function loadTime(d: Device, p: Param): boolean {
+  if (p.structural) return true;
+  const m = /^osc(\d)\.s[0-4]$/.exec(p.name);
+  return !!m && raw(d).kind === 64 && oscType(d, +m[1]!) === 14;
 }
 /** Sampler screens a slot shows: the waveform, plus loop and pitch when looping. */
 export const smpShapes = (d: Device, i: number): number[] => [0, ...(choice(vget(d, ip(`osc${i}.s1`)), 3) && choice(vget(d, ip(`osc${i}.s2`)), 2) ? [3, 4] : [])];
@@ -122,6 +139,7 @@ export function fmtVal(d: Device, p: Param, v: number): string {
   if (p.options.length) return p.options[choice(v, p.options.length)] ?? String(v);
   if (p.raw) return String(Math.round(v));
   if (/^osc\d\.s[034]$/.test(p.name) && oscType(d, +p.name[3]!) === 4) return (v * 100).toFixed(1) + " %";
+  if (/^osc\d\.s4$/.test(p.name) && oscType(d, +p.name[3]!) === 14) return PAD_PROFILES[choice(v, 4)]!;
   const x = physical(d.kind, modeOf(d), p.index, v), law = p.law;
   if (law === "Cutoff" || law === "FixedHz" || law === "LfoRate") return x >= 1000 ? (x / 1000).toFixed(2) + "k" : x.toFixed(x < 10 ? 2 : 0) + " Hz";
   if (law === "Gain") return x <= 0 ? "−∞ dB" : (20 * Math.log10(x)).toFixed(1) + " dB";
@@ -139,4 +157,40 @@ export function fmtVal(d: Device, p: Param, v: number): string {
   if (law === "Pan") return panText(v);
   if (law.startsWith("Count")) return String(x);
   return (v * 100).toFixed(0) + "%";
+}
+/**
+ * A Points slot's cycle as the engine builds it (unisynth `pts::cycle`): the curve runs from (0, 0) through the points
+ * (offset = fraction of the span left, value 0..1 → −1..1) to (1, 0); each segment steps, runs linear or follows the
+ * natural spline that the original solves one phantom segment past the end, back to (0, 0); the mean is removed.
+ * Returns 257 samples and the points.
+ */
+export function pointCycle(count: number, offset: number[], value: number[], modes: number[]): { wave: number[]; pts: [number, number][] } {
+  const n = Math.max(1, Math.min(4, count)), p: [number, number][] = [[0, 0]];
+  let last = 0;
+  for (let k = 0; k < n; k++) { const x = last + (1 - last) * Math.max(.01, Math.min(.99, offset[k]!)); last = x; p.push([x, value[k]! * 2 - 1]); }
+  p.push([1, 0], [0, 0]);
+  // the natural spline's tridiagonal sweep over every real segment and the phantom one (widths and rises + 1e-4);
+  // built with push and locals (no indexed writes)
+  const m = n + 2, dx = Array.from({ length: m }, (_, j) => p[j + 1]![0] - p[j]![0] + 1e-4), dy = Array.from({ length: m }, (_, j) => p[j + 1]![1] - p[j]![1] + 1e-4);
+  const r: number[] = [0], z: number[] = [0];
+  for (let j = 1; j < m; j++) {
+    let rj = (dy[j]! / dx[j]! - dy[j - 1]! / dx[j - 1]!) * 3, zj = (dx[j - 1]! + dx[j]!) * 2;
+    if (j >= 2) { rj -= r[j - 1]! * dx[j - 1]! / z[j - 1]!; zj -= dx[j - 1]! * dx[j - 1]! / z[j - 1]!; }
+    r.push(rj); z.push(zj);
+  }
+  const back: number[] = [];
+  let next = 0;
+  for (let j = m - 1; j >= 1; j--) { next = (r[j]! - dx[j]! * next) / z[j]!; back.unshift(next); }
+  const b = [0, ...back, 0];
+  const mode = (j: number): number => j <= n ? modes[j - 1]! : modes[4]!;
+  const wave = Array.from({ length: 257 }, (_, s1) => {
+    const x = s1 / 256; let j = 1; while (x > p[j]![0] && j <= n) j++;
+    const k = j - 1, [x0, y0] = p[k]!, [x1, y1] = p[j]!;
+    if (mode(j) === 0) return y0;
+    if (mode(j) === 1) return y0 + (y1 - y0) * ((x - x0) / (x1 - x0));
+    const t = x - x0, c = dy[k]! / dx[k]! - dx[k]! * (b[k + 1]! + 2 * b[k]!) / 3, a = (b[k + 1]! - b[k]!) / (3 * dx[k]!);
+    return ((a * t + b[k]!) * t + c) * t + y0;
+  });
+  const mean = wave.reduce((q, w) => q + w, 0) / 256;
+  return { wave: wave.map((w) => w - mean), pts: p.slice(1, n + 1).map(([x, y]) => [x, y - mean]) };
 }

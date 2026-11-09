@@ -361,7 +361,7 @@ pub fn song_opts(s: &V2m, opts: Opts, warnings: &mut Vec<String>) -> Result<Song
         .collect::<Result<_, _>>()
         .map_err(|e| ConvError::Input(e.to_string()))?;
     for (k, (send, rcv)) in [(p3::ch::SEND_AUXA, p3::ch::RECV_AUXA), (p3::ch::SEND_AUXB, p3::ch::RECV_AUXB)].into_iter().enumerate() {
-        let aux = p3::osc_type::AUX_A + k;
+        let aux = [p3::osc_type::AUX_A, p3::osc_type::AUX_B][k];
         for t in 0..n {
             let v = &vals[t];
             let osc = (0..3).any(|i| p3::osc_type::decode(v[p3::osc(i, p3::o::TYPE)]) == aux);

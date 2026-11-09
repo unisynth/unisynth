@@ -164,7 +164,16 @@ the sound. ▸/▾ collapses a slot (for the session) or a block (remembered in 
 has its own colour; envelope and LFO headers show what the mod matrix routes them to.
 
 Active slots show a screen drawn from their parameters (oscillator waveform, filter response with the cutoff, the
-envelope as the engine plays it, one LFO cycle). While the selected track's instrument sounds, the screens show it
+envelope as the engine plays it, one LFO cycle).
+
+Two oscillator kinds from Tunefish 3 (change add-tf3-import) have their own blocks. A **Points** slot draws its cycle
+as the engine builds it (a dot per point) and shows one column per point under the screen: the point's offset (the
+fraction of the span left after the previous point), its value and the mode of the segment that ends at it (Step,
+Linear, Spline), plus the last segment's mode; the points knob sets how many columns there are (1–4), next to drive
+and the layer knobs. A **PAD table** slot sketches its first partials (amplitudes from damp, widths from bandwidth and
+scale, the profile's shape) above bandwidth, scale, damp, harmonics, profile (named: single, detune, spread, gauss)
+and drive. The table is built when the instrument loads, so its five inputs are no automation targets and a change
+rebuilds the device (once, when the knob is let go; the sounding notes stop); drive plays live. While the selected track's instrument sounds, the screens show it
 live, one colour per voice (chips with the note names in the header, at most 16 voices, loudest first, then "+N"):
 sampler playheads, a dot per voice on each envelope (and a level bar), a dot per voice on each LFO, and on each filter
 the input spectrum in grey, the output in the filter colour and a tick at each voice's cutoff after modulation. Dots
@@ -188,7 +197,7 @@ A clip's mod-wheel and pitch-bend envelopes (controller lane) export as automati
 same parameter is a validation error. The bend lane shows semitones from the instrument's `ctl.bend_range`. The MW/PB
 sliders and Web MIDI CC1 / pitch bend set the armed track's controllers live (not recorded; PB springs back).
 
-Tunefish 4 programs and the instruments of the WaveSabre reference songs load from the library once converted:
+Tunefish 4 programs, Tunefish 3 presets (change add-tf3-import) and the instruments of the WaveSabre reference songs load from the library once converted:
 `cargo run --release -p synth-convert --example library` writes `project/music/.library.json` (git-ignored, from the
 local lab); the server attaches each entry's devices to `/api/library`. Loading replaces the track's instrument and puts
 a Tunefish program's insert effects right after it.

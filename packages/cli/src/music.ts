@@ -114,6 +114,9 @@ function attachConverted(root: string, cat: Record<string, any>) {
   if (lib?.format !== "us-library/2") return;
   for (const p of cat.tunefish?.programs ?? []) if (lib.tunefish?.[p.n]) p.conv = lib.tunefish[p.n];
   for (const s of cat.wavesabre?.songs ?? []) s.instruments.forEach((d: any, i: number) => { const c = lib.wavesabre?.[s.file]?.[i]; if (c?.devices) d.conv = c; });
+  // Tunefish 3 presets (change add-tf3-import): listed from the converted file itself (only converted ones load)
+  const tf3 = Object.entries(lib.tunefish3 ?? {}).filter(([, c]: [string, any]) => c?.devices).map(([n, c]: [string, any]) => ({ n: Number(n), name: String(c.name ?? `Program ${n}`), conv: c })).sort((a, b) => a.n - b.n);
+  if (tf3.length) cat.tunefish3 = { programs: tf3, licence: "Brain Control's Enigma Studio 3 bank (no licence stated): converted, published pending permission" };
 }
 
 export function library(root: string, synth: Synth | null, env = process.env) {
@@ -152,6 +155,7 @@ export function library(root: string, synth: Synth | null, env = process.env) {
     presets: presets.length,
     gm: cat.gm?.instruments.length ?? 0,
     tunefish: cat.tunefish?.programs.length ?? 0,
+    tunefish3: cat.tunefish3?.programs.length ?? 0,
     wavesabre: cat.wavesabre ? cat.wavesabre.songs.reduce((n: number, s: any) => n + s.instruments.length, 0) : 0,
     gsm: cat.gsm.samples.length,
     repo: cat.repo["wavesabre-tests"].length + cat.repo["tfsynth-tests"].length,

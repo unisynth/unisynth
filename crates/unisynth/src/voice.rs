@@ -11,6 +11,7 @@ use crate::modmx::{target, Matrix, Query, Sources};
 use crate::flt;
 use crate::noise::{self, Noise};
 use crate::osc::{self, Kind, Slot, SlotRamps, SlotT, Wt};
+use crate::pts::Pts;
 use crate::smp::{self, Sample};
 use crate::params::{self as pm, v};
 use crate::ramp::Ramp;
@@ -393,6 +394,10 @@ pub struct Voice<'a> {
     pub(crate) slots: [Slot; pm::OSC_SLOTS],
     /// Pool-backed wavetable state of the slots that are wavetables.
     wt: [Option<&'a mut Wt>; pm::OSC_SLOTS],
+    /// Pool-backed per-voice state of the point and PAD slots (change add-tf3-import).
+    pts: [Option<&'a mut Pts>; pm::OSC_SLOTS],
+    /// The instrument's PAD table of each PAD slot (shared by the voices).
+    pads: [Option<&'a [f32]>; pm::OSC_SLOTS],
     /// Sample data of the sampler slots (a DLS-instrument slot holds the region its last note-on picked).
     smp: [Sample<'a>; pm::OSC_SLOTS],
     /// The instruments of the DLS-instrument slots.
@@ -423,9 +428,41 @@ pub struct Voice<'a> {
     pub(crate) starts: u32,
 }
 
+/// Whether a slot kind is a PAD table.
+#[inline]
+fn is_pad(k: Kind) -> bool {
+    #[cfg(feature = "us-osc-pad")]
+    return k == Kind::Pad;
+    #[cfg(not(feature = "us-osc-pad"))]
+    {
+        let _ = k;
+        false
+    }
+}
+
+/// Whether a slot kind is a point oscillator.
+#[inline]
+fn is_pts(k: Kind) -> bool {
+    #[cfg(feature = "us-osc-points")]
+    return k == Kind::Pts;
+    #[cfg(not(feature = "us-osc-points"))]
+    {
+        let _ = k;
+        false
+    }
+}
+
 impl<'a> Voice<'a> {
     /// `rng` draws the slots' start phases (Slaughter draws them once, when its voices are built).
-    pub fn new(kinds: [Kind; pm::OSC_SLOTS], rng: &mut Xorshift, wt: [Option<&'a mut Wt>; pm::OSC_SLOTS], smp: [Sample<'a>; pm::OSC_SLOTS], insts: smp::Insts<'a>) -> Self {
+    pub fn new(
+        kinds: [Kind; pm::OSC_SLOTS],
+        rng: &mut Xorshift,
+        wt: [Option<&'a mut Wt>; pm::OSC_SLOTS],
+        pts: [Option<&'a mut Pts>; pm::OSC_SLOTS],
+        pads: [Option<&'a [f32]>; pm::OSC_SLOTS],
+        smp: [Sample<'a>; pm::OSC_SLOTS],
+        insts: smp::Insts<'a>,
+    ) -> Self {
         let c = Ctl { pitch: Pitch::snap(0.0), env: [Env::new(); pm::ENV_SLOTS], lfo: [Lfo::new(0.0); pm::LFO_SLOTS], mm: Matrix::new() };
         Voice {
             on: false,
@@ -451,6 +488,8 @@ impl<'a> Voice<'a> {
             flt: [flt::Slot::new(); pm::FILT_SLOTS],
             slots: core::array::from_fn(|i| Slot::new(kinds[i], rng.next_f32() as f64)),
             wt,
+            pts,
+            pads,
             smp,
             insts,
             adj: [smp::Adj::UNITY; pm::OSC_SLOTS],
@@ -702,10 +741,26 @@ impl<'a> Voice<'a> {
         let sv = |k: usize| self.shape_value(mm, sh, i, k);
         // the leak keeps its corner (about 14 Hz) at every rate
         let leak = crate::fm::powf(0.998, 44100.0 / sh.rate);
-        let det = law::wt_detune(sv(pm::shape::WT_LAYER_DETUNE)) * hz_scale / sh.rate;
-        let spread = law::wt_spread(sv(pm::shape::WT_LAYER_SPREAD)) / sh.rate;
-        let drive = law::wt_drive(sv(pm::shape::WT_DRIVE));
-        let layers = law::count(p[f(pm::o::SHAPE + pm::shape::WT_LAYERS)], 1, crate::wt_layers());
+        let (det, spread, drive, layers) = if is_pad(self.slots[i].kind) {
+            // the PAD table (change add-tf3-import): the layer detune of the point fields, the linear drive
+            (law::wt_detune(p[pm::pts(i, pm::pt::DETUNE)]) * hz_scale / sh.rate, 0.0, law::wt_drive(sv(pm::shape::PAD_DRIVE)), 1)
+        } else if is_pts(self.slots[i].kind) {
+            // the point fields (change add-tf3-import): layer detune and spread on the wavetable's laws, a cubic drive
+            let q = |fld: usize| p[pm::pts(i, fld)];
+            (
+                law::wt_detune(q(pm::pt::DETUNE)) * hz_scale / sh.rate,
+                law::wt_spread(q(pm::pt::SPREAD)) / sh.rate,
+                law::pts_drive(sv(pm::shape::PTS_DRIVE)),
+                law::count(q(pm::pt::LAYERS), 1, crate::pts::MAX_LAYERS as u32),
+            )
+        } else {
+            (
+                law::wt_detune(sv(pm::shape::WT_LAYER_DETUNE)) * hz_scale / sh.rate,
+                law::wt_spread(sv(pm::shape::WT_LAYER_SPREAD)) / sh.rate,
+                law::wt_drive(sv(pm::shape::WT_DRIVE)),
+                law::count(p[f(pm::o::SHAPE + pm::shape::WT_LAYERS)], 1, crate::wt_layers()),
+            )
+        };
         // a sampler steps through its data by `2^((note − root)/12)` sample units per frame (root 60 unless a DLS region
         // says otherwise, unity there), whatever the song rate; its fixed-frequency mode is relative to note 60 as well
         let inc = if self.slots[i].kind == Kind::Sampler {
@@ -783,12 +838,64 @@ impl<'a> Voice<'a> {
     #[cfg(not(feature = "us-osc-wt"))]
     fn wt_build(&mut self, _: &Shared) {}
 
+    /// Rebuilds the cycle of every point slot from the control state at the end of the segment, when its points,
+    /// count or modes changed (Tunefish 3 updates its spline once per block).
+    #[cfg(feature = "us-osc-points")]
+    fn pts_build(&mut self, sh: &Shared) {
+        use crate::pts::{Shape, MAX_POINTS};
+        for i in 0..pm::OSC_SLOTS {
+            if is_pad(self.slots[i].kind) {
+                let c = &self.end;
+                let key = c.pitch.cur + self.detune + tuning(sh.p) + c.mm.offset(target::PITCH);
+                if let Some(p) = self.pts[i].as_deref_mut() {
+                    p.decim.set(440.0 * crate::fm::exp2f((key - 69.0) / 12.0), sh.rate);
+                }
+                continue;
+            }
+            if self.slots[i].kind != Kind::Pts {
+                continue;
+            }
+            let sv = |k: usize| self.shape_value(&self.end.mm, sh, i, k);
+            let c = &self.end;
+            let key = c.pitch.cur + self.detune + tuning(sh.p) + c.mm.offset(target::PITCH);
+            let hz = 440.0 * crate::fm::exp2f((key - 69.0) / 12.0);
+            let s = Shape {
+                count: law::count(sh.p[pm::pts(i, pm::pt::COUNT_)], 1, MAX_POINTS as u32) as usize,
+                offset: core::array::from_fn(|k| sv(pm::shape::PTS_POINT + 2 * k)),
+                value: core::array::from_fn(|k| sv(pm::shape::PTS_POINT + 2 * k + 1)),
+                modes: core::array::from_fn(|k| law::choice(sh.p[pm::pts(i, pm::pt::MODE + k)], 3) as u8),
+            };
+            if let Some(p) = self.pts[i].as_deref_mut() {
+                p.update(&s);
+                p.decim.set(hz, sh.rate);
+            }
+        }
+    }
+
+    #[cfg(all(not(feature = "us-osc-points"), feature = "us-osc-pad"))]
+    fn pts_build(&mut self, sh: &Shared) {
+        for i in 0..pm::OSC_SLOTS {
+            if is_pad(self.slots[i].kind) {
+                let c = &self.end;
+                let key = c.pitch.cur + self.detune + tuning(sh.p) + c.mm.offset(target::PITCH);
+                if let Some(p) = self.pts[i].as_deref_mut() {
+                    p.decim.set(440.0 * crate::fm::exp2f((key - 69.0) / 12.0), sh.rate);
+                }
+            }
+        }
+    }
+
+    #[cfg(not(any(feature = "us-osc-points", feature = "us-osc-pad")))]
+    fn pts_build(&mut self, _: &Shared) {}
+
     /// Voice reset: every slot and table back to its loaded state, drawing the start phases from `rng` again.
     pub fn reset(&mut self, kinds: [Kind; pm::OSC_SLOTS], rng: &mut Xorshift) {
         let mut wt = core::mem::take(&mut self.wt);
         wt.iter_mut().flatten().for_each(|w| **w = Wt::new());
-        let (smp, insts) = (self.smp, self.insts);
-        *self = Voice::new(kinds, rng, wt, smp, insts);
+        let mut pts = core::mem::take(&mut self.pts);
+        pts.iter_mut().flatten().for_each(|p| **p = Pts::new());
+        let (pads, smp, insts) = (self.pads, self.smp, self.insts);
+        *self = Voice::new(kinds, rng, wt, pts, pads, smp, insts);
     }
 
     fn ramps_set(&mut self, t: &Targets) {
@@ -893,6 +1000,7 @@ impl<'a> Voice<'a> {
             self.next_check += WT_CHECK;
             self.wt_build(sh);
         }
+        self.pts_build(sh);
         self.seg_pos = 0;
         self.seg_len = len;
         let t = self.targets(&self.end, sh);
@@ -952,8 +1060,14 @@ impl<'a> Voice<'a> {
         for (j, (lo, ro)) in l.iter_mut().zip(r.iter_mut()).enumerate() {
             let amp = self.amp.next();
             let (mut bl, mut br, mut send, mut mono) = (0.0f32, 0.0f32, 0.0f32, 0.0f32);
-            for (((slot, ramps), wt), smp) in
-                self.slots.iter_mut().zip(self.ramps.iter_mut()).zip(self.wt.iter_mut()).zip(self.smp.iter())
+            for (((((slot, ramps), wt), pts), pad), smp) in self
+                .slots
+                .iter_mut()
+                .zip(self.ramps.iter_mut())
+                .zip(self.wt.iter_mut())
+                .zip(self.pts.iter_mut())
+                .zip(self.pads.iter())
+                .zip(self.smp.iter())
             {
                 if slot.kind == Kind::Off {
                     send = 0.0;
@@ -971,7 +1085,7 @@ impl<'a> Voice<'a> {
                     let y = osc::v2_sample(slot, ramps, mono, ax);
                     (y, y, 0.0)
                 } else {
-                    osc::sample(slot, wt.as_deref_mut(), smp, ramps, send)
+                    osc::sample(slot, wt.as_deref_mut(), pts.as_deref_mut(), *pad, smp, ramps, send)
                 };
                 // one combine for every slot: add (panned), multiply (ring) or replace
                 let (pl, pr) = ramps.pan();
@@ -1193,6 +1307,17 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
             }
             w.mu = self.rng.next_f32() * 100.0;
         }
+        // Tunefish 3: the first layer starts at phase 0; every other layer at one shared random pair (its tick-count
+        // seed gives them the same draws)
+        for (i, p) in self.pts.iter_mut().enumerate() {
+            let Some(p) = p.as_deref_mut() else { continue };
+            let pair = [self.rng.next_f32(), self.rng.next_f32()];
+            for (k, layer) in p.phase.iter_mut().enumerate() {
+                // a PAD slot's two phases (layer 0) start at random too
+                *layer = if k == 0 && !is_pad(self.slots[i].kind) { [0.0; 2] } else { pair };
+            }
+            p.decim.clear();
+        }
         self.noise.start(self.rng.next_u32());
         for i in 0..pm::OSC_SLOTS {
             if self.slots[i].kind == Kind::Sampler {
@@ -1206,6 +1331,7 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
         self.fine = FINE_SPAN;
         (self.lvl, self.lvl_n) = (0.0, 0);
         self.wt_build(&sh);
+        self.pts_build(&sh);
         self.ramps_set(&t);
         if cx.frame % FINE as u64 == 0 {
             // the grid tick at this very frame starts the first segment

@@ -34,3 +34,8 @@ Pull-only (not auto-injected).
 
 - Filter slots: `Kind` (SVF ×5, 4-pole ×2, RBJ HP/BP, notch), `Forms`, `coefs`/`coefs_steps` (5 coefficients), `Slot` (stereo state, ramped coefficients, `pass`), `transparent`, `run`;
 - `check` → `UnsupportedModule` per `us-flt-*`.
+
+## Tunefish 3 form (add-tf3-import 6.4)
+- `f::FORM` 1 on the RBJ and notch types (which ignored it) = Tunefish 3's form: `RbjBp` takes the shelf-slope α `sin ω0/2·√((A+1/A)(1/BW−1)+2)`, `A = 1.059253725`, `BW = 1 − clamp(q, 0, 0.95)` (constant skirt b0 = sin/2); `RbjHp` takes resonance up to 0.95 (same law); `NOTCH` → `Kind::Tf3Notch` (RBJ notch `b = 1, −2cos, 1`, same α, plain biquad, no latency; family 4 with `Notch`, so a form lane keeps the state).
+- Needs `us-flt-feedback` like every non-plain form (`Kind::check` → `UnsupportedModule(FILTER_FEEDBACK)`); a lane reaching form 1 in a build without it bypasses (the existing lane contract; `needs` reports the module). Chosen over expanding the type choice: filter types are automatable and an expansion would move off-centre values (doubt review, design D7).
+- Tests: `tunefish_3_band_pass_…`, `tunefish_3_high_pass_…`, `tunefish_3_notch_…`.

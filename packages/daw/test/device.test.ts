@@ -217,6 +217,32 @@ test("mod matrix: a row lights up with its source kind; target and amount are on
   expect(await page.locator("table.mm tbody tr").first().getAttribute("class")).toBe("off");
 }, 30_000);
 
+test("points and PAD table slots (add-tf3-import): a column per point that follows the count; PAD names its profile", async () => {
+  await open();
+  const opts = (await page.evaluate(() => (window as any).DAW.tables[0].params.find((p: any) => p.name === "osc2.type").options)) as string[];
+  const ty = page.locator('#device select[aria-label$=" osc2.type"]');
+  const d0 = await depth();
+  await ty.selectOption(String(opts.indexOf("Points")));
+  const pts = page.locator('#device [aria-label="Osc 2 points"]');
+  await pts.waitFor();
+  expect(await pts.locator(".pt").count()).toBe(2);  // the default count (1 point) plus the last segment
+  expect(await pts.locator('select[aria-label$=" osc2.mode1"] option').allTextContents()).toEqual(["Step", "Linear", "Spline"]);
+  const count = page.locator('#device [data-param="osc2.points"]');
+  await count.focus(); await page.keyboard.press("End");  // 4 points
+  expect(await pts.locator(".pt").count()).toBe(5);
+  expect(await page.locator('#device [aria-label="Osc 2"] svg.scr circle').count()).toBe(4);  // the screen marks the points
+  await pts.locator('select[aria-label$=" osc2.mode2"]').selectOption("0");
+  expect((await track("bass")).devices[0].values["osc2.mode2"]).toBe(0);
+  expect(await depth()).toBe(d0 + 3);
+  await ty.selectOption(String(opts.indexOf("PAD table")));
+  const prof = page.locator('#device [data-param="osc2.s4"]');
+  await prof.focus(); await page.keyboard.press("End");
+  expect(await prof.getAttribute("aria-valuetext")).toBe("gauss");
+  expect(await page.locator('#device [aria-label="Osc 2 points"]').count()).toBe(0);
+  for (let i = 0; i < 5; i++) await undo();
+  expect((await track("bass")).devices[0].values["osc2.type"] ?? 0).toBe(0);
+}, 30_000);
+
 /** A 0.5 s mono 44.1 kHz sine WAV in the temp root. */
 function toneWav(hz = 220): string {
   const n = 22050, wav = Buffer.alloc(44 + n * 2);

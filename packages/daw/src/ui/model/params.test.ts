@@ -79,3 +79,41 @@ test("bytes: base64 round trip; GM index", () => {
   expect(gmInstrument(1 + 128 * 2 + 5)).toEqual({ drums: false, bank: 2, prog: 5 });
   expect(gmInstrument(1 + 16384 + 3)!.drums).toBe(true);
 });
+
+test("osc type labels: the engine's expanded choice, new kinds by label, gaps never a kind", () => {
+  const o = P.ip("osc1.type").options!;
+  expect(o.length).toBe(25);
+  expect([o[0], o[1], o[3], o[8], o[24]]).toEqual(["Off", "Points", "PAD table", "Sampler", "Clocked"]);
+  expect(o.filter((x) => x === P.GAP).length).toBe(10);
+  for (const [label, kind] of [["Sampler", 4], ["Points", 13], ["PAD table", 14], ["Clocked", 12]] as const)
+    expect(P.oscType(inst({ "osc1.type": P.optValue("osc1.type", label) }), 1)).toBe(kind);
+});
+test("a Points slot's controls exist and its drawn cycle is the engine's (pts::cycle fixtures)", () => {
+  for (const f of ["points", "mode1", "mode2", "mode3", "mode4", "mode_last", "layers", "layer_detune", "layer_spread"]) expect(P.ip(`osc1.${f}`)).toBeDefined();
+  expect(P.ip("osc1.mode1").options).toEqual(["Step", "Linear", "Spline"]);
+  // samples 0, 17, 64, 100, 128, 200, 256 of crates/unisynth pts::cycle for three shapes
+  const cases: [number, number[], number[], number[], number[]][] = [
+    [1, [.5, .5, .5, .5], [1, .5, .5, .5], [0, 0, 0, 0, 0], [-.5, -.5, -.5, -.5, -.5, .5, .5]],
+    [2, [.3, .6, .5, .5], [.9, .1, .5, .5], [1, 2, 1, 1, 2], [0.03770714, 0.21479045, 0.7043738, 0.60742676, 0.10498731, -0.7821499, 0.037177075]],
+    [4, [.2, .4, .3, .8], [0, 1, .25, .7], [2, 2, 2, 2, 2], [0.045901593, -0.5209182, -0.67650574, 0.7082743, 1.1371987, -0.2485463, 0.046822038]],
+  ];
+  for (const [n, o, v, m, want] of cases) {
+    const { wave, pts } = P.pointCycle(n, o, v, m);
+    expect(wave.length).toBe(257);
+    [0, 17, 64, 100, 128, 200, 256].forEach((j, k) => expect(Math.abs(wave[j]! - want[k]!)).toBeLessThan(1e-4));
+    expect(pts.length).toBe(n);
+  }
+});
+test("a PAD slot's table inputs are load-time values: no automation, rebuild on change; the profile shows its name", () => {
+  const ty = P.ip("osc1.type"), pad = inst({ "osc1.type": ty.options.indexOf("PAD table") / (ty.options.length - 1) });
+  expect(P.oscType(pad, 1)).toBe(14);
+  for (const k of [0, 1, 2, 3, 4]) expect(P.loadTime(pad, P.ip(`osc1.s${k}`))).toBe(true);
+  expect(P.loadTime(pad, P.ip("osc1.s5"))).toBe(false);  // drive plays live
+  expect(P.loadTime(inst(), P.ip("osc1.s0"))).toBe(false);
+  const auto = P.autoParams(pad).map((p) => p.name);
+  expect(auto).not.toContain("osc1.s0");
+  expect(auto).toContain("osc1.s5");
+  expect(auto).toContain("osc2.s0");
+  expect(P.fmtVal(pad, P.ip("osc1.s4"), 1)).toBe("gauss");
+  expect(P.fmtVal(pad, P.ip("osc1.s4"), 1 / 3)).toBe("detune");
+});

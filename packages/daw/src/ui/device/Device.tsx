@@ -9,7 +9,7 @@ import { Knob } from "../common/Knob.tsx";
 import { Sampler, type SamplerActions } from "./Sampler.tsx";
 import { chips, markLiveDirty, registerLive } from "./live.ts";
 import { autoOverridden, autoValue, blockClosed, deviceShown, setBlockClosed, setSlotOpen, shownTrack, slotOpenOf } from "../state/device.ts";
-import { SLOTS } from "../model/params.ts";
+import { GAP, SLOTS } from "../model/params.ts";
 
 export interface Param { name: string; default: number; law: string; options: string[]; raw?: boolean; structural?: boolean; index: number }
 export interface Table { kind: number; mode: number; label: string; params: Param[] }
@@ -69,8 +69,18 @@ const OSC_SHAPES: Record<number, (string | null)[]> = { 1: ["waveform"], 2: ["wa
   4: ["start", null, null, "loop start", "loop length"],
   // the naive generators (5–11): the colour; type, combine and law are their own parameters
   5: [null, "colour"], 6: [null, "colour"], 7: [null, "colour"], 8: [null, "colour"], 9: [null, "colour"], 10: [null, "colour"], 11: [null, "colour"],
-  12: ["wave", "voices", "version", "clock", "retrigger", "filter base", "filter amount", "filter decay", "filter damp"] };  // s1 loop mode, s2 boundary, s5 reverse, s6 interp, s7 source: samplerPre; index: osc<i>.sample
+  12: ["wave", "voices", "version", "clock", "retrigger", "filter base", "filter amount", "filter decay", "filter damp"],
+  // Points (add-tf3-import): point k's offset and value at s(2k), s(2k+1), drive at s8; count, segment modes and
+  // layers are their own parameters (POINT_FIELDS)
+  13: ["p1 offset", "p1 value", "p2 offset", "p2 value", "p3 offset", "p3 value", "p4 offset", "p4 value", "drive"],
+  // PAD table: s0–s4 build the table when the instrument loads (a change rebuilds the device), drive plays live
+  14: ["bandwidth", "scale", "damp", "harmonics", "profile", "drive"] };  // s1 loop mode, s2 boundary, s5 reverse, s6 interp, s7 source: samplerPre; index: osc<i>.sample
 const range = (n: number) => [...Array(n)].map((_, k) => k + 1);
+/** A Points slot's own fields and their labels (`osc<i>.<field>`); `mode<k>` ends at point k. */
+const POINT_LABELS: Record<string, string> = { points: "points", mode1: "seg 1", mode2: "seg 2", mode3: "seg 3", mode4: "seg 4", mode_last: "last seg",
+  layers: "layers", layer_detune: "layer detune", layer_spread: "layer spread" };
+/** Points shown for a count value (`Count(1, 4)`, unisynth `law::count`). */
+const pointCount = (v: number): number => 1 + Math.min(3, Math.floor(Math.max(0, Math.min(1, v)) * 3 + .5));
 
 let A!: DeviceActions;
 /** Display name; tracks the mode and preset (params.ts `devName` reads the kind and mode raw). */
@@ -111,7 +121,8 @@ function PCtl(p: { t: Track; d: Device; p: Param; label?: string; aria?: string 
     const cur = () => idx ? Math.round(A.vget(d, prm) * 255) : A.choice(A.vget(d, prm), prm.options.length);
     // long lists (mod targets: 142) hold the current option only until the select is first used: a selection
     // remounts the panel, and these options were two thirds of its elements (daw-solid-ts 9.4)
-    const [full, setFull] = createSignal(prm.options.length <= LAZY_OPTIONS), fill = () => setFull(true);
+    const shown = prm.options.filter((o) => o !== GAP).length; // free positions of an expanded choice are not offered
+    const [full, setFull] = createSignal(shown <= LAZY_OPTIONS), fill = () => setFull(true);
     return <label class="pchoice"><span>{short}</span>
       <select aria-label={aria()} onPointerDown={fill} onFocus={fill} onKeyDown={fill} onChange={(e) => {
         const i = +e.currentTarget.value, v = idx ? i / 255 : prm.options.length > 1 ? i / (prm.options.length - 1) : 0;
@@ -119,7 +130,7 @@ function PCtl(p: { t: Track; d: Device; p: Param; label?: string; aria?: string 
         if (prm.name === "mode" && d.kind !== 64) A.modeChanged(t, d);
       }}>
         <Show when={full()} fallback={<option value={cur()} selected>{prm.options[cur()]}</option>}>
-          <Index each={prm.options}>{(o, i) => <option value={i} selected={i === cur()}>{o()}</option>}</Index></Show>
+          <Index each={prm.options}>{(o, i) => <Show when={o() !== GAP || i === cur()}><option value={i} selected={i === cur()}>{o()}</option></Show>}</Index></Show>
       </select></label>;
   }
   if (prm.raw) {
@@ -138,7 +149,7 @@ function PCtl(p: { t: Track; d: Device; p: Param; label?: string; aria?: string 
     onGrab={() => A.grab(t, d, prm)} onRelease={() => A.release(t, d, prm)} />;
 }
 
-interface GroupOpts { cols: number; labels?: Record<string, string>; pre?: () => (Element & { _draw?: () => void }) | null; slot?: { g: G; i: number } }
+interface GroupOpts { cols: number; labels?: Record<string, string>; pre?: () => (Element & { _draw?: () => void }) | null; post?: () => JSX.Element; slot?: { g: G; i: number } }
 /** A group panel: title, choice controls in its header row, knobs below; optional screen (`pre`) and slot chrome. */
 function PGroup(p: { t: Track; d: Device; title: string; ps: () => Param[]; o: GroupOpts }): JSX.Element {
   const { t, d } = p, o = p.o, isChoice = (x: Param) => x.law === "Index" || x.options.length > 0 || !!x.raw;
@@ -169,12 +180,30 @@ function PGroup(p: { t: Track; d: Device; title: string; ps: () => Param[]; o: G
     {/* a collapsed slot renders only its header (D5) */}
     <Show when={!closed()}>
       {pre()}
+      {o.post?.()}
       <Show when={knobs().length}>
         <div class="knobs" style={{ "--cols": o.cols }}>
           <For each={knobs()}>{(x) => <PCtl t={t} d={d} p={x} label={o.labels?.[x.name]} />}</For>
         </div>
       </Show>
     </Show>
+  </div>;
+}
+
+/**
+ * A Points slot's points (add-tf3-import): a column per point (offset: the fraction of the span left after the previous
+ * point; value; the mode of the segment that ends at it) and the last segment's mode, back to the cycle's end.
+ */
+function PointsGrid(p: { t: Track; d: Device; i: number; n: () => number }): JSX.Element {
+  const { t, d, i } = p;
+  return <div class="pts" role="group" aria-label={`Osc ${i} points`}>
+    <Index each={range(4)}>{(k) => <Show when={k() <= p.n()}>
+      <div class="pt"><span class="pth">P{k()}</span>
+        <PCtl t={t} d={d} p={A.ip(`osc${i}.s${2 * k() - 2}`)} label="offset" />
+        <PCtl t={t} d={d} p={A.ip(`osc${i}.s${2 * k() - 1}`)} label="value" />
+        <PCtl t={t} d={d} p={A.ip(`osc${i}.mode${k()}`)} label="to here" /></div>
+    </Show>}</Index>
+    <div class="pt"><span class="pth">end</span><PCtl t={t} d={d} p={A.ip(`osc${i}.mode_last`)} label="to end" /></div>
   </div>;
 }
 
@@ -193,15 +222,25 @@ function Instrument(p: { t: Track; d: Device }): JSX.Element {
   const [live, setLive] = createSignal(A.liveOn());
   const osc = (i: number) => {
     const ty = createMemo(() => A.oscType(d, i));
-    const shape = createMemo(() => ty() === 4 ? A.smpShapes(d, i).join() : "");
-    const labels = () => { const sh = OSC_SHAPES[ty()] || [], l: Record<string, string> = Object.fromEntries(sh.map((nm, k) => [`osc${i}.s${k}`, nm!])); if (ty() === 4) l[`osc${i}.sample`] = "sample #"; return l; };
+    // the controls a slot shows follow its kind, the sampler's source and loop, and a Points slot's point count
+    const shape = createMemo(() => ty() === 4 ? A.smpShapes(d, i).join() : ty() === 13 ? String(pointCount(A.vget(d, A.ip(`osc${i}.points`)))) : "");
+    const labels = () => {
+      const sh = OSC_SHAPES[ty()] || [], l: Record<string, string> = Object.fromEntries(sh.map((nm, k) => [`osc${i}.s${k}`, nm!]));
+      if (ty() === 4) l[`osc${i}.sample`] = "sample #";
+      if (ty() === 13) for (const [f, nm] of Object.entries(POINT_LABELS)) l[`osc${i}.${f}`] = nm;
+      return l;
+    };
     const ps = createMemo(on([ty, shape], () => {
-      const sh = OSC_SHAPES[ty()] || [], ks = ty() === 4 ? A.smpShapes(d, i) : sh.map((_, k) => k);
-      return [A.ip(`osc${i}.type`), ...OSC_COMMON.map((f) => A.ip(`osc${i}.${f}`)), ...ks.map((k) => A.ip(`osc${i}.s${k}`)), ...(ty() === 4 ? [A.ip(`osc${i}.sample`)] : [])];
+      const sh = OSC_SHAPES[ty()] || [];
+      // a Points slot's offsets, values and segment modes are its Points grid (`post`); count, drive and layers knobs
+      const ks = ty() === 4 ? A.smpShapes(d, i) : ty() === 13 ? [8] : sh.map((_, k) => k);
+      const own = ty() === 4 ? [`osc${i}.sample`] : ty() === 13 ? ["points", "layers", "layer_detune", "layer_spread"].map((f) => `osc${i}.${f}`) : [];
+      return [A.ip(`osc${i}.type`), ...OSC_COMMON.map((f) => A.ip(`osc${i}.${f}`)), ...ks.map((k) => A.ip(`osc${i}.s${k}`)), ...own.map((nm) => A.ip(nm))];
     }));
     // the screen: a waveform drawing, or the sampler block (6.3)
     const pre = () => { const k = ty(); return k === 4 ? <Sampler t={t} d={d} i={i} a={A} /> as HTMLElement : k ? A.screen(t, d, "osc", i) : null; };
-    return <Show when={ty() + 1} keyed>{(_k) => <PGroup t={t} d={d} title={`Osc ${i}`} ps={ps} o={{ cols: 6, get labels() { return labels(); }, pre, slot: { g: "osc", i } }} />}</Show>;
+    const post = () => ty() === 13 ? <PointsGrid t={t} d={d} i={i} n={() => +shape()} /> : null;
+    return <Show when={ty() + 1} keyed>{(_k) => <PGroup t={t} d={d} title={`Osc ${i}`} ps={ps} o={{ cols: 6, get labels() { return labels(); }, pre, post, slot: { g: "osc", i } }} />}</Show>;
   };
   const card = (g: "filt" | "env" | "lfo", i: number, names: string[], cols: number) => {
     return <PGroup t={t} d={d} title={`${SLOT_NOUN[g]} ${i}`} ps={() => P(names)} o={{ cols, pre: () => A.screen(t, d, g, i), slot: { g, i } }} />;

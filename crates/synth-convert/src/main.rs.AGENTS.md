@@ -12,3 +12,4 @@ Pull-only (not auto-injected). CLI `synth-convert`; every command converts fully
 - `features <song> [--explain|--json] [--cost marginal.csv]`; `rust <song> <out.rs> [bank.dls]` → `rust::generate`.
 
 See change: add-cauldron-xm-import, add-tbl-demo-songs, add-cauldron-control-rate, add-cauldron-lane-thinning, compact-cauldron-xm-import, slim-cauldron-chain, shrink-unified-synth, unify-v2-algorithms 6.5–6.8 (migrate).
+- `e3prj <in.e3prj> <out.song> [--song id] [--editor] [tail]` (Tunefish 3 project, player mode unless `--editor`) and `tf3 <program.txt> <out.chunk> [--editor]` (one preset as a unified chunk). See change: add-tf3-import.

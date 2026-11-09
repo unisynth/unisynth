@@ -209,7 +209,7 @@ function pickOnsets(flux: Float64Array, max: number, rate: number, H: number): n
 }
 
 /** Rectified spectral flux minus its local mean (±0.25 s): the onset-strength curve the alignment correlates. */
-function novelty(flux: Float64Array, rate: number): Float64Array {
+export function novelty(flux: Float64Array, rate: number): Float64Array {
   const W = Math.round((0.25 * rate) / FLUX_HOP), pre = new Float64Array(flux.length + 1);
   for (let f = 0; f < flux.length; f++) pre[f + 1] = pre[f] + flux[f];
   return Float64Array.from(flux, (x, f) => {

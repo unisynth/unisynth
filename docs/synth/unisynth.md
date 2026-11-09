@@ -71,7 +71,8 @@ flowchart LR
 
 ## Parameters
 
-The v3 layout (change unify-v2-algorithms, task 6.4): 294 values in module blocks, everything normalized (0..1)
+The v3 layout (change unify-v2-algorithms, task 6.4): 294 values in module blocks, plus the point fields that change
+add-tf3-import appended (321 in all), everything normalized (0..1)
 except the three sample indices (raw whole numbers). Indices below 240 take one chunk byte, the rest two (they need
 `us-chunk-wide`). A value outside its law is clamped, and NaN reads as 0. The layout before it (260 values, chunk
 versions 1 and 2) is frozen host-side as `params::old` for the migration; the player rejects it.
@@ -93,9 +94,13 @@ versions 1 and 2) is frozen host-side as `params::old` for the migration; the pl
 | mod slot 11–16 | 261–284 | 4 each | as slots 1–10 |
 | controllers 2–7 | 285–290 | 6 | `ctl.cc2` … `ctl.cc7` (breath, 3–6, volume; default CC7 = 127/128) |
 | speech | 291–293 | 3 | `speech.on`, `speech.select`, `speech.pitch` |
+| point fields ×3 | 294–320 | 9 each | `osc{n}.points` (`count(1..4)`), `mode1`–`mode4`, `mode_last` (step / linear / spline), `layers` (`count(1..11)`), `layer_detune` (`10p³` Hz), `layer_spread` (`10p⁴` Hz); add-tf3-import, read by `points` (and `pad`: the detune) slots |
 
-**Choices are plain** `Choice(n)` (`law::choice`, stored `k/(n − 1)`): oscillator type of 13 (off, phase mod,
-saw/pulse, wavetable, sampler, naive saw/tri, naive pulse, sine, coloured noise, FM, aux in A, aux in B, clocked),
+**Choices are plain** `Choice(n)` (`law::choice`, stored `k/(n − 1)`), except the oscillator type: an expanded
+`Choice(25)` whose id is the stored position (change add-tf3-import). Off, phase mod, saw/pulse, wavetable, sampler,
+naive saw/tri, naive pulse, sine, coloured noise, FM, aux in A, aux in B and clocked sit at the even positions 0–24
+(the stored value of each is unchanged from the earlier `Choice(13)`); points is 1, PAD table 3; the other odd
+positions are free and a chunk that names one fails to load (`BadChunk`). The plain ones:
 filter type of 11 (off, state-variable low/high/band/notch, 4-pole low, RBJ high/band, resonator notch,
 state-variable all-pass, 4-pole high: the algorithm with its response), LFO shape of 8, mod source of 17, operation
 of 3. Defaults are each new field's first option, except the balance and the sustain slope (centre), amplify (1) and
@@ -121,6 +126,8 @@ amplify (`us-env-frame`), LFO settings beyond the plain Hz-law LFO (`us-lfo-fram
 | wavetable | bandwidth, harmonics, damp, scale, mod, drive, layers, layer detune, layer spread |
 | sampler | start, loop mode, loop boundary, loop start, loop length, reverse, interpolation, source (GSM / DLS instrument / DLS wave), (unused: the sample index is the slot's raw `sample` field) |
 | naive generators | (unused), colour (`step/128`: the saw/triangle break point, pulse width, noise filter, FM depth) |
+| points | P1 offset, P1 value, … P4 offset, P4 value (0–7), drive `1 + 32p³` (8); count, segment modes, layers, layer detune and spread are the point fields |
+| PAD table | bandwidth, scale, damp, harmonics, profile `Choice(4)` (single, detune, spread, gauss), drive `1 + 32p` (0–5; all but the drive read at load) |
 | clocked | wave `choice(p, 6)`, voices `round(10p)`, version `choice(p, 3)` (0 v1, ½ v2 in a glide, 1 v2), clock `p·2²⁰` Hz, retrigger byte `round(255p)` = `2k + accent`, filter base `8p`, filter amount `8p`, filter decay `1 + (0.5 − p)/100`, filter damping `p` (see [Clocked](#clocked-us-osc-clocked)) |
 
 Structural parameters (voice capacity, each oscillator type, each sampler source, the three sample indices, the quirks)
@@ -179,7 +186,7 @@ indices are all below 240 pays nothing here (design D4, D11).
 flowchart TD
     A["bytes"] --> V{"version 3 or 4?"}
     V -- no --> U["UnknownVersion"]
-    V -- yes --> P["n pairs: index < 294, strictly increasing,<br/>value finite and 0..1<br/>(an oscillator's sample index: 0..65535)"]
+    V -- yes --> P["n pairs: index < 321, strictly increasing,<br/>value finite and 0..1<br/>(an oscillator's sample index: 0..65535)"]
     P -- bad --> E["BadChunk"]
     P --> S["s samples: size fits, GSM header ok,<br/>no bytes after the blocks"]
     S -- bad --> E
@@ -190,8 +197,8 @@ flowchart TD
     X -- yes --> OK["values = defaults + pairs"]
 ```
 
-- The encoding is canonical (sorted, defaults omitted): the same patch gives the same bytes. The worst case is 1529
-  bytes (all 294 values differ); a Slaughter-like patch is about 100 bytes.
+- The encoding is canonical (sorted, defaults omitted): the same patch gives the same bytes. The worst case is 1691
+  bytes (all 321 values differ); a Slaughter-like patch is about 100 bytes.
 - The three sample indices (`oscN.sample`) are the only raw values. Each reads like the legacy `(int)v`, 1-based,
   0 = none; DLS uses the legacy `(int)v − 1`. A GSM index beyond the section is an error, a DLS index is checked against
   the bank at render.
@@ -604,6 +611,70 @@ add-cauldron-xm-import). Algorithm and sources:
     Stash patch, each with a retrigger) are within 1e-4 of their peak: the original rounds its output to an integer
     every frame.
 
+### Point oscillator (`us-osc-points`)
+
+Tunefish 3's oscillator (change add-tf3-import; behaviour from `research/tunefish3-functional-spec.md` §3.1, cycle
+checked sample by sample against the original): a cycle drawn through 1–4 control points, played by up to 11 unison
+layers whose **sum** is driven and hard-clipped, through the decimation stage below. A per-voice `Pts` (about 1.3 kB:
+cycle, layer phases, decimation filters) comes from the pool.
+
+```mermaid
+flowchart LR
+    sh["shape 0–7: point offsets and values<br/>(after the matrix)"] --> pts["points: (0,0), P1…Pn, (1,0)<br/>offset = fraction of the span left"]
+    pf["point fields: count, five segment modes"] --> pts
+    pts --> sp["one natural cubic spline through all points<br/>(+ the phantom (0,0) the original solves to)"]
+    sp --> cyc["257 samples, step / linear / spline per segment,<br/>mean (sum / 256) removed"]
+    cyc --> play["layers k: |inc ± det ± k·spread|<br/>index round(phase·256)"]
+    play --> sum["Σ layers × drive (1 + 32p³), clip ±1"]
+    sum --> dec["× slot gain → decimation stage"]
+```
+
+- **Cycle.** User point k sits at `x_k = x_(k−1) + (1 − x_(k−1))·clamp(offset, 0.01, 0.99)` with value `2v − 1`. The
+  segment ending at point k uses `osc{n}.mode{k}`, the last one `mode_last`. The spline is solved over every point
+  even when only some segments use it, one segment past `(1, 0)` to a phantom `(0, 0)` (the original's loop runs to an
+  unset point), with widths and rises nudged by 1e-4.
+- **Rebuild.** At note-on and at every control segment when the count, a mode or a point (after the matrix) changed.
+- **Layers.** Layer 0 starts at phase 0, every other layer at one shared random pair (the original seeds them from the
+  same tick count). The index rounds half to even, so a phase of exactly 1 reads the guard sample 256.
+- **Fields.** Shape 0–7 = P1–P4 offset and value (matrix shape targets; shape 7 is structural for every type, so P4's
+  value is not automatable), shape 8 = drive; the point fields (`params::pt`, 294–320) = count, modes, layers
+  (`count(1..11)`), layer detune `10p³` Hz and spread `10p⁴` Hz.
+
+### PAD table (`us-osc-pad`)
+
+Tunefish 3's additive generator (change add-tf3-import, spec §3.2): one static PADsynth table of 2¹⁶ samples per slot
+and instrument, built **at load** from the slot's shape values (a later change of them is not applied; the drive
+stays live), shared read-only by the voices. Each voice keeps a `Pts` for its two phases and the decimation stage.
+
+```mermaid
+flowchart LR
+    sh["shape: bandwidth, scale, damp, harmonics, profile"] --> parts["partials h = 1…H−1<br/>H = 16 + min(round(255·harm/4), round(44100/f0))<br/>f0 = 43.65 Hz (MIDI 29)"]
+    parts --> spec["bin i of 2¹⁶: Σ A_h · profile((i/2¹⁷ − f0·h/44100)/b_h) / b_h<br/>random phases (counter hash)"]
+    spec --> herm["Hermitian part → one 2¹⁵-point complex FFT<br/>in place (even samples real, odd imaginary)"]
+    herm --> norm["× 1/(√2 · peak)"]
+    norm --> tab["table (2¹⁶ f32, pool)"]
+    tab --> play["read round(phase·2¹⁶), phase += inc/260<br/>(fundamental 0.499·f: an octave low)"]
+    play --> dr["× drive (1 + 32p), clip ±1 → × slot gain → decimation stage"]
+```
+
+- **Laws.** `A_h` = `1/(1 + h(1 − damp))` for odd h, `2/(1 + h(1 − damp))` for even h; width
+  `b_h = (2^(256·bw/1200) − 1)·f0·h^(1 + 19·scale²) / (2·44100)`; profiles single (`|x| ≤ 0.1`), detune
+  (`0.4 ≤ |x| ≤ 0.5`), spread (`|x| ≤ 5`), gauss (`e^(−x²)`, cut at `x² > 14.71`). Built for 44.1 kHz at every song
+  rate, so its pitch ratio is fixed.
+- **Playback.** Left/right detune from the slot's point field `layer_detune`; no unison, no velocity of its own (the
+  converter decides the velocity routes).
+- **Cost.** 256 kB per PAD slot; 5.7–17 ms to build (release). The magnitude spectrum matches the original's per
+  profile (bands of 16 bins within 2 % of the peak band); phases differ (random in both).
+
+### Decimation stage (points and PAD)
+
+Both Tunefish 3 slot types always run Tunefish 3's oversampling and decimation (spec §3.3): the slot renders `k`
+samples per frame, `k` the smallest integer with `k·rate ≥ 64·f` for the voice's note frequency (at most 8, so `k = 1`
+below 689 Hz at 44.1 kHz), each scaled by the slot gain and passed through two cascaded ladder low-passes at 12.83 kHz
+designed at `k·rate` (no resonance, output `y − y³/6`), and the mean of the `k` samples is the frame. It runs at `k = 1`
+too: it is part of the sound. Filters clear at note-on. One voice with an 11-layer point slot runs at 82× real time at
+`k = 1` and 11× at `k = 8` (release).
+
 ### Controllers: wheel, bend and bend range
 
 `ctl.wheel`, `ctl.bend` and `ctl.bend_range` (indices 218–220) are ordinary automatable parameters, so a song carries
@@ -708,6 +779,13 @@ the clip, 2 steps, 7-bit.
 |---|---|
 | RBJ high/band-pass | biquad with the reference's `log₁₀2` bandwidth law, `w0 = 2π·fc/rate`; Hz, `clamp(p, 0, 0.85)` |
 | Resonator notch | zeros on the unit circle, poles at radius `q`, one sample of input latency, `z = cos(2π·fc/rate)`; Hz, `clamp(p, 0, 0.85)`; the pole radius does not scale with the rate |
+
+`filtN.form` 1 on these three types (which otherwise ignore it) is **Tunefish 3's form** (change add-tf3-import),
+under `us-flt-feedback` like the other forms: the RBJ band-pass takes Tunefish 3's shelf-slope bandwidth
+`α = sin ω0/2 · √((A + 1/A)(1/BW − 1) + 2)`, `A = 1.059253725`, `BW = 1 − clamp(q, 0, 0.95)` (a wide, low-Q band:
+`Q = 1/√(…)` between 0.16 and 0.71, peak gain `Q`); the RBJ high-pass takes resonance up to 0.95; the notch type
+becomes an RBJ notch (`b = 1, −2cos ω0, 1`, the same α, no latency). No stored song used the field on these types,
+and filter types stay one `Choice(11)`: they can be automated, so an expanded choice would move off-centre values.
 
 **State-variable** (`flt::sv_coefs`, 2× oversampled): per half-step `low += f·band; high = a·(x − c·band) − low;
 band += f·high`. The responses are low, band, high, notch (`low + high`) and all-pass (`low + band + high`: flat at
@@ -1070,6 +1148,8 @@ The instrument allocates nothing: the caller gives it a pool, and `UInstrument::
 |---|---|
 | voices | `capacity` × one voice (about 2.3 kB each: four envelopes, two LFOs, the matrix, four filter slots, noise) |
 | wavetable tables | `capacity` × the number of wavetable slots × one table (about 10 kB) |
+| point and PAD voices | `capacity` × the number of point and PAD slots × one `Pts` (about 1.3 kB) |
+| PAD tables | one table per PAD slot (2¹⁶ f32, 256 kB), whatever the capacity |
 | GSM samples | each *distinct* sample index in a sampler slot, decoded once to f32 (4 bytes per sample), however many slots use it |
 | DLS waves | nothing: read in place from the caller's bank |
 
@@ -1110,7 +1190,7 @@ flowchart LR
 | 66 crusher | crusher (3): vertical, horizontal, dry/wet | | |
 | 67 EQ | parametric (14): low cut f/Q; peaks 1–3 f/gain/Q; high cut f/Q; master | 3band (3): low, mid, high | |
 | 68 delay | tempo (9): L/R coarse + fine, low cut, high cut, feedback, cross, dry/wet | ms (3): left, right, decay | |
-| 69 chorus | chorus (3): rate, depth, gain | | |
+| 69 chorus | chorus (3): rate, depth, gain | one tap (3): rate, depth, gain (Tunefish 3: `y = x + gain·x[n − d]`, `d = 1 + (sin(t·π·rate/sr) + 1)/2 · fi(50·depth²)` ms; `us-fx-chorus-tf3`) | |
 | 70 flanger | phaser (9): type, amount, feedback, spread, vibrato f/amount, low cut, high cut, dry/wet | ring (4): lfo, freq, amp, wet | |
 | 71 reverb | freeverb (8): freeze, room, damp, width, low cut, high cut, dry/wet, pre-delay | compact (4): room, damp, wet, width | rooms (6): room size, feedback, low cut, high cut, dry/wet, pre-delay |
 | 72 compressor | compressor (7): sidechain key, input gain, threshold, ratio, attack, release, output gain | | |
@@ -1429,6 +1509,47 @@ a few dB between engines while a song of a few dozen notes agrees on loudness (t
 over seven seeds; every synthetic patch in `tests/tunefish.rs`, single layer: ≤ 1 dB, bands ≤ 3 dB). The pan matches at
 rest; a pan modulated through the matrix scales the equal-power value instead of the linear balance.
 
+### Tunefish 3 projects (`.e3prj`, change add-tf3-import)
+
+An Enigma Studio 3 project (XML) holds Tunefish 3 songs and instruments (`docs/synth/tunefish3.md`; behaviour in
+`research/tunefish3-functional-spec.md`). `crates/synth-convert/src/e3prj.rs` reads it, `tf3.rs` maps an instrument,
+`tf3song.rs` the song.
+
+```mermaid
+flowchart LR
+    x[".e3prj (XML)"] --> rd["e3prj::read<br/>songs, patterns, instances,<br/>instruments by name"]
+    rd --> q["player mode: each value as the<br/>stored byte (quantise)"]
+    q --> ins["tf3::build → kind 64<br/>points (+ sub), pad, noise, filters,<br/>LFOs, ADSRs, Scale routes"]
+    q --> fx["tf3::insert_chain → kinds 65–73<br/>(the Tunefish 4 modes)"]
+    rd --> ev["tf3song::events<br/>rows fired per 384-frame block,<br/>round(t·bpm/15)"]
+    ins & fx --> trk["track per instrument that plays"]
+    ev --> trk
+    trk --> m["master: ×11, volume 5000/32768"]
+```
+
+| Tunefish 3 | Unified |
+|---|---|
+| point oscillator `Osc*` | slot 1 `points` (shape 0–7 the points, 8 the drive; point fields: count, modes, layers `round(10p)+1`, detune `8.82p³` Hz and spread `4.41p⁴` Hz on the `10p³`/`10p⁴` laws); fixed frequency `441p²` Hz |
+| `OscSubOsc` | slot 2 `points` one octave down at half gain, the same points, about half the detune; every route to the oscillator also reaches it |
+| `Add*` | the next slot `pad` (shape 0–5; octave, `√2·AddVolume` gain at the centre, the oscillator's detune) |
+| `OscVol`, `OscPan` | slot gain `comp·OscVol` with the equal-power pan of Tunefish's linear balance (`tf::pan`, as Tunefish 4) |
+| noise, LP, HP | as Tunefish 4; band-pass and notch only with `--editor` |
+| ADSRs, LFOs | as Tunefish 4 (rate-law envelopes; organ gate from a 384-frame release simulation); each LFO's depth and the amounts of the routes that read it rescaled so the unified 0..1 shapes give Tunefish 3's values (`sin φ + 0.5`, ramps 0..2 and 1..−1) |
+| mod slots 1–10 | Scale slots in the v3 layout, amount `(20(p − 0.5))²`; points → shape targets, volume → every slot's gain, frequency (twice on a fixed frequency: `(p·M)²`), pan, drive, noise, filters, ADSR decays; detune and spread routes and the wheel are not converted; MOD1–4 → controllers CC2–CC5 (editor) |
+| velocity | Scale routes to the oscillator slots and the noise (not the PAD table) |
+| effects 1–10 | the Tunefish 4 insert mapping by parameter name; chorus, flanger, EQ only with `--editor` |
+
+**Songs.** Rows fire at the start of the 384-frame block whose f32 time rounds (half to even) to the row:
+`round(t·bpm/60·4)`, so a row starts half a row early, and one row per block. Per sequence track the first instance
+covering the row plays; a column's new note first releases its previous one; note 128 releases; a note without
+instrument does nothing; velocity −1 plays 127 (Tunefish's 128). One pass: the song ends where the row would wrap to 0.
+
+**Parity (Transplant, player mode).** Against the original player (`tools/tf3-parity`): loudness within 0.06 dB, every
+octave band 63 Hz–16 kHz within 0.93 dB, timing lag 0. Against the YouTube capture of the released intro: bands within
+1.13 dB, timing in all 7 windows. Known differences: per-voice point cycles (Tunefish 3 shares one per instrument),
+per-slot drive and decimation (Tunefish 3 drives and filters the oscillator and PAD sum), per-instrument MOD values,
+LFO depths past the representable range (clamped, warned), slop.
+
 ### Walkthrough
 
 Every command below runs as written from the repository root (the legacy songs come from the WaveSabre test suite;
@@ -1467,6 +1588,12 @@ XM=research/tbl-mini-cauldron/out/listen/stash_bluish.xm
 # the layered layout (stereo/echo channels and per-ratio tracks kept, as the parity tool converts)
 [ -f "$XM" ] && $SC xm "$XM" research/tbl-mini-cauldron/ref/patches_stash.json /tmp/uni/bluish-layered.song --keep-layers --split-pitches --exact-chain
 [ -f "$XM" ] && $SC xm-triggers "$XM" | sed -n 1,3p
+
+# a Tunefish 3 project (Enigma-Studio-3 checkout in $TF3_REF: tools/tf3-parity/build-ref.sh clones it); player mode
+# unless --editor; one preset as a chunk
+TF3=${TF3_REF:-/tmp/tf3-ref}/demos/transplant/transplant.e3prj
+[ -f "$TF3" ] && $SC e3prj "$TF3" /tmp/uni/transplant.song 4 && $SC features /tmp/uni/transplant.song
+[ -d "${TF3_REF:-/tmp/tf3-ref}" ] && $SC tf3 "${TF3_REF:-/tmp/tf3-ref}/binary/tf3programs/program0.txt" /tmp/uni/tf3.chunk
 
 # errors name the problem, exit non-zero and write nothing
 $SC ws /tmp/uni/slaughter.song /tmp/uni/again.song; echo "exit $?"      # already unified

@@ -55,6 +55,10 @@ pub fn instrument_why(chunk: &[u8], reach: Reach) -> Result<Why, LoadError> {
             osc_type::BLIT => add(&mut out, m::OSC_BLIT, kind("saw/pulse")),
             t if osc_type::is_naive(t) => add(&mut out, m::OSC_NAIVE, kind("a naive oscillator")),
             osc_type::CLOCKED => add(&mut out, m::OSC_CLOCKED, kind("a clocked oscillator")),
+            // a point field that is set has a two-byte index: the chunk-wide rule below reports it
+            osc_type::POINTS => add(&mut out, m::OSC_POINTS, kind("a point oscillator")),
+            osc_type::PAD => add(&mut out, m::OSC_PAD, kind("a PAD table")),
+            t if osc_type::is_gap(t) => return Err(LoadError::BadChunk), // as `Kind::from_type`
             osc_type::WAVETABLE => add(&mut out, m::OSC_WAVETABLE, kind("wavetable")),
             osc_type::SAMPLER => {
                 add(&mut out, m::OSC_SAMPLER, kind("sampler"));
@@ -91,12 +95,14 @@ pub fn instrument_why(chunk: &[u8], reach: Reach) -> Result<Why, LoadError> {
                     add(&mut out, m::FILTER_FEEDBACK, format!("{} can be an all-pass or 4-pole high-pass filter{}", n(t), lane(t)));
                     continue;
                 }
-                ft::RBJ_HP | ft::RBJ_BP => {
-                    add(&mut out, m::FILTER_RBJ, format!("{} can be an RBJ filter{}", n(t), lane(t)));
-                    continue;
-                }
-                ft::NOTCH => {
-                    add(&mut out, m::FILTER_NOTCH, format!("{} can be the notch filter{}", n(t), lane(t)));
+                ft::RBJ_HP | ft::RBJ_BP | ft::NOTCH => {
+                    let (id, what) = if ty == ft::NOTCH { (m::FILTER_NOTCH, "the notch filter") } else { (m::FILTER_RBJ, "an RBJ filter") };
+                    add(&mut out, id, format!("{} can be {what}{}", n(t), lane(t)));
+                    // form 1 is Tunefish 3's form of these types (add-tf3-import), a form like the others
+                    let form = pm::filt(i, pm::f::FORM);
+                    if choices(form, 2).any(|c| c == 1) {
+                        add(&mut out, m::FILTER_FEEDBACK, format!("{} can be {what} and {} is set (Tunefish 3's form){}", n(t), n(form), lane(form)));
+                    }
                     continue;
                 }
                 _ => continue,

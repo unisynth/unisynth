@@ -1,4 +1,4 @@
-//! The instrument parameter layout (kind 64, chunk versions 3 and 4): 294 values in module blocks, the defaults and
+//! The instrument parameter layout (kind 64, chunk versions 3 and 4): 321 values in module blocks, the defaults and
 //! (host-side) the names and laws per index. Change unify-v2-algorithms, design "v3 layout (frozen, task 6.4)"; the
 //! layout before it is [`old`] (host-only, for the migration). A chunk stores only the values that differ from
 //! [`DEFAULTS`]; indices 0–239 take one byte in a chunk, the rest two.
@@ -21,13 +21,14 @@
 //! mod 11–16 261..285
 //! cc        285..291 controllers 2–7
 //! speech    291..294 on, select, pitch
+//! pts ×3    294..321 9 each (change add-tf3-import): point count, segment modes ×5, layers, layer detune, spread
 //! ```
 //!
 //! Everything except the sample indices is normalized 0..1. Fields on a 7-bit step law store `step / 128`
 //! ([`v2_raw`] gives the step).
 
 /// Number of values in a patch.
-pub const COUNT: usize = SPEECH + 3;
+pub const COUNT: usize = PTS + OSC_SLOTS * pt::LEN;
 
 /// A 7-bit step field's step (`128 · p`).
 #[inline]
@@ -127,25 +128,31 @@ pub mod combine {
     pub const COUNT: usize = 3;
 }
 
-/// Oscillator types (`o::TYPE`, `Choice(13)`).
+/// Oscillator types (`o::TYPE`, `Choice(25)`): the id is the stored position. Change add-tf3-import expanded the
+/// choice from 13 to 25 positions so every earlier type `k` (stored `k/12`) keeps its value at position `2k`; the
+/// types it added take odd positions, and the other odd positions are free (`is_gap`, refused at load).
 pub mod osc_type {
     pub const OFF: usize = 0;
-    pub const PM: usize = 1;
-    pub const BLIT: usize = 2;
-    pub const WAVETABLE: usize = 3;
-    pub const SAMPLER: usize = 4;
+    pub const PM: usize = 2;
+    pub const BLIT: usize = 4;
+    pub const WAVETABLE: usize = 6;
+    pub const SAMPLER: usize = 8;
     /// The naive generators (`osc::naive`): saw/triangle, pulse, sine, coloured noise, FM (phase-modulated by the
-    /// sum of the earlier slots), aux in A and B (the strip's aux busses).
-    pub const NAIVE_SAW: usize = 5;
-    pub const NAIVE_PULSE: usize = 6;
-    pub const SINE: usize = 7;
-    pub const NOISE: usize = 8;
-    pub const FM: usize = 9;
-    pub const AUX_A: usize = 10;
-    pub const AUX_B: usize = 11;
+    /// sum of the earlier slots), aux in A and B (the strip's aux busses). Even ids `NAIVE_SAW..=AUX_B`.
+    pub const NAIVE_SAW: usize = 10;
+    pub const NAIVE_PULSE: usize = 12;
+    pub const SINE: usize = 14;
+    pub const NOISE: usize = 16;
+    pub const FM: usize = 18;
+    pub const AUX_A: usize = 20;
+    pub const AUX_B: usize = 22;
     /// Clocked oscillator: `shape[CLK_*]` pick wave, voices, version, clock.
-    pub const CLOCKED: usize = 12;
-    pub const COUNT: usize = 13;
+    pub const CLOCKED: usize = 24;
+    /// Point oscillator (change add-tf3-import): a cycle drawn through control points (`shape::PTS_*`, `pts`).
+    pub const POINTS: usize = 1;
+    /// PAD table (change add-tf3-import): a static PADsynth table built at load (`shape::PAD_*`).
+    pub const PAD: usize = 3;
+    pub const COUNT: usize = 25;
     #[inline]
     pub fn decode(p: f32) -> usize {
         crate::law::choice(p, COUNT)
@@ -153,10 +160,15 @@ pub mod osc_type {
     pub const fn encode(id: usize) -> f32 {
         super::choice_value(id, COUNT)
     }
+    /// Whether position `t` holds no type (a free position of the expanded choice).
+    #[inline]
+    pub const fn is_gap(t: usize) -> bool {
+        t >= COUNT || (t % 2 == 1 && t != POINTS && t != PAD)
+    }
     /// Whether type `t` is a naive generator.
     #[inline]
     pub const fn is_naive(t: usize) -> bool {
-        t >= NAIVE_SAW && t <= AUX_B
+        t >= NAIVE_SAW && t <= AUX_B && (t - NAIVE_SAW) % 2 == 0
     }
 }
 
@@ -207,6 +219,21 @@ pub mod shape {
     pub const CLK_F_AMOUNT: usize = 6;
     pub const CLK_F_DECAY: usize = 7;
     pub const CLK_F_DAMP: usize = 8;
+    /// Point oscillator (change add-tf3-import): point `k` (0..4) offset at `PTS_POINT + 2k`, value at
+    /// `PTS_POINT + 2k + 1`, drive last. Count, segment modes and layers are the appended [`super::pt`] fields.
+    /// Shape 7 (point 4's value) is structural for every type (`SMP_SOURCE`): it is not automatable, but the mod
+    /// matrix still moves it.
+    pub const PTS_POINT: usize = 0;
+    pub const PTS_DRIVE: usize = 8;
+    /// PAD table (change add-tf3-import): read once at load to build the table (a later change is not applied),
+    /// except the drive.
+    pub const PAD_BANDWIDTH: usize = 0;
+    pub const PAD_SCALE: usize = 1;
+    pub const PAD_DAMP: usize = 2;
+    pub const PAD_HARMONICS: usize = 3;
+    /// `Choice(4)`: single, detune, spread, gauss.
+    pub const PAD_PROFILE: usize = 4;
+    pub const PAD_DRIVE: usize = 5;
 }
 
 /// Noise group.
@@ -450,9 +477,33 @@ pub mod speech {
     pub const PITCH: usize = ON + 2;
 }
 
+/// Point-oscillator fields of each oscillator slot (change add-tf3-import, appended after the v3 layout; two-byte
+/// indices): point count `count(1..4)`, the segment modes (`Choice(3)`: step, linear, spline) of the segments ending
+/// at points 1–4 and of the last segment, layers `count(1..11)`, layer detune `10p³` Hz (left +, right −) and layer
+/// spread `10p⁴` Hz per layer, as the wavetable's. A `pad` slot reads the layer detune.
+pub const PTS: usize = SPEECH + 3;
+pub mod pt {
+    pub const COUNT_: usize = 0;
+    pub const MODE: usize = 1;
+    pub const MODES: usize = 5;
+    pub const LAYERS: usize = 6;
+    pub const DETUNE: usize = 7;
+    pub const SPREAD: usize = 8;
+    pub const LEN: usize = 9;
+    /// Segment modes (`Choice(3)`).
+    pub const STEP: usize = 0;
+    pub const LINEAR: usize = 1;
+    pub const SPLINE: usize = 2;
+}
+/// Index of point-oscillator field `fld` of oscillator slot `i`.
+pub const fn pts(i: usize, fld: usize) -> usize {
+    PTS + i * pt::LEN + fld
+}
+
 /// First two-byte index of the chunk escape (`chunk::SHORT`).
 pub const TWO_BYTE: usize = 240;
-const _: () = assert!(ch::FXROUTE == TWO_BYTE - 1 && COUNT == 294, "the frozen v3 layout (design 6.4)");
+const _: () = assert!(ch::FXROUTE == TWO_BYTE - 1 && SPEECH + 3 == 294, "the frozen v3 layout (design 6.4)");
+const _: () = assert!(COUNT == 321, "the add-tf3-import layout (design D3)");
 
 /// Index of the sample index of oscillator slot `i`.
 pub const fn smp_index(i: usize) -> usize {
@@ -500,6 +551,22 @@ pub const fn is_structural(i: usize) -> bool {
     }
     let fld = (i - OSC) % o::LEN;
     fld == o::TYPE || fld == o::SHAPE + shape::SMP_SOURCE
+}
+
+/// Whether value `i` takes effect only when the instrument loads, given the patch `v`: the structural parameters and a
+/// PAD slot's table inputs (bandwidth, scale, damp, harmonics, profile; the table is built at load). A host rebuilds
+/// the device when one changes.
+pub fn is_load_time(v: &[f32; COUNT], i: usize) -> bool {
+    if is_structural(i) {
+        return true;
+    }
+    if i < OSC || i >= NOISE {
+        return false;
+    }
+    let (slot, fld) = ((i - OSC) / o::LEN, (i - OSC) % o::LEN);
+    fld >= o::SHAPE + shape::PAD_BANDWIDTH
+        && fld <= o::SHAPE + shape::PAD_PROFILE
+        && osc_type::decode(v[osc(slot, o::TYPE)]) == osc_type::PAD
 }
 
 /// Whether quirk `q` (a [`quirk`] index) is set.

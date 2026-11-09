@@ -20,7 +20,7 @@
 use std::process::ExitCode;
 use synth_convert::Converted;
 
-const USAGE: &str = "usage: synth-convert ws <in.song> <out.song>\n       synth-convert tfm <in.tfm> <out.song> [tail-seconds]\n       synth-convert v2m <in.v2m> <out.song> [tail-seconds] [--channels hex] [--era auto|kkrieger2004]   (Farbrausch V2, format versions 0-6)\n       synth-convert tf4m <in.tf4m> <out.song> [tail-seconds]   (2013 Tunefish 4 of Enigma Studio 4)\n       synth-convert tf4m-tfm <in.tf4m> <out.tfm>   (the same song in the final .tfm layout)\n       synth-convert patch <patch.txt> <phrase.txt> <out.song>\n       synth-convert xm <in.xm> <patches.json> <out.song> [--names <tracks.json>] [--controls tick|row|note] [--thin <bytes>] [--keep-layers] [--split-pitches] [--dry] [--exact-chain]   (a mini-cauldron XM: TBL Jizz, Stash; XM volume/pan/pitch per tick (default), row or note; --thin: lanes within that many bytes of 255, slides as ramps; stereo/echo layers dropped and pitch tracks packed unless --keep-layers / --split-pitches; the dropped layers' echo and room come back as a stereo delay and reverb unless --dry; one low-pass stage (none from 16 kHz) and only the clips the notes reach unless --exact-chain)\n       synth-convert xm-phrase <patches.json> <jizz|bluish|song0> <record> <variant> <out.song>   (one mini-cauldron phrase)\n       synth-convert xm-triggers <in.xm>   (the XM replay's triggers: start s, volume, offset)\n       synth-convert migrate <in.song> <out.song>   (a unified song of the old layout → v3)\n       synth-convert features <unified.song> [--explain | --json] [--cost <marginal.csv>]\n       synth-convert rust <unified.song> <out.rs> [bank.dls]   (compo build: validated song as Rust + module assert)";
+const USAGE: &str = "usage: synth-convert ws <in.song> <out.song>\n       synth-convert tfm <in.tfm> <out.song> [tail-seconds]\n       synth-convert v2m <in.v2m> <out.song> [tail-seconds] [--channels hex] [--era auto|kkrieger2004]   (Farbrausch V2, format versions 0-6)\n       synth-convert tf4m <in.tf4m> <out.song> [tail-seconds]   (2013 Tunefish 4 of Enigma Studio 4)\n       synth-convert tf4m-tfm <in.tf4m> <out.tfm>   (the same song in the final .tfm layout)\n       synth-convert patch <patch.txt> <phrase.txt> <out.song>\n       synth-convert e3prj <in.e3prj> <out.song> [--song <id>] [--editor] [tail-seconds]   (Tunefish 3: an Enigma Studio 3 project; player mode unless --editor)\n       synth-convert tf3 <program.txt> <out.chunk> [--editor]   (one Tunefish 3 preset as a unified instrument chunk)\n       synth-convert xm <in.xm> <patches.json> <out.song> [--names <tracks.json>] [--controls tick|row|note] [--thin <bytes>] [--keep-layers] [--split-pitches] [--dry] [--exact-chain]   (a mini-cauldron XM: TBL Jizz, Stash; XM volume/pan/pitch per tick (default), row or note; --thin: lanes within that many bytes of 255, slides as ramps; stereo/echo layers dropped and pitch tracks packed unless --keep-layers / --split-pitches; the dropped layers' echo and room come back as a stereo delay and reverb unless --dry; one low-pass stage (none from 16 kHz) and only the clips the notes reach unless --exact-chain)\n       synth-convert xm-phrase <patches.json> <jizz|bluish|song0> <record> <variant> <out.song>   (one mini-cauldron phrase)\n       synth-convert xm-triggers <in.xm>   (the XM replay's triggers: start s, volume, offset)\n       synth-convert migrate <in.song> <out.song>   (a unified song of the old layout → v3)\n       synth-convert features <unified.song> [--explain | --json] [--cost <marginal.csv>]\n       synth-convert rust <unified.song> <out.rs> [bank.dls]   (compo build: validated song as Rust + module assert)";
 
 fn read(path: &str) -> Result<Vec<u8>, String> {
     std::fs::read(path).map_err(|e| format!("{path}: {e}"))
@@ -89,6 +89,31 @@ fn run(args: &[String]) -> Result<(), String> {
                 }
             }
             finish(synth_convert::v2conv::convert(&read(input)?, o).map_err(|e| format!("{input}: {e}"))?, output)
+        }
+        ["e3prj", input, output, ..] => {
+            let (mut song, mut mode, mut tail) = (None, synth_convert::tf3::Mode::Player, 4.0);
+            let mut rest = args[3..].iter();
+            while let Some(a) = rest.next() {
+                match a.as_str() {
+                    "--song" => {
+                        let s = rest.next().ok_or("--song needs an id")?;
+                        song = Some(s.parse::<u32>().map_err(|_| format!("song id `{s}` is not a number"))?);
+                    }
+                    "--editor" => mode = synth_convert::tf3::Mode::Editor,
+                    t => tail = t.parse::<f64>().ok().filter(|t| *t >= 0.0).ok_or_else(|| format!("tail `{t}` is not a number of seconds"))?,
+                }
+            }
+            let text = String::from_utf8_lossy(&read(input)?).into_owned();
+            let project = synth_convert::e3prj::read(&text).map_err(|e| format!("{input}: {e}"))?;
+            finish(synth_convert::tf3song::convert(&project, song, mode, tail).map_err(|e| format!("{input}: {e}"))?, output)
+        }
+        ["tf3", input, output] | ["tf3", input, output, "--editor"] => {
+            let mode = if args.len() > 3 { synth_convert::tf3::Mode::Editor } else { synth_convert::tf3::Mode::Player };
+            let text = String::from_utf8_lossy(&read(input)?).into_owned();
+            let params = synth_convert::e3prj::read_preset(&text).map_err(|e| format!("{input}: {e}"))?;
+            let (chunk, warnings) = synth_convert::tf3song::preset_chunk(&params, mode);
+            warnings.iter().for_each(|w| eprintln!("synth-convert: warning: {w}"));
+            std::fs::write(output, chunk).map_err(|e| format!("{output}: {e}"))
         }
         ["tf4m-tfm", input, output] => {
             let (tfm, warnings) = synth_convert::tfm::tf4m_to_tfm(&read(input)?).map_err(|e| format!("{input}: {e}"))?;

@@ -101,6 +101,10 @@ modules! {
     QUIRK_LCG_NOISE = 60, "us-quirk-lcg-noise", "quirk: LCG noise";
     QUIRK_COARSE_ENV = 61, "us-quirk-coarse-env", "quirk: coarse frame-law envelope";
     OSC_COMBINE = 62, "us-osc-combine", "slot combine: multiply (ring) and replace";
+    // change add-tf3-import
+    OSC_POINTS = 63, "us-osc-points", "point oscillator";
+    OSC_PAD = 64, "us-osc-pad", "PAD table oscillator";
+    FX_CHORUS_TF3 = 65, "us-fx-chorus-tf3", "chorus, one-tap mode";
 }
 
 /// The module of quirk index `q` (a `params::quirk` index).

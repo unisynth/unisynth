@@ -37,6 +37,12 @@ pub enum Kind {
     V2,
     /// Mini-cauldron's waveforms (change add-cauldron-xm-import): a 16-bit phase, naive output ([`cauldron`]).
     Clocked,
+    /// Tunefish 3's point oscillator (change add-tf3-import): needs a [`crate::pts::Pts`] from the pool.
+    #[cfg(feature = "us-osc-points")]
+    Pts,
+    /// Tunefish 3's PAD table (change add-tf3-import): reads the instrument's table, keeps a [`crate::pts::Pts`].
+    #[cfg(feature = "us-osc-pad")]
+    Pad,
 }
 
 impl Kind {
@@ -44,6 +50,7 @@ impl Kind {
     pub fn from_type(ty: usize) -> Result<Kind, LoadError> {
         let missing = |m| Err(LoadError::UnsupportedModule(m));
         match ty {
+            t if osc_type::is_gap(t) => Err(LoadError::BadChunk),
             osc_type::OFF => Ok(Kind::Off),
             osc_type::PM if cfg!(feature = "us-osc-pm") => Ok(Kind::Pm),
             osc_type::PM => missing(module::OSC_PM),
@@ -54,6 +61,14 @@ impl Kind {
             t if osc_type::is_naive(t) => missing(module::OSC_NAIVE),
             osc_type::CLOCKED if cfg!(feature = "us-osc-clocked") => Ok(Kind::Clocked),
             osc_type::CLOCKED => missing(module::OSC_CLOCKED),
+            #[cfg(feature = "us-osc-points")]
+            osc_type::POINTS => Ok(Kind::Pts),
+            #[cfg(not(feature = "us-osc-points"))]
+            osc_type::POINTS => missing(module::OSC_POINTS),
+            #[cfg(feature = "us-osc-pad")]
+            osc_type::PAD => Ok(Kind::Pad),
+            #[cfg(not(feature = "us-osc-pad"))]
+            osc_type::PAD => missing(module::OSC_PAD),
             #[cfg(feature = "us-osc-wt")]
             osc_type::WAVETABLE => Ok(Kind::Wt),
             #[cfg(not(feature = "us-osc-wt"))]
@@ -418,10 +433,11 @@ pub mod v2mode {
     pub const AUX_B: u8 = 7;
 }
 
-/// The V2 mode of naive oscillator type `t` (`osc_type::NAIVE_SAW..=AUX_B` → 1..=7).
+/// The V2 mode of naive oscillator type `t` (the even ids `osc_type::NAIVE_SAW..=AUX_B` → 1..=7).
 #[inline]
 pub const fn naive_mode(t: usize) -> u8 {
-    (t - crate::params::osc_type::NAIVE_SAW + 1) as u8
+    debug_assert!(crate::params::osc_type::is_naive(t));
+    ((t - crate::params::osc_type::NAIVE_SAW) / 2 + 1) as u8
 }
 
 /// Whether oscillator slot `i` of patch `p` is an aux-in generator: it reads the aux buses through the instrument's
@@ -537,7 +553,16 @@ const INV_TAU: f32 = 1.0 / (2.0 * core::f32::consts::PI);
 /// One sample of a slot: `(left, right, send)` = its output after mix, before the pan (the voice pans and combines
 /// it), and the phase-mod send for the next slot in radians. `pm_in` is the previous slot's send.
 #[inline]
-pub fn sample(slot: &mut Slot, wt: Option<&mut Wt>, smp: &smp::Sample, r: &mut SlotRamps, pm_in: f32) -> (f32, f32, f32) {
+#[cfg_attr(not(all(feature = "us-osc-points", feature = "us-osc-pad")), allow(unused_variables))]
+pub fn sample(
+    slot: &mut Slot,
+    wt: Option<&mut Wt>,
+    pts: Option<&mut crate::pts::Pts>,
+    pad: Option<&[f32]>,
+    smp: &smp::Sample,
+    r: &mut SlotRamps,
+    pm_in: f32,
+) -> (f32, f32, f32) {
     let inc = r.inc.next();
     let gain = r.gain.next();
     let mix = r.mix.next();
@@ -584,6 +609,23 @@ pub fn sample(slot: &mut Slot, wt: Option<&mut Wt>, smp: &smp::Sample, r: &mut S
                 None => (0.0, 0.0),
             };
             (a * gain * mix, b * gain * mix, (a + b) * 0.5 * gain * send)
+        }
+        #[cfg(feature = "us-osc-points")]
+        Kind::Pts => {
+            // the gain comes before the decimation stage (Tunefish 3 filters its volume-scaled signal)
+            let (a, b) = match pts {
+                Some(p) => crate::pts::play(p, inc, det, spread, drive, r.layers, gain),
+                None => (0.0, 0.0),
+            };
+            (a * mix, b * mix, (a + b) * 0.5 * send)
+        }
+        #[cfg(feature = "us-osc-pad")]
+        Kind::Pad => {
+            let (a, b) = match (pad, pts) {
+                (Some(t), Some(st)) => crate::pad::play(t, st, inc, det, drive, gain),
+                _ => (0.0, 0.0),
+            };
+            (a * mix, b * mix, (a + b) * 0.5 * send)
         }
         // a type of a module this build lacks is rejected at load; the guards let the compiler drop its code
         _ => (0.0, 0.0, 0.0),
@@ -912,6 +954,22 @@ fn blit(slot: &mut Slot, inc: f64, wf: f64, pw: f64, leak: f64) -> f32 {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn gaps_are_bad_chunks_and_new_types_name_their_module() {
+        use crate::params::osc_type;
+        use synth_core::mix::LoadError;
+        assert!(matches!(Kind::from_type(5), Err(LoadError::BadChunk)));
+        assert!(matches!(Kind::from_type(23), Err(LoadError::BadChunk)));
+        #[cfg(feature = "us-osc-points")]
+        assert!(matches!(Kind::from_type(osc_type::POINTS), Ok(Kind::Pts)));
+        #[cfg(not(feature = "us-osc-points"))]
+        assert!(matches!(Kind::from_type(osc_type::POINTS), Err(LoadError::UnsupportedModule(crate::module::OSC_POINTS))));
+        #[cfg(feature = "us-osc-pad")]
+        assert!(matches!(Kind::from_type(osc_type::PAD), Ok(Kind::Pad)));
+        #[cfg(not(feature = "us-osc-pad"))]
+        assert!(matches!(Kind::from_type(osc_type::PAD), Err(LoadError::UnsupportedModule(crate::module::OSC_PAD))));
+    }
+
 
     /// Ring on a band-limited slot (change unify-v2-algorithms 5.1): a phase-mod sine at 440 Hz times a band-limited
     /// saw at 110 Hz holds the products (440 ± 110 Hz), and neither input passes on its own. The saw's third and fifth
@@ -932,7 +990,7 @@ mod tests {
                 .map(|_| {
                     let mut s = (0.0, 0.0, 0.0);
                     for (slot, r) in [(&mut s1, &mut r1), (&mut s2, &mut r2)] {
-                        let (a, b, _) = sample(slot, None, &src, r, 0.0);
+                        let (a, b, _) = sample(slot, None, None, None, &src, r, 0.0);
                         let (pl, pr) = r.pan();
                         s = mix_in(s, r.combine, a, b, pl, pr);
                     }
@@ -1278,7 +1336,7 @@ mod tests {
             s.clocked_start(0.0, &clk);
             let mut r = SlotRamps::default();
             r.set(&SlotT { inc: 211.0 * clock / 65536.0, gain: 1.0, mix: 1.0, pan_l: 1.0, pan_r: 1.0, clk, ..SlotT::default() });
-            (0..n).map(|_| sample(&mut s, None, &smp::Sample::NONE, &mut r, 0.0).0).collect()
+            (0..n).map(|_| sample(&mut s, None, None, None, &smp::Sample::NONE, &mut r, 0.0).0).collect()
         }
 
         #[test]

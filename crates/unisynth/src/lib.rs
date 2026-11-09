@@ -39,6 +39,8 @@ pub mod v2fx;
 pub mod voice;
 #[cfg(feature = "us-osc-wt")]
 pub mod wt;
+pub mod pts;
+pub mod pad;
 
 #[cfg(all(test, feature = "us-osc-pm", feature = "us-env-seconds", feature = "us-env-rate"))]
 // the song-level tests that use it are gated on us-matrix or us-voice-glide + us-voice-unison

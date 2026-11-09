@@ -8,7 +8,7 @@ Pull-only (not auto-injected).
 
 ## Instrument (kind 64)
 - Built from `unisynth::params` (`name`, `law_of`, `DEFAULTS`, `is_structural`, `is_raw`); group = name prefix before the first dot (else `voice`).
-- `choice_options`: options per field — osc type 13 (`Naive saw/tri`, `Naive pulse`, `Clocked`, … stored position 12 last), combine, law, filter type 11, form, oversample, law, env law (`Seconds/Rate/Frame`) / curve, LFO shape 8 / sync / law / polarity, mod source 17 (`Note (centred)`) / operation 3, voice settings; mod targets (`Law::Index`) named from `unisynth::modmx::target`. `Law::Steps` unit `steps` 0..128; raw (sampler index) range 0..65535.
+- `choice_options`: options per field — osc type 25 positions (id = stored position: `Off`, `Points`, `Phase mod`, `PAD table`, `Saw/pulse`, … `Clocked` at 24; "—" at free positions, add-tf3-import), point-field segment modes `Step/Linear/Spline`, combine, law, filter type 11, form, oversample, law, env law (`Seconds/Rate/Frame`) / curve, LFO shape 8 / sync / law / polarity, mod source 17 (`Note (centred)`) / operation 3, voice settings; mod targets (`Law::Index`) named from `unisynth::modmx::target`. `Law::Steps` unit `steps` 0..128; raw (sampler index) range 0..65535.
 
 ## Effects (kinds 65–73)
 - `mode` (structural `Choice(fx::mode_total)`, unused positions `—`) + parameter names in legacy order with editor defaults (legacy constructor values via law inverses; TF EQ 0.5 = unity). Exported chunks always carry their values.

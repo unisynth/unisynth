@@ -15,6 +15,7 @@ MIT no_std f32 unified synth (change add-unified-synth, archived): one slot-base
 | `src/flt.rs` | Filter slots: `Kind`, `Forms`, `coefs`/`coefs_steps`, `Slot`, `run`; `check` → `UnsupportedModule` per `us-flt-*`. → see `src/flt.rs.AGENTS.md`. |
 | `src/fm.rs` | Elementary functions replacing `libm` in the i686 player: f64 `exp2`/`log2`/`pow`/`sin_cos`, f32 wrappers, `sqrt`. → see `src/fm.rs.AGENTS.md`. |
 | `src/fx/chorus.rs` | Chorus (kind 69): 3 params; 6 lines, control every 512 absolute frames (`ctx.frame % 512`), LFO step `50p²·512/rate`, own fixed-seed phases redrawn on reset. |
+| `src/fx/chorus3.rs` | Chorus kind 69 mode 1 "One tap" (`us-fx-chorus-tf3`, module 65; Tunefish 3, add-tf3-import 6.4): `Chorus3`, one tap per channel `y = x + line[n−d]`, line stores `x·gain`, `d = fi(1 + (sin(t·π·rate/sr)+1)/2·fi(50·depth²) ms)` frames on the absolute frame `t`, ring sr/10. Params rate, depth, gain. |
 | `src/fx/comb.rs` | Flanger mode 2 `comb` (mini-cauldron comb + doubler): 4 params; `us-fx-flanger-comb`, module 56. → see `src/fx/comb.rs.AGENTS.md`. |
 | `src/fx/compact.rs` | Reverb mode 1 `compact` (Tunefish): 4 params on the Freeverb core. |
 | `src/fx/compressor.rs` | Compressor (kind 72, WaveSabre Smasher), `Compressor`: 7 params, 2 ms lookahead, key from main or the sidechain pair (read-only). |
@@ -25,7 +26,7 @@ MIT no_std f32 unified synth (change add-unified-synth, archived): one slot-base
 | `src/fx/freeverb.rs` | Reverb mode 0 `freeverb` (WaveSabre Cathedral): 8 params, freeze, width, pre-delay, SVF cuts. → see `src/fx/freeverb.rs.AGENTS.md`. |
 | `src/fx/golden.rs` | Effect self-goldens: FNV-1a of every mode at 44.1 kHz/120 BPM and 48 kHz/90 BPM vs `tests/golden_fx.txt`. → see `src/fx/golden.rs.AGENTS.md`. |
 | `src/fx/law.rs` | Effect laws as in the original engines: `exp2f`, `ms_to_len`, `db_to_scalar`, `param_to_*`, `eq_gain`, `fast_sin/cos`. → see `src/fx/law.rs.AGENTS.md`. |
-| `src/fx/mod.rs` | Effect kinds 65–73: `UFx`, `Effect` trait, `modes!` table, `MODES` (22), mode/module lookups, host `encode`. → see `src/fx/mod.rs.AGENTS.md`. |
+| `src/fx/mod.rs` | Effect kinds 65–73: `UFx`, `Effect` trait, `modes!` table, `MODES` (23; chorus mode 1 one-tap, add-tf3-import), mode/module lookups, host `encode`. → see `src/fx/mod.rs.AGENTS.md`. |
 | `src/fx/parametric.rs` | EQ mode 0 `parametric` (WaveSabre Leveller): 14 params, 5 bands per channel, `fast_sin` coefficients. Bit-identical to the original effect. |
 | `src/fx/phaser.rs` | Flanger mode 0 `phaser` (WaveSabre Twister): 9 params, flanger/phaser types, vibrato, spread, SVF cuts; 1 s lines. Bit-identical to the original effect. Allpass `y`/`zm1` through `denormal::flush` (wasm). |
 | `src/fx/power.rs` | Distortion mode 2 `power` (Tunefish): `sign·q(|x|)^(1−amount)`, 15-bit quantised. 1 param. |
@@ -39,39 +40,43 @@ MIT no_std f32 unified synth (change add-unified-synth, archived): one slot-base
 | `src/fx/three_band.rs` | EQ mode 1 `3band` (Tunefish): 880 Hz / 5 kHz corners at the song rate, 3 gains + `pan`, ramped changes. → see `src/fx/three_band.rs.AGENTS.md`. |
 | `src/fx/v2.rs` | V2 global effects as modes: EQ `cut`, delay `v2`, reverb `v2`, compressor `v2`; port of V2 after v2redux. → see `src/fx/v2.rs.AGENTS.md`. |
 | `src/fx/wrap.rs` | Distortion mode 3 `wrap` (mini-cauldron 8-bit wrap-around): drive, offset; `us-fx-distortion-wrap`, module 55. → see `src/fx/wrap.rs.AGENTS.md`. |
-| `src/instrument.rs` | `UInstrument` (kind 64 `Device`): `need`/`new` (chunk → `VoicePool`), `set_param`, `run`/`run_ext` → `render_span`, `probe` taps. → see `src/instrument.rs.AGENTS.md`. |
+| `src/instrument.rs` | `UInstrument` (kind 64 `Device`): `need`/`new` (chunk → `VoicePool`), `set_param`, `run`/`run_ext` → `render_span`, `probe` taps. Allocates a `Pts` per voice for point and PAD slots (`wants_cycle`), builds one PAD table per PAD slot at load (`pad_shape`, seed from the instrument rng); `need` counts both (add-tf3-import). → see `src/instrument.rs.AGENTS.md`. |
 | `src/instrument/tests.rs` | Instrument tests: onset, stealing, unison, mono/glide, envelopes, LFO, matrix, call-split independence, clocked, quiet. → see `src/instrument/tests.rs.AGENTS.md`. |
 | `src/instrument/tests/flt_noise.rs` | Noise + filters through the voice: level law, decorrelation, filter types/slots, cutoff/resonance routes. Needs `us-osc-pm`, `us-noise`, `us-flt`. → see `src/instrument/tests/flt_noise.rs.AGENTS.md`. |
 | `src/instrument/tests/golden.rs` | Self-goldens: FNV-1a 64 of 35 synthetic patches vs `tests/golden.txt`; same output at call sizes 512 and 77. → see `src/instrument/tests/golden.rs.AGENTS.md`. |
 | `src/instrument/tests/osc_blit.rs` | Saw/pulse (blit): spectrum, polarity, per-slot pitch, leak corner, phase persistence, start-phase spread. Needs `us-osc-blit`. → see `src/instrument/tests/osc_blit.rs.AGENTS.md`. |
+| `src/instrument/tests/osc_pad.rs` | PAD table tests (add-tf3-import): octave-low pitch, band spread, load-time table, memory. Needs `us-osc-pm`, `us-osc-pad`. → see `src/instrument/tests/osc_pad.rs.AGENTS.md`. |
 | `src/instrument/tests/osc_pm.rs` | Phase-mod operator: pure sine, Square35 blend (1/3, 1/5 harmonics), two-operator FM against a Bessel reference, feedback, Falcon ratio/ratio fine, gain/mix/octave/fixed Hz, missing-module load error. |
+| `src/instrument/tests/osc_pts.rs` | Point oscillator tests (add-tf3-import): step/linear cycles, modulated point, layers, memory. Needs `us-osc-pm`, `us-osc-points`, `us-chunk-wide`. → see `src/instrument/tests/osc_pts.rs.AGENTS.md`. |
 | `src/instrument/tests/osc_sample.rs` | Sampler: pitch laws, interpolation, loops, GSM decode, one-shot, call-split/reset independence; builds a tiny DLS bank. → see `src/instrument/tests/osc_sample.rs.AGENTS.md`. |
 | `src/instrument/tests/osc_dls_instrument.rs` | DLS-instrument source: synthetic multi-wave bank (splits, layers, loops, banks) + real macOS bank when present. → see `src/instrument/tests/osc_dls_instrument.rs.AGENTS.md`. |
 | `src/instrument/tests/osc_wt.rs` | Wavetable: partial series, pitch at rates, detune/spread/drive, rebuild cadence, PM send, pool sizing. Needs `us-osc-wt`. → see `src/instrument/tests/osc_wt.rs.AGENTS.md`. |
 | `src/instrument/tests/pool.rs` | Memory: `need` is a safe bound, `OutOfMemory` one byte under, shared GSM decode, hostile sample sizes → `BadChunk`. → see `src/instrument/tests/pool.rs.AGENTS.md`. |
 | `src/instrument/tests/probe.rs` | Probe: env 1 sustain stage/level + age, steal → new id, release flag, LFO phase = rate × time, sampler position advances, cutoff Hz + low-pass taps lose energy, taps leave output bit-identical. |
 | `src/instrument/tests/v2.rs` | V2 scenarios: pulse harmonics, ring mul, parallel balance, voice distortion, channel stage, `mix_*` V2 filters/envelopes. → see `src/instrument/tests/v2.rs.AGENTS.md`. |
-| `src/law.rs` | Normalized → physical laws (all clamp `p`, NaN → 0): `cutoff`, `gain`, `lfo_rate`, `time`, `transpose`, `pan`, wavetable, start phase; host `inv_*`. → see `src/law.rs.AGENTS.md`. |
+| `src/law.rs` | Normalized → physical laws (all clamp `p`, NaN → 0): `cutoff`, `gain`, `lfo_rate`, `time`, `transpose`, `pan`, wavetable, start phase; host `inv_*`. `pts_drive` = `1 + 32p³` (add-tf3-import). → see `src/law.rs.AGENTS.md`. |
 | `src/lfo.rs` | One LFO for every law: `Lfo`, `LfoP::read`, `shape::*` (8), `sync::*`, `scale_view`/`offset_view`. → see `src/lfo.rs.AGENTS.md`. |
-| `src/lib.rs` | Crate root: `kind` ids (64 instrument, 65–73 effects), feature-gated modules, re-exports `UDevice`, `UInstrument`; `no_std`. → see `src/lib.rs.AGENTS.md`. |
+| `src/lib.rs` | Crate root: `kind` ids (64 instrument, 65–73 effects), feature-gated modules, re-exports `UDevice`, `UInstrument`; `no_std`. Modules `pts`, `pad` (add-tf3-import). → see `src/lib.rs.AGENTS.md`. |
 | `src/migrate.rs` | Host-only old layout → v3 migration: `values`, `instrument_chunk`, `lane`, `effect_chunk`, `encode_old*`, `MigrateError`. → see `src/migrate.rs.AGENTS.md`. |
 | `src/migrate/crosscheck.txt` | `research/unify-v3-layout/crosscheck.py sample`: 111 instruments (one per format version and feature) as old pairs | v3 pairs (f32 bits); the migration test compares them. Generated; do not edit. |
 | `src/migrate/tests.rs` | Migration tests: reference match (`MIGRATE_CROSSCHECK` = full), frozen layout = `v3-layout.tsv`, rename map, lanes, effects. → see `src/migrate/tests.rs.AGENTS.md`. |
 | `src/modmx.rs` | Mod matrix: `Matrix`, `source::*`, `op::*`, `target::*`, `Query` (`Matrix` scan, `Tab` one pass); 16 slots with `us-matrix-add`. → see `src/modmx.rs.AGENTS.md`. |
 | `src/modmx/tests.rs` | Matrix tests: neutral, Scale/Offset/Add semantics, source values, LFO views, slot-amount modulation, target table, gating. → see `src/modmx/tests.rs.AGENTS.md`. |
-| `src/module.rs` | Module ids for `UnsupportedModule` (never renumbered); one `modules!` table: consts, `ALL`, `feature`, `compiled`, `name`. → see `src/module.rs.AGENTS.md`. |
-| `src/needs.rs` | Host (`std`): modules a song needs: `instrument(chunk, reach)`, `instrument_why`, `effect(kind, chunk)`, `feature(id)`. → see `src/needs.rs.AGENTS.md`. |
+| `src/module.rs` | Module ids for `UnsupportedModule` (never renumbered; 63 `us-osc-points`, 64 `us-osc-pad`); one `modules!` table: consts, `ALL`, `feature`, `compiled`, `name`. → see `src/module.rs.AGENTS.md`. |
+| `src/needs.rs` | Host (`std`): modules a song needs (gap osc type → `BadChunk`, as the loader): `instrument(chunk, reach)`, `instrument_why`, `effect(kind, chunk)`, `feature(id)`. → see `src/needs.rs.AGENTS.md`. |
 | `src/noise.rs` | Noise source: `Noise` (per-voice xorshift, `start`, `next(level, band, width)`), band = 4-pole LP then RBJ HP. → see `src/noise.rs.AGENTS.md`. |
-| `src/osc.rs` | Oscillator slots: `Kind` (`Pm`, `Blit`, `Sampler`, `Wt`, `V2`, `Clocked`), `Slot`, `sample`, `mix_in`, clocked generator. → see `src/osc.rs.AGENTS.md`. |
+| `src/osc.rs` | Oscillator slots: `Kind` (`Pm`, `Blit`, `Sampler`, `Wt`, `V2`, `Clocked`, `Pts`, `Pad` with `us-osc-points`/`us-osc-pad`; gap type ids → `BadChunk`; add-tf3-import), `Slot`, `sample`, `mix_in`, clocked generator. → see `src/osc.rs.AGENTS.md`. |
 | `src/osc/cauldron_filter_vectors.rs` | Generated mini-cauldron filter reference `CASES` (5); `include!`d by `osc.rs` tests. Do not edit. → see `src/osc/cauldron_filter_vectors.rs.AGENTS.md`. |
 | `src/osc/cauldron_vectors.rs` | Generated mini-cauldron oscillator reference `CASES` (400 outputs each); read by `osc.rs` clocked tests. Do not edit. → see `src/osc/cauldron_vectors.rs.AGENTS.md`. |
-| `src/params.rs` | The frozen v3 layout, 294 values: block bases (`v`, `o`, `f`, `e`, `l`, `MOD`, `ch`, …), plain choices, `DEFAULTS`. → see `src/params.rs.AGENTS.md`. |
+| `src/pad.rs` | PAD table (`us-osc-pad`, add-tf3-import): `Shape`, `build` (in-place 2^16 table, no scratch), `sample`, `play`. → see `src/pad.rs.AGENTS.md`. |
+| `src/params.rs` | The frozen v3 layout (294 values) + add-tf3-import point fields (`PTS`, 321 total; osc type `Choice(25)`, id = position): block bases (`v`, `o`, `f`, `e`, `l`, `MOD`, `ch`, …), plain choices, `DEFAULTS`. → see `src/params.rs.AGENTS.md`. |
 | `src/params/host.rs` | Host-side v3 `Law` (`map`, `inverse`), `law_of`, `name`; compiled out of the player. → see `src/params/host.rs.AGENTS.md`. |
 | `src/params/old.rs` | Frozen old layout (260 values, chunk v1/v2), host-only: constants, `kinds`, `era`, `DEFAULTS`; read by migration/converters. → see `src/params/old.rs.AGENTS.md`. |
 | `src/params/old/host.rs` | Host-only metadata of the frozen old layout: `Law`, `law_of(i)`, `name(i)`. → see `src/params/old/host.rs.AGENTS.md`. |
 | `src/params/rename.rs` | `OLD: [(old, new); 260]`: old-layout name → functional name by old index (`""` = removed; envN.slope maps by mode in the migration). Host-only. See change: unify-v2-algorithms. |
 | `src/params/tests.rs` | Layout, names, laws, defaults, inverse round trips, rename-map coverage, `the_player_reads_no_format_version`. → see `src/params/tests.rs.AGENTS.md`. |
 | `src/probe.rs` | Feature `probe` (host only): `VoiceSnap`, `Probe { voices, taps }`, `cutoff_hz`, `Ring`; read-only. → see `src/probe.rs.AGENTS.md`. |
+| `src/pts.rs` | Point oscillator (`us-osc-points`, add-tf3-import): `Shape`, `Pts`, `cycle`, `play`, `Decim` (TF3 decimation stage). → see `src/pts.rs.AGENTS.md`. |
 | `src/ramp.rs` | `Ramp`: linear control value over a segment: `to(target, frames)` starts from the previous end (no drift), `retarget` mid-segment, `set`, `next`. |
 | `src/rng.rs` | `Xorshift` (xorshift32, implements `synth_core::rng::Rng`): `new(seed)` (0 → constant), `seed_from(&mut dyn Rng)` (one draw), `next_u32`. |
 | `src/smp.rs` | Sampler slot (port of WaveSabre `SamplePlayer`): `Source`, `Sample`, `Loop`, `Interp`, `State`, `pool_need`/`load`, `pick`. → see `src/smp.rs.AGENTS.md`. |
@@ -81,7 +86,7 @@ MIT no_std f32 unified synth (change add-unified-synth, archived): one slot-base
 | `src/v2.rs` | V2 numerics (V2 after v2redux): `fastsin`/`fastatan`, `calcfreq`, `Lrc`, `Dcf`, `Dist`, `frandom`, `Opt<T>`. → see `src/v2.rs.AGENTS.md`. |
 | `src/v2/tests.rs` | Unit tests of `v2.rs`: `fastsin` / `fastsinrc` within 2e-4 / 3e-4 of `libm::sinf` (V2's bug below −π/2 kept), fixed-point helpers, kept copies of the earlier LRC and Moog filters (low-pass, split), distortion modes. |
 | `src/v2fx.rs` | Shared V2 effect bodies: `Comp`, `Boost`, `ModDel`; used by `fx/v2.rs` and `chan.rs`. → see `src/v2fx.rs.AGENTS.md`. |
-| `src/voice.rs` | `Voice<'a>` (`synth_core::voice::Voice<NoteCx>`): per-32-frame control state, `Ramp`s, `tick`/`render`, `VoiceSet`, `Declick`. → see `src/voice.rs.AGENTS.md`. |
+| `src/voice.rs` | `Voice<'a>` (`synth_core::voice::Voice<NoteCx>`): per-32-frame control state, `Ramp`s, `tick`/`render`, `VoiceSet`, `Declick`. Point/PAD slots (add-tf3-import): `pts`/`pads` fields, `pts_build` per segment (cycle rebuild, decimation factor from the note), layer phases at note-on, control values from the point fields (`is_pts`/`is_pad`). → see `src/voice.rs.AGENTS.md`. |
 | `src/wt.rs` | Wavetable tables (`us-osc-wt`, Tunefish generator): `Shape`, `Table`, `Wt`, `band_bins`, `harmonics`. → see `src/wt.rs.AGENTS.md`. |
 | `tests/golden.txt` | Self-golden table of `src/instrument/tests/golden.rs`: `<patch> <FNV-1a 64> peak=<x>`; `UPDATE_GOLDEN=1` rewrites. → see `tests/golden.txt.AGENTS.md`. |
 | `tests/golden_fx.txt` | Self-golden table of `src/fx/golden.rs`: `fx<kind>.<mode>@{44k120,48k90} <FNV-1a 64> peak=<x>`, every effect mode on noise + sine (12 000 frames) at 44.1 kHz / 120 BPM and 48 kHz / 90 BPM. Same `UPDATE_GOLDEN=1` rewrite. |

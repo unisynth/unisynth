@@ -90,6 +90,22 @@ fn a_dls_instrument_source_needs_the_bank_support_and_no_gsm() {
 }
 
 #[test]
+fn point_and_pad_slots_list_their_modules() {
+    // change add-tf3-import: a point slot with a set point field also needs the two-byte indices
+    let song = many(
+        1,
+        |_, p| {
+            p[pm::osc(0, pm::o::TYPE)] = pm::osc_type::encode(pm::osc_type::POINTS);
+            p[pm::pts(0, pm::pt::COUNT_)] = 1.0;
+            p[pm::osc(1, pm::o::TYPE)] = pm::osc_type::encode(pm::osc_type::PAD);
+        },
+        &[],
+    );
+    let f = of(&song);
+    assert!(f.contains(&"us-osc-points") && f.contains(&"us-osc-pad") && f.contains(&"us-chunk-wide"), "{f:?}");
+}
+
+#[test]
 fn every_effect_kind_lists_exactly_its_mode() {
     let want = [
         (w::SCISSOR, "us-fx-distortion-shaper"),

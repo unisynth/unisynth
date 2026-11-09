@@ -12,6 +12,7 @@ export const SOURCES: Source[] = [
   { id: "gm", label: "GM.DLS bank", note: "OS bank read at runtime (Win gm.dls / macOS gs_instruments.dls); never shipped in the intro", lic: "OS bank" },
   { id: "gsm", label: "GSM samples", note: "stored in the instruments of project/music songs · GSM 06.10, about 9 KB per second", lic: "from project songs: each song's meta gives its licence" },
   { id: "tunefish", label: "Tunefish 4 programs", note: "tf4programs/*.txt → synth-convert → unisynth instrument + insert effects", lic: "GPL-3 reference: converted and re-saved as an own patch" },
+  { id: "tunefish3", label: "Tunefish 3 presets", note: "Enigma Studio 3's tf3programs (each distinct preset once) → synth-convert e3prj, editor mode → unisynth instrument + insert effects", lic: "Brain Control's bank (no licence stated): published pending permission" },
   { id: "wavesabre", label: "WaveSabre songs", note: "instruments inside the reference songs → synth-convert → unisynth instrument", lic: "WaveSabre reference songs (MIT)" },
   { id: "tests", label: "Test patches", note: "crates/wavesabre/tests, crates/tfsynth/tests (synthetic, cover every module)", lic: "ours" },
 ];
@@ -24,6 +25,7 @@ export function libItems(cat: any, src: string): LibItem[] {
   if (src === "gm") return (cat.gm?.instruments || []).map((g: any) => ({ name: g.name, tag: g.drums ? "kit" : `${String(g.prog).padStart(3, "0")}${g.bank ? "·b" + g.bank : ""}`, gm: g }));
   if (src === "gsm") return (cat.gsm?.samples || []).map((g: any) => ({ name: `${g.song} · ${g.trackName}${g.sample ? ` #${g.sample + 1}` : ""}`, tag: `${g.seconds.toFixed(2)} s`, gsm: g }));
   if (src === "tunefish") return (cat.tunefish?.programs || []).map((p: any) => ({ name: p.name, tag: "#" + p.n, conv: p.conv }));
+  if (src === "tunefish3") return (cat.tunefish3?.programs || []).map((p: any) => ({ name: p.name, tag: "#" + p.n, conv: p.conv }));
   if (src === "wavesabre") return (cat.wavesabre?.songs || []).flatMap((s: any) => s.instruments.filter((d: any) => !d.dup).map((d: any, i: number) => ({ name: `${s.song} · ${d.kind} ${i + 1}`, tag: d.kind === "Adultery" ? `wave ${d.wave}` : d.kind.slice(0, 5).toLowerCase(), ws: d, song: s.song, conv: d.conv })));
   if (src === "tests") return [...(cat.repo?.["wavesabre-tests"] || []).map((n: string) => ({ name: n, tag: "ws" })), ...(cat.repo?.["tfsynth-tests"] || []).map((n: string) => ({ name: n, tag: "tf" }))];
   return [];
@@ -46,7 +48,7 @@ export function openGroups(cat: any, q: string, want: string | null): Record<str
 
 /** What the inspector says about an entry; `hasInst`: the selected track has an instrument to load into. */
 export function describe(src: Source, it: LibItem, hasInst: boolean) {
-  const legacy = src.id === "tests" || ((src.id === "tunefish" || src.id === "wavesabre") && !it.conv?.devices?.length);
+  const legacy = src.id === "tests" || ((src.id === "tunefish" || src.id === "tunefish3" || src.id === "wavesabre") && !it.conv?.devices?.length);
   const what = src.id === "gm" ? `${it.gm.drums ? "drum kit" : "melodic"} · bank ${it.gm.bank} · prog ${it.gm.prog} · ${it.gm.regions.length} regions` :
     src.id === "gsm" ? `${it.gsm.seconds.toFixed(2)} s · ${(it.gsm.bytes / 1024).toFixed(1)} KB · ${it.gsm.path}${it.gsm.uses > 1 ? ` · used ${it.gsm.uses}×` : ""}` :
     src.id === "wavesabre" ? `${it.ws.kind} in “${it.song}”${it.ws.kind === "Adultery" ? ` · plays GM wave ${it.ws.wave}` : ""}` : src.note;

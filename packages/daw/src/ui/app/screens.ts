@@ -2,7 +2,7 @@
 // redrawn by the panel through `_draw` from the values shown now (automation at the playhead, else stored).
 import type { Device } from "../../model.ts";
 import type { Param } from "../../engine.ts";
-import { choice, envCurve, envRate, ip, oscType, vget } from "../model/params.ts";
+import { choice, envCurve, envRate, ip, oscType, pointCycle, vget } from "../model/params.ts";
 import { E } from "./session.ts";
 import { curVal } from "./automation.ts";
 import { css } from "./theme.ts";
@@ -19,10 +19,19 @@ function scrSvg(draw: () => string): Screen {
 const scrPath = (f: (x: number) => number, n = 160): string => "M" + Array.from({ length: n + 1 }, (_, k) => `${(k * 100 / n).toFixed(2)} ${Math.max(.5, Math.min(39.5, f(k / n))).toFixed(2)}`).join(" L");
 const scrLine = (d: string, fill?: boolean): string => (fill ? `<path class="fl" d="${d} L100 40 L0 40 Z"/>` : "") + `<path class="ln" d="${d}"/>`;
 const scrMid = `<line class="mk0" x1="0" y1="20" x2="100" y2="20"/>`;
-/** Oscillator waveform (phase mod with feedback, saw/pulse, wavetable). */
+/** Oscillator waveform (phase mod with feedback, saw/pulse, wavetable, points), or a PAD table's partials. */
 export function oscView(d: Device, i: number): Screen {
   return scrSvg(() => {
     const ty = oscType(d, i), v = (n: string): number => curVal(d, `osc${i}.${n}`), TAU = 2 * Math.PI;
+    if (ty === 13) {
+      const n = 1 + Math.min(3, Math.floor(Math.max(0, Math.min(1, v("points"))) * 3 + .5));
+      const { wave, pts } = pointCycle(n, [0, 2, 4, 6].map((k) => v(`s${k}`)), [1, 3, 5, 7].map((k) => v(`s${k}`)),
+        ["mode1", "mode2", "mode3", "mode4", "mode_last"].map((f) => choice(v(f), 3)));
+      const y = (w: number): number => 20 - 17 * Math.max(-1.15, Math.min(1.15, w));
+      return scrMid + scrLine(scrPath((x) => y(wave[Math.round(x * 256)]!), 256)) +
+        pts.map(([x, w]) => `<circle class="mk" cx="${(x * 100).toFixed(2)}" cy="${y(w).toFixed(2)}" r="1.4"/>`).join("");
+    }
+    if (ty === 14) return padSketch(v("s0"), v("s1"), v("s2"), v("s3"), choice(v("s4"), 4));
     let f: (x: number) => number;
     if (ty === 2) { const pulse = choice(v("s0"), 2), pw = .05 + .9 * v("s1"); f = (x) => { const ph = (x * 2) % 1; return 20 - 15 * (pulse ? (ph < pw ? 1 : -1) : 2 * ph - 1); }; }
     else if (ty === 3) { const hn = 1 + Math.round(v("s1") * 15), dm = 1 + v("s2") * 3; let pk = 0; const g = (x: number): number => { let y = 0; for (let k = 1; k <= hn; k++) y += Math.sin(TAU * 2 * k * x) / k ** dm; return y; };
@@ -30,6 +39,24 @@ export function oscView(d: Device, i: number): Screen {
     else { const fb = v("feedback") * 2.5; f = (x) => 20 - 15 * Math.sin(TAU * 2 * x + fb * Math.sin(TAU * 2 * x)); }
     return scrMid + scrLine(scrPath(f));
   });
+}
+/**
+ * A PAD table's first 16 partials on a harmonic axis (unisynth `pad`): amplitude 1/(1 + h(1 − damp)) (twice for even
+ * h), width (2^(256·bandwidth/1200) − 1)·h^(1 + 19·scale²) harmonics and the profile's shape (its name is the profile
+ * knob's text). A drawing: heights are each partial's peak.
+ */
+function padSketch(bw: number, scale: number, damp: number, harmonics: number, profile: number): string {
+  const H = 16 + Math.round(harmonics * 255 / 4), base = 2 ** (256 * bw / 1200) - 1, ex = 1 + 19 * scale * scale, X = 17;
+  const shape = (u: number): number => profile === 0 ? (Math.abs(u) <= .1 ? 1 : 0) : profile === 1 ? (Math.abs(u) > .4 && Math.abs(u) <= .5 ? 1 : 0)
+    : profile === 2 ? (Math.abs(u) <= 5 ? 1 : 0) : Math.exp(-u * u);
+  const amp = (h: number): number => (h % 2 ? 1 : 2) / (1 + h * (1 - damp));
+  let pk = 0; for (let h = 1; h <= Math.min(H, X); h++) pk = Math.max(pk, amp(h));
+  const f = (x: number): number => {
+    const hx = x * X; let y = 0;
+    for (let h = 1; h <= Math.min(H, X); h++) { const w = Math.max(base * h ** ex / 2, 1e-3); y = Math.max(y, amp(h) / pk * shape((hx - h) / w)); }
+    return 38 - 33 * y;
+  };
+  return scrLine(scrPath(f, 400), true);
 }
 // filter response on a 20 Hz…20 kHz log axis (x = 100·log10(f/20)/3), 0 dB near the top, −60 dB at the bottom
 /** Filter screens: dB → y (also the live overlays). */

@@ -39,17 +39,22 @@ fn every_tracked_instrument_matches_the_reference() {
 
 #[test]
 fn the_v3_layout_is_the_frozen_one() {
-    // names and defaults of `research/unify-v3-layout/v3-layout.tsv` (task 6.4)
+    // names and defaults of `research/unify-v3-layout/v3-layout.tsv` (task 6.4). Change add-tf3-import appended the
+    // point fields after it and expanded the oscillator-type choice 13 → 25 (every v3 type k at position 2k, the same
+    // stored value), which is the one law the file no longer states.
     let tsv = include_str!("../../../../research/unify-v3-layout/v3-layout.tsv");
     let rows: Vec<&str> = tsv.lines().collect();
-    assert_eq!(rows.len(), pm::COUNT);
+    assert_eq!(rows.len(), pm::PTS);
     for (i, row) in rows.iter().enumerate() {
         let c: Vec<&str> = row.split('\t').collect();
         assert_eq!(c[0].parse::<usize>().unwrap(), i);
         assert_eq!(pm::name(i), c[1], "index {i}");
         assert!((pm::DEFAULTS[i] - c[3].parse::<f32>().unwrap()).abs() < 1e-5, "default of {}", c[1]);
         if let Some(n) = c[2].strip_prefix("choice:") {
-            assert_eq!(pm::law_of(i), pm::Law::Choice(n.parse().unwrap()), "law of {}", c[1]);
+            let n: usize = n.parse().unwrap();
+            let expanded = c[1].ends_with(".type") && c[1].starts_with("osc") && n == 13;
+            let want = if expanded { pm::osc_type::COUNT } else { n };
+            assert_eq!(pm::law_of(i), pm::Law::Choice(want), "law of {}", c[1]);
         }
     }
 }

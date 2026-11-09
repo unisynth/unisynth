@@ -1,12 +1,15 @@
 //! Converts the legacy library entries the DAW lists (change add-synth-daw task 5.7b) to song/1 devices, so the
 //! library can load them into a track: every Tunefish 4 program (`tf4programs/programN.txt`, instrument + its insert
-//! effects) and every WaveSabre instrument instance of the reference songs (`ws/refs/*.bin`, in device order).
+//! effects), every distinct Tunefish 3 preset (`tunefish3/tf3programs/programN.txt`, Enigma Studio 3's bank, editor
+//! mode; identical parameter sets listed once, change add-tf3-import) and every WaveSabre instrument instance of the
+//! reference songs (`ws/refs/*.bin`, in device order).
 //!
 //!   cargo run --release -p synth-convert --example library -- [<synth-lab dir>] [<out.json>]
 //!
 //! Defaults: `$SYNTH_LAB` or `~/Downloads/64k-tools/synth-lab`, `project/music/.library.json` (git-ignored: built
 //! from the local lab; the DAW server attaches it to `/api/library`). Output:
-//! `{ "tunefish": { "<n>": { "devices": [...], "warnings": [...] } }, "wavesabre": { "<file>": [ { "devices", "warnings" } ] } }`.
+//! `{ "tunefish": { "<n>": { "devices": [...], "warnings": [...] } }, "tunefish3": { "<n>": { "name", "devices", "warnings" } },
+//! "wavesabre": { "<file>": [ { "devices", "warnings" } ] } }`.
 //! Each entry goes through the same path as a song: legacy → `synth-convert` → `song::import` (the track's devices).
 
 use std::collections::BTreeMap;
@@ -46,6 +49,63 @@ fn tunefish(dir: &PathBuf) -> BTreeMap<String, Entry> {
                 out.insert(n.to_string(), e);
             }
             Err(e) => eprintln!("program{n}: {e}"),
+        }
+    }
+    out
+}
+
+/// Tunefish 3 presets: each distinct parameter set once (the lowest program number keeps it), converted as a
+/// one-note project in editor mode (the presets are the editor's and the VSTi's bank).
+fn tunefish3(dir: &PathBuf) -> BTreeMap<String, Entry> {
+    use synth_convert::e3prj::{Cell, Instance, Instrument, Pattern, Project, Song};
+    let mut out = BTreeMap::new();
+    let Ok(rd) = std::fs::read_dir(dir) else { return out };
+    let mut files: Vec<(u32, PathBuf)> = rd
+        .flatten()
+        .filter_map(|f| {
+            let name = f.file_name().to_string_lossy().to_string();
+            name.strip_prefix("program").and_then(|r| r.strip_suffix(".txt")).and_then(|r| r.parse::<u32>().ok()).map(|n| (n, f.path()))
+        })
+        .collect();
+    files.sort();
+    let mut seen: Vec<Vec<u32>> = vec![];
+    for (n, path) in files {
+        let bytes = std::fs::read(&path).unwrap_or_default();
+        let text: String = bytes.iter().map(|&b| b as char).collect(); // Latin-1
+        let name = text.lines().next().unwrap_or("").trim().to_string();
+        let params = match synth_convert::e3prj::read_preset(&text) {
+            Ok(p) => p,
+            Err(e) => {
+                eprintln!("tf3 program{n}: {e}");
+                continue;
+            }
+        };
+        let key: Vec<u32> = params.iter().map(|v| v.to_bits()).collect();
+        if seen.contains(&key) {
+            continue;
+        }
+        seen.push(key);
+        let cell = |row, note, instrument| Cell { row, note, instrument, velocity: -1, effect: 0 };
+        let project = Project {
+            version: "3".into(),
+            songs: vec![Song {
+                id: 1,
+                name: "preset".into(),
+                bpm: 120,
+                patterns: vec![Pattern { id: 0, rows: 16, tracks: vec![vec![cell(0, 61, 0), cell(8, 128, -1)]] }],
+                instances: vec![Instance { row_offset: 0, track: 0, pattern: 0 }],
+            }],
+            instruments: vec![Instrument { id: 0, name: name.clone(), params }],
+        };
+        let r = synth_convert::tf3song::convert(&project, None, synth_convert::tf3::Mode::Editor, 1.0)
+            .map_err(|e| e.to_string())
+            .and_then(devices_of);
+        match r {
+            Ok(mut e) => {
+                e["name"] = serde_json::json!(name);
+                out.insert(n.to_string(), e);
+            }
+            Err(e) => eprintln!("tf3 program{n}: {e}"),
         }
     }
     out
@@ -94,9 +154,10 @@ fn main() {
     });
     let out = args.get(1).cloned().unwrap_or_else(|| concat!(env!("CARGO_MANIFEST_DIR"), "/../../project/music/.library.json").into());
     let tf = tunefish(&lab.join("tunefish/patches/tf4programs"));
+    let tf3 = tunefish3(&lab.join("tunefish3/tf3programs"));
     let ws = wavesabre(&lab.join("ws/refs"));
     let n_ws: usize = ws.values().map(|v| v.len()).sum();
-    let json = serde_json::json!({ "format": "us-library/2", "tunefish": tf, "wavesabre": ws });
+    let json = serde_json::json!({ "format": "us-library/2", "tunefish": tf, "tunefish3": tf3, "wavesabre": ws });
     std::fs::write(&out, serde_json::to_string(&json).unwrap()).unwrap();
-    println!("{out}: {} Tunefish programs, {n_ws} WaveSabre instruments", tf.len());
+    println!("{out}: {} Tunefish 4 programs, {} Tunefish 3 presets, {n_ws} WaveSabre instruments", tf.len(), tf3.len());
 }

@@ -2,12 +2,12 @@
 
 Pull-only (not auto-injected).
 
-- Types: `Kind` (`Off`, `Pm`, `Blit`, `Sampler`, `Wt`, `V2` (naive generators), `Clocked`); `Kind::from_type` →
+- Types: `Kind` (`Off`, `Pm`, `Blit`, `Sampler`, `Wt`, `V2` (naive generators), `Clocked`, `Pts` and `Pad` (add-tf3-import: `us-osc-points`/`us-osc-pad`; a gap type id → `BadChunk`)); `Kind::from_type` →
   `UnsupportedModule` for a type whose module is off (`OSC_PM/BLIT/WAVETABLE/SAMPLER/NAIVE/CLOCKED`), `Kind::all(values)`.
   Per-voice `Slot {kind, phase, prev, integral, smp, fresh, v2s, clk}` (`new(kind, phase)`, `start`, `clocked_start`), control
   values `SlotT` (inc, gain, mix, pan l/r, pm_out, feedback, wf, pw, leak, det, spread, drive, layers, smp cfg, `v2`, `clk`,
   `combine`), `SlotRamps` (`pan()`, `set`/`to`/`retarget`), `sample(slot, wt, smp, ramps, pm_in)` → `(left, right, send)`
-  (unpanned output, send for the next slot's phase).
+  (unpanned output, send for the next slot's phase); `sample` also takes the slot's `Pts` and PAD table (add-tf3-import: `Pts`/`Pad` arms apply the gain before the decimation stage).
 - Phase-mod (Falcon): `sin + wf·(sin 3φ/3 + sin 5φ/5)`, input `(fb·prev + pm_in)/2π` turns, send = output × `pm_out`.
   `Slot::start` restarts PM at `start_phase(draw, p, inc)`; saw/pulse scales its build-time draw at its first note only
   (`fresh`) and then runs on.

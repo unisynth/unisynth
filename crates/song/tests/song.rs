@@ -457,9 +457,26 @@ fn every_oscillator_kind_has_an_option_name() {
     // the expanded osc type choice names every kind the engine plays (the clocked oscillator too)
     let t = tables::table(64, 0).unwrap();
     let o = &t.param("osc1.type").unwrap().options;
-    for name in ["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive saw/tri", "Sine", "FM", "Aux in B", "Clocked"] {
+    for name in ["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive saw/tri", "Sine", "FM", "Aux in B", "Clocked", "Points", "PAD table"] {
         assert!(o.iter().any(|x| x == name), "{name} missing from {o:?}");
     }
+    // the option index is the engine's type id (the stored position)
+    use unisynth::params::osc_type as ot;
+    for (id, name) in [(ot::OFF, "Off"), (ot::POINTS, "Points"), (ot::PM, "Phase mod"), (ot::PAD, "PAD table"), (ot::SAMPLER, "Sampler"), (ot::CLOCKED, "Clocked")] {
+        assert_eq!(o[id], name);
+    }
+}
+
+#[test]
+fn every_choice_has_one_label_per_position() {
+    // a UI decodes a choice by the number of its labels, so it must equal the law's positions
+    let t = tables::table(64, 0).unwrap();
+    for p in &t.params {
+        if let unisynth::params::Law::Choice(n) = p.law {
+            assert_eq!(p.options.len(), n, "{}: {:?}", p.name, p.options);
+        }
+    }
+    assert_eq!(t.param("osc2.mode3").unwrap().options, ["Step", "Linear", "Spline"]);
 }
 
 #[test]

@@ -11,7 +11,7 @@ Pull-only (not auto-injected).
 
 ## Behaviour
 - `load`: devices in song order from the song rng (`Xorshift::new(song::render::SEED)`); one `Slot` per device = device + own arena + chunk (drop order safe). Bit-identical to `Player` from frame 0 for any call size.
-- `update` diffs per track (D4): chunk value-only change (instrument non-structural values; effect with same length + mode) → `set_param`; structural / sample / kind / mode / length / chain length → rebuild the track's chain from `host_rng`; notes or automation change → schedule swap (open notes get note-off, cursor after the next sub-block + the track's event lookahead, since those events were already delivered); receives change → mixer rebuild; track count / rate / tempo → full reload keeping transport.
+- `update` diffs per track (D4): chunk value-only change (instrument non-structural values; effect with same length + mode) → `set_param`; load-time values (`params::is_load_time`: structural, a PAD slot's table inputs s0–s4, add-tf3-import 6.3) → rebuild; structural / sample / kind / mode / length / chain length → rebuild the track's chain from `host_rng`; notes or automation change → schedule swap (open notes get note-off, cursor after the next sub-block + the track's event lookahead, since those events were already delivered); receives change → mixer rebuild; track count / rate / tempo → full reload keeping transport.
 - `seek` / `play`: devices reset, mixer reset at the frame, held notes chased, automation seeks; no pre-roll.
 - `stop`: notes off, tails ring ≤ 2 s (`TAIL_SECONDS`); stop again = silence.
 - Loop: sub-block capped at `b`, events ≥ `b` held back, wrap = seek with chase at the end sample.

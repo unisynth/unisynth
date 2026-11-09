@@ -7,7 +7,7 @@ Pull-only (not auto-injected).
 
 ## Sections (current)
 - Where it sits; instrument slot diagram (kind 64 instrument, kinds 65–73 effects).
-- Parameters: v3 layout, 294 values in module blocks (indices < 240 one chunk byte, rest two, `us-chunk-wide`); laws table. Pre-v3 layout (260 values, chunk versions 1/2) frozen host-side as `params::old`; player rejects it.
+- Parameters: v3 layout, 294 values in module blocks + add-tf3-import point fields 294–320 (321 total; osc type expanded `Choice(25)`, id = position) (indices < 240 one chunk byte, rest two, `us-chunk-wide`); laws table. Pre-v3 layout (260 values, chunk versions 1/2) frozen host-side as `params::old`; player rejects it.
 - Chunk v3 (v4 adds speech text) format + validation flow; migration from the old layout (`unisynth::migrate`, host only).
 - Voice framework: events → 32-frame control grid, fine window + inaudible releases, voice control segments, envelopes, LFOs. Mod matrix (evaluation, target table).
 - Oscillator slots: phase-mod operator (`us-osc-pm`), band-limited saw/pulse (`us-osc-blit`), spectral wavetable (`us-osc-wt`), sampler (`us-osc-sample`), clocked (`us-osc-clocked`), controllers wheel/bend/bend range, DLS instruments (`us-sample-dls`), stereo DLS pairs (`us-sample-stereo`).

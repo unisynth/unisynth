@@ -41,6 +41,21 @@ and "over2" and "bluish" (Stash, 1st at The Party 1997), titles from Demozoo, `t
 from the intros' XMs with their synthesized samples played by the unified synth's cauldron oscillator
 (`research/tbl-mini-cauldron/tools/make_demos.py`); same rules: no licence, published pending permission, adapted version.
 
+It also holds two songs of Brain Control's 64K intros made with Tunefish 3 (Enigma Studio 3): "Transplant", music by
+mad (2nd at The Ultimate Meeting 2011), and "Train Control", music by payne (4th at Revision 2012),
+`transplant.song.json` and `train-control.song.json`. They were read from the released executables with
+`tools/tf3-extract` (kkrunchy stub emulated, synth block found in the unpacked image) and converted by
+`synth-convert e3prj` in player mode (within 0.07 dB loudness and 1.02 dB per octave band of the original Tunefish 3
+player built from Enigma Studio 3's source release, and within 1.40 dB per band of captures of the released intros).
+Transplant's track names are the authors' instrument names from the project in that source release. **No licence is
+stated: the music belongs to Brain Control** (the source release states no licence either). Same rules: published
+pending Brain Control's permission, removed at their request, adapted version. Pandora (Revision 2011) uses an older
+Tunefish 3 layout and is not converted yet.
+
+The DAW's library (published with the DAW as `site/daw/data/library.json`) also lists the 53 distinct presets of
+Enigma Studio 3's Tunefish 3 bank (`binary/tf3programs`), converted to unified-synth devices. No licence is stated
+for them either: they belong to Brain Control and are published on the same terms, pending permission.
+
 `released/v2/` holds 357 Farbrausch V2 songs, every `.v2m` of the local corpus that parses, once per checksum, written
 by `tools/v2-extract/make-demos.py`:
 - 13 carved by v2redux from farbrausch / .theprodukkt release executables

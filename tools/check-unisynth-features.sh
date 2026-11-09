@@ -9,9 +9,10 @@ MODULES="us-osc-pm us-osc-blit us-osc-wt us-osc-sample us-sample-gsm us-sample-d
          us-flt-svf us-flt-ladder us-flt-rbj us-flt-notch us-env-seconds us-env-rate
          us-voice-lfo us-voice-glide us-voice-mono us-voice-unison us-voice-oneshot us-matrix us-matrix-add us-speech us-automation
          us-osc-naive us-flt-feedback us-flt-parallel us-drive us-env-frame us-lfo-frame us-voice-out us-strip us-chunk-wide
-         us-osc-combine us-quirk-exact-math us-quirk-integer-fm us-quirk-fixed-seed us-quirk-lcg-noise us-quirk-coarse-env"
+         us-osc-combine us-quirk-exact-math us-quirk-integer-fm us-quirk-fixed-seed us-quirk-lcg-noise us-quirk-coarse-env
+         us-osc-points us-osc-pad"
 FX="us-fx-distortion-shaper us-fx-distortion-curve us-fx-distortion-power us-fx-crusher us-fx-eq-parametric us-fx-eq-3band us-fx-delay-tempo
-    us-fx-delay-ms us-fx-chorus us-fx-flanger-phaser us-fx-flanger-ring us-fx-reverb-freeverb us-fx-reverb-compact
+    us-fx-delay-ms us-fx-chorus us-fx-chorus-tf3 us-fx-flanger-phaser us-fx-flanger-ring us-fx-reverb-freeverb us-fx-reverb-compact
     us-fx-reverb-rooms us-fx-compressor us-fx-formant us-fx-eq-cut us-fx-delay-modulated us-fx-reverb-comb us-fx-compressor-lookahead"
 SETS=("" $MODULES $FX "us-osc" "us-flt" "us-env" "us-voice" "us-fx" "us-all"
       "us-osc,us-noise,us-flt,us-env,us-fx" "us-osc,us-noise,us-flt,us-env,us-voice,us-fx" "us-osc,us-noise,us-flt,us-env,us-voice,us-matrix,us-fx")  # the last three: everything but the voice paths / the matrix / automation (gated tests, goldens)

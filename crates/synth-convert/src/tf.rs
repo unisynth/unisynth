@@ -146,19 +146,19 @@ fn source_of(s: u8, env: [usize; 2]) -> Option<usize> {
 }
 
 /// The cutoff parameter of a Tunefish filter at `hz`: the unified law is `20 + 19 980·p²`.
-fn cutoff_p(hz: f32) -> f32 {
+pub(crate) fn cutoff_p(hz: f32) -> f32 {
     inv::inv_cutoff(hz)
 }
 
 /// Tunefish cutoff laws: ladder and notch `30 + 20 000·f²`, RBJ `30 + 10 000·f²`, `f` clamped to `0..1`.
-fn hz(f: f32, span: f32) -> f32 {
+pub(crate) fn hz(f: f32, span: f32) -> f32 {
     let f = f.clamp(0.0, 1.0);
     30.0 + span * f * f
 }
 
 /// Tunefish's balance `p` as the equal-power pan and the gain factor that give the same left and right levels: the
 /// louder side is 1, the other `r = 2·min(p, 1 − p)`.
-fn pan(p: f32) -> (f32, f32) {
+pub(crate) fn pan(p: f32) -> (f32, f32) {
     let p = p.clamp(0.0, 1.0);
     let r = 2.0 * p.min(1.0 - p);
     let quiet = r * r / (1.0 + r * r);

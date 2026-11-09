@@ -89,6 +89,25 @@ fn events_land_on_v2_frames_and_old_versions_use_their_frame() {
 }
 
 #[test]
+fn an_aux_b_oscillator_keeps_its_type_and_hears_aux_b() {
+    // the aux oscillators are two ids apart since add-tf3-import expanded the type choice: aux B must stay aux B
+    let mut sender = patch(&[]);
+    sender.params[63] = 100; // aux B send
+    let mut reader = patch(&[]);
+    reader.params[2] = 7; // osc 1: aux B
+    let mut s = SongW::new(vec![sender, reader]);
+    for (c, pg) in [(0usize, 0u8), (1, 1)] {
+        s.chans[c] = ChanW { notes: vec![(10, 60, 100), (96, 60, 0)], programs: vec![(0, pg)], ..Default::default() };
+    }
+    let (m, _) = convert(&s);
+    let reader_dev = &m.devices[m.tracks[1].devices[0]];
+    let v = unisynth::chunk::Chunk::parse(&reader_dev.chunk).unwrap().values();
+    assert_eq!(unisynth::params::osc_type::decode(v[unisynth::params::osc(0, unisynth::params::o::TYPE)]), unisynth::params::osc_type::AUX_B);
+    let b_send = synth_core::device::recv::encode(4, 6);
+    assert!(m.tracks[1].receives.iter().any(|r| r.0 == 0 && r.1 == b_send), "{:?}", m.tracks[1].receives);
+}
+
+#[test]
 fn an_aux_reader_hears_only_the_lower_channels_sends() {
     // V2 clears the aux buses every frame and mixes the channels in order: channel 2's aux oscillator hears channel
     // 1's aux A send, never channel 3's

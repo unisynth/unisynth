@@ -14,3 +14,4 @@ Pull-only (not auto-injected).
 ## History
 
 - See change: add-unified-synth, shrink-unified-synth, add-v2-import, add-cauldron-xm-import, unify-v2-algorithms 6.5–6.8
+- RBJ / notch slots whose `form` can be 1 (stored or by a lane) also report `us-flt-feedback` ("Tunefish 3's form"; add-tf3-import 6.4).

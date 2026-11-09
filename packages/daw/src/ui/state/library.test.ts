@@ -35,3 +35,12 @@ test("inspector facts: loadable, legacy hint, conversion note", () => {
   expect(describe(src("tunefish"), lead, false).canLoad).toBe(false);  // no instrument on the track
   expect(describe(src("gm"), libItems(CAT, "gm")[0], true).what).toBe("melodic · bank 0 · prog 1 · 1 regions");
 });
+
+test("Tunefish 3 presets: a source after Tunefish 4, items tagged by number, loadable when converted (add-tf3-import)", () => {
+  const cat = { ...CAT, tunefish3: { programs: [{ name: "Fieser Bass", n: 37, conv: { devices: [{ kind: 64 }, { kind: 70 }], warnings: [] } }] } };
+  expect(visibleSources(cat).map((s) => s.id)).toEqual(["project", "gm", "tunefish", "tunefish3"]);
+  const it = libItems(cat, "tunefish3")[0]!;
+  expect([it.name, it.tag]).toEqual(["Fieser Bass", "#37"]);
+  expect(describe(src("tunefish3"), it, true)).toMatchObject({ canLoad: true, legacy: false, conv: "Converted by synth-convert: instrument + 1 insert effect" });
+  expect(describe(src("tunefish3"), { name: "x", tag: "#1" }, true).canLoad).toBe(false);
+});

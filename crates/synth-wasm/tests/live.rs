@@ -91,6 +91,22 @@ fn value_only_edit_is_a_parameter_set_not_a_rebuild() {
 }
 
 #[test]
+fn a_pad_table_edit_rebuilds_the_device_and_its_drive_is_a_parameter_set() {
+    // the PAD table is built at load (add-tf3-import): its inputs only sound after a rebuild
+    let mut v = song_json(64);
+    v["tracks"][1]["devices"][0]["values"]["osc1.type"] = serde_json::json!(3.0 / 24.0); // PAD table
+    let mut h = loaded(&blob(&v));
+    h.play(0);
+    let _ = live(&mut h, 4410, 128);
+    v["tracks"][1]["devices"][0]["values"]["osc1.s0"] = serde_json::json!(0.8); // bandwidth
+    let e = h.update(&blob(&v)).unwrap();
+    assert_eq!((e.params, e.rebuilt), (0, 1), "{e:?}");
+    v["tracks"][1]["devices"][0]["values"]["osc1.s5"] = serde_json::json!(0.7); // drive plays live
+    let e = h.update(&blob(&v)).unwrap();
+    assert_eq!((e.params, e.rebuilt), (1, 0), "{e:?}");
+}
+
+#[test]
 fn loop_wraps_at_the_loop_end_sample_and_chases_held_notes() {
     let b = blob(&song_json(64));
     let (start, end) = (22050u64, 44100 + 333);

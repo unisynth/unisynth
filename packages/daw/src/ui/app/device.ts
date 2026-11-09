@@ -12,7 +12,7 @@ import * as devst from "../state/device.ts";
 import * as lib from "../state/library.ts";
 import { persist as store } from "../state/persist.ts";
 import { overrides } from "../state/view.ts";
-import { choice, devName, effectChoices, fmtVal, ip, modSrcName, nModes, optValue, oscType, paramOf, routesOf, SLOTS, type SlotGroup, slotKeys, slotUsed, smpShapes, tableOf, TARGETS, vget } from "../model/params.ts";
+import { choice, devName, effectChoices, fmtVal, ip, loadTime, modSrcName, nModes, optValue, oscType, paramOf, routesOf, SLOTS, type SlotGroup, slotKeys, slotUsed, smpShapes, tableOf, TARGETS, vget } from "../model/params.ts";
 import { engineDev, instOf, links } from "../model/track.ts";
 import { bytesToB64 } from "../model/bytes.ts";
 import { api, E, selected, tracks } from "./session.ts";
@@ -50,9 +50,11 @@ export function renderAll(): void {
 let status: HTMLElement = null as never;
 /** Engine track index (the master is last). */
 export const trackIndex = (t: UITrack): number => t.master ? tracks.length : tracks.indexOf(t);
-/** A parameter value to the engine now (structural ones rebuild the device there). */
+/** The knob held now: a load-time value (a PAD table input) rebuilds the device once, when it is let go. */
+let held: Param | null = null;
+/** A parameter value to the engine now (load-time ones rebuild the device there: structural, PAD table inputs). */
 function liveParam(t: UITrack, d: Device, p: Param, v: number): void {
-  if (p.structural) { livePush(); return; }
+  if (loadTime(d, p)) { if (held !== p) livePush(); return; }
   const di = engineDev(t, d); if (di >= 0 && E.node) E.setParam(trackIndex(t), di, p.index, v);
   livePush();
 }
@@ -178,7 +180,8 @@ function deviceActions(): DeviceActions {
     sideSenders: t => tracks.filter(x => x.sends.some(s1 => s1[0] === t.name && s1[1] === "side")).map(x => x.name),
     setParam: (t, d, p, v, msg) => { const before = snap(); d.values[p.name] = v; liveParam(t, d, p, v); if (p.structural || p.name.endsWith(".type") || p.name === "mode") renderDevice(); commit(before, msg); },
     knobInput: (t, d, p, v) => { d.values[p.name] = v; if (!(recOn && playing && recordPoint(t, d, p, v))) knobEdited(t, d, p); liveParam(t, d, p, v); },
-    grab, release,
+    grab: (t, d, p) => { held = p; grab(t, d, p); },
+    release: (t, d, p) => { held = null; release(t, d, p); if (loadTime(d, p)) livePush(); },
     begin: () => snap(), end: (before, msg) => commit(before as Snap, msg),
     // a mode change selects another parameter set: keep only the mode
     modeChanged: (t, d) => { for (const k of Object.keys(d.values)) if (k !== "mode") delete d.values[k]; renderDevice(); livePush(); },

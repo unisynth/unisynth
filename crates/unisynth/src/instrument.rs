@@ -4,6 +4,7 @@
 use crate::chunk::Chunk;
 use crate::flt;
 use crate::osc::{Kind, Wt};
+use crate::pts::Pts;
 use crate::smp;
 use crate::params::{self as pm, v, COUNT};
 use crate::rng::Xorshift;
@@ -35,6 +36,44 @@ fn wants_table(kind: Kind) -> bool {
 /// Slots of a patch that need a pool-backed wavetable.
 fn wt_slots(kinds: &[Kind; pm::OSC_SLOTS]) -> usize {
     kinds.iter().filter(|k| wants_table(**k)).count()
+}
+
+/// Whether a slot kind keeps a pool-backed per-voice [`Pts`] (change add-tf3-import): a point cycle, or a PAD slot's
+/// phases and decimation stage.
+fn wants_cycle(kind: Kind) -> bool {
+    #[cfg(feature = "us-osc-points")]
+    if kind == Kind::Pts {
+        return true;
+    }
+    is_pad(kind)
+}
+
+/// Whether a slot kind reads a PAD table (one per slot and instrument, built at load).
+fn is_pad(kind: Kind) -> bool {
+    #[cfg(feature = "us-osc-pad")]
+    return kind == Kind::Pad;
+    #[cfg(not(feature = "us-osc-pad"))]
+    {
+        let _ = kind;
+        false
+    }
+}
+
+/// The PAD table inputs of slot `i`.
+fn pad_shape(values: &[f32; COUNT], i: usize) -> crate::pad::Shape {
+    use pm::shape as sp;
+    let sv = |k: usize| values[pm::osc(i, pm::o::SHAPE + k)].max(0.0).min(1.0);
+    crate::pad::Shape {
+        bandwidth: sv(sp::PAD_BANDWIDTH),
+        scale: sv(sp::PAD_SCALE),
+        damp: sv(sp::PAD_DAMP),
+        harmonics: sv(sp::PAD_HARMONICS),
+        profile: crate::law::choice(sv(sp::PAD_PROFILE), 4) as u8,
+    }
+}
+
+fn pts_slots(kinds: &[Kind; pm::OSC_SLOTS]) -> usize {
+    kinds.iter().filter(|k| wants_cycle(**k)).count()
 }
 
 /// The modules a patch asks for that the build lacks: filter types in use, and the noise source when its level is set
@@ -171,9 +210,16 @@ impl<'a> UInstrument<'a> {
         check_modules(&values)?;
         let n = capacity(&values);
         let tables = n * wt_slots(&kinds);
+        let cycles = n * pts_slots(&kinds);
+        let pads = kinds.iter().filter(|k| is_pad(**k)).count();
         let chunk = Chunk::parse(chunk)?;
         let chan = if crate::chan::on(&values) { crate::chan::Chan::need() } else { 0 };
-        Ok(VoicePool::<Voice>::need(n) + if tables > 0 { Pool::need::<Wt>(tables) } else { 0 } + smp::pool_need(&values, &chunk)? + chan)
+        Ok(VoicePool::<Voice>::need(n)
+            + if tables > 0 { Pool::need::<Wt>(tables) } else { 0 }
+            + if cycles > 0 { Pool::need::<Pts>(cycles) } else { 0 }
+            + pads * Pool::need::<f32>(crate::pad::LEN)
+            + smp::pool_need(&values, &chunk)?
+            + chan)
     }
 
     /// Builds the instrument from its chunk. One draw of the song random source seeds the instrument's own stream.
@@ -187,9 +233,20 @@ impl<'a> UInstrument<'a> {
         let n = capacity(&values);
         let (samples, insts) = smp::load(&values, &Chunk::parse(chunk)?, env, pool)?;
         let mut tables = pool.slice_with(n * wt_slots(&kinds), |_| Wt::new())?.into_iter();
+        let mut cycles = pool.slice_with(n * pts_slots(&kinds), |_| Pts::new())?.into_iter();
+        // PAD tables: one per slot, built now from the slot's shape values (read once: the table is not rebuilt)
+        let mut pads: [Option<&'a [f32]>; pm::OSC_SLOTS] = [None; pm::OSC_SLOTS];
+        for i in 0..pm::OSC_SLOTS {
+            if is_pad(kinds[i]) {
+                let t = pool.slice_with(crate::pad::LEN, |_| 0.0f32)?;
+                crate::pad::build(&pad_shape(&values, i), (own.next_u32() as u64) << 32 | own.next_u32() as u64, t);
+                pads[i] = Some(t);
+            }
+        }
         let voices = VoicePool::new(pool, n, |_| {
             let wt = core::array::from_fn(|i| if wants_table(kinds[i]) { tables.next() } else { None });
-            Voice::new(kinds, &mut own, wt, samples, insts)
+            let pts = core::array::from_fn(|i| if wants_cycle(kinds[i]) { cycles.next() } else { None });
+            Voice::new(kinds, &mut own, wt, pts, pads, samples, insts)
         })?;
         let chan = if crate::chan::on(&values) { Some(crate::chan::Chan::new(pool)?) } else { None };
         #[cfg(feature = "us-speech")]
