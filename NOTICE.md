@@ -50,6 +50,24 @@ It also holds two songs of Brain Control's 64K intros, music by Skyrunner, made 
 is stated: the music belongs to Brain Control.** Tunefish 4's GPL-3.0 covers the synth, not songs made with it. Same
 rules: published pending Brain Control's permission, removed at their request, adapted version.
 
+It also holds two songs of Brain Control's 64K intros made with Tunefish 3 (Enigma Studio 3): "Transplant", music by
+mad (2nd at The Ultimate Meeting 2011), and "Train Control", music by payne (4th at Revision 2012),
+`transplant.song.json` and `train-control.song.json`. They were read from the released executables with
+`tools/tf3-extract` (kkrunchy stub emulated, synth block found in the unpacked image) and converted by
+`synth-convert e3prj` in player mode (within 0.07 dB loudness and 1.02 dB per octave band of the original Tunefish 3
+player built from Enigma Studio 3's source release, and within 1.40 dB per band of captures of the released intros).
+Transplant's track names are the authors' instrument names from the project in that source release. **No licence is
+stated: the music belongs to Brain Control** (the source release states no licence either). Same rules: published
+pending Brain Control's permission, removed at their request, adapted version.
+
+A third such song is "Pandora", music by skyrunner (1st at Revision 2011), `pandora.song.json`. It was made with an
+earlier Tunefish 3, read from the released executable with `tools/tf3-extract` (that engine's older layout), and
+converted by `synth-convert e3prj --engine 2011` with that engine's laws. No source of that engine exists, so its only
+reference is a capture of the released intro (within 3.89 dB per octave band). Its per-layer oscillator clipping and
+oscillator offset are not reproduced, so the layered instruments sound quieter than in the intro. **No licence is
+stated: the music belongs to Brain Control.** Same rules: published pending Brain Control's permission, removed at
+their request, adapted version.
+
 `released/v2/` holds 442 Farbrausch V2 songs, every `.v2m` of the local corpus that parses, once per checksum, written
 by `tools/v2-extract/make-demos.py`:
 - 13 carved by v2redux from farbrausch / .theprodukkt release executables

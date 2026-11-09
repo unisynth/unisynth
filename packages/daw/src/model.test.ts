@@ -77,6 +77,14 @@ test("solo follows bus chains both ways (track → bus → bus → master)", () 
   expect(ui.tracks.map(on)).toEqual([false, false, true, false, false]);
 });
 
+test("solo never mutes the master (tracks reach it by its receives, not by sends)", () => {
+  const ui = fromSong(demo());
+  ui.tracks[1].solo = true;
+  const on = (t: (typeof ui.tracks)[number]) => audible(ui.tracks, t);
+  expect(on(ui.master)).toBe(true);
+  expect(toSong(ui, on).master.mute).toBe(false);
+});
+
 test("an edited volume is written from its dB value", () => {
   const ui = fromSong(demo());
   ui.tracks[0].vol = -6;

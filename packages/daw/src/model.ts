@@ -132,7 +132,7 @@ export const ticksPerBar = (sig: [number, number]) => (TPB * 4 * sig[0]) / sig[1
 export function audible(tracks: UITrack[], t: UITrack): boolean {
   if (t.mute) return false;
   const solos = tracks.filter((x) => x.solo);
-  if (!solos.length || t.solo) return true;
+  if (!solos.length || t.solo || t.master) return true;  // everything reaches the master: solo never mutes it
   const reach = (next: (x: UITrack) => UITrack[]) => {
     // by name: `t` may be the raw track while `tracks` holds store proxies
     const seen = new Set(solos.map((x) => x.name)), todo = [...solos];
