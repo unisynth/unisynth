@@ -4,7 +4,7 @@ import { expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
-import { audible, fromSong, toSong, type Song } from "./model.ts";
+import { audible, composer, fromSong, songInfo, toSong, type Song } from "./model.ts";
 import { loadSynth } from "../../cli/src/synth.ts";
 
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
@@ -53,6 +53,28 @@ test("solo keeps the send sources of a soloed track and the buses it sends to", 
   pad.solo = false;
   expect([bass, lead].map(on)).toEqual([true, true]);
   expect(toSong(ui, on).tracks.map((t) => t.mute)).toEqual([true, false, false, false, false]);
+});
+
+test("solo follows bus chains both ways (track → bus → bus → master)", () => {
+  const ui = fromSong(demo());
+  const [kick, bass, lead, pad, verb] = ui.tracks;
+  // bass → pad (as a bus) → verb; lead → kick (as a bus) → bass
+  bass.sends = [["Pad", "main", 0]];
+  pad.sends = [["Verb", "main", 0]];
+  lead.sends = [["Kick", "main", 0]];
+  kick.sends = [["Bass", "main", 0]];
+  pad.bus = verb.bus = kick.bus = true;
+  const on = (t: (typeof ui.tracks)[number]) => audible(ui.tracks, t);
+  bass.solo = true;  // reaches pad, then verb; fed by kick, fed by lead
+  expect(ui.tracks.map(on)).toEqual([true, true, true, true, true]);
+  bass.solo = false; lead.solo = true;  // lead → kick → bass → pad → verb
+  expect(ui.tracks.map(on)).toEqual([true, true, true, true, true]);
+  lead.solo = false; verb.solo = true;  // fed by pad, fed by bass, fed by kick, fed by lead
+  expect(ui.tracks.map(on)).toEqual([true, true, true, true, true]);
+  verb.solo = false; pad.solo = true; lead.sends = [];  // lead no longer on the path
+  expect(ui.tracks.map(on)).toEqual([true, true, false, true, true]);
+  pad.solo = false; lead.solo = true; lead.sends = [["Kick", "side", 0]];  // a sidechain input is not an output
+  expect(ui.tracks.map(on)).toEqual([false, false, true, false, false]);
 });
 
 test("an edited volume is written from its dB value", () => {
@@ -104,4 +126,22 @@ test("converted reference songs in project/music load and save through the adapt
     const s = JSON.parse(readFileSync(dir + f, "utf8"));
     expect(JSON.parse(JSON.stringify(toSong(fromSong(s))))).toEqual(s);
   }
+});
+
+test("songInfo: title and author from meta, length in seconds from length, ticks_per_beat and tempo", () => {
+  const engage = JSON.parse(readFileSync(join(ROOT, "project/music/engage.song.json"), "utf8"));
+  const i = songInfo(engage);
+  expect(i.title).toBe("Engage");
+  expect(i.author).toStartWith("H0ffman and Wobble");
+  expect(i.seconds).toBeCloseTo((414720 / 960) * 60 / 118, 6);
+  const demo = songInfo(JSON.parse(readFileSync(join(ROOT, "project/music/demo.song.json"), "utf8")));
+  expect(demo).toEqual({ seconds: (30720 / 960) * 60 / 128 });
+  expect(songInfo({ tempo: 0, length: 10, ticks_per_beat: 960 } as any).seconds).toBe(0);
+});
+
+test("composer: the author without its trailing source note", () => {
+  expect(composer("H0ffman / logicoma (credited on Demozoo and pouet for the music)")).toBe("H0ffman / logicoma");
+  expect(composer("kb / farbrausch")).toBe("kb / farbrausch");
+  expect(composer("WaveSabre Team (the song's own composer is not named in the repository)")).toBe("WaveSabre Team");
+  expect(composer("")).toBe("");
 });

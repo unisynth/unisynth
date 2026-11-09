@@ -258,6 +258,18 @@ headers (threaded bounce works) and proxies the rest to `DAW_API`. Keep Solid st
 modules: a hot-reloaded module re-runs, and a store defined next to components would start empty. Type-check with
 `npx tsc -p packages/daw/tsconfig.json`; UI cost with `ROOT=<repo> SONG=<song> bun packages/daw/bench/ui-mixer.ts`.
 
+The song list shows each song's title, length (m:ss, from `length` ÷ `ticks_per_beat` at the song tempo) and composer
+(the meta author without its trailing source note; the full author in the tooltip; the file name when the song has no
+author), as the songs page player does; the search field above it matches title, composer and file name (Escape clears).
+`GET /api/music` carries these facts per song (`title`, `author`, `seconds`, model.ts `songInfo`), parsed once per file
+version, so the static `site/daw` snapshot has them too.
+
+**Phone width** (≤ 760 px): one column. The song list and library become a drawer over the work area, opened by
+**☰ Songs** in the transport bar (search focused) and closed by Escape, a tap beside it or picking a song. Track headers
+narrow to 168 px, the key hints and rate leave the footer. On touch screens (`pointer: coarse`) the transport and tab
+buttons are at least 36 px and list rows taller; search fields use 16 px text (iOS does not zoom into them). Editing works
+as on a desktop (pointer events), aimed at listening, browsing and light changes.
+
 The song list also shows `project/music/released/`: 26 WaveSabre songs from released intros and executable music
 (and, in `released/v2/`, 442 Farbrausch V2 songs from `tools/v2-extract/make-demos.py`, eleven of them by Teo with his permission),
 two Tunefish 4 songs of Brain Control's intros (Aten Hotep, Naumachia Insianis) from `tools/tf-extract/make-demos.py`,

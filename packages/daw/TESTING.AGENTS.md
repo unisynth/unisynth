@@ -35,7 +35,8 @@ Pull-only (not auto-injected).
 - no page errors
 
 ### test/files.test.ts
-- song list: sorted names, the current song marked with its track count; an edit adds the unsaved dot
+- song list: title, length and composer per song (file name when there is no author), the current song marked with its track count; an edit adds the unsaved dot (rows found by `data-file`)
+- song search filters by title, composer and file name; Escape clears it
 - switching with unsaved changes asks: Cancel stays, Don't save opens the other song
 - save: clean afterwards; a 422 from the server lists the JSON paths and a path button selects its track
 - export: summary dialog, Write blob writes <song>.song.bin; Close returns focus to Export
@@ -46,6 +47,7 @@ Pull-only (not auto-injected).
 - library: sources with counts, search filters and opens groups, inspect, audition, load a preset (one undo)
 - no critical or serious accessibility violations with a dialog or a menu open (axe)
 - no page errors
+- phone width: one column, the browser is a drawer (Songs button, Escape, scrim, picking a song closes it); desktop unchanged
 
 ### test/keys.test.ts
 - Space plays and pauses; Home goes to the song start; never from a text field

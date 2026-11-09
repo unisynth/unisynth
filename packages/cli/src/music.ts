@@ -11,6 +11,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameS
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { homedir } from "node:os";
 import type { Synth } from "./synth.ts";
+import { songInfo, type SongInfo } from "../../daw/src/model.ts";
 
 export const MAX_BYTES = 16 * 1024 * 1024;
 const EXT = [".song.json", ".patch.json", ".song.bin"];
@@ -34,9 +35,20 @@ function kindOf(f: string): "song" | "patch" | "blob" {
   return f.endsWith(".song.json") ? "song" : f.endsWith(".patch.json") ? "patch" : "blob";
 }
 
+// Song facts for the list, parsed once per file version (path + mtime).
+const infoCache = new Map<string, { mtime: number; info: SongInfo | null }>();
+function infoOf(f: string, mtime: number): SongInfo | null {
+  const c = infoCache.get(f);
+  if (c && c.mtime === mtime) return c.info;
+  let info: SongInfo | null = null;
+  try { info = songInfo(JSON.parse(readFileSync(f, "utf8"))); } catch { /* unreadable: listed without facts */ }
+  infoCache.set(f, { mtime, info });
+  return info;
+}
+
 function list(root: string) {
   const base = join(root, "project/music");
-  const out: { path: string; kind: string; size: number; mtime: number }[] = [];
+  const out: ({ path: string; kind: string; size: number; mtime: number } & Partial<SongInfo>)[] = [];
   const walk = (d: string) => {
     if (!existsSync(d)) return;
     for (const e of readdirSync(d, { withFileTypes: true })) {
@@ -45,7 +57,8 @@ function list(root: string) {
       if (e.isDirectory()) walk(f);
       else if (e.isFile() && EXT.some((x) => e.name.endsWith(x))) {
         const s = statSync(f);
-        out.push({ path: relative(root, f).split(sep).join("/"), kind: kindOf(e.name), size: s.size, mtime: s.mtimeMs });
+        const kind = kindOf(e.name);
+        out.push({ path: relative(root, f).split(sep).join("/"), kind, size: s.size, mtime: s.mtimeMs, ...(kind === "song" ? infoOf(f, s.mtimeMs) : null) });
       }
     }
   };

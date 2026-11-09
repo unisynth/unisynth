@@ -2,6 +2,7 @@
 // regions and wires them to the session modules in ui/app/ (engine link, transport, arrangement, clips, automation,
 // piano roll, devices, mixer, files, tracks, audition). Order matters where noted: the transport bar first (the rest
 // finds its ids), the roll panel last (its mount setups are bound by then). Started by main.ts.
+import { createEffect, createRoot } from "solid-js";
 import type { Track, TrackActions } from "./arrange/Tracks.tsx";
 import type { ClipTrack } from "./arrange/Clip.tsx";
 import { mountTracks } from "./arrange/Tracks.tsx";
@@ -26,6 +27,7 @@ import { armed, type Daw, E, api, initSession, selected, song, tracks, type With
 import { H, initCore, redo, say, snap, undo } from "./app/core.ts";
 import { setVerify } from "./state/snapshot.ts";
 import { persist } from "./state/persist.ts";
+import { drawer, setDrawer } from "./state/layout.ts";
 import { BARS, beatsPerBar, LOOP, loopOn, playing, setBars } from "./app/transport.ts";
 import { addAutoLane, addLane, applyAutomation, initAutomation, laneVals, recOn, recordFrame, setRec } from "./app/automation.ts";
 import { BW, fitArr, fitSong, hdrs, initArrange, lanes, laneTick, loopSelection, lw, onLength, onLoopText, rebuildTracks, relayout, showPos, toggleFollow, toggleLoop, updateLoop, zoomArr } from "./app/arrange.ts";
@@ -64,8 +66,9 @@ export function start(daw: Daw): void {
   });
   // Songs section and instrument library
   mountFiles(document.querySelector<HTMLElement>("#browser > section")!, {
-    open: f => openSong(f), importFile: f => importFile(f), newSong: () => newSong(), trackCount: () => tracks.length,
+    open: f => { setDrawer(false); openSong(f); }, importFile: f => importFile(f), newSong: () => newSong(), trackCount: () => tracks.length,
   });
+  initDrawer();
   mountLibrary(el("lib"), {
     hasInst: () => { selectedId(); return !!instOf(selected); }, target: () => { selectedId(); return selected.name; },
     audition: (src, it, done) => auditionEntry(src, it, done), load: (src, it) => { loadInto(selected, src, it); },
@@ -131,4 +134,18 @@ export function start(daw: Daw): void {
     zoomRoll: f => zoomRoll(f, 1), zoomArr: f => zoomArr(f), fitRoll, fitArr,
   });
   mountRoll(el("p-roll"), { attach: attachRoll, detach: detachRoll });  // last: ui/app/roll.ts has bound its mount setups
+}
+
+// Phone width (style.css @media): #browser is a drawer over the work area. Open: search focused, scrim shown; Escape,
+// the scrim or picking a song closes it, focus back on the Songs button. On a wide screen the class does nothing.
+function initDrawer(): void {
+  const nav = document.getElementById("browser")!, scrim = document.getElementById("scrim")!;
+  createRoot(() => createEffect(() => {
+    const open = drawer();
+    nav.classList.toggle("open", open); scrim.hidden = !open;
+    if (open) document.getElementById("song-q")?.focus();
+    else if (nav.contains(document.activeElement)) document.getElementById("browse-btn")?.focus();
+  }));
+  nav.addEventListener("keydown", (e) => { if (e.key === "Escape" && drawer()) { e.stopPropagation(); setDrawer(false); } });
+  scrim.addEventListener("click", () => setDrawer(false));
 }

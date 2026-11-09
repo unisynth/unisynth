@@ -4,7 +4,8 @@
 // Static mode (`<meta name="daw-static">`, written by build-static.ts): no server. The same data is read from
 // files next to the page — `data/music.json`, `data/library.json`, `data/bank.dls`, `data/files/<path>` — and a
 // write downloads the file instead (a read-only preview cannot store anything).
-export type FileEntry = { path: string; kind: "song" | "patch" | "blob"; size: number; mtime: number };
+/** Songs also carry `title`/`author` (meta) and `seconds` (length at the song tempo), see model.ts `songInfo`. */
+export type FileEntry = { path: string; kind: "song" | "patch" | "blob"; size: number; mtime: number; title?: string; author?: string; seconds?: number };
 
 const STATIC = typeof document !== "undefined" && !!document.querySelector('meta[name="daw-static"]');
 

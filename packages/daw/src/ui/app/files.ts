@@ -13,7 +13,9 @@ import { initInstrument, selectTrack } from "./tracks.ts";
 
 /** The song list from the server, the file main.ts opened, and the unsaved-changes guard on leaving. */
 export function initFiles(): void {
-  files.setSongs((DAW.files || []).filter((x) => x.kind === "song").map((x) => x.path).sort());
+  const list = (DAW.files || []).filter((x) => x.kind === "song");
+  files.setSongs(list.map((x) => x.path).sort());
+  files.setInfos(Object.fromEntries(list.filter((x) => x.seconds !== undefined).map((x) => [x.path, { title: x.title, author: x.author, seconds: x.seconds! }])));
   songFile = DAW.file || songFile;
   window.addEventListener("beforeunload", e => { if (isDirty()) { e.preventDefault(); e.returnValue = ""; } });
 }
@@ -43,7 +45,7 @@ function useSong(s: unknown, file: string, saved: boolean): void {
   tr.setTempo(st.tempo); const v = st.sig.join("/"); tr.ensureSig(v); document.documentElement.style.setProperty("--beats", String(beatsPerBar()));
   setBars(st.bars); LOOP[0] = 1; LOOP[1] = Math.min(BARS, 4) + 1;
   restoreState({ tracks: st.tracks, master: st.master, sel, armed: armedId });  // the loaded song's own master too
-  H.clear(); songFile = file; files.setSongFile(file); files.addSong(file); savedDepth = 0; savedAt = saved ? new Date() : null;
+  H.clear(); songFile = file; files.setSongFile(file); files.addSong(file); files.setInfo(file, DAW.model.songInfo(s as Parameters<typeof DAW.model.songInfo>[0])); savedDepth = 0; savedAt = saved ? new Date() : null;
   relayout(); updateLoop(); setPos(1); showPos(); fitSong(true); if (saved) markSaved(); else savedId = -1; unloadLive(); livePush(); dirtyUpd();
 }
 async function loadSong(f: string): Promise<void> {
@@ -68,11 +70,11 @@ function localIssues(): PathError[] {
 }
 /** Validates (locally and by the engine) and writes the song; false when it did not save. */
 export async function save(): Promise<boolean> {
-  const json = DAW.model.prettyJson(songOf(false)), errs = [...localIssues(), ...E.validate(json)];
+  const song = songOf(false), json = DAW.model.prettyJson(song), errs = [...localIssues(), ...E.validate(json)];
   if (errs.length) { showErrors(errs, "Save"); return false; }
   const r = await api.write(songFile, json);
   if (!r.ok) { if (r.errors) showErrors(r.errors, "Save"); else say(`save failed: ${r.error}`); return false; }
-  markSaved(); savedDepth = H.depth; savedAt = new Date(); files.addSong(songFile);
+  markSaved(); savedDepth = H.depth; savedAt = new Date(); files.addSong(songFile); files.setInfo(songFile, DAW.model.songInfo(song));
   dirtyUpd(); say(`${api.static ? "downloaded (read-only preview)" : "saved"} ${songFile} (song/2, ${(json.length / 1024).toFixed(1)} kB)`); return true;
 }
 const emptySong = (): unknown => ({ format: "song/2", rate: 44100, tempo: 120, signature: [4, 4], ticks_per_beat: 960, length: 8 * 3840, clips: [],

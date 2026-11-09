@@ -47,14 +47,15 @@
     </section>
   </div>
 </main>
+<div id="scrim" hidden></div>
 
 <div id="live" class="sr" aria-live="polite"></div>
 <footer>
-  <span class="num">44.1 kHz · kinds 64, 66, 72</span>
+  <span class="num rate">44.1 kHz · kinds 64, 66, 72</span>
   <span id="saved-info">Saved 2 min ago · 1 unsaved change</span>
   <span id="edit-status" class="num" aria-live="polite"></span>
   <span id="audition" class="slot"><!-- ui/footer/Audition.tsx --></span>
-  <span><kbd>Ctrl+X/C/V</kbd> cut/copy/paste <kbd>Ctrl+Q</kbd> quantize/align <kbd>↑↓</kbd> transpose/track <kbd>Space</kbd> play <kbd>Z</kbd>–<kbd>M</kbd> <kbd>Q</kbd>–<kbd>P</kbd> notes <kbd>[</kbd><kbd>]</kbd> octave <kbd>Shift+R</kbd> record <kbd>Ctrl+D</kbd> duplicate <kbd>Ctrl+Shift+D</kbd> linked copy</span>
+  <span class="hints"><kbd>Ctrl+X/C/V</kbd> cut/copy/paste <kbd>Ctrl+Q</kbd> quantize/align <kbd>↑↓</kbd> transpose/track <kbd>Space</kbd> play <kbd>Z</kbd>–<kbd>M</kbd> <kbd>Q</kbd>–<kbd>P</kbd> notes <kbd>[</kbd><kbd>]</kbd> octave <kbd>Shift+R</kbd> record <kbd>Ctrl+D</kbd> duplicate <kbd>Ctrl+Shift+D</kbd> linked copy</span>
 </footer>
 <!-- A sandboxed frame (e.g. the pi-dashboard canvas: opaque origin) cannot load the module or reach /api/music. -->
 <script type="module" src="main.js" onerror="dawBlocked()"></script>

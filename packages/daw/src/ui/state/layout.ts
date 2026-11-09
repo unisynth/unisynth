@@ -20,3 +20,6 @@ export function sizeOf(cssVar: string): [Accessor<number | null>, (v: number) =>
   }
   return s;
 }
+
+/** Phone width: the song/library browser is a drawer, open or closed (ui/App.tsx applies it, the Songs button toggles it). */
+export const [drawer, setDrawer] = createSignal(false);

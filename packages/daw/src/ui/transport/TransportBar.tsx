@@ -7,6 +7,7 @@ import { render } from "solid-js/web";
 import { load, playing, pos } from "../state/live.ts";
 import * as tr from "../state/transport.ts";
 import { dirty, saveLabel, songFile } from "../state/files.ts";
+import { drawer, setDrawer } from "../state/layout.ts";
 
 export interface TransportActions {
   play(): void;
@@ -49,6 +50,7 @@ function TransportBar(p: { a: TransportActions }): JSX.Element {
   createEffect(() => { const v = loopText(); if (document.activeElement !== loopIn) loopIn.value = v; });
   const field = (label: string, input: JSX.Element) => <label class="field">{label}{input}</label>;
   return <>
+    <button id="browse-btn" aria-controls="browser" aria-expanded={drawer()} title="Songs and instrument library" onClick={() => setDrawer(!drawer())}>☰ Songs</button>
     <div class="group">
       <button id="play" aria-label={playing() ? "Pause (Space)" : "Play (Space)"} title="Play (Space)" onClick={() => a.play()}>{playing() ? "❚❚" : "▶"}</button>
       <button id="stop" aria-label="Stop" title="Stop; press again to return to the start" onClick={() => a.stop()}>■</button>

@@ -41,7 +41,6 @@ afterAll(async () => {
   rmSync(root, { recursive: true, force: true });
 });
 
-const songButtons = () => page.locator("#songlist button").allTextContents();
 const current = () => page.locator("#songlist button[aria-current=true]").textContent();
 const dialog = () => page.locator("dialog.dlg");
 const saveDirty = () => page.locator("#save").evaluate((b) => b.classList.contains("dirty"));
@@ -52,31 +51,56 @@ async function edit() {
   await page.waitForTimeout(50);  // the mute commit is deferred
 }
 
-test("song list: sorted names, the current song marked with its track count; an edit adds the unsaved dot", async () => {
-  expect(await songButtons()).toEqual([expect.stringMatching(/^demo\.song\.json \d+ tr$/), "global-groove.song.json"]);
-  expect(await current()).toMatch(/^demo\.song\.json/);
+test("song list: title, length and composer per song (file name when there is no author), the current song marked with its track count; an edit adds the unsaved dot", async () => {
+  expect(await page.locator("#songlist button").evaluateAll((bs) => bs.map((b) => b.getAttribute("data-file")))).toEqual(["project/music/demo.song.json", "project/music/global-groove.song.json"]);
+  const row = (f: string) => page.locator(`#songlist button[data-file="project/music/${f}"]`);
+  // demo has no meta: its file name as title and byline, 32 beats at 128 BPM = 0:15
+  expect(await row("demo.song.json").locator(".tt").textContent()).toBe("demo");
+  expect(await row("demo.song.json").locator(".du").textContent()).toBe("0:15");
+  expect(await row("demo.song.json").locator(".by").textContent()).toBe("demo.song.json");
+  // global-groove: meta title, composer without the source note (full author in the tooltip), 16.25 beats at 120 BPM = 0:08
+  expect(await row("global-groove.song.json").locator(".tt").textContent()).toBe("Global Groove");
+  expect(await row("global-groove.song.json").locator(".du").textContent()).toBe("0:08");
+  expect(await row("global-groove.song.json").locator(".by").textContent()).toBe("WaveSabre Team");
+  expect(await row("global-groove.song.json").getAttribute("title")).toContain("composer is not named");
+  expect(await current()).toMatch(/^demo0:15demo\.song\.json\d+ tr$/);
   expect(await saveDirty()).toBe(false);
   await edit();
-  expect(await current()).toMatch(/^• demo\.song\.json/);
+  expect(await current()).toMatch(/^• demo/);
   expect(await saveDirty()).toBe(true);
 });
 
+test("song search filters by title, composer and file name; Escape clears it", async () => {
+  const q = page.locator("#song-q");
+  const shown = () => page.locator("#songlist button").evaluateAll((bs) => bs.map((b) => b.getAttribute("data-file")));
+  await q.fill("wavesabre");
+  expect(await shown()).toEqual(["project/music/global-groove.song.json"]);
+  await q.fill("DEMO.song");
+  expect(await shown()).toEqual(["project/music/demo.song.json"]);
+  await q.fill("nothing like this");
+  expect(await shown()).toEqual([]);
+  expect(await page.locator("#songs-none").textContent()).toBe("No song matches.");
+  await q.press("Escape");
+  expect(await q.inputValue()).toBe("");
+  expect((await shown()).length).toBe(2);
+});
+
 test("switching with unsaved changes asks: Cancel stays, Don't save opens the other song", async () => {
-  await page.locator('#songlist button:has-text("global-groove")').click();
+  await page.locator('#songlist button[data-file$="/global-groove.song.json"]').click();
   await expect(dialog().getAttribute("aria-label")).resolves.toBe("Save changes to demo.song.json?");
   expect(await dialog().locator(".dacts button").allTextContents()).toEqual(["Save", "Don't save", "Cancel"]);
   expect(await dialog().locator("button.primary").textContent()).toBe("Save");
   await dialog().getByRole("button", { name: "Cancel" }).click();
   expect(await dialog().count()).toBe(0);
-  expect(await current()).toMatch(/^• demo\.song\.json/);
+  expect(await current()).toMatch(/^• demo/);
   // Escape cancels too
-  await page.locator('#songlist button:has-text("global-groove")').click();
+  await page.locator('#songlist button[data-file$="/global-groove.song.json"]').click();
   await page.keyboard.press("Escape");
   expect(await dialog().count()).toBe(0);
   expect(await current()).toMatch(/^• demo/);
-  await page.locator('#songlist button:has-text("global-groove")').click();
+  await page.locator('#songlist button[data-file$="/global-groove.song.json"]').click();
   await dialog().getByRole("button", { name: "Don't save" }).click();
-  await page.waitForFunction(() => document.querySelector("#songlist button[aria-current=true]")?.textContent?.startsWith("global-groove"));
+  await page.waitForFunction(() => document.querySelector("#songlist button[aria-current=true]")?.getAttribute("data-file")?.endsWith("/global-groove.song.json"));
   expect(await undoDepth()).toBe(0);
   // the opened song's own master, not the previous song's (demo's master has an effect, global-groove's has none)
   const masterOf = (f: string) => JSON.parse(readFileSync(join(music, f), "utf8")).master;
@@ -86,8 +110,8 @@ test("switching with unsaved changes asks: Cancel stays, Don't save opens the ot
   // the discarded edit is not on disk
   expect(readFileSync(join(music, "demo.song.json"), "utf8")).toBe(readFileSync(join(ROOT, "project/music/demo.song.json"), "utf8"));
   // back to demo, clean: no prompt
-  await page.locator('#songlist button:has-text("demo")').click();
-  await page.waitForFunction(() => document.querySelector("#songlist button[aria-current=true]")?.textContent?.startsWith("demo"));
+  await page.locator('#songlist button[data-file$="/demo.song.json"]').click();
+  await page.waitForFunction(() => document.querySelector("#songlist button[aria-current=true]")?.getAttribute("data-file")?.endsWith("/demo.song.json"));
   expect(await dialog().count()).toBe(0);
 });
 
@@ -95,7 +119,7 @@ test("save: clean afterwards; a 422 from the server lists the JSON paths and a p
   await edit();
   await page.locator("#save").click();
   await page.waitForFunction(() => !document.querySelector("#save")!.classList.contains("dirty"));
-  expect(await current()).toMatch(/^demo\.song\.json/);
+  expect(await current()).toMatch(/^demo0:15/);
   // the server rejects (rules the page does not check): the dialog lists each error with its path
   await page.route("**/api/music?path=*", (r) => r.request().method() === "PUT"
     ? r.fulfill({ status: 422, contentType: "application/json", body: JSON.stringify({ ok: false, errors: [{ path: "/tracks/1/devices/0", message: "bad device" }, { path: "/master/volume", message: "too loud" }] }) })
@@ -131,7 +155,7 @@ test("export: summary dialog, Write blob writes <song>.song.bin; Close returns f
 test("import: a blob opens as a new unsaved song; a bad file says why", async () => {
   await page.locator("#imp-file").setInputFiles(join(music, "demo.song.bin"));
   // demo.song.bin → project/music/demo.song.json, unsaved (the file on disk is untouched until Save)
-  await page.waitForFunction(() => document.querySelector("#songlist button[aria-current=true]")?.textContent?.startsWith("• demo.song.json"));
+  await page.waitForFunction(() => document.querySelector("#songlist button[aria-current=true]")?.textContent?.startsWith("• demo"));
   expect(await undoDepth()).toBe(0);
   expect(await page.locator(".thdr.track").count()).toBeGreaterThan(1);
   await page.locator("#imp-file").setInputFiles({ name: "junk.bin", mimeType: "application/octet-stream", buffer: Buffer.from("not a song blob") });
@@ -148,9 +172,9 @@ test("new song: asks to save the unsaved import, then one instrument track as un
   expect(await page.locator(".thdr.track .name").first().textContent()).toBe("Track 1");
   expect(await undoDepth()).toBe(0);
   // back to the demo for the remaining tests (untitled-1 was never saved: Don't save)
-  await page.locator('#songlist button:has-text("demo.song.json")').first().click();
+  await page.locator('#songlist button[data-file$="/demo.song.json"]').click();
   if (await dialog().count()) await dialog().getByRole("button", { name: "Don't save" }).click();
-  await page.waitForFunction(() => document.querySelector("#songlist button[aria-current=true]")?.textContent?.startsWith("demo.song.json"));
+  await page.waitForFunction(() => document.querySelector("#songlist button[aria-current=true]")?.getAttribute("data-file")?.endsWith("/demo.song.json"));
 });
 
 test("bounce: Render the loop gives a named WAV link; Cancel stops a running render", async () => {
@@ -254,4 +278,36 @@ test("no critical or serious accessibility violations with a dialog or a menu op
 
 test("no page errors", () => {
   expect(errors.filter((e) => !/Failed to load resource.*422/.test(e))).toEqual([]);
+});
+
+test("phone width: one column, the browser is a drawer (Songs button, Escape, scrim, picking a song closes it); desktop unchanged", async () => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  try {
+    const btn = page.locator("#browse-btn"), drawer = page.locator("#browser");
+    expect(await btn.isVisible()).toBe(true);
+    expect(await btn.getAttribute("aria-expanded")).toBe("false");
+    await drawer.waitFor({ state: "hidden" });  // after the drawer transition that the resize starts
+    // nothing wider than the screen; the work area gets the whole width; key hints are hidden
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    expect((await page.locator("#work").boundingBox())!.width).toBeGreaterThan(380);
+    expect(await page.locator("footer .hints").isVisible()).toBe(false);
+    await btn.click();
+    expect(await btn.getAttribute("aria-expanded")).toBe("true");
+    await drawer.waitFor({ state: "visible" });
+    expect(await page.evaluate(() => document.activeElement?.id)).toBe("song-q");
+    await page.keyboard.press("Escape");
+    await drawer.waitFor({ state: "hidden" });
+    await btn.click();
+    await page.locator("#scrim").click({ position: { x: 380, y: 400 } });
+    await drawer.waitFor({ state: "hidden" });
+    await btn.click();
+    await page.locator("#songlist button[aria-current=true]").click();
+    await drawer.waitFor({ state: "hidden" });
+    expect(await btn.getAttribute("aria-expanded")).toBe("false");
+  } finally {
+    await page.setViewportSize({ width: 1440, height: 1000 });
+  }
+  expect(await page.locator("#browse-btn").isVisible()).toBe(false);
+  expect(await page.locator("#browser").isVisible()).toBe(true);
+  expect(await page.locator("footer .hints").isVisible()).toBe(true);
 });

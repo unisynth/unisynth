@@ -34,6 +34,10 @@ test("lists songs, presets and blobs; reads one file", async () => {
     ["project/music/patches/acid-bass.patch.json", "patch"],
     ["project/music/patches/glass-pad.patch.json", "patch"],
   ]);
+  // songs carry their list facts: title and author from meta (demo has none), length in seconds
+  expect(l[0].seconds).toBeCloseTo((30720 / 960) * 60 / 128, 6);
+  expect(l[0].title).toBeUndefined();
+  expect(l[1].seconds).toBeUndefined();
   const r = await api("/api/music?path=project/music/demo.song.json");
   expect(await r.text()).toBe(demo());
   expect((await api("/api/music?path=project/music/nope.song.json")).status).toBe(404);

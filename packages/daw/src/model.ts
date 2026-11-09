@@ -112,6 +112,14 @@ export function prettyJson(v: unknown): string {
   return go(v, 0) + "\n";
 }
 
+/** What the song browser lists (the songs page player shows the same): meta title and author, length in seconds. */
+export type SongInfo = { title?: string; author?: string; seconds: number };
+export function songInfo(s: Pick<Song, "tempo" | "length" | "ticks_per_beat"> & { meta?: Record<string, unknown> }): SongInfo {
+  const m = s.meta ?? {}, sec = (s.length / s.ticks_per_beat) * 60 / s.tempo;
+  return { ...(typeof m.title === "string" ? { title: m.title } : {}), ...(typeof m.author === "string" ? { author: m.author } : {}), seconds: Number.isFinite(sec) ? sec : 0 };
+}
+/** The author without its trailing source note: "H0ffman / logicoma (credited on Demozoo …)" → "H0ffman / logicoma". */
+export const composer = (author: string) => author.replace(/\s*\(.*\)\s*$/, "");
 export const dbToGain = (db: number) => (db <= -60 ? 0 : Math.pow(10, db / 20));
 export const gainToDb = (g: number) => (g <= 0.001 ? -60 : 20 * Math.log10(g));
 /** Linear gain for `db`, or the loaded gain `g0` while `db` still equals its loaded dB value. */
@@ -119,13 +127,21 @@ const gainOf = (db: number, g0?: [number, number]) => (g0 && g0[0] === db ? g0[1
 export const ticksPerBar = (sig: [number, number]) => (TPB * 4 * sig[0]) / sig[1];
 
 /** Live-preview audibility: not muted, and when any track is soloed, soloed itself, a send source of a soloed track
- * (a kick feeding a soloed pad's sidechain keeps feeding it), or a bus a soloed track sends to. */
+ * (a kick feeding a soloed pad's sidechain keeps feeding it), or a track a soloed track sends audio to (not its
+ * sidechain) — transitively, so a track → bus → bus → master chain stays whole whichever link is soloed. */
 export function audible(tracks: UITrack[], t: UITrack): boolean {
   if (t.mute) return false;
   const solos = tracks.filter((x) => x.solo);
   if (!solos.length || t.solo) return true;
-  if (t.sends.some((s) => solos.some((x) => x.name === s[0]))) return true;
-  return !!t.bus && solos.some((x) => x.sends.some((s) => s[0] === t.name));
+  const reach = (next: (x: UITrack) => UITrack[]) => {
+    // by name: `t` may be the raw track while `tracks` holds store proxies
+    const seen = new Set(solos.map((x) => x.name)), todo = [...solos];
+    while (todo.length) for (const y of next(todo.pop()!)) if (!seen.has(y.name)) { seen.add(y.name); todo.push(y); }
+    return seen;
+  };
+  // upstream: everything feeding the solos; downstream: where their audio goes (a sidechain input is no output)
+  if (reach((x) => tracks.filter((y) => y.sends.some((s) => s[0] === x.name))).has(t.name)) return true;
+  return reach((x) => tracks.filter((y) => x.sends.some((s) => s[0] === y.name && s[1] !== "side"))).has(t.name);
 }
 
 /** The editor model as a song/2 source. `audible(t)` (solo/mute for live preview) defaults to `!t.mute`. */
