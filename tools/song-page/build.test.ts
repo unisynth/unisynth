@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
-import { GROUPS, groupOf, needsBank, page, sizeOf, slugOf, songFiles } from "./build.ts";
+import { ACCENT, CHIP, GROUPS, groupOf, needsBank, page, sizeOf, slugOf, songFiles } from "./build.ts";
 
 const MUSIC = fileURLToPath(new URL("../../project/music/", import.meta.url));
 
@@ -13,6 +13,13 @@ test("every song in project/music gets its own slug and a known group", () => {
   expect(new Set(slugs).size).toBe(slugs.length);
   for (const s of slugs) expect(s).toMatch(/^[a-z0-9-]+$/);
   for (const r of rels) expect(GROUPS).toContain(groupOf(r));
+});
+
+test("every group has an accent colour and a chip label", () => {
+  for (const g of GROUPS) {
+    expect(ACCENT[g]).toBeString();
+    expect(CHIP[g]).toBeString();
+  }
 });
 
 test("groups follow the folder and the source", () => {
