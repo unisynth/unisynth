@@ -675,3 +675,123 @@ Editor-only features in played instruments: none.
 | route LFO2 → ADSR1 decay ×1.00 | 1 |
 | route LFO2 → LP cutoff ×1.00 | 1 |
 | route MOD3 → volume ×1.00 | 1 |
+
+## 10. Older engine (Pandora, 2011)
+
+Pandora (Brain Control, Revision 2011) was made with an earlier Tunefish 3. No source of that version is public. This
+section is written from the disassembly of the unpacked intro image (`tools/tf3-extract/unpack.py`; image base
+0x3c0000, code linked at 0x400000) and describes behaviour only (change `add-tf3-pandora`).
+
+### 10.1 Synth block stream
+
+The demo operator hands the synth one byte array. Both loaders read it through a **bit reader**: bits come LSB first
+from each byte, and `read(n)` assembles n bits LSB first. Byte-aligned reads are therefore plain little-endian values.
+Addresses are VAs in the Pandora image.
+
+| Step | Read | Meaning |
+|---|---|---|
+| instruments (0x409d6f) | `u8 count` | instruments that follow (Pandora: 21) |
+| per instrument | 99 × `u8`, then `u8 slot` | parameter `j` = byte × 0.01 (every parameter in percent); the instrument goes to synth slot `slot` (Pandora uses 0–24 with gaps) |
+| song header (0x40a849) | `u32 id`, `u16 bpm`, `u8 length` + characters | id, tempo (Pandora: 1, 125, "New song") |
+| patterns | `u16 P`, array(P) rows, array(P) tracks | pattern `i` has `rows[i]` rows and `tracks[i]` tracks, id `i` |
+| cells | `u16 C`, array(C) packed cells | see 10.2 |
+| instances | `u16 K`, array(K) pattern, array(K) row offset, array(K) track | pattern placements |
+
+**Packed array** (0x40b17a): `u32 min`, `u32 step`, `u32` (read and discarded), `u32 bits`, then `count` values of
+`bits` bits each: value = `min + v × step`, or `min` for every element when `bits` is 0.
+
+### 10.2 Cells
+
+Cells are packed 32-bit words consumed in pattern, track, row order. Byte 3 of a word is the number of empty rows
+before the note it carries. A track starts with `skip = byte3` of the current word. For each row: if `skip > 0`, the
+row is empty (note 0, instrument −1, velocity −1) and `skip` decreases. Otherwise the row gets note = byte 2,
+instrument = byte 1 − 1 and velocity = byte 0 − 1. Unless this is the last row, the reader then moves to the next word
+and sets `skip` to its byte 3. After each track it moves to the next word. That word also covers a track's trailing
+empty rows, and a track with no note at all.
+
+These in-memory fields mean the same as the 2012 format's note, instrument and velocity fields (§6.1), with instrument
+−1 meaning "none" and velocity −1 the default 128. There is no effect column. Note 128 occurs and is the 2012 note-off.
+
+### 10.3 Pandora's song
+
+| Item | Value |
+|---|---|
+| block | image offset 0x6ff19 – 0x745e4 (18123 bytes, ends byte-aligned) |
+| instruments | 21 (slots 0, 2–10, 12, 14–22, 24) |
+| tempo | 125 bpm |
+| patterns | 109 (16, 32 or 64 rows; 1–8 tracks) |
+| cells | 3714 words, all consumed by the patterns |
+| instances | 277 (pattern 0–108, row offset 0–1968 in steps of 16, track 0–6) |
+| notes | 3383 cells with a note (25–128) |
+
+Row timing is the 2012 law: `row = round(t × bpm / 60 × 4)` (0x40a462).
+
+### 10.4 Parameters (instrument record bytes 0–99)
+
+The 99 parameter bytes keep the 2012 order of indices 0–97 (§5), and byte 98 is the 2012 `GainAmount` (index 122).
+There are no effect slots. Every value is `byte / 100`. Evidence comes from the code that consumes each value: the
+instrument's parameter array (`set` at 0x408687, offset `4j`) is read by the voice loop 0x408839 and the routines it
+calls. "Same" cites the matching 2012 section, "differs" states the old law.
+
+| Bytes | Parameter (2012 name) | Old engine (consumer) | vs 2012 |
+|---|---|---|---|
+| 0–13 | OscPoints, OscP1Off … OscFiInt | point curve built by 0x40960a / 0x40921a (offset clamp 0.01..0.99, natural cubic) | same cycle shape (§3.1.1); **differs in playback**: the curve is evaluated per sample (step / linear / cubic per segment, 0x409350) instead of a 257-sample table, with no mean removed |
+| 14 | OscVol | `p · velocity · M(9)`, silent below 0.01 (0x4097c9) | same (§3.1.3) |
+| 15 | OscFreq | fixed `(p·M(10))² / 100` cycles per sample | same |
+| 16 | OscPan | `p · M(11)`, linear balance | same |
+| 17 | OscDetun | `(p·M(12))³ / 5000` | same |
+| 18 | OscPoly | voices `15p + 1` (0x4086c1) | same |
+| 19 | OscUnisn | layers `fi(15p) + 1` | **differs** (2012: `fi(10p) + 1`, range 9) |
+| 20 | OscSpread | `(p·M(13))⁴ · 1e-4` per layer | same |
+| 21 | OscSubOsc | passes `fi(5p) + 1`, each pass at half the previous gain | **differs** (2012: `fi(p) + 1` passes at `1/(b+1)`) |
+| 22 | OscGlide | glide | same (0 in Pandora) |
+| 23 | OscDrive | `1 + 32 · p · M(14)` | **differs** (2012: `1 + 32 (p·M)³`) |
+| 24 | OscOctave | `[16, 8, 4, 2, 1, ½, ¼, ⅛, 1/16][fi(8p)]` (table at 0x4278d4) | same |
+| 25 | OscOffset | `2(p − 0.5)` added to the curve before the drive; the result is clipped at +1 only, per layer | **differs** (2012: unused; summed layers clipped at ±1) |
+| 26 | OscSlop | random pitch offset `(p)³` scaled (0x40b57f) | same law |
+| 27–34 | AddVolume … AddDrive | PAD table | same; volume 0 in all Pandora instruments (no PAD) |
+| 35–37 | NoiseOn, NoiseFreq, NoiseBw | noise (0x4090b9), band when `bw < 0.99` (0x409058) | same (§3.4) |
+| 38–40 | FltLPOn, FltLPCut, FltLPRes | ladder, `20000 f² + 30` Hz, q ≤ 0.95 (0x406f12 mode 1) | same (§3.5) |
+| 41–43 | FltHPOn, FltHPCut, FltHPRes | RBJ high-pass, `10000 f² + 30` Hz (0x406f12 mode 0) | same |
+| 44–49 | FltBPOn … FltNTQ | **never read**; the voice loop runs LP and HP only | differs: no band-pass or notch (slot 10 has BP on: no effect) |
+| 50–59 | Env1Att … Env2Slp | ADSR 0x406452 (0.94, 0.0005, 0.25, 0.001) | same (§3.6) |
+| 60, 64 | Lfo1Rate, Lfo2Rate | phase `+= 50 p² N / sr` per block (0x408b76), shapes read `π · phase` | **differs**: sine runs at `25 p²` Hz (2012 `7.96 p²`) |
+| 61, 65 | Lfo1Dep, Lfo2Dep | sine `(a · sin(π φ) + 1) / 2` with `a = p` (0x408bb2) | **differs** (2012 `d·(sin φ + 0.5) + 1 − d`, `d = p²`) |
+| 62, 66 | Lfo1Shp, Lfo2Shp | `< 0.33` sine, `< 0.66` falling `1 − fmod(φ, π)/π`, else rising `fmod(φ, π)/π` | differs (2012 five shapes); 0 (sine) in all Pandora instruments |
+| 63, 67 | Lfo1Sync, Lfo2Sync | restart > 0.5 at note-on (0x408ae2) | same; 0 in Pandora |
+| 68–97 | Mm1Source … Mm10Targe | 10 slots: source `fi(9p)` (1, 2 LFOs, 3, 4 ADSRs), amount `(20(p − 0.5))²`, target `fi(25p)`; targets 9–14 read by the oscillator as in 2012 (0x408d18) | same (§3.9) |
+| 98 | (GainAmount) | voice mix-down scale `p ≤ 0.5 ? (2p)² : 1 + 20(p − 0.5)` (0x4071bc) | same law as 2012 index 122 |
+| 99 | — | synth slot of the instrument (not a parameter) | — |
+
+Also different from 2012, as a whole:
+- **No oversampling or decimation:** the oscillator advances at `1/sr` (0x408839).
+- **Clipping:** each unison layer and sub pass is clipped on its own.
+
+The single-instrument values that make these differences audible in Pandora:
+- **Unison:** 3 to 6 layers on 10 instruments; 6 layers is unreachable under the 2012 law.
+- **Sub-oscillator:** 3 passes on slots 9, 15 and 21.
+- **Drive:** 0.09 on slot 8 (gain 3.9 instead of 1.02).
+- **Positive OscOffset** (+0.18 to +0.58) on slots 6, 8, 9, 15, 19 and 21.
+- **LFO1 sine** on the low-pass cutoff of slots 6, 8 and 9 and on point 1's offset on slot 10.
+
+### 10.5 Known differences of the conversion (measured)
+
+`synth-convert e3prj --engine 2011` plays the 2011 laws of unison, sub-oscillator passes, drive and the LFO (§10.4).
+It warns, per instrument, about what the unified synth cannot play.
+
+Each difference was measured with a throw-away simulation of the oscillator stage: one sustained note per instrument,
+at its most-played note, under the 2011 law and under the unified law, comparing loudness and the octave bands within
+30 dB of the loudest.
+
+| Known difference | Instruments | Old law vs ours, loudness (worst band) |
+|---|---|---|
+| Each unison layer and sub pass clipped on its own (the unified slot clips their sum) | multi-layer: slots 6, 8, 9, 14, 15, 17, 18, 19, 21 | slots 17, 18 (6 layers) +9.7 / +9.1 dB (+12.9 dB at 125 Hz); slot 8 (4 layers, drive 3.9) +8.4 dB; slots 9, 15 +4.9 / +4.2 dB; slots 14, 21 +2.0 dB; slots 6, 19 ≤ 0.2 dB |
+| OscOffset before the drive, clipped at +1 only, curve mean kept | 16 instruments (the 10 negative offsets never clip) | alone, under summed clipping: −0.1 to −0.6 dB for most; slots 9, 21 (positive offset, 3 passes) −6.9 / −8.9 dB. With per-layer clipping as in the original, the two combine to the totals below. |
+| Point curve per sample instead of the 257-sample table | all 16 point instruments | ≤ 0.08 dB; differences only in near-empty top bands |
+| No decimation stage | all 16 | not simulated: it acts above 12 kHz, outside the 63 Hz–8 kHz bands the capture check judges |
+| All of them together | — | +0.0 to +0.5 dB on single-layer instruments; +2.5 to +9.7 dB on slots 8, 9, 14, 15, 17, 18, 21 |
+
+Whole song: converted Pandora passes the capture check (offset 7.49 s, bands within 3.89 dB, timing in 8 of 8
+windows). Its 500 Hz–4 kHz bands sit 1.7–2.7 dB under the capture, which matches the level the per-layer clipping
+takes from the many-layer instruments. A unified oscillator option for per-layer clipping (and for the offset) would
+remove most of this. Those features are left for a later change.

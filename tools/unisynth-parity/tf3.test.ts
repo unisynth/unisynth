@@ -35,6 +35,20 @@ describe("tf3 parity", () => {
     expect(passes({ name: "b", error: "x" })).toBe(false);
   });
 
+  test("the report shows Pandora against its capture, or why it was skipped (add-tf3-pandora)", () => {
+    expect(report({ pandora: { skipped: "no capture /x/pandora.wav" } })).toContain("Skipped: no capture /x/pandora.wav.");
+    const cap = { offset: 330000, gainDb: 9.9, windows: [{ start: 0, lag: 128, corr: 0.7 }], bands: [{ fc: 1000, diff: -2.5, pass: true }], onsets: { windows: 1, matched: 1, pass: true }, pass: true };
+    const text = report({ pandora: { ...cap, warnings: ['instrument 6 "I": 2011 engine: oscillator offset +0.46 before the drive', 'instrument 9 "J": 2011 engine: oscillator offset +0.58 before the drive'] } });
+    expect(text).toContain("Converted Pandora (2011 engine");
+    expect(text).toContain("2011 engine: oscillator offset ±x before the drive (2)");
+  });
+
+  test("the Pandora item skips without its capture and the run still exits 0", () => {
+    const r = spawnSync("bun", [join(import.meta.dir, "tf3.ts"), "--report", "/tmp/tf3-pandora-skip.md", "pandora"], { env: { ...process.env, TF3_CAPTURES: "/nonexistent/captures" }, encoding: "utf8" });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toMatch(/pandora: skipped \((no capture|no extracted project)|tf3 parity: skipped/);
+    }, 600_000);
+
   test("skips without the checkout", () => {
     const r = spawnSync("bun", [join(import.meta.dir, "tf3.ts"), "points-step"], { env: { ...process.env, TF3_REF: "/nonexistent/tf3" }, encoding: "utf8" });
     expect(r.status).toBe(0);

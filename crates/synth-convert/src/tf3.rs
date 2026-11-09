@@ -17,6 +17,11 @@
 //!
 //! Player mode (the default, what the intros played) quantises every value to the stored byte and drops the modules
 //! the player build leaves out: band-pass and notch, the MOD1–4 sources, chorus, flanger and EQ.
+//!
+//! Early mode is the 2011 engine's player (Pandora; change add-tf3-pandora, spec §10.4): values are taken as stored
+//! (whole percents), unison is `fi(15p) + 1` layers, the sub-oscillator `fi(5p) + 1` passes at halving gain, drive
+//! `1 + 32p`, and the LFO sine `0.5 + 0.5·depth·sin` at 25p² Hz. What the unified synth cannot play (the oscillator
+//! offset with its one-sided clip, per-layer clipping, the table-free point curve, no decimation) is warned by name.
 
 use crate::e3prj::COUNT;
 use crate::model::Dev;
@@ -42,6 +47,7 @@ const OSC_SUBOSC: usize = 21;
 const OSC_GLIDE: usize = 22;
 const OSC_DRIVE: usize = 23;
 const OSC_OCTAVE: usize = 24;
+const OSC_OFFSET: usize = 25;
 const OSC_SLOP: usize = 26;
 const ADD_VOLUME: usize = 27;
 const ADD_PROFILE: usize = 28;
@@ -127,6 +133,8 @@ pub fn quantise(p: &[f32]) -> Vec<f32> {
 pub enum Mode {
     Player,
     Editor,
+    /// The 2011 engine's player (Pandora): its own laws, no band-pass, notch or effects.
+    Early,
 }
 
 /// A Tunefish 3 mod slot: `(source 0–9, amount, target 0–25)`.
@@ -192,11 +200,33 @@ fn gate_ms(p: &[f32]) -> f32 {
     (0..2).filter(|&k| used[k]).map(|k| release_ms(p, k)).fold(FADE_CUT * BLOCK_S * 1000.0, f32::max).min(GATE_MAX_MS)
 }
 
-/// LFO `k` as the unified LFO: (old-layout shape value, unified depth parameter, amount factor for the routes that
-/// read it, warning). Tunefish 3 shapes by thresholds on `p` (sine `sin φ + 0.5`, ramps `φ/π` and `1 − φ/π`, square,
-/// random); `A·(d·s₃ + 1 − d) = A'·(d'·s + 1 − d')` with the unified 0..1 shape `s` gives `d'` and `A'/A`.
-fn lfo(p: &[f32], k: usize) -> (f32, f32, f32, Option<String>) {
+/// An LFO as the unified LFO: old-layout shape value, unified depth parameter, amount factor for the routes that read
+/// it, rate in Hz, warning.
+struct Lfo {
+    shape: f32,
+    depth: f32,
+    factor: f32,
+    hz: f32,
+    warn: Option<String>,
+}
+
+/// LFO `k` as the unified LFO. Tunefish 3 shapes by thresholds on `p` (sine `sin φ + 0.5`, ramps `φ/π` and `1 − φ/π`,
+/// square, random); `A·(d·s₃ + 1 − d) = A'·(d'·s + 1 − d')` with the unified 0..1 shape `s` gives `d'` and `A'/A`.
+/// The 2011 engine (`early`): `< 0.33` sine `0.5 + 0.5·a·sin(πφ)` (a = depth, linear) at 25p² Hz, else ramps without
+/// depth, falling below 0.66, rising above, at 50p²/π Hz.
+fn lfo(p: &[f32], k: usize, early: bool) -> Lfo {
     let b = LFO1 + 4 * k;
+    if early {
+        let (a, r2) = (p[b + 1].clamp(0.0, 1.0), p[b] * p[b]);
+        return if p[b + 2] < 0.33 {
+            // 0.5 − 0.5a + a·s = A'(d'·s + 1 − d'): A' = (1 + a)/2, d' = 2a/(1 + a)
+            let f = 0.5 * (1.0 + a);
+            Lfo { shape: 0.0, depth: (a / f).sqrt(), factor: f, hz: 25.0 * r2, warn: None }
+        } else {
+            let shape = if p[b + 2] < 0.66 { 0.5 } else { 0.25 };
+            Lfo { shape, depth: 1.0, factor: 1.0, hz: 50.0 * r2 / std::f32::consts::PI, warn: None }
+        };
+    }
     let d = p[b + 1] * p[b + 1];
     let shape = [0.2, 0.4, 0.6, 0.8].iter().filter(|&&t| p[b + 2] >= t).count();
     let (d2, factor) = match shape {
@@ -206,7 +236,7 @@ fn lfo(p: &[f32], k: usize) -> (f32, f32, f32, Option<String>) {
         _ => (d, 1.0),
     };
     let warn = (d2 > 1.0).then(|| format!("LFO {} depth {:.2} reaches below 0 in Tunefish 3; clamped", k + 1, p[b + 1]));
-    (shape as f32 / 4.0, d2.min(1.0).sqrt(), factor, warn)
+    Lfo { shape: shape as f32 / 4.0, depth: d2.min(1.0).sqrt(), factor, hz: 50.0 * p[b] * p[b] / TAU, warn }
 }
 
 /// Things the unified instrument cannot reproduce, one line each.
@@ -216,35 +246,42 @@ fn warn(w: &mut Vec<String>, m: String) {
     }
 }
 
-/// The unified slots of the instrument: point oscillator, its sub-oscillator, PAD table (each `None` if unused).
-#[derive(Clone, Copy, Debug, Default)]
+/// The unified slots of the instrument: point oscillator, its sub-oscillator passes, PAD table.
+#[derive(Clone, Debug, Default)]
 struct Slots {
     points: Option<usize>,
-    sub: Option<usize>,
+    subs: Vec<usize>,
     pad: Option<usize>,
 }
 
-fn slots(p: &[f32]) -> Slots {
-    let mut next = 0;
-    let mut take = |on: bool| {
-        on.then(|| {
-            next += 1;
-            next - 1
-        })
-    };
-    let points = take(p[OSC_VOL] > 0.01);
-    let sub = take(points.is_some() && fi(p[OSC_SUBOSC]) >= 1);
-    let pad = take(p[ADD_VOLUME] > 0.0);
-    Slots { points, sub, pad }
+/// Oscillator passes: 2012 `fi(p) + 1` (1 or 2), the 2011 engine `fi(5p) + 1` (1..6).
+fn passes(p: &[f32], early: bool) -> usize {
+    (fi(if early { 5.0 } else { 1.0 } * p[OSC_SUBOSC]).max(0) + 1) as usize
+}
+
+fn slots(p: &[f32], early: bool, w: &mut Vec<String>) -> Slots {
+    let points = (p[OSC_VOL] > 0.01).then_some(0);
+    let pad_on = p[ADD_VOLUME] > 0.0;
+    let want = if points.is_some() { passes(p, early) - 1 } else { 0 };
+    let free = p3::OSC_SLOTS - points.iter().count() - usize::from(pad_on);
+    if want > free {
+        warn(w, format!("{} sub-oscillator passes: {} slot(s) left, the lowest passes are dropped", want + 1, free));
+    }
+    let subs: Vec<usize> = (1..=want.min(free)).collect();
+    let pad = pad_on.then_some(points.iter().count() + subs.len());
+    Slots { points, subs, pad }
 }
 
 /// The unified instrument values of Tunefish 3 parameters `p` (already quantised in player mode).
 pub fn build(p: &[f32], mode: Mode, w: &mut Vec<String>) -> [f32; p3::COUNT] {
     assert_eq!(p.len(), COUNT);
     let editor = mode == Mode::Editor;
+    let early = mode == Mode::Early;
     let env = env_slots(p);
-    let s = slots(p);
-    let osc_slots: Vec<usize> = [s.points, s.sub].into_iter().flatten().collect();
+    let s = slots(p, early, w);
+    let osc_slots: Vec<usize> = s.points.iter().chain(&s.subs).copied().collect();
+    // pass k's gain: 2012 1/(k + 1), the 2011 engine halves it each pass
+    let pass_gain = |k: usize| if early { 0.5f32.powi(k as i32) } else { 1.0 / (k + 1) as f32 };
     let fixed = p[OSC_FREQ] >= 0.00001;
     let fixed_hz = 441.0 * p[OSC_FREQ] * p[OSC_FREQ];
     let octave = |x: f32| 4 - fi(8.0 * x).clamp(0, 8);
@@ -262,9 +299,9 @@ pub fn build(p: &[f32], mode: Mode, w: &mut Vec<String>) -> [f32; p3::COUNT] {
     for (k, &i) in osc_slots.iter().enumerate() {
         u.osc_type(i, osc_type::PM); // the type and shapes are set in the v3 layout below
         u.osc(i, o::TRACKING, if fixed { 1.0 } else { 0.0 });
-        u.osc(i, o::FIXED_HZ, inv::inv_fixed_hz(if k == 0 { fixed_hz } else { fixed_hz * 0.5 }));
+        u.osc(i, o::FIXED_HZ, inv::inv_fixed_hz(if k == 0 { fixed_hz } else { fixed_hz * 0.5f32.powi(k as i32) }));
         u.osc(i, o::OCTAVE, inv::inv_octave((octave(p[OSC_OCTAVE]) - k as i32) as f32));
-        u.osc(i, o::GAIN, inv::inv_gain(comp * p[OSC_VOL] / (k + 1) as f32));
+        u.osc(i, o::GAIN, inv::inv_gain(comp * p[OSC_VOL] * pass_gain(k)));
         u.osc(i, o::PAN, pan);
     }
     if let Some(i) = s.pad {
@@ -301,15 +338,15 @@ pub fn build(p: &[f32], mode: Mode, w: &mut Vec<String>) -> [f32; p3::COUNT] {
     let mut lfo_factor = [1.0f32; 2];
     for k in 0..2 {
         let b = LFO1 + 4 * k;
-        let (shape, depth, factor, wl) = lfo(p, k);
-        if let Some(m) = wl {
+        let lf = lfo(p, k, early);
+        if let Some(m) = lf.warn {
             warn(w, m);
         }
-        lfo_factor[k] = factor;
+        lfo_factor[k] = lf.factor;
         let at = |f: usize| po::lfo(k, f);
-        u.set(at(l::SHAPE), shape);
-        u.set(at(l::RATE), inv::inv_lfo_rate(50.0 * p[b] * p[b] / TAU));
-        u.set(at(l::DEPTH), depth);
+        u.set(at(l::SHAPE), lf.shape);
+        u.set(at(l::RATE), inv::inv_lfo_rate(lf.hz));
+        u.set(at(l::DEPTH), lf.depth);
         u.set(at(l::SYNC), if p[b + 3] > 0.5 { 1.0 } else { 0.0 });
     }
     for k in 0..2 {
@@ -349,11 +386,13 @@ pub fn build(p: &[f32], mode: Mode, w: &mut Vec<String>) -> [f32; p3::COUNT] {
             x[p3::pts(i, pt::MODE + j)] = p3::choice_value(fi(2.0 * p[OSC_P1 + 3 * j + 2]).clamp(0, 2) as usize, 3);
         }
         x[p3::pts(i, pt::MODE + 4)] = p3::choice_value(fi(2.0 * p[OSC_FI_INT]).clamp(0, 2) as usize, 3);
-        x[p3::osc(i, p3::o::SHAPE + sp::PTS_DRIVE)] = p[OSC_DRIVE].clamp(0.0, 1.0);
+        // the unified drive law is 1 + 32p³; the 2011 engine's is 1 + 32p
+        let drive = p[OSC_DRIVE].clamp(0.0, 1.0);
+        x[p3::osc(i, p3::o::SHAPE + sp::PTS_DRIVE)] = if early { drive.cbrt() } else { drive };
         x[p3::pts(i, pt::COUNT_)] = inv::inv_count((fi(3.0 * p[OSC_POINTS]) + 1).clamp(1, 4) as u32, 1, 4);
-        x[p3::pts(i, pt::LAYERS)] = inv::inv_count((fi(10.0 * p[OSC_UNISON]) + 1).clamp(1, 11) as u32, 1, 11);
-        // the sub pass plays at (f ± D)·(0.5 ∓ D): about half the detune
-        x[p3::pts(i, pt::DETUNE)] = if k == 0 { det_p } else { det_p * 0.5f32.cbrt() };
+        x[p3::pts(i, pt::LAYERS)] = inv::inv_count((layers(p, early) as i32).clamp(1, 11) as u32, 1, 11);
+        // each sub pass plays at (f ± D)·(0.5 ∓ D): about half the previous pass's detune
+        x[p3::pts(i, pt::DETUNE)] = if k == 0 { det_p } else { det_p * 0.5f32.powi(k as i32).cbrt() };
         x[p3::pts(i, pt::SPREAD)] = (4.41 * p[OSC_SPREAD].powi(4) / 10.0).powf(0.25); // 10p⁴ Hz
     }
     if let Some(i) = s.pad {
@@ -368,6 +407,9 @@ pub fn build(p: &[f32], mode: Mode, w: &mut Vec<String>) -> [f32; p3::COUNT] {
         x[p3::osc(i, p3::o::SHAPE + sp::PAD_PROFILE)] = p3::choice_value(fi(3.0 * p[ADD_PROFILE]).clamp(0, 3) as usize, 4);
         x[p3::osc(i, p3::o::SHAPE + sp::PAD_DRIVE)] = p[ADD_DRIVE].clamp(0.0, 1.0);
         x[p3::pts(i, pt::DETUNE)] = det_p;
+    }
+    if early && s.points.is_some() {
+        early_differences(p, osc_slots.len(), w);
     }
     let slop = 8.0 * p[OSC_SLOP].powi(3);
     if slop > 1.0 {
@@ -401,6 +443,10 @@ pub fn build(p: &[f32], mode: Mode, w: &mut Vec<String>) -> [f32; p3::COUNT] {
             11 => osc_slots.iter().map(|&j| target::osc(j, target::OSC_PAN)).collect(),
             12 | 13 => {
                 warn(w, format!("mod slot {}: a route to {} is not converted", i + 1, if dst == 12 { "detune" } else { "spread" }));
+                vec![]
+            }
+            14 if early => {
+                warn(w, format!("mod slot {}: a drive route (2011 engine: 1 + 32·p·M) is not converted", i + 1));
                 vec![]
             }
             14 => osc_slots
@@ -438,6 +484,25 @@ pub fn build(p: &[f32], mode: Mode, w: &mut Vec<String>) -> [f32; p3::COUNT] {
     x
 }
 
+/// Unison layers: 2012 `fi(10p) + 1`, the 2011 engine `fi(15p) + 1`.
+fn layers(p: &[f32], early: bool) -> usize {
+    (fi(if early { 15.0 } else { 10.0 } * p[OSC_UNISON]).max(0) + 1) as usize
+}
+
+/// The 2011 engine's oscillator behaviour the unified synth cannot play (known differences, spec §10.4), one warning
+/// each.
+fn early_differences(p: &[f32], passes: usize, w: &mut Vec<String>) {
+    let offset = 2.0 * (p[OSC_OFFSET] - 0.5);
+    if offset.abs() >= 0.01 {
+        warn(w, format!("2011 engine: oscillator offset {offset:+.2} before the drive, clipped at +1 only, is not played"));
+    }
+    if layers(p, true) * passes > 1 {
+        warn(w, "2011 engine: each unison layer and sub pass is clipped on its own; the unified synth clips their sum".into());
+    }
+    warn(w, "2011 engine: the point curve is evaluated per sample with its mean kept; played from the 257-sample table".into());
+    warn(w, "2011 engine: no decimation stage; the unified point slot runs one".into());
+}
+
 /// The insert chain as unified effect devices in slot order (Tunefish 4 modes: the same effects and parameter names).
 /// Player mode drops chorus, flanger and EQ, which the Tunefish 3 player leaves out.
 pub fn insert_chain(p: &[f32], mode: Mode, w: &mut Vec<String>) -> Vec<Dev> {
@@ -453,10 +518,10 @@ pub fn insert_chain(p: &[f32], mode: Mode, w: &mut Vec<String>) -> Vec<Dev> {
     for i in 0..10 {
         let kind = fi(10.0 * p[EFFECT + i]);
         let editor_only = matches!(kind, 3 | 4 | 7);
-        if editor_only && mode == Mode::Player {
+        if editor_only && mode != Mode::Editor {
             warn(w, format!("effect slot {}: {} is not in the Tunefish 3 player; dropped", i + 1, ["", "", "", "chorus", "flanger", "", "", "EQ"][kind as usize]));
         }
-        p4[tp::EFFECT_FIRST + i] = if editor_only && mode == Mode::Player { 0.0 } else { kind as f32 / 10.0 };
+        p4[tp::EFFECT_FIRST + i] = if editor_only && mode != Mode::Editor { 0.0 } else { kind as f32 / 10.0 };
     }
     // Tunefish 3's chorus is one tap per channel at its own law: the chorus kind's one-tap mode (change add-tf3-import)
     let chorus = tfsynth::device::kind::INSTRUMENT + 3;
@@ -589,10 +654,11 @@ mod tests {
         for (shape_p, s3) in [(0.0f32, (|s: f32| 2.0 * s - 0.5) as fn(f32) -> f32), (0.25, |s| 2.0 * s), (0.5, |s| 2.0 * s - 1.0), (0.75, |s| s)] {
             for depth in [0.3f32, 0.5, 0.7] {
                 let p = named(&[("Lfo1Shp", shape_p), ("Lfo1Dep", depth)]);
-                let (_, dp, factor, w) = lfo(&p, 0);
-                if w.is_some() {
+                let l = lfo(&p, 0, false);
+                if l.warn.is_some() {
                     continue;
                 }
+                let (dp, factor) = (l.depth, l.factor);
                 let (d, d2) = (depth * depth, dp * dp);
                 for s in [0.0f32, 0.3, 0.8, 1.0] {
                     // the unified ramp down is 1 − ph; Tunefish 3's is 1 − 2·ph: in the unified shape's terms 2s − 1
@@ -602,6 +668,85 @@ mod tests {
                 }
             }
         }
+    }
+
+    // ---- the 2011 engine (Pandora; change add-tf3-pandora, spec §10.4) ----
+
+    #[test]
+    fn early_unison_is_15p_plus_1_layers() {
+        let p = named(&[("OscVol", 0.5), ("OscUnisn", 0.33)]);
+        let x = build(&p, Mode::Early, &mut vec![]);
+        assert_eq!(unisynth::law::count(x[p3::pts(0, pt::LAYERS)], 1, 11), 6, "fi(4.95) + 1");
+        let x12 = build(&p, Mode::Player, &mut vec![]);
+        assert_eq!(unisynth::law::count(x12[p3::pts(0, pt::LAYERS)], 1, 11), 4, "2012: fi(3.3) + 1");
+    }
+
+    #[test]
+    fn early_sub_passes_are_5p_plus_1_at_halving_gain() {
+        let p = named(&[("OscVol", 0.5), ("OscSubOsc", 0.33), ("OscOctave", 0.5)]);
+        let mut w = vec![];
+        let x = build(&p, Mode::Early, &mut w);
+        let ty = |i: usize| p3::osc_type::decode(x[p3::osc(i, p3::o::TYPE)]);
+        assert_eq!([ty(0), ty(1), ty(2)], [p3::osc_type::POINTS; 3], "three passes");
+        let gain = |i: usize| unisynth::law::gain(x[p3::osc(i, p3::o::GAIN)]);
+        let oct = |i: usize| unisynth::law::octave(x[p3::osc(i, p3::o::OCTAVE)]);
+        assert!((gain(1) / gain(0) - 0.5).abs() < 1e-3 && (gain(2) / gain(0) - 0.25).abs() < 1e-3, "{} {} {}", gain(0), gain(1), gain(2));
+        assert_eq!([oct(1) - oct(0), oct(2) - oct(0)], [-1.0, -2.0]);
+        // 2012: OscSubOsc 0.33 rounds to off
+        let x12 = build(&p, Mode::Player, &mut vec![]);
+        assert_eq!(p3::osc_type::decode(x12[p3::osc(1, p3::o::TYPE)]), p3::osc_type::OFF);
+    }
+
+    #[test]
+    fn early_sub_passes_beyond_the_free_slots_warn() {
+        let p = named(&[("OscVol", 0.5), ("OscSubOsc", 1.0)]); // 6 passes, 3 slots
+        let mut w = vec![];
+        build(&p, Mode::Early, &mut w);
+        assert!(w.iter().any(|m| m.contains("6 sub-oscillator passes")), "{w:?}");
+    }
+
+    #[test]
+    fn early_drive_is_linear() {
+        let p = named(&[("OscVol", 0.5), ("OscDrive", 0.09)]);
+        let x = build(&p, Mode::Early, &mut vec![]);
+        let d = x[p3::osc(0, p3::o::SHAPE + sp::PTS_DRIVE)];
+        assert!((32.0 * d.powi(3) - 32.0 * 0.09).abs() < 1e-4, "1 + 32p: {d}");
+    }
+
+    #[test]
+    fn early_lfo_sine_is_half_plus_half_depth_sine_at_25p2_hz() {
+        // 0.5 + 0.5·a·sin = 0.5 + 0.5a(2s − 1) over the unified sine s
+        for a in [0.1f32, 0.5, 0.83, 1.0] {
+            let p = named(&[("Lfo1Rate", 0.2), ("Lfo1Dep", a), ("Lfo1Shp", 0.0)]);
+            let l = lfo(&p, 0, true);
+            assert_eq!(l.shape, 0.0);
+            assert!(l.warn.is_none(), "never below 0");
+            assert!((l.hz - 25.0 * 0.04).abs() < 1e-5, "{}", l.hz);
+            let d2 = l.depth * l.depth;
+            for s in [0.0f32, 0.3, 1.0] {
+                let (want, got) = (0.5 + 0.5 * a * (2.0 * s - 1.0), l.factor * (1.0 - d2 + d2 * s));
+                assert!((want - got).abs() < 1e-5, "a {a} s {s}: {want} {got}");
+            }
+        }
+        // the ramps ignore the depth: falling below 0.66, rising above, at 50p²/π Hz
+        let p = named(&[("Lfo1Rate", 0.2), ("Lfo1Dep", 0.3), ("Lfo1Shp", 0.5)]);
+        let l = lfo(&p, 0, true);
+        assert_eq!((l.shape, l.depth, l.factor), (0.5, 1.0, 1.0));
+        assert!((l.hz - 50.0 * 0.04 / std::f32::consts::PI).abs() < 1e-5);
+        assert_eq!(lfo(&named(&[("Lfo1Shp", 0.75)]), 0, true).shape, 0.25);
+    }
+
+    #[test]
+    fn early_known_differences_are_named() {
+        let p = named(&[("OscVol", 0.5), ("OscUnisn", 0.11), ("OscOffset", 0.79)]);
+        let mut w = vec![];
+        build(&p, Mode::Early, &mut w);
+        for k in ["offset +0.58", "each unison layer", "257-sample table", "decimation"] {
+            assert!(w.iter().any(|m| m.contains(k)), "{k}: {w:?}");
+        }
+        let mut w12 = vec![];
+        build(&p, Mode::Player, &mut w12);
+        assert!(!w12.iter().any(|m| m.contains("2011")), "{w12:?}");
     }
 
     #[test]

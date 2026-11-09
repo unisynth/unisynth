@@ -128,7 +128,7 @@ pub fn convert(project: &Project, song_id: Option<u32>, mode: Mode, tail: f64) -
             prev = e.frame;
             let slot = (e.effect >> 8) as usize;
             if e.velocity.is_some() && (1..=4).contains(&slot) {
-                if mode == Mode::Player {
+                if mode != Mode::Editor {
                     warnings.push(format!("instrument {id}: effect words set MOD{slot}, which the Tunefish 3 player leaves out; dropped"));
                     continue;
                 }

@@ -17,15 +17,20 @@ spec = importlib.util.spec_from_file_location("ws", os.path.join(ROOT, "tools/ws
 ws = importlib.util.module_from_spec(spec); spec.loader.exec_module(ws)
 
 # slug, title, date, pouet id, note, composer, credit source, parameter storage, parity of the unified render against the
-# original Tunefish 3 player (tools/tf3-parity reference: loudness dB, worst octave band 63 Hz-8 kHz dB) and against the
-# YouTube capture of the released intro (worst octave band dB). Facts from pouet and the intros' readme.
+# original Tunefish 3 player (tools/tf3-parity reference: loudness dB, worst octave band 63 Hz-8 kHz dB; None when no
+# reference renderer exists for the engine) and against the YouTube capture of the released intro (worst octave band
+# dB), extra `synth-convert e3prj` arguments. Facts from pouet and the intros' readme.
 SONGS = [
+    ("pandora", "Pandora", "April 2011", 56868,
+     "Brain Control's 64K intro that won the PC 64K intro competition at Revision 2011.",
+     "skyrunner", "the intro's readme and pouet", "in the 2011 engine's older layout, as percentages", None, 3.89,
+     ["--engine", "2011"]),
     ("transplant", "Transplant", "December 2011", 58257,
      "Brain Control's 64K intro that placed 2nd in the PC 64K intro competition at The Ultimate Meeting 2011.",
-     "mad", "the intro's readme (\"mad/still\") and pouet", "ranged", (0.05, 1.02), 1.20),
+     "mad", "the intro's readme (\"mad/still\") and pouet", "ranged", (0.05, 1.02), 1.20, []),
     ("train-control", "Train Control", "April 2012", 59104,
      "Brain Control's 64K intro that placed 4th in the PC 64K intro competition at Revision 2012.",
-     "payne", "the intro's readme and pouet", "percent", (0.07, 0.39), 1.40),
+     "payne", "the intro's readme and pouet", "percent", (0.07, 0.39), 1.40, []),
 ]
 
 
@@ -41,13 +46,13 @@ def played_instruments(prj):
 
 def main():
     os.makedirs(OUT, exist_ok=True)
-    for slug, title, date, pid, note, composer, credit, storage, (dl, band), cap in SONGS:
+    for slug, title, date, pid, note, composer, credit, storage, ref, cap, engine in SONGS:
         src = os.path.join(BC, "out", slug + ".e3prj")
         prj = open(src).read()
         notes = len(re.findall(r'<ne i="\d+" n="(?:[1-9]|[1-9]\d|1[01]\d|12[0-7])"', prj))
         tmp = tempfile.mkdtemp()
         u = os.path.join(tmp, "u.bin")
-        subprocess.run([f"{BIN}/synth-convert", "e3prj", src, u, "4"], check=True, capture_output=True)
+        subprocess.run([f"{BIN}/synth-convert", "e3prj", src, u, *engine, "4"], check=True, capture_output=True)
         plain = os.path.join(tmp, "s.json")
         subprocess.run([f"{BIN}/song", "import", u, "-o", plain], check=True, capture_output=True)
         song = json.load(open(plain))
@@ -69,6 +74,17 @@ def main():
                       "release (the executable holds none)." if all(not n.endswith("(Tunefish 3)") for n in final) else
                       "Track names are derived here from each track's notes; the executable does not store the authors' names.")
         url = f"https://www.pouet.net/prod.php?which={pid}"
+        if ref:
+            mode = "in player mode"
+            parity = (f"Against the original Tunefish 3 player it differs by {ref[0]:+.2f} dB loudness and at most "
+                      f"{ref[1]:.2f} dB in any octave band from 63 Hz to 8 kHz; against a capture of the released intro "
+                      f"by at most {cap:.2f} dB per octave band.")
+        else:
+            mode = "in player mode with the 2011 engine's laws (`--engine 2011`)"
+            parity = (f"No reference renderer exists for that engine: against a capture of the released intro it "
+                      f"differs by at most {cap:.2f} dB in any octave band from 63 Hz to 8 kHz. The 2011 engine clips "
+                      "each unison layer on its own and adds an offset before its oscillator drive; the unified synth "
+                      "does neither, so the layered instruments sound quieter than in the intro.")
         desc = (
             f"The soundtrack of {title} by Brain Control ({date}). {note} Music by {composer} (credited in {credit}), "
             "made with Tunefish 3, the synthesizer of Brain Control's Enigma Studio 3. "
@@ -76,11 +92,9 @@ def main():
             "This is an adapted version, not the original recording: the song and its instruments were read from the "
             "released executable (tools/tf3-extract: the kkrunchy stub emulated until the intro starts, then the "
             f"synth block found in the unpacked image; parameters stored {storage}), converted by `synth-convert e3prj` "
-            "in player mode to the unified synth (points and PAD table oscillators, Tunefish 3 decimation stage, "
+            f"{mode} to the unified synth (points and PAD table oscillators, Tunefish 3 decimation stage, "
             "insert effects as track devices) and imported with `song import` (notes rounded to 960 ticks per beat). "
-            f"Against the original Tunefish 3 player it differs by {dl:+.2f} dB loudness and at most {band:.2f} dB in "
-            f"any octave band from 63 Hz to 8 kHz; against a capture of the released intro by at most {cap:.2f} dB per "
-            f"octave band. The random per-note detune (slop) is not converted. {names_note} No licence is stated: the music belongs "
+            f"{parity} The random per-note detune (slop) is not converted. {names_note} No licence is stated: the music belongs "
             "to its authors. It is published here as an adapted reference copy while Brain Control is asked for "
             "permission, and is removed at the authors' request."
         )

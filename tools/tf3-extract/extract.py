@@ -12,7 +12,15 @@ Parameter bytes come in two variants, both seen in released intros:
   ranged:  value = byte / range (range = the parameter's step count, or 100 for continuous ones)  -- Transplant
   percent: value = byte / 100 for every parameter                                                  -- Train Control
 A candidate is accepted only when the instrument count, every parameter byte and the whole song parse consistently.
-Pandora (2011) uses an older layout (about 100 parameters per instrument, instrument-major) and is not found here.
+
+Older layout (Pandora, 2011; research/tunefish3-functional-spec.md section 10), tried when no current block is found,
+read through a bit reader (LSB first; byte-aligned reads are little-endian): u8 instrument count, per instrument 99
+parameter bytes (value = byte / 100; byte 98 is GainAmount, no effect slots) and its u8 slot; then u32 id, u16 bpm,
+u8 name length + name, u16 pattern count P, packed arrays of P row counts and P track counts, u16 cell count C, a
+packed array of C cell words, u16 instance count K, packed arrays of K pattern indices, K row offsets, K tracks. A
+packed array is u32 min, u32 step, u32 (unused), u32 bits, then bits-wide values (value = min + v * step). A cell
+word's byte 3 counts the empty rows before its note; bytes 2, 1, 0 are note, instrument + 1, velocity + 1. The song
+must consume every cell exactly. Its laws differ from the 2012 engine: convert with `synth-convert e3prj --engine 2011`.
 """
 import json, os, re, struct, subprocess, sys
 from xml.sax.saxutils import quoteattr
@@ -95,6 +103,124 @@ def find(d):
     return out
 
 
+class Bits:
+    """The older layout's bit reader (LSB first), bounded by the image: reading past the end raises ValueError."""
+
+    def __init__(self, d, pos):
+        self.d, self.p, self.bit, self.cur = d, pos, 8, 0
+
+    def read(self, n):
+        v = 0
+        for i in range(n):
+            if self.bit == 8:
+                if self.p >= len(self.d):
+                    raise ValueError("end of image")
+                self.cur, self.p, self.bit = self.d[self.p], self.p + 1, 0
+            v |= (self.cur >> self.bit & 1) << i
+            self.bit += 1
+        return v
+
+    def array(self, count):
+        lo, step, _, bits = self.read(32), self.read(32), self.read(32), self.read(32)
+        if bits > 32:
+            raise ValueError("packed array width")
+        return [lo if bits == 0 else lo + self.read(bits) * step for _ in range(count)]
+
+
+OLD_P = 99  # parameters per instrument in the older layout
+OLD_GAIN = 98  # its last parameter: GainAmount
+
+
+def parse_old(d, st):
+    """The older-layout block at `st`: (instruments {slot: 99 bytes}, song). ValueError unless it parses throughout."""
+    b = Bits(d, st)
+    n = b.read(8)
+    if not 1 <= n <= 32:
+        raise ValueError("instrument count")
+    ins = {}
+    for _ in range(n):
+        vals = [b.read(8) for _ in range(OLD_P)]
+        slot = b.read(8)
+        if slot >= 32 or slot in ins or max(vals) > 100:
+            raise ValueError("instrument")
+        ins[slot] = vals
+    sid, bpm, ln = b.read(32), b.read(16), b.read(8)
+    name = bytes(b.read(8) for _ in range(ln))
+    if not (1 <= bpm <= 400 and all(32 <= c < 127 for c in name)):
+        raise ValueError("song header")
+    pc = b.read(16)
+    if not 1 <= pc <= 1024:
+        raise ValueError("pattern count")
+    rows, tracks = b.array(pc), b.array(pc)
+    if not all(1 <= r <= 256 for r in rows) or not all(t <= 16 for t in tracks):
+        raise ValueError("pattern header")
+    words = b.array(b.read(16))
+    k, pats = 0, []
+    for pid in range(pc):
+        tr = []
+        for _ in range(tracks[pid]):
+            if k >= len(words):
+                raise ValueError("cells")
+            cells, skip = [], words[k] >> 24
+            for r in range(rows[pid]):
+                if skip:
+                    skip -= 1
+                    continue
+                w = words[k]
+                note, ins_, vel = w >> 16 & 255, (w >> 8 & 255) - 1, (w & 255) - 1
+                if note > 128:
+                    raise ValueError("note")
+                cells.append((r, note, ins_ & 255, vel & 255, 0))
+                if r != rows[pid] - 1:
+                    k += 1
+                    if k >= len(words):
+                        raise ValueError("cells")
+                    skip = words[k] >> 24
+            k += 1
+            tr.append(cells)
+        pats.append((pid, rows[pid], tr))
+    if k != len(words):
+        raise ValueError("cells left over")
+    ic = b.read(16)
+    pi, ro, trk = b.array(ic), b.array(ic), b.array(ic)
+    if not ic or any(p >= pc for p in pi) or any(t > 15 for t in trk):
+        raise ValueError("instance")
+    song = dict(id=sid, bpm=bpm, name=name.decode(), patterns=pats, instances=list(zip(ro, trk, pi)), end=b.p)
+    return ins, song
+
+
+def old_values(vals):
+    """The current 129 parameters of an older-layout instrument: indices 0-97 as stored, byte 98 as GainAmount, the
+    band-pass and notch switches and every effect slot off (that engine has neither), everything else 0."""
+    p = [0.0] * P
+    for j in range(OLD_GAIN):
+        p[j] = vals[j] / 100
+    p[NAMES.index("GainAmount")] = vals[OLD_GAIN] / 100
+    p[NAMES.index("FltBPOn")] = p[NAMES.index("FltNTOn")] = 0.0
+    return p
+
+
+def find_old(d):
+    """All consistent older-layout blocks: (start, "older", instruments {slot: values}, song)."""
+    out = []
+    for st in range(len(d) - 1):
+        n = d[st]
+        if not 1 <= n <= 32 or st + 1 + 100 * n + 7 > len(d):
+            continue
+        slots = d[st + 100:st + 1 + 100 * n:100]  # each record's last byte
+        if max(slots) >= 32 or len(set(slots)) != n:
+            continue
+        h = st + 1 + 100 * n
+        if not 1 <= d[h + 4] | d[h + 5] << 8 <= 400:
+            continue
+        try:
+            ins, song = parse_old(d, st)
+        except ValueError:
+            continue
+        out.append((st, "older", {i: old_values(v) for i, v in ins.items()}, song))
+    return out
+
+
 def s8(b):
     return b - 256 if b >= 128 else b
 
@@ -131,7 +257,7 @@ def main():
         names = {int(i): n for i, n in re.findall(r'<instrument id="(\d+)" name="([^"]*)"', src)}
         del a[k:k + 2]
     d = open(a[0], "rb").read()
-    hits = find(d)
+    hits = find(d) or find_old(d)
     if len(hits) != 1:
         sys.exit(f"{a[0]}: {len(hits)} synth blocks found (need exactly one): {[hex(h[0]) for h in hits]}")
     st, variant, ins, song = hits[0]

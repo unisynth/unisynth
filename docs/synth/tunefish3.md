@@ -43,12 +43,33 @@ flowchart LR
 | Intro | Song source | Reference |
 |---|---|---|
 | Transplant (2011) | the project ships in the Enigma-Studio-3 repository; the executable holds the same song (converts byte-identically) | original player render; YouTube capture `31cDnVWhS7w` |
-| Pandora (2011) | inside the executable, in an older layout (21 instruments of 100 bytes, instrument-major; no effect slots): not converted yet | YouTube capture `RlyIJD9AEWM` |
+| Pandora (2011) | inside the executable, in the 2011 engine's older layout (`tools/tf3-extract`; 21 instruments of 99 percent parameters plus a slot; no effect slots), converted with `--engine 2011` | YouTube capture `RlyIJD9AEWM` (no reference renderer for that engine) |
 | Train Control (2012) | inside the executable (`tools/tf3-extract`; every parameter stored as a percentage) | original player render; YouTube capture `Gm0NWMdcbmU` |
 
 `tools/tf3-extract` reads a released executable without Wine: `unpack.py` emulates the kkrunchy stub until the intro
 makes its first API call and dumps the unpacked image; `extract.py` finds the synth block (the demo operator's `Song`
 parameter: 32 instrument flags, each parameter for every present instrument, then the song) and writes an `.e3prj`.
+When it finds none, it tries the older layout Pandora uses (change add-tf3-pandora), which it reads through a bit
+reader:
+- **Instruments:** each is 99 parameter bytes in percent plus its synth slot. Bytes 0–97 follow the current order,
+  byte 98 is the gain, and there are no effect slots.
+- **Song:** pattern sizes, cells and instances are packed arrays (`min + v · step`, any bit width). Each cell is a
+  word whose top byte counts the empty rows before its note.
+
+It writes that as a current-format `.e3prj` with band-pass, notch and effects off. That engine's laws differ (unison,
+sub-oscillator, drive, LFO, oscillator offset; `research/tunefish3-functional-spec.md` §10), so the project is
+converted with the older-engine option. A candidate counts only if the whole block parses, every cell is consumed and
+every read stays inside the image.
+
+`synth-convert e3prj --engine 2011` plays that engine's laws: unison `fi(15p) + 1` layers, sub-oscillator `fi(5p) + 1`
+passes at halving gain, drive `1 + 32p`, and an LFO sine of `0.5 + 0.5·depth·sin` at 25p² Hz. It warns, per
+instrument, about what the unified synth cannot play: the oscillator offset with its one-sided clip, clipping per
+layer, the point curve played without a table, and no decimation. Measured on Pandora (spec §10.5):
+- **Per-layer clipping** is the large one: the original's many-layer instruments are 2–10 dB louder than ours.
+- **The offset** changes level only on the two instruments where it pushes three passes into the clip.
+- **The table and decimation** stay under 0.1 dB in the judged bands.
+
+The song still passes the capture check, with bands within 3.89 dB.
 
 ```mermaid
 flowchart LR
@@ -59,7 +80,9 @@ flowchart LR
 ```
 
 Transplant and Train Control are in `project/music/released/` as adapted versions (within 0.07 dB loudness and 1.02 dB
-per octave band of the original player, 1.40 dB of the captures), published pending Brain Control's permission. The
+per octave band of the original player, 1.40 dB of the captures), published pending Brain Control's permission.
+Pandora is there too (`pandora.song.json`, music by skyrunner), judged against its capture only, within 3.89 dB per
+octave band. Its known differences (above) make its layered instruments quieter than in the intro. The
 music belongs to Brain Control; projects, images, renders and captures stay outside the repository
 ([project/music/NOTICE.md](../../project/music/NOTICE.md)).
 

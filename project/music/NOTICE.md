@@ -56,8 +56,15 @@ mad (2nd at The Ultimate Meeting 2011), and "Train Control", music by payne (4th
 player built from Enigma Studio 3's source release, and within 1.40 dB per band of captures of the released intros).
 Transplant's track names are the authors' instrument names from the project in that source release. **No licence is
 stated: the music belongs to Brain Control** (the source release states no licence either). Same rules: published
-pending Brain Control's permission, removed at their request, adapted version. Pandora (Revision 2011) uses an older
-Tunefish 3 layout and is not converted yet.
+pending Brain Control's permission, removed at their request, adapted version.
+
+A third such song is "Pandora", music by skyrunner (1st at Revision 2011), `pandora.song.json`. It was made with an
+earlier Tunefish 3, read from the released executable with `tools/tf3-extract` (that engine's older layout), and
+converted by `synth-convert e3prj --engine 2011` with that engine's laws. No source of that engine exists, so its only
+reference is a capture of the released intro (within 3.89 dB per octave band). Its per-layer oscillator clipping and
+oscillator offset are not reproduced, so the layered instruments sound quieter than in the intro. **No licence is
+stated: the music belongs to Brain Control.** Same rules: published pending Brain Control's permission, removed at
+their request, adapted version.
 
 The DAW's library (published with the DAW as `site/daw/data/library.json`) also lists the 53 distinct presets of
 Enigma Studio 3's Tunefish 3 bank (`binary/tf3programs`), converted to unified-synth devices. No licence is stated

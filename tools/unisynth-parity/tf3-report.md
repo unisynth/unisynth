@@ -49,6 +49,22 @@ transplant vs capture: PASS
   onset timing agrees in 7/7 windows ok
 ```
 
+## Converted Pandora (2011 engine, `--engine 2011`) against the capture of the released intro
+
+No reference renderer exists for the 2011 engine; the capture is the only reference (change add-tf3-pandora).
+
+```text
+pandora vs capture: PASS
+  offset 7.486 s, gain 9.89 dB (normalised, not judged)
+  window lag/corr: 0s:128/0.69 30s:128/0.84 60s:128/0.76 90s:192/0.70 120s:192/0.70 150s:192/0.70 180s:256/0.77 210s:192/0.66
+  octaves 63:0.12 125:0.10 250:0.58 500:-1.74 1000:-2.49 2000:-2.14 4000:-2.72 8000:3.89
+  onset timing agrees in 8/8 windows ok
+```
+
+Conversion warnings (instruments): 2011 engine: oscillator offset ±x before the drive, clipped at +1 only, is not played (16); 2011 engine: the point curve is evaluated per sample with its mean kept; played from the 257-sample table (16); 2011 engine: no decimation stage; the unified point slot runs one (16); 2011 engine: each unison layer and sub pass is clipped on its own; the unified synth clips their sum (9).
+
+Known differences of the 2011 engine and their measured effect: `research/tunefish3-functional-spec.md` §10.5.
+
 ## Known differences
 
 - The point cycle is per voice (Tunefish 3 shares one per instrument: a voice hears the cycle of the voice before it when their modulation differs). Measured effect on Transplant: none (no instrument modulates its points).

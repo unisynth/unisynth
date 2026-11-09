@@ -2,13 +2,16 @@
 // profile) and Transplant, rendered by the original player (tools/tf3-parity/render-ref, player build) and, converted
 // by `synth-convert e3prj`, by `unisynth`; compared with the song settings of `parity.ts` (1 dB loudness, 3 dB per
 // octave band 63 Hz–16 kHz with the 24 dB floor, onset-strength alignment within one 384-frame block). Converted
-// Transplant is also checked against the YouTube capture of the released intro (tools/tf3-parity/capture.ts). Writes
-// `tf3-report.md` (metrics, never audio).
+// Transplant is also checked against the YouTube capture of the released intro (tools/tf3-parity/capture.ts).
+// Pandora (2011 engine, change add-tf3-pandora) has no reference renderer: its extracted project is converted with
+// `--engine 2011` and checked against its capture only. Writes `tf3-report.md` (metrics, never audio).
 //
-//   bun tools/unisynth-parity/tf3.ts [--report path] [--reuse] [item…]
-//     TF3_REF (default /tmp/tf3-ref) with build/render-ref-player; TF3_CAPTURES for the capture
+//   bun tools/unisynth-parity/tf3.ts [--report path] [--reuse] [item…]   (items: synthetic names, transplant, pandora)
+//     TF3_REF (default /tmp/tf3-ref) with build/render-ref-player; TF3_CAPTURES for the captures;
+//     TF3_EXTRACT (default ~/Downloads/64k-tools/bc-intros/out) for pandora.e3prj (tools/tf3-extract/extract.py)
 // Exit 0 when every item that ran passed (or the checkout is absent and everything skipped), 1 on a failing item.
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { compare, DEFAULT_TOL, readWav, type Audio, type Report } from "../synth-parity/metrics.ts";
 import { capturesDir, compareCapture, formatCapture, type CaptureReport } from "../tf3-parity/capture.ts";
@@ -31,6 +34,8 @@ export interface Tf3Row {
 export interface Tf3Run {
   rows: Tf3Row[];
   capture?: CaptureReport | { skipped: string };
+  /** Pandora (2011 engine) against its capture: the report and the conversion's warnings, or why it was skipped. */
+  pandora?: (CaptureReport & { warnings: string[] }) | { skipped: string };
   skipped?: string;
   generated: string;
 }
@@ -166,6 +171,25 @@ export function runProject(name: string, project: string, work: string, reuse = 
   return row;
 }
 
+/** Where the extracted intro projects are (`tools/tf3-extract/extract.py` output). */
+export const extractDir = (): string => process.env.TF3_EXTRACT ?? join(homedir(), "Downloads/64k-tools/bc-intros/out");
+
+/** Pandora: extracted project → `synth-convert e3prj --engine 2011` → render → capture check. */
+export function runPandora(work: string, reuse = false): NonNullable<Tf3Run["pandora"]> {
+  const prj = join(extractDir(), "pandora.e3prj"), cap = join(capturesDir(), "pandora.wav");
+  if (!existsSync(prj)) return { skipped: `no extracted project ${prj} (tools/tf3-extract: unpack.py, extract.py)` };
+  if (!existsSync(cap)) return { skipped: `no capture ${cap} (tools/tf3-parity/captures.sh)` };
+  const conv = join(work, "pandora.song"), ours = join(work, "pandora_unisynth.wav");
+  const c = sh([bin("synth-convert"), "e3prj", prj, conv, "--engine", "2011", "2"]);
+  if (!c.ok) return { skipped: `the conversion failed: ${c.err.split("\n").pop()}` };
+  const warnings = c.err.split("\n").filter((l) => /warning/i.test(l)).map((l) => l.replace(/^synth-convert: warning: /, ""));
+  if (!(reuse && existsSync(ours))) {
+    const u = sh([ex("render"), conv, ours]);
+    if (!u.ok) return { skipped: `the render failed: ${u.err.slice(-300)}` };
+  }
+  return { ...compareCapture(readWav(ours), readWav(cap)), warnings };
+}
+
 export function run(names: string[], reuse: boolean): Tf3Run {
   const generated = new Date().toISOString().slice(0, 10);
   if (!existsSync(renderer(false))) {
@@ -193,7 +217,8 @@ export function run(names: string[], reuse: boolean): Tf3Run {
     capture = !existsSync(cap) ? { skipped: `no capture ${cap} (tools/tf3-parity/captures.sh)` }
       : row.error ? { skipped: "the conversion failed" } : compareCapture(readWav(join(work, "transplant_unisynth.wav")), readWav(cap));
   }
-  return { rows, capture, generated };
+  const pandora = names.includes("pandora") ? runPandora(work, reuse) : undefined;
+  return { rows, capture, pandora, generated };
 }
 
 export function formatRun(run: Tf3Run): string {
@@ -228,6 +253,22 @@ export function formatRun(run: Tf3Run): string {
     lines.push("skipped" in run.capture ? `Skipped: ${run.capture.skipped}.` : "```text\n" + formatCapture("transplant", run.capture) + "\n```");
     lines.push("");
   }
+  if (run.pandora) {
+    lines.push("## Converted Pandora (2011 engine, `--engine 2011`) against the capture of the released intro", "");
+    if ("skipped" in run.pandora) lines.push(`Skipped: ${run.pandora.skipped}.`);
+    else {
+      lines.push("No reference renderer exists for the 2011 engine; the capture is the only reference (change add-tf3-pandora).", "");
+      lines.push("```text\n" + formatCapture("pandora", run.pandora) + "\n```", "");
+      const kinds = new Map<string, number>();
+      for (const w of run.pandora.warnings) {
+        const k = w.replace(/^instrument \d+ "[^"]*": /, "").replace(/[+-]\d+\.\d+/g, "±x");
+        kinds.set(k, (kinds.get(k) ?? 0) + 1);
+      }
+      lines.push("Conversion warnings (instruments): " + [...kinds].map(([k, n]) => `${k} (${n})`).join("; ").replace(/\|/g, "/") + ".");
+      lines.push("", "Known differences of the 2011 engine and their measured effect: `research/tunefish3-functional-spec.md` §10.5.");
+    }
+    lines.push("");
+  }
   lines.push(
     "## Known differences",
     "",
@@ -247,7 +288,7 @@ if (import.meta.main) {
   const opt = (k: string) => (a.includes(k) ? a.splice(a.indexOf(k), 2)[1] : undefined);
   const reportPath = opt("--report") ?? join(import.meta.dir, "tf3-report.md");
   const reuse = a.includes("--reuse") && a.splice(a.indexOf("--reuse"), 1).length > 0;
-  const names = a.length ? a : [...Object.keys(ITEMS), "transplant"];
+  const names = a.length ? a : [...Object.keys(ITEMS), "transplant", "pandora"];
   const r = run(names, reuse);
   if (r.skipped) {
     console.log(`tf3 parity: skipped (${r.skipped})`);
@@ -256,6 +297,8 @@ if (import.meta.main) {
   writeFileSync(reportPath, formatRun(r));
   for (const row of r.rows) console.log(`${passes(row) ? "pass" : "FAIL"}  ${row.name}${row.error ? `: ${row.error}` : ""}`);
   if (r.capture && !("skipped" in r.capture)) console.log(formatCapture("transplant", r.capture));
-  const ok = r.rows.every(passes) && (!r.capture || "skipped" in r.capture || r.capture.pass);
+  if (r.pandora) console.log("skipped" in r.pandora ? `pandora: skipped (${r.pandora.skipped})` : formatCapture("pandora", r.pandora));
+  const ok = r.rows.every(passes) && (!r.capture || "skipped" in r.capture || r.capture.pass)
+    && (!r.pandora || "skipped" in r.pandora || r.pandora.pass);
   process.exit(ok ? 0 : 1);
 }

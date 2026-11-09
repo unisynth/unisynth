@@ -80,6 +80,33 @@ fn the_cli_converts_a_project_and_a_preset() {
     unisynth::chunk::Chunk::parse(&std::fs::read(&chunk).unwrap()).expect("the preset chunk parses");
 }
 
+#[test]
+fn the_cli_converts_with_the_2011_engine() {
+    // add-tf3-pandora: --engine 2011 plays the older laws (here 3 sub passes at OscSubOsc 0.33, no PAD) and names the
+    // known differences; an unknown engine is an error
+    let dir = std::env::temp_dir().join(format!("tf3-early-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut prj = project();
+    let p = &mut prj.instruments[0].params;
+    p[e3prj::index("OscSubOsc").unwrap()] = 0.33;
+    p[e3prj::index("AddVolume").unwrap()] = 0.0;
+    p[e3prj::index("Effect1").unwrap()] = 0.0;
+    let (file, song) = (dir.join("e.e3prj"), dir.join("e.song"));
+    std::fs::write(&file, e3prj::write(&prj)).unwrap();
+    let run = |a: &[&str]| Command::new(env!("CARGO_BIN_EXE_synth-convert")).args(a).output().unwrap();
+    let r = run(&["e3prj", file.to_str().unwrap(), song.to_str().unwrap(), "--engine", "2011", "1"]);
+    let err = String::from_utf8_lossy(&r.stderr);
+    assert!(r.status.success(), "{err}");
+    assert!(err.contains("2011 engine: no decimation stage"), "{err}");
+    let out = common::loads_and_renders(&std::fs::read(&song).unwrap());
+    assert!(out.iter().any(|v| v.abs() > 1e-3), "silent");
+    let c = synth_convert::tf3song::convert(&prj, None, Mode::Early, 1.0).unwrap();
+    let c12 = synth_convert::tf3song::convert(&prj, None, Mode::Player, 1.0).unwrap();
+    assert_ne!(c.blob, c12.blob, "the 2011 laws change the conversion");
+    let r = run(&["e3prj", file.to_str().unwrap(), song.to_str().unwrap(), "--engine", "1999"]);
+    assert!(!r.status.success() && String::from_utf8_lossy(&r.stderr).contains("--engine takes 2011 or 2012"));
+}
+
 fn checkout() -> Option<std::path::PathBuf> {
     let dir = std::path::PathBuf::from(std::env::var("TF3_REF").unwrap_or_else(|_| "/tmp/tf3-ref".into()));
     dir.join("demos/transplant/transplant.e3prj").exists().then_some(dir)
