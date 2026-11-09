@@ -36,6 +36,6 @@ test("the url points at the original file, escaped", () => {
   expect(meta(manifest, g).url.endsWith("/Global%20Groove.xrns")).toBe(true);
 });
 
-test("no composer is invented: authors the repositories do not name say so", () => {
-  for (const e of manifest.songs) if (e.name !== "eladamri") expect(e.author, e.name).toMatch(/not named|WaveSabre Team$/);
+test("no composer is invented: every author says where the credit comes from, or that nobody is named", () => {
+  for (const e of manifest.songs) expect(e.author, e.name).toMatch(/not named|named in the file name|credited (on|in|as) /);
 });

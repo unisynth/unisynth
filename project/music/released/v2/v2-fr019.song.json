@@ -2,9 +2,9 @@
   "format": "song/2",
   "meta": {
     "title": "fr-019 poem to a horse",
-    "author": "farbrausch",
-    "description": "fr-019 poem to a horse by farbrausch, a Farbrausch V2 song (.v2m format version 4) taken from the release executable of fr-019 poem to a horse, carved by v2redux at its own format version (`corpus/embedded/fr019.v2m`). 120 BPM, 5:36, 21 tracks. The V2 file's last tick is at 67:04; the song here ends 4 s after the last note (a note held more than 16 s past the last note-on is cut there). This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. Against the v2redux reference render it differs by +0.12 dB loudness and at most -0.54 @ 1000 Hz in any octave band (tools/unisynth-parity, A/B listening approved 2026-10-28). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
-    "copyright": "© farbrausch",
+    "author": "RP / farbrausch",
+    "description": "fr-019 poem to a horse by RP / farbrausch, a Farbrausch V2 song (.v2m format version 4) taken from the release executable of fr-019 poem to a horse, carved by v2redux at its own format version (`corpus/embedded/fr019.v2m`). Music credited to RP (Ronny Pries) on Demozoo (fr-019: poem to a horse, 2002, production 26236). 120 BPM, 5:36, 21 tracks. The V2 file's last tick is at 67:04; the song here ends 4 s after the last note (a note held more than 16 s past the last note-on is cut there). This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. Against the v2redux reference render it differs by +0.12 dB loudness and at most -0.54 @ 1000 Hz in any octave band (tools/unisynth-parity, A/B listening approved 2026-10-28). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
+    "copyright": "© RP / farbrausch",
     "url": "https://github.com/spheenik/v2redux/tree/master/corpus/embedded",
     "adapted_from": "fr-019 poem to a horse (V2M, format version 4), https://github.com/spheenik/v2redux/tree/master/corpus/embedded"
   },

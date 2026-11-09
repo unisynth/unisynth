@@ -2,9 +2,9 @@
   "format": "song/2",
   "meta": {
     "title": "debris ost",
-    "author": "farbrausch",
-    "description": "debris ost by farbrausch, a Farbrausch V2 song (.v2m format version 6) taken from farbrausch's fr_public repository (`werkkzeug3/data/debris/debris_ost.v2m`). The same file is also at modland/THETA-Bejeweled_Twistnfo_2.v2m in the local corpus. 120 BPM, 7:13, 48 tracks. This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. Against the v2redux reference render it differs by -0.10 dB loudness and at most -0.72 @ 500 Hz in any octave band (tools/unisynth-parity, A/B listening approved 2026-10-28). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
-    "copyright": "© farbrausch",
+    "author": "RP and wayfinder / farbrausch",
+    "description": "debris ost by RP and wayfinder / farbrausch, a Farbrausch V2 song (.v2m format version 6) taken from farbrausch's fr_public repository (`werkkzeug3/data/debris/debris_ost.v2m`). The same file is also at modland/THETA-Bejeweled_Twistnfo_2.v2m in the local corpus. Music credited to RP and wayfinder on Demozoo (fr-041: Debris, 2007, track fr-041 - Main). 120 BPM, 7:13, 48 tracks. This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. Against the v2redux reference render it differs by -0.10 dB loudness and at most -0.72 @ 500 Hz in any octave band (tools/unisynth-parity, A/B listening approved 2026-10-28). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
+    "copyright": "© RP and wayfinder / farbrausch",
     "url": "https://github.com/farbrausch/fr_public/blob/master/werkkzeug3/data/debris/debris_ost.v2m",
     "adapted_from": "debris ost (V2M, format version 6), https://github.com/farbrausch/fr_public/blob/master/werkkzeug3/data/debris/debris_ost.v2m"
   },

@@ -110,6 +110,10 @@ def credits(file):
     return stem.replace("_", " "), None, url, where
 
 
+# composer credits found in public demoscene databases (Demozoo, pouet) for songs whose source names nobody or only
+# the group; keyed like PARITY (acceptance stem, else the corpus path). composers.test.ts keeps them and the songs in step.
+COMPOSERS = {c["key"]: c for c in json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "composers.json")))}
+
 TAIL_S = 4.0  # after the last note's end
 HOLD_S = 16.0  # a note still held this long after the last note-on is a hanging note (no note-off before V2's end)
 
@@ -144,6 +148,9 @@ def main():
         dups = [x["file"] for x in rows if x["sha256"] == r["sha256"] and x["file"] != r["file"]]
         title, author, url, where = credits(r["file"])
         stem = r["file"].split("/", 1)[1][:-4]
+        credit = COMPOSERS.get(stem if r["file"].startswith("acceptance/") else r["file"])
+        if credit:
+            author = credit["author"]
         base = {"acceptance": "v2-" + stem, "fr_public": stem.split("__")[-1]}.get(r["file"].split("/")[0], stem)
         s = slug(base)
         while s in slugs:
@@ -197,7 +204,7 @@ def main():
             f"{title}" + (f" by {author}" if author else "") + f", a Farbrausch V2 song (.v2m format version "
             f"{r['version']}) taken from {where}. "
             + (f"The same file is also at {', '.join(dups)} in the local corpus. " if dups else "")
-            + ("" if author else "The source does not name the author. ")
+            + (credit["credit"] + " " if credit else "" if author else "The source does not name the author. ")
             + f"{song['tempo']:g} BPM, {int(secs // 60)}:{int(secs % 60):02d}, {len(tracks)} tracks. " + trimmed
             + "This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified "
             "synth (instrument kind 64) and imported with `song import`. " + par + " " + PERMITTED.get(author, LICENCE)

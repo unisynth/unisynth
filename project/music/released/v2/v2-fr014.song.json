@@ -2,9 +2,9 @@
   "format": "song/2",
   "meta": {
     "title": "fr-014 mark & sweep",
-    "author": "farbrausch",
-    "description": "fr-014 mark & sweep by farbrausch, a Farbrausch V2 song (.v2m format version 3) taken from the release executable of fr-014 mark & sweep, carved by v2redux at its own format version (`corpus/embedded/fr014.v2m`). 120 BPM, 2:10, 11 tracks. This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. Against the v2redux reference render it differs by +0.05 dB loudness and at most 0.79 @ 63 Hz in any octave band (tools/unisynth-parity, A/B listening approved 2026-10-28). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
-    "copyright": "© farbrausch",
+    "author": "wayfinder / farbrausch",
+    "description": "fr-014 mark & sweep by wayfinder / farbrausch, a Farbrausch V2 song (.v2m format version 3) taken from the release executable of fr-014 mark & sweep, carved by v2redux at its own format version (`corpus/embedded/fr014.v2m`). Music credited to wayfinder on Demozoo (FR-014: Garbage Collection, 2001, track FR014 Main, production 26036). 120 BPM, 2:10, 11 tracks. This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. Against the v2redux reference render it differs by +0.05 dB loudness and at most 0.79 @ 63 Hz in any octave band (tools/unisynth-parity, A/B listening approved 2026-10-28). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
+    "copyright": "© wayfinder / farbrausch",
     "url": "https://github.com/spheenik/v2redux/tree/master/corpus/embedded",
     "adapted_from": "fr-014 mark & sweep (V2M, format version 3), https://github.com/spheenik/v2redux/tree/master/corpus/embedded"
   },

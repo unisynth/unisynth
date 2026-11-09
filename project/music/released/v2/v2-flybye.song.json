@@ -2,9 +2,9 @@
   "format": "song/2",
   "meta": {
     "title": "fr-013 flybye",
-    "author": "farbrausch",
-    "description": "fr-013 flybye by farbrausch, a Farbrausch V2 song (.v2m format version 1) taken from the release executable of fr-013 flybye, carved by v2redux at its own format version (`corpus/embedded/flybye.v2m`). 120 BPM, 2:22, 18 tracks. This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. Against the v2redux reference render it differs by -0.12 dB loudness and at most -0.55 @ 63 Hz in any octave band (tools/unisynth-parity, A/B listening approved 2026-10-28). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
-    "copyright": "© farbrausch",
+    "author": "kb / farbrausch",
+    "description": "fr-013 flybye by kb / farbrausch, a Farbrausch V2 song (.v2m format version 1) taken from the release executable of fr-013 flybye, carved by v2redux at its own format version (`corpus/embedded/flybye.v2m`). Music credited to kb on Demozoo (FR-013: Flybye, 2001, production 91172). 120 BPM, 2:22, 18 tracks. This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. Against the v2redux reference render it differs by -0.12 dB loudness and at most -0.55 @ 63 Hz in any octave band (tools/unisynth-parity, A/B listening approved 2026-10-28). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
+    "copyright": "© kb / farbrausch",
     "url": "https://github.com/spheenik/v2redux/tree/master/corpus/embedded",
     "adapted_from": "fr-013 flybye (V2M, format version 1), https://github.com/spheenik/v2redux/tree/master/corpus/embedded"
   },

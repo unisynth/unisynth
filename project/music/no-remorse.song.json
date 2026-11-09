@@ -2,7 +2,7 @@
   "format": "song/2",
   "meta": {
     "title": "No Remorse",
-    "author": "Brain Control (the Tunefish authors; the composer is not named in the repository)",
+    "author": "Payne / Brain Control (credited as Payne Music on the Tunefish v4 demo songs of tunefish-synth.com)",
     "description": "No Remorse, a Tunefish 4 example module (16 instruments, 100 BPM) that ships with Tunefish. This is an adapted version, not the original recording: The Tunefish module (.tfm) was converted by `synth-convert tfm` to the unified synth (instrument kind 64 with its insert effects as track devices, kinds 65-73), then imported with `song import` (lanes cut into 2-, 4- or 8-bar patterns with variants, notes rounded to 960 ticks per beat; track names from the original project where it has them). Events are placed at the start of the 512-frame block that fires them in the Tunefish player. Instruments and effects are the unified equivalents of the Tunefish ones and sound close to, not identical with, the original; the random per-voice detune GenSlop is not converted and the wavetable phases are drawn from a different random sequence.",
     "copyright": "Brain Control",
     "license": "GPL-3.0-or-later",

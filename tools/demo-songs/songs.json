@@ -37,12 +37,12 @@
     },
     {
       "name": "elysian", "source": "wavesabre", "file": "elysian.bin", "original": "Elysian.als",
-      "title": "Elysian", "author": "logicoma (the composer is not named in the repository)",
+      "title": "Elysian", "author": "H0ffman / logicoma (credited on Demozoo and pouet for the music of logicoma's intro Elysian, 2016)",
       "about": "Elysian, an Ableton Live project in the WaveSabre converter test suite, named after logicoma's 2016 intro Elysian (http://www.pouet.net/prod.php?which=68375), which the WaveSabre README lists as made with WaveSabre."
     },
     {
       "name": "engage", "source": "wavesabre", "file": "engage.bin", "original": "Engage.als",
-      "title": "Engage", "author": "logicoma (the composer is not named in the repository)",
+      "title": "Engage", "author": "H0ffman and Wobble / logicoma (credited on Demozoo and pouet for the music of logicoma's intro Engage, 2017)",
       "about": "Engage, an Ableton Live project in the WaveSabre converter test suite, named after logicoma's 2017 intro Engage (http://www.pouet.net/prod.php?which=69658), which the WaveSabre README lists as made with WaveSabre."
     },
     {
@@ -52,7 +52,7 @@
     },
     {
       "name": "no-remorse", "source": "tunefish", "file": "no_remorse.tfm", "original": "no_remorse.tfm",
-      "title": "No Remorse", "author": "Brain Control (the Tunefish authors; the composer is not named in the repository)",
+      "title": "No Remorse", "author": "Payne / Brain Control (credited as Payne Music on the Tunefish v4 demo songs of tunefish-synth.com)",
       "about": "No Remorse, a Tunefish 4 example module (16 instruments, 100 BPM) that ships with Tunefish."
     },
     {
@@ -62,7 +62,7 @@
     },
     {
       "name": "turtles", "source": "enigma-studio-4", "file": "zoom.tf4m", "original": "zoom.tf4m",
-      "title": "Turtles all the way down", "author": "Brain Control (the intro's credits name Hunta, Pap, Payne, Skyrunner and Strepto; the composer is not named in the repository)",
+      "title": "Turtles all the way down", "author": "Skyrunner / Brain Control (credited in the intro's nfo and on Demozoo for the music of Turtles all the way down)",
       "about": "The soundtrack of Turtles all the way down, Brain Control's 64k intro that won the PC 64k intro competition at Revision 2013 (https://www.pouet.net/prod.php?which=61204), made with Tunefish 4 (20 instruments, 230 BPM). Enigma Studio 4, the tool it was made with, was released with the intro project and this song under CC0 1.0."
     }
   ]

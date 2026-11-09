@@ -1,0 +1,23 @@
+[
+  {"key": "fr08", "slug": "v2-fr08", "author": "kb / farbrausch", "credit": "Music credited to kb on Demozoo (fr-08: .the .product, 2000, production 10103)."},
+  {"key": "flybye", "slug": "v2-flybye", "author": "kb / farbrausch", "credit": "Music credited to kb on Demozoo (FR-013: Flybye, 2001, production 91172)."},
+  {"key": "fr014", "slug": "v2-fr014", "author": "wayfinder / farbrausch", "credit": "Music credited to wayfinder on Demozoo (FR-014: Garbage Collection, 2001, track FR014 Main, production 26036)."},
+  {"key": "fr019", "slug": "v2-fr019", "author": "RP / farbrausch", "credit": "Music credited to RP (Ronny Pries) on Demozoo (fr-019: poem to a horse, 2002, production 26236)."},
+  {"key": "fr022_party", "slug": "v2-fr022-party", "author": "wayfinder / farbrausch", "credit": "Music credited to wayfinder on Demozoo (fr-022: ein.schlag, 2002, production 26237)."},
+  {"key": "fr022_final", "slug": "v2-fr022-final", "author": "wayfinder / farbrausch", "credit": "Music credited to wayfinder on Demozoo (fr-022: ein.schlag, 2002, production 26237)."},
+  {"key": "fr024", "slug": "v2-fr024", "author": "kb / farbrausch", "credit": "Music credited to kb on Demozoo (fr-024: Welcome To..., 2003)."},
+  {"key": "fr027", "slug": "v2-fr027", "author": "wayfinder / farbrausch", "credit": "Music credited to wayfinder on Demozoo (fr-027: Out Of The Blue, 2002, production 65085)."},
+  {"key": "fr029", "slug": "v2-fr029", "author": "wayfinder / farbrausch", "credit": "Music credited to wayfinder on Demozoo and pouet (fr-029: Dopplerdefekt, 2002, production 26710)."},
+  {"key": "candytron", "slug": "v2-candytron", "author": "kb / farbrausch", "credit": "Music credited to kb on Demozoo (fr-030: Candytron, 2003)."},
+  {"key": "pzero_new", "slug": "v2-pzero-new", "author": "Melwyn and Little Bitchard / farbrausch", "credit": "Music credited to Melwyn, with Little Bitchard on synth patches and mixing, on Demozoo and Little Bitchard's Bandcamp (fr-044: Patient Zero, 2005, production 67076)."},
+  {"key": "v2_zeitmaschine_new", "slug": "v2-v2-zeitmaschine-new", "author": "paniq / farbrausch", "credit": "Music credited to paniq on pouet (fr-036: zeitmaschine, 2003, prod 11248)."},
+  {"key": "fr_public/werkkzeug3__data__debris__debris_ost.v2m", "slug": "debris-ost", "author": "RP and wayfinder / farbrausch", "credit": "Music credited to RP and wayfinder on Demozoo (fr-041: Debris, 2007, track fr-041 - Main)."},
+  {"key": "modland/V2mPlayer--ouverture.v2m", "slug": "v2mplayer-ouverture", "author": "kb / farbrausch", "credit": "Music credited to kb on Demozoo (Ouverture, 64K executable music, 2004)."},
+  {"key": "modland/V2mPlayer--fr-011_picknick_in_the_meadows-brullwurfel_edition.v2m", "slug": "v2mplayer-fr-011-picknick-in-the-meadows-brullwurfel-edition", "author": "kb / farbrausch", "credit": "Music credited to kb on Demozoo (Picknick In The Meadows, track of fr-028: Brullwurfel, production 20472)."},
+  {"key": "modland/V2mPlayer--fr-013_flybye-loader-brullwurfel_edition.v2m", "slug": "v2mplayer-fr-013-flybye-loader-brullwurfel-edition", "author": "kb / farbrausch", "credit": "Music credited to kb on Demozoo (FR-013 Loader, track of fr-028: Brullwurfel, production 20472)."},
+  {"key": "modland/V2mPlayer--fr-014_garbage_collection-main-brullwurfel_edition.v2m", "slug": "v2mplayer-fr-014-garbage-collection-main-brullwurfel-edition", "author": "wayfinder / farbrausch", "credit": "Music credited to wayfinder on Demozoo (FR014 Main, track of fr-028: Brullwurfel, production 20472)."},
+  {"key": "modland/V2mPlayer--fr-024_welcome_to_...-breakpoint_2003.v2m", "slug": "v2mplayer-fr-024-welcome-to-breakpoint-2003", "author": "kb / farbrausch", "credit": "Music credited to kb on Demozoo (fr-024: Welcome To..., 2003)."},
+  {"key": "modland/V2mPlayer--fr-027_out_of_the_blue.v2m", "slug": "v2mplayer-fr-027-out-of-the-blue", "author": "wayfinder / farbrausch", "credit": "Music credited to wayfinder on Demozoo (FR027 Main, fr-027: Out Of The Blue, 2002, production 65085)."},
+  {"key": "modland/V2mPlayer--fr-037_the_code_inside.v2m", "slug": "v2mplayer-fr-037-the-code-inside", "author": "Little Bitchard / mfx", "credit": "Music credited to Little Bitchard on Demozoo and in the intro's nfo (FR-037: The Code Inside, 2004, production 173974)."},
+  {"key": "modland/0test.v2m", "slug": "0test", "author": "Dafunk", "credit": "Music credited to Dafunk in the file name of the same file elsewhere in the collection (Dafunk--introtune.v2m)."}
+]

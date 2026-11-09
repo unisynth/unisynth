@@ -2,9 +2,9 @@
   "format": "song/2",
   "meta": {
     "title": "zeitmaschine (fr_public v2/v2m)",
-    "author": "farbrausch",
-    "description": "zeitmaschine (fr_public v2/v2m) by farbrausch, a Farbrausch V2 song (.v2m format version 6) taken from farbrausch's fr_public repository (`v2/v2m/v2_zeitmaschine_new.v2m`). The same file is also at fr_public/v2__v2m__v2_zeitmaschine_new.v2m in the local corpus. 120 BPM, 2:48, 16 tracks. This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. Against the v2redux reference render it differs by +0.02 dB loudness and at most -0.49 @ 125 Hz in any octave band (tools/unisynth-parity, A/B listening approved 2026-10-28). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
-    "copyright": "© farbrausch",
+    "author": "paniq / farbrausch",
+    "description": "zeitmaschine (fr_public v2/v2m) by paniq / farbrausch, a Farbrausch V2 song (.v2m format version 6) taken from farbrausch's fr_public repository (`v2/v2m/v2_zeitmaschine_new.v2m`). The same file is also at fr_public/v2__v2m__v2_zeitmaschine_new.v2m in the local corpus. Music credited to paniq on pouet (fr-036: zeitmaschine, 2003, prod 11248). 120 BPM, 2:48, 16 tracks. This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. Against the v2redux reference render it differs by +0.02 dB loudness and at most -0.49 @ 125 Hz in any octave band (tools/unisynth-parity, A/B listening approved 2026-10-28). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
+    "copyright": "© paniq / farbrausch",
     "url": "https://github.com/farbrausch/fr_public/blob/master/v2/v2m/v2_zeitmaschine_new.v2m",
     "adapted_from": "zeitmaschine (fr_public v2/v2m) (V2M, format version 6), https://github.com/farbrausch/fr_public/blob/master/v2/v2m/v2_zeitmaschine_new.v2m"
   },

@@ -2,9 +2,9 @@
   "format": "song/2",
   "meta": {
     "title": "fr-024 welcome to ...-breakpoint 2003",
-    "author": "V2mPlayer",
-    "description": "fr-024 welcome to ...-breakpoint 2003 by V2mPlayer, a Farbrausch V2 song (.v2m format version 5) taken from the V2M collection of jgilje/v2m-player (`v2m/V2mPlayer--fr-024_welcome_to_...-breakpoint_2003.v2mz`; its README points to modland). 120 BPM, 3:30, 10 tracks. This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. This song was not parity-checked on its own; the V2 import passes on the 18 songs that were (within 0.9 dB loudness and 1.8 dB per octave band of the v2redux reference). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
-    "copyright": "© V2mPlayer",
+    "author": "kb / farbrausch",
+    "description": "fr-024 welcome to ...-breakpoint 2003 by kb / farbrausch, a Farbrausch V2 song (.v2m format version 5) taken from the V2M collection of jgilje/v2m-player (`v2m/V2mPlayer--fr-024_welcome_to_...-breakpoint_2003.v2mz`; its README points to modland). Music credited to kb on Demozoo (fr-024: Welcome To..., 2003). 120 BPM, 3:30, 10 tracks. This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. This song was not parity-checked on its own; the V2 import passes on the 18 songs that were (within 0.9 dB loudness and 1.8 dB per octave band of the v2redux reference). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
+    "copyright": "© kb / farbrausch",
     "url": "https://github.com/jgilje/v2m-player/blob/master/v2m/V2mPlayer--fr-024_welcome_to_...-breakpoint_2003.v2mz",
     "adapted_from": "fr-024 welcome to ...-breakpoint 2003 (V2M, format version 5), https://github.com/jgilje/v2m-player/blob/master/v2m/V2mPlayer--fr-024_welcome_to_...-breakpoint_2003.v2mz"
   },

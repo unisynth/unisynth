@@ -2,9 +2,9 @@
   "format": "song/2",
   "meta": {
     "title": "fr-024",
-    "author": "farbrausch",
-    "description": "fr-024 by farbrausch, a Farbrausch V2 song (.v2m format version 5) taken from the release executable of fr-024, carved by v2redux at its own format version (`corpus/embedded/fr024.v2m`). 120 BPM, 3:30, 10 tracks. This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. Against the v2redux reference render it differs by -0.24 dB loudness and at most -1.34 @ 63 Hz in any octave band (tools/unisynth-parity, A/B listening approved 2026-10-28). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
-    "copyright": "© farbrausch",
+    "author": "kb / farbrausch",
+    "description": "fr-024 by kb / farbrausch, a Farbrausch V2 song (.v2m format version 5) taken from the release executable of fr-024, carved by v2redux at its own format version (`corpus/embedded/fr024.v2m`). Music credited to kb on Demozoo (fr-024: Welcome To..., 2003). 120 BPM, 3:30, 10 tracks. This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. Against the v2redux reference render it differs by -0.24 dB loudness and at most -1.34 @ 63 Hz in any octave band (tools/unisynth-parity, A/B listening approved 2026-10-28). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
+    "copyright": "© kb / farbrausch",
     "url": "https://github.com/spheenik/v2redux/tree/master/corpus/embedded",
     "adapted_from": "fr-024 (V2M, format version 5), https://github.com/spheenik/v2redux/tree/master/corpus/embedded"
   },

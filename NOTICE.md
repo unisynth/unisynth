@@ -10,12 +10,12 @@ description, copyright, license, url, adapted_from). The songs follow the licenc
 | File | Original | Author as stated upstream | Copyright | Licence |
 |---|---|---|---|---|
 | `global-groove.song.json` | `Global Groove.xrns` | not named (WaveSabre Team's test suite) | Copyright 2012-2021 WaveSabre Team | MIT |
-| `elysian.song.json` | `Elysian.als` | logicoma (composer not named) | Copyright 2012-2021 WaveSabre Team | MIT |
-| `engage.song.json` | `Engage.als` | logicoma (composer not named) | Copyright 2012-2021 WaveSabre Team | MIT |
+| `elysian.song.json` | `Elysian.als` | H0ffman / logicoma (Demozoo, pouet: the intro's music) | Copyright 2012-2021 WaveSabre Team | MIT |
+| `engage.song.json` | `Engage.als` | H0ffman and Wobble / logicoma (Demozoo, pouet: the intro's music) | Copyright 2012-2021 WaveSabre Team | MIT |
 | `eladamri.song.json` | `eladamri-Try_Stopping_abl11_triplet_issue.als` | eladamri (from the file name) | Copyright 2012-2021 WaveSabre Team | MIT |
-| `no-remorse.song.json` | `no_remorse.tfm` | not named (Tunefish authors) | Brain Control | GPL-3.0-or-later |
+| `no-remorse.song.json` | `no_remorse.tfm` | Payne / Brain Control (tunefish-synth.com v4 demo songs) | Brain Control | GPL-3.0-or-later |
 | `tf4testsong.song.json` | `tf4testsong.tfm` | not named (Tunefish authors) | Brain Control | GPL-3.0-or-later |
-| `turtles.song.json` | `zoom.tf4m` (Turtles all the way down, Revision 2013) | not named (Brain Control; the intro credits Hunta, Pap, Payne, Skyrunner, Strepto) | Brain Control | CC0-1.0 |
+| `turtles.song.json` | `zoom.tf4m` (Turtles all the way down, Revision 2013) | Skyrunner / Brain Control (the intro's nfo, Demozoo) | Brain Control | CC0-1.0 |
 
 WaveSabre files come from <https://github.com/logicomacorp/WaveSabre> (commit 9245fb8, `Tests/WaveSabreConvertTests/Tests`),
 Tunefish files from <https://github.com/paynebc/tunefish> (commit 7e48ce8, `media/tf4modules`), the Turtles song from
@@ -60,8 +60,10 @@ by `tools/v2-extract/make-demos.py`:
 - 84 more from modland's own V2 directory that the v2m-player collection lacks (by checksum; 6 other versions of
   songs already here and a second copy of one file are left out); a `coop-Other` folder credits both authors
 
-Credits come only from where each file was found: the demo for carved songs, the repository path, or modland's
-`Author--title` file name. Composers the source does not name are not guessed (7 songs say "not named"). 18 songs are
+Credits come from where each file was found: the demo for carved songs, the repository path, or modland's
+`Author--title` file name; where those name nobody or only the group, a composer credited in a public demoscene
+database (Demozoo, pouet) is added with its source (`tools/v2-extract/composers.json`, 21 songs). Composers nobody
+credits are not guessed (79 songs say "not named", mostly keygen and cracktro tunes). 18 songs are
 parity-checked against the v2redux reference; the others say they were not. Songs whose V2 file runs far past the
 music end 4 s after the last note, as their description says. Same rules: no licence, published pending permission,
 adapted version. `modland/KB--fr-013_flybye-loader.v2m` does not parse and is not included.
