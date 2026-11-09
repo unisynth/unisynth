@@ -1,0 +1,1141 @@
+{
+  "format": "song/2",
+  "meta": {
+    "title": "q.e.d",
+    "author": "Oskar Pedersen",
+    "description": "q.e.d by Oskar Pedersen, a Farbrausch V2 song (.v2m format version 6) taken from modland's V2 collection (`pub/modules/V2/Oskar Pedersen/q.e.d.v2m`). 120 BPM, 1:56, 8 tracks. The V2 file's last tick is at 202:57; the song here ends 4 s after the last note (a note held more than 16 s past the last note-on is cut there). This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. This song was not parity-checked on its own; the V2 import passes on the 18 songs that were (within 0.9 dB loudness and 1.8 dB per octave band of the v2redux reference). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
+    "copyright": "© Oskar Pedersen",
+    "url": "https://ftpmirror.infania.net/sites/modland/pub/modules/V2/Oskar%20Pedersen/q.e.d.v2m",
+    "adapted_from": "q.e.d (V2M, format version 6), https://ftpmirror.infania.net/sites/modland/pub/modules/V2/Oskar%20Pedersen/q.e.d.v2m"
+  },
+  "rate": 44100,
+  "tempo": 120.0,
+  "signature": [4, 4],
+  "ticks_per_beat": 960,
+  "length": 222720,
+  "clips": [
+    {
+      "id": "t1/A",
+      "length": 30720,
+      "notes": [
+        [28803, 479, 64, 100]
+      ]
+    },
+    {
+      "id": "t1/B",
+      "length": 30720,
+      "notes": [
+        [1917, 479, 69, 100],
+        [5757, 479, 72, 100],
+        [9596, 1923, 64, 100]
+      ]
+    },
+    {
+      "id": "t2/A",
+      "length": 30720,
+      "notes": [
+        [7685, 479, 67, 32],
+        [15364, 479, 71, 32],
+        [23043, 480, 64, 32]
+      ]
+    },
+    {
+      "id": "t2/B",
+      "length": 30720,
+      "notes": [
+        [3, 479, 71, 32]
+      ]
+    },
+    {
+      "id": "t3/A",
+      "length": 30720,
+      "notes": [
+        [3842, 480, 67, 100]
+      ]
+    },
+    {
+      "id": "t4/A",
+      "length": 61440,
+      "notes": [
+        [19201, 7679, 60, 100],
+        [26880, 7685, 64, 100],
+        [34565, 3840, 60, 100]
+      ]
+    },
+    {
+      "id": "t5/A",
+      "length": 30720,
+      "notes": [
+        [6, 239, 48, 127],
+        [1923, 239, 48, 127],
+        [3845, 240, 48, 127],
+        [5762, 240, 48, 127],
+        [7685, 240, 48, 127],
+        [9602, 240, 48, 127],
+        [11525, 239, 48, 127],
+        [13442, 239, 48, 127],
+        [15364, 240, 48, 127],
+        [17281, 240, 48, 127],
+        [19204, 239, 48, 127],
+        [21121, 240, 48, 127],
+        [23043, 240, 48, 127],
+        [24961, 239, 48, 127],
+        [26883, 240, 48, 127],
+        [28800, 245, 48, 127]
+      ]
+    },
+    {
+      "id": "t5/A.1",
+      "length": 30720,
+      "notes": [
+        [3, 239, 48, 127],
+        [1925, 240, 48, 127],
+        [3842, 240, 48, 127],
+        [5765, 240, 48, 127],
+        [7682, 240, 48, 127],
+        [9605, 239, 48, 127],
+        [11522, 239, 48, 127],
+        [13444, 240, 48, 127],
+        [15361, 240, 48, 127],
+        [17284, 240, 48, 127],
+        [19201, 240, 48, 127],
+        [21124, 239, 48, 127],
+        [23041, 239, 48, 127],
+        [24963, 240, 48, 127],
+        [26880, 246, 48, 127],
+        [28803, 240, 48, 127]
+      ]
+    },
+    {
+      "id": "t5/B",
+      "length": 30720,
+      "notes": [
+        [3, 239, 48, 127],
+        [1925, 240, 48, 127],
+        [3842, 240, 48, 127],
+        [5765, 240, 48, 127]
+      ]
+    },
+    {
+      "id": "t6/A",
+      "length": 184320,
+      "notes": [
+        [15364, 7679, 60, 100],
+        [23043, 7680, 60, 100],
+        [23043, 7680, 69, 100],
+        [30723, 7679, 64, 100],
+        [38402, 7679, 60, 100],
+        [38402, 7679, 64, 100],
+        [38402, 7679, 69, 100],
+        [46081, 7680, 64, 100],
+        [46081, 7680, 67, 100],
+        [46081, 7680, 71, 100],
+        [53761, 7685, 64, 100],
+        [53761, 7685, 71, 100],
+        [61446, 7679, 67, 100],
+        [69125, 7679, 64, 100],
+        [69125, 7679, 71, 100],
+        [76804, 7679, 64, 100],
+        [84483, 3840, 67, 100],
+        [88323, 7679, 64, 100],
+        [88323, 3840, 71, 100],
+        [92163, 7679, 67, 100],
+        [99842, 7679, 60, 100],
+        [107521, 7680, 60, 100],
+        [107521, 7680, 69, 100],
+        [115201, 7685, 64, 100],
+        [122886, 7679, 60, 100],
+        [122886, 7679, 64, 100],
+        [122886, 7679, 69, 100],
+        [130565, 7679, 60, 100],
+        [130565, 3840, 69, 100],
+        [134405, 3839, 64, 100],
+        [138244, 7679, 69, 100],
+        [145923, 7680, 64, 100],
+        [145923, 7680, 67, 100],
+        [145923, 7680, 71, 100],
+        [153603, 7679, 64, 100],
+        [153603, 7679, 71, 100],
+        [161282, 7679, 67, 100],
+        [168961, 7680, 64, 100],
+        [168961, 7680, 71, 100],
+        [176641, 7679, 64, 100]
+      ]
+    },
+    {
+      "id": "t6/B",
+      "length": 30720,
+      "notes": [
+        [0, 3840, 67, 100],
+        [3840, 7679, 64, 100],
+        [3840, 3839, 71, 100],
+        [7679, 7680, 67, 100],
+        [15359, 7679, 60, 100],
+        [23038, 7679, 60, 100],
+        [23038, 7679, 69, 100]
+      ]
+    }
+  ],
+  "tracks": [
+    {
+      "id": "t1",
+      "name": "Track 1",
+      "volume": 1.0,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "capacity": 0.01587301678955555,
+            "velocity": 0.0,
+            "voice.amp_source": 1.0,
+            "voice.pan_stage": 1.0,
+            "voice.dc_filter": 1.0,
+            "voice.law": 1.0,
+            "osc1.type": 0.4166666567325592,
+            "osc1.fine": 0.5703125,
+            "osc1.gain": 0.984375,
+            "osc1.s1": 0.0,
+            "osc1.law": 1.0,
+            "osc2.type": 0.4166666567325592,
+            "osc2.coarse": 0.40625,
+            "osc2.gain": 0.984375,
+            "osc2.s1": 0.25,
+            "osc2.law": 1.0,
+            "osc3.type": 0.5833333134651184,
+            "osc3.coarse": 0.6875,
+            "osc3.gain": 0.3671875,
+            "osc3.s1": 0.25,
+            "osc3.law": 1.0,
+            "filt1.type": 0.10000000149011612,
+            "filt1.cutoff": 0.1953125,
+            "filt1.resonance": 0.5390625,
+            "filt1.form": 1.0,
+            "filt1.oversample": 1.0,
+            "filt1.law": 1.0,
+            "filt2.cutoff": 0.5,
+            "env1.law": 1.0,
+            "env1.decay": 0.5,
+            "env1.sustain": 0.5,
+            "env1.release": 0.5,
+            "env1.amplify": 0.0,
+            "env2.law": 1.0,
+            "env2.decay": 0.8203125,
+            "env2.sustain": 0.046875,
+            "env2.release": 0.6328125,
+            "env2.amplify": 0.6875,
+            "lfo1.shape": 0.7142857313156128,
+            "lfo1.rate": 0.5,
+            "lfo1.depth": 0.0,
+            "lfo1.law": 1.0,
+            "lfo2.shape": 0.7142857313156128,
+            "lfo2.rate": 0.5,
+            "lfo2.depth": 0.984375,
+            "lfo2.law": 1.0,
+            "mod1.source": 0.5,
+            "mod1.target": 0.4117647111415863,
+            "mod1.amount": 0.9921875,
+            "mod1.operation": 1.0,
+            "mod2.source": 0.4375,
+            "mod2.target": 0.4470588266849518,
+            "mod2.amount": 0.9921875,
+            "mod2.operation": 1.0,
+            "mod3.source": 0.3125,
+            "mod3.target": 0.3137255012989044,
+            "mod3.amount": 0.5078125,
+            "mod3.operation": 1.0,
+            "mod4.source": 0.9375,
+            "mod4.target": 0.4627451002597809,
+            "mod4.amount": 0.9921875,
+            "mod4.operation": 1.0,
+            "mod5.source": 0.125,
+            "mod5.target": 0.3607843220233917,
+            "mod5.amount": 0.7578125,
+            "mod5.operation": 1.0,
+            "drive.mode": 0.0078125,
+            "drive.gain": 0.8984375,
+            "drive.p1": 0.953125,
+            "strip.on": 1.0,
+            "strip.volume": 0.0,
+            "strip.drive_p1": 0.0,
+            "strip.drive_p2": 0.0,
+            "strip.send_reverb": 0.015625,
+            "strip.boost": 0.953125,
+            "strip.dc_filter": 1.0,
+            "strip.chorus_amount": 0.7578125,
+            "strip.chorus_rate": 0.4609375,
+            "strip.chorus_depth": 0.640625,
+            "strip.chorus_phase": 0.765625
+          }
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t1/A",
+          "start": 153600,
+          "length": 30720,
+          "loop": false
+        },
+        {
+          "clip": "t1/B",
+          "start": 184320,
+          "length": 30720,
+          "loop": false
+        }
+      ],
+      "lanes": [
+        {
+          "device": 0,
+          "param": "ctl.cc6",
+          "points": [
+            [0, 0.0],
+            [5.572789115646258, 0.0],
+            [5.572789115646258, 0.0941176488995552]
+          ]
+        },
+        {
+          "device": 0,
+          "param": "ctl.cc7",
+          "points": [
+            [0, 0.9921568632125854],
+            [5.572789115646258, 0.9921568632125854],
+            [5.572789115646258, 0.7803921699523926]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "t2",
+      "name": "Track 2",
+      "volume": 1.0,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "capacity": 0.01587301678955555,
+            "velocity": 0.0,
+            "voice.amp_source": 1.0,
+            "voice.pan_stage": 1.0,
+            "voice.dc_filter": 1.0,
+            "voice.law": 1.0,
+            "osc1.type": 0.4166666567325592,
+            "osc1.gain": 0.984375,
+            "osc1.s1": 0.0,
+            "osc1.law": 1.0,
+            "osc2.gain": 0.984375,
+            "osc2.s1": 0.25,
+            "osc3.gain": 0.984375,
+            "osc3.s1": 0.25,
+            "filt1.type": 0.10000000149011612,
+            "filt1.cutoff": 0.4921875,
+            "filt1.resonance": 0.7421875,
+            "filt1.form": 1.0,
+            "filt1.oversample": 1.0,
+            "filt1.law": 1.0,
+            "filt2.cutoff": 0.5,
+            "env1.law": 1.0,
+            "env1.attack": 0.703125,
+            "env1.decay": 0.5,
+            "env1.sustain": 0.5,
+            "env1.release": 0.5,
+            "env1.amplify": 0.0,
+            "env2.law": 1.0,
+            "env2.decay": 0.5,
+            "env2.sustain": 0.5,
+            "env2.release": 0.5,
+            "env2.amplify": 0.5,
+            "lfo1.shape": 0.7142857313156128,
+            "lfo1.rate": 0.5,
+            "lfo1.depth": 0.0,
+            "lfo1.law": 1.0,
+            "lfo2.shape": 0.7142857313156128,
+            "lfo2.rate": 0.5,
+            "lfo2.depth": 0.984375,
+            "lfo2.law": 1.0,
+            "mod1.source": 0.5,
+            "mod1.target": 0.4117647111415863,
+            "mod1.amount": 0.9921875,
+            "mod1.operation": 1.0,
+            "mod2.source": 0.4375,
+            "mod2.target": 0.3137255012989044,
+            "mod2.amount": 0.484375,
+            "mod2.operation": 1.0,
+            "mod3.source": 0.9375,
+            "mod3.target": 0.4627451002597809,
+            "mod3.amount": 0.9921875,
+            "mod3.operation": 1.0,
+            "drive.p2": 0.0,
+            "strip.on": 1.0,
+            "strip.volume": 0.0,
+            "strip.drive_mode": 0.015625,
+            "strip.drive_gain": 0.921875,
+            "strip.drive_p1": 0.25,
+            "strip.send_reverb": 0.109375,
+            "strip.send_delay": 0.4609375,
+            "strip.dc_filter": 1.0
+          }
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t2/A",
+          "start": 61440,
+          "length": 30720,
+          "loop": false
+        },
+        {
+          "clip": "t2/B",
+          "start": 92160,
+          "length": 30720,
+          "loop": false
+        }
+      ],
+      "lanes": [
+        {
+          "device": 0,
+          "param": "ctl.cc6",
+          "points": [
+            [0, 0.0],
+            [5.572789115646258, 0.0],
+            [5.572789115646258, 0.0941176488995552]
+          ]
+        },
+        {
+          "device": 0,
+          "param": "ctl.cc7",
+          "points": [
+            [0, 0.9921568632125854],
+            [5.572789115646258, 0.9921568632125854],
+            [5.572789115646258, 0.7803921699523926]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "t3",
+      "name": "Track 3",
+      "volume": 1.0,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "capacity": 0.0,
+            "velocity": 0.0,
+            "voice.amp_source": 1.0,
+            "voice.pan_stage": 1.0,
+            "voice.dc_filter": 1.0,
+            "voice.law": 1.0,
+            "osc1.type": 0.5,
+            "osc1.coarse": 0.46875,
+            "osc1.gain": 0.984375,
+            "osc1.law": 1.0,
+            "osc2.type": 0.5,
+            "osc2.coarse": 0.53125,
+            "osc2.gain": 0.984375,
+            "osc2.law": 1.0,
+            "osc3.type": 0.6666666865348816,
+            "osc3.gain": 0.984375,
+            "osc3.s1": 0.25,
+            "osc3.law": 1.0,
+            "filt1.type": 0.20000000298023224,
+            "filt1.cutoff": 0.984375,
+            "filt1.form": 1.0,
+            "filt1.oversample": 1.0,
+            "filt1.law": 1.0,
+            "filt2.type": 0.30000001192092896,
+            "filt2.cutoff": 0.8125,
+            "filt2.resonance": 0.7421875,
+            "filt2.form": 1.0,
+            "filt2.oversample": 1.0,
+            "filt2.law": 1.0,
+            "env1.law": 1.0,
+            "env1.decay": 0.203125,
+            "env1.sustain": 0.4453125,
+            "env1.release": 0.78125,
+            "env1.amplify": 0.0,
+            "env2.law": 1.0,
+            "env2.decay": 0.703125,
+            "env2.sustain": 0.0,
+            "env2.release": 0.7421875,
+            "env2.amplify": 0.1640625,
+            "lfo1.shape": 0.7142857313156128,
+            "lfo1.rate": 0.5,
+            "lfo1.depth": 0.0,
+            "lfo1.law": 1.0,
+            "lfo2.shape": 0.7142857313156128,
+            "lfo2.rate": 0.5,
+            "lfo2.depth": 0.984375,
+            "lfo2.law": 1.0,
+            "mod1.source": 0.5,
+            "mod1.target": 0.4117647111415863,
+            "mod1.amount": 0.9921875,
+            "mod1.operation": 1.0,
+            "mod2.source": 0.4375,
+            "mod2.target": 0.4470588266849518,
+            "mod2.amount": 0.9921875,
+            "mod2.operation": 1.0,
+            "mod3.source": 0.3125,
+            "mod3.target": 0.3137255012989044,
+            "mod3.amount": 0.5078125,
+            "mod3.operation": 1.0,
+            "mod4.source": 0.9375,
+            "mod4.target": 0.4627451002597809,
+            "mod4.amount": 0.9921875,
+            "mod4.operation": 1.0,
+            "mod5.source": 0.125,
+            "mod5.target": 0.3686274588108063,
+            "mod5.amount": 0.828125,
+            "mod5.operation": 1.0,
+            "drive.p2": 0.0,
+            "strip.on": 1.0,
+            "strip.volume": 0.0,
+            "strip.drive_p1": 0.0,
+            "strip.drive_p2": 0.0,
+            "strip.send_reverb": 0.2578125,
+            "strip.send_delay": 0.1484375,
+            "strip.dc_filter": 1.0
+          }
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t3/A",
+          "start": 153600,
+          "length": 30720,
+          "loop": false
+        }
+      ],
+      "lanes": [
+        {
+          "device": 0,
+          "param": "ctl.cc6",
+          "points": [
+            [0, 0.0],
+            [5.572789115646258, 0.0],
+            [5.572789115646258, 0.0941176488995552]
+          ]
+        },
+        {
+          "device": 0,
+          "param": "ctl.cc7",
+          "points": [
+            [0, 0.9921568632125854],
+            [5.572789115646258, 0.9921568632125854],
+            [5.572789115646258, 0.7803921699523926]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "t4",
+      "name": "Track 4",
+      "volume": 1.0,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "capacity": 0.01587301678955555,
+            "transpose": 0.6875,
+            "velocity": 0.0,
+            "voice.amp_source": 1.0,
+            "voice.pan_stage": 1.0,
+            "voice.dc_filter": 1.0,
+            "voice.law": 1.0,
+            "osc1.type": 0.5833333134651184,
+            "osc1.gain": 0.984375,
+            "osc1.law": 1.0,
+            "osc2.coarse": 0.453125,
+            "osc2.gain": 0.984375,
+            "osc2.s1": 0.484375,
+            "osc3.gain": 0.984375,
+            "osc3.s1": 0.25,
+            "filt1.type": 0.10000000149011612,
+            "filt1.cutoff": 0.984375,
+            "filt1.form": 1.0,
+            "filt1.oversample": 1.0,
+            "filt1.law": 1.0,
+            "filt2.cutoff": 0.5,
+            "env1.law": 1.0,
+            "env1.decay": 0.5,
+            "env1.sustain": 0.5,
+            "env1.release": 0.5,
+            "env1.amplify": 0.0,
+            "env2.law": 1.0,
+            "env2.decay": 0.5,
+            "env2.sustain": 0.5,
+            "env2.release": 0.5,
+            "env2.amplify": 0.5,
+            "lfo1.shape": 0.8571428656578064,
+            "lfo1.rate": 0.734375,
+            "lfo1.depth": 0.84375,
+            "lfo1.law": 1.0,
+            "lfo2.shape": 1.0,
+            "lfo2.rate": 0.0,
+            "lfo2.depth": 0.984375,
+            "lfo2.law": 1.0,
+            "lfo2.phase": 0.6796875,
+            "mod1.source": 0.4375,
+            "mod1.target": 0.49803921580314636,
+            "mod1.amount": 0.2578125,
+            "mod1.operation": 1.0,
+            "mod2.source": 0.375,
+            "mod2.target": 0.4117647111415863,
+            "mod2.amount": 0.9921875,
+            "mod2.operation": 1.0,
+            "mod3.source": 0.9375,
+            "mod3.target": 0.4627451002597809,
+            "mod3.amount": 0.796875,
+            "mod3.operation": 1.0,
+            "mod4.source": 0.3125,
+            "mod4.target": 0.45098039507865906,
+            "mod4.amount": 0.9296875,
+            "mod4.operation": 1.0,
+            "drive.p2": 0.0,
+            "strip.on": 1.0,
+            "strip.volume": 0.0,
+            "strip.drive_mode": 0.03125,
+            "strip.drive_gain": 0.3828125,
+            "strip.drive_p1": 0.984375,
+            "strip.drive_p2": 0.5078125,
+            "strip.send_reverb": 0.1015625,
+            "strip.dc_filter": 1.0
+          }
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t4/A",
+          "start": 92160,
+          "length": 61440,
+          "loop": false
+        }
+      ],
+      "lanes": [
+        {
+          "device": 0,
+          "param": "ctl.cc6",
+          "points": [
+            [0, 0.0],
+            [5.572789115646258, 0.0],
+            [5.572789115646258, 0.0941176488995552]
+          ]
+        },
+        {
+          "device": 0,
+          "param": "ctl.cc7",
+          "points": [
+            [0, 0.9921568632125854],
+            [5.572789115646258, 0.9921568632125854],
+            [5.572789115646258, 0.7803921699523926]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "t5",
+      "name": "Track 5",
+      "volume": 1.0,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "capacity": 0.0,
+            "velocity": 0.0,
+            "voice.amp_source": 1.0,
+            "voice.pan_stage": 1.0,
+            "voice.dc_filter": 1.0,
+            "voice.law": 1.0,
+            "osc1.type": 0.5,
+            "osc1.coarse": 0.4296875,
+            "osc1.gain": 0.3046875,
+            "osc1.s1": 0.8828125,
+            "osc1.law": 1.0,
+            "osc2.type": 0.5,
+            "osc2.coarse": 0.4453125,
+            "osc2.fine": 0.609375,
+            "osc2.gain": 0.3671875,
+            "osc2.s1": 0.1953125,
+            "osc2.law": 1.0,
+            "osc3.type": 0.6666666865348816,
+            "osc3.coarse": 0.84375,
+            "osc3.gain": 0.984375,
+            "osc3.s1": 0.640625,
+            "osc3.law": 1.0,
+            "filt1.type": 0.20000000298023224,
+            "filt1.cutoff": 0.796875,
+            "filt1.resonance": 0.828125,
+            "filt1.form": 1.0,
+            "filt1.oversample": 1.0,
+            "filt1.law": 1.0,
+            "filt2.type": 0.20000000298023224,
+            "filt2.cutoff": 0.984375,
+            "filt2.form": 1.0,
+            "filt2.oversample": 1.0,
+            "filt2.law": 1.0,
+            "env1.law": 1.0,
+            "env1.decay": 0.2109375,
+            "env1.sustain": 0.0,
+            "env1.release": 0.34375,
+            "env1.amplify": 0.0,
+            "env2.law": 1.0,
+            "env2.decay": 0.5,
+            "env2.sustain": 0.5,
+            "env2.release": 0.5,
+            "env2.amplify": 0.5,
+            "lfo1.shape": 0.7142857313156128,
+            "lfo1.rate": 0.5,
+            "lfo1.depth": 0.0,
+            "lfo1.law": 1.0,
+            "lfo2.shape": 0.7142857313156128,
+            "lfo2.rate": 0.5,
+            "lfo2.depth": 0.984375,
+            "lfo2.law": 1.0,
+            "mod1.source": 0.5,
+            "mod1.target": 0.4117647111415863,
+            "mod1.amount": 0.9921875,
+            "mod1.operation": 1.0,
+            "mod2.source": 0.4375,
+            "mod2.target": 0.4470588266849518,
+            "mod2.amount": 0.9921875,
+            "mod2.operation": 1.0,
+            "mod3.source": 0.3125,
+            "mod3.target": 0.3137255012989044,
+            "mod3.amount": 0.5078125,
+            "mod3.operation": 1.0,
+            "mod4.source": 0.9375,
+            "mod4.target": 0.4627451002597809,
+            "mod4.amount": 0.515625,
+            "mod4.operation": 1.0,
+            "drive.p2": 0.0,
+            "strip.on": 1.0,
+            "strip.volume": 0.0,
+            "strip.drive_mode": 0.0234375,
+            "strip.drive_gain": 0.9453125,
+            "strip.drive_p1": 0.796875,
+            "strip.drive_p2": 0.7265625,
+            "strip.send_reverb": 0.3359375,
+            "strip.send_delay": 0.3125,
+            "strip.order": 0.0078125,
+            "strip.dc_filter": 1.0,
+            "strip.chorus_amount": 0.75,
+            "strip.chorus_feedback": 0.8984375,
+            "strip.chorus_delay_l": 0.0078125,
+            "strip.chorus_delay_r": 0.0078125,
+            "strip.chorus_rate": 0.109375,
+            "strip.chorus_depth": 0.15625,
+            "strip.chorus_phase": 0.7265625
+          }
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t5/A",
+          "start": 0,
+          "length": 30720,
+          "loop": false
+        },
+        {
+          "clip": "t5/A.1",
+          "start": 30720,
+          "length": 30720,
+          "loop": false
+        },
+        {
+          "clip": "t5/A",
+          "start": 61440,
+          "length": 30720,
+          "loop": false
+        },
+        {
+          "clip": "t5/B",
+          "start": 92160,
+          "length": 30720,
+          "loop": false
+        }
+      ],
+      "lanes": [
+        {
+          "device": 0,
+          "param": "ctl.cc6",
+          "points": [
+            [0, 0.0],
+            [5.572789115646258, 0.0],
+            [5.572789115646258, 0.0941176488995552]
+          ]
+        },
+        {
+          "device": 0,
+          "param": "ctl.cc7",
+          "points": [
+            [0, 0.9921568632125854],
+            [5.572789115646258, 0.9921568632125854],
+            [5.572789115646258, 0.7803921699523926]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "t6",
+      "name": "Track 6",
+      "volume": 1.0,
+      "mute": false,
+      "receives": [],
+      "devices": [
+        {
+          "kind": 64,
+          "values": {
+            "capacity": 0.0317460335791111,
+            "velocity": 0.0,
+            "voice.amp_source": 1.0,
+            "voice.pan_stage": 1.0,
+            "voice.dc_filter": 1.0,
+            "voice.law": 1.0,
+            "voice.routing": 1.0,
+            "voice.balance": 0.2265625,
+            "osc1.type": 0.4166666567325592,
+            "osc1.fine": 0.4375,
+            "osc1.gain": 0.96875,
+            "osc1.s1": 0.0078125,
+            "osc1.law": 1.0,
+            "osc2.type": 0.6666666865348816,
+            "osc2.coarse": 0.6796875,
+            "osc2.gain": 0.3828125,
+            "osc2.s1": 0.765625,
+            "osc2.law": 1.0,
+            "osc3.type": 0.4166666567325592,
+            "osc3.coarse": 0.59375,
+            "osc3.fine": 0.578125,
+            "osc3.gain": 0.96875,
+            "osc3.s1": 0.046875,
+            "osc3.law": 1.0,
+            "filt1.type": 0.30000001192092896,
+            "filt1.cutoff": 0.53125,
+            "filt1.form": 1.0,
+            "filt1.oversample": 1.0,
+            "filt1.law": 1.0,
+            "filt2.type": 0.20000000298023224,
+            "filt2.cutoff": 0.9375,
+            "filt2.form": 1.0,
+            "filt2.oversample": 1.0,
+            "filt2.law": 1.0,
+            "env1.law": 1.0,
+            "env1.attack": 0.5859375,
+            "env1.decay": 0.0,
+            "env1.sustain": 0.9765625,
+            "env1.release": 0.765625,
+            "env1.amplify": 0.0,
+            "env2.law": 1.0,
+            "env2.attack": 0.9765625,
+            "env2.decay": 0.9765625,
+            "env2.sustain": 0.9765625,
+            "env2.release": 0.9765625,
+            "env2.amplify": 0.9765625,
+            "lfo1.shape": 0.7142857313156128,
+            "lfo1.rate": 0.078125,
+            "lfo1.depth": 0.9765625,
+            "lfo1.law": 1.0,
+            "lfo1.phase": 0.4921875,
+            "lfo1.one_shot": 1.0,
+            "lfo2.shape": 0.7142857313156128,
+            "lfo2.rate": 0.1953125,
+            "lfo2.depth": 0.0,
+            "lfo2.law": 1.0,
+            "lfo2.phase": 0.015625,
+            "mod1.source": 0.5,
+            "mod1.target": 0.4117647111415863,
+            "mod1.amount": 0.9921875,
+            "mod1.operation": 1.0,
+            "mod2.source": 0.4375,
+            "mod2.target": 0.4470588266849518,
+            "mod2.amount": 0.9921875,
+            "mod2.operation": 1.0,
+            "mod3.source": 0.3125,
+            "mod3.target": 0.3607843220233917,
+            "mod3.amount": 0.71875,
+            "mod3.operation": 1.0,
+            "mod4.source": 0.9375,
+            "mod4.target": 0.4627451002597809,
+            "mod4.amount": 0.796875,
+            "mod4.operation": 1.0,
+            "mod5.source": 0.3125,
+            "mod5.target": 0.3294117748737335,
+            "mod5.amount": 0.6328125,
+            "mod5.operation": 1.0,
+            "mod6.source": 0.3125,
+            "mod6.target": 0.33725491166114807,
+            "mod6.amount": 0.359375,
+            "mod6.operation": 1.0,
+            "mod7.source": 0.375,
+            "mod7.target": 0.3764705955982208,
+            "mod7.amount": 0.71875,
+            "mod7.operation": 1.0,
+            "mod8.source": 0.375,
+            "mod8.target": 0.32156863808631897,
+            "mod8.amount": 0.4765625,
+            "mod8.operation": 1.0,
+            "mod9.source": 0.125,
+            "mod9.target": 0.4588235318660736,
+            "mod9.amount": 0.9921875,
+            "mod9.operation": 1.0,
+            "mod10.source": 0.375,
+            "mod10.target": 0.3294117748737335,
+            "mod10.amount": 0.484375,
+            "mod10.operation": 1.0,
+            "drive.p2": 0.0,
+            "strip.on": 1.0,
+            "strip.volume": 0.0,
+            "strip.drive_p1": 0.0,
+            "strip.drive_p2": 0.0,
+            "strip.send_reverb": 0.1640625,
+            "strip.send_delay": 0.2421875,
+            "strip.boost": 0.515625,
+            "strip.dc_filter": 1.0,
+            "strip.chorus_amount": 0.7109375,
+            "strip.chorus_feedback": 0.1328125,
+            "strip.chorus_rate": 0.3515625,
+            "strip.chorus_depth": 0.484375,
+            "strip.chorus_phase": 0.7109375
+          }
+        }
+      ],
+      "placements": [
+        {
+          "clip": "t6/A",
+          "start": 0,
+          "length": 184320,
+          "loop": false
+        },
+        {
+          "clip": "t6/B",
+          "start": 184320,
+          "length": 30720,
+          "loop": false
+        }
+      ],
+      "lanes": [
+        {
+          "device": 0,
+          "param": "ctl.cc6",
+          "points": [
+            [0, 0.0],
+            [5.572789115646258, 0.0],
+            [5.572789115646258, 0.0941176488995552]
+          ]
+        },
+        {
+          "device": 0,
+          "param": "ctl.cc7",
+          "points": [
+            [0, 0.9921568632125854],
+            [5.572789115646258, 0.9921568632125854],
+            [5.572789115646258, 0.7803921699523926]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "t7",
+      "name": "Track 7",
+      "volume": 1.0,
+      "mute": false,
+      "receives": [
+        {
+          "from": "t1",
+          "channel": "main",
+          "send": 1,
+          "volume": 1.0
+        },
+        {
+          "from": "t2",
+          "channel": "main",
+          "send": 1,
+          "volume": 1.0
+        },
+        {
+          "from": "t3",
+          "channel": "main",
+          "send": 1,
+          "volume": 1.0
+        },
+        {
+          "from": "t4",
+          "channel": "main",
+          "send": 1,
+          "volume": 1.0
+        },
+        {
+          "from": "t5",
+          "channel": "main",
+          "send": 1,
+          "volume": 1.0
+        },
+        {
+          "from": "t6",
+          "channel": "main",
+          "send": 1,
+          "volume": 1.0
+        }
+      ],
+      "devices": [
+        {
+          "kind": 71,
+          "values": {
+            "mode": 1.0,
+            "time": 0.328125,
+            "high_cut": 0.875,
+            "low_cut": 0.25,
+            "volume": 0.4921875
+          }
+        }
+      ],
+      "placements": [],
+      "lanes": []
+    },
+    {
+      "id": "t8",
+      "name": "Track 8",
+      "volume": 1.0,
+      "mute": false,
+      "receives": [
+        {
+          "from": "t1",
+          "channel": "main",
+          "send": 2,
+          "volume": 1.0
+        },
+        {
+          "from": "t2",
+          "channel": "main",
+          "send": 2,
+          "volume": 1.0
+        },
+        {
+          "from": "t3",
+          "channel": "main",
+          "send": 2,
+          "volume": 1.0
+        },
+        {
+          "from": "t4",
+          "channel": "main",
+          "send": 2,
+          "volume": 1.0
+        },
+        {
+          "from": "t5",
+          "channel": "main",
+          "send": 2,
+          "volume": 1.0
+        },
+        {
+          "from": "t6",
+          "channel": "main",
+          "send": 2,
+          "volume": 1.0
+        }
+      ],
+      "devices": [
+        {
+          "kind": 68,
+          "values": {
+            "mode": 1.0,
+            "volume": 0.78125,
+            "feedback": 0.625,
+            "delay_l": 0.484375,
+            "delay_r": 0.515625,
+            "mod_rate": 0.0,
+            "mod_depth": 0.0,
+            "mod_phase": 0.5
+          }
+        }
+      ],
+      "placements": [],
+      "lanes": []
+    }
+  ],
+  "master": {
+    "id": "master",
+    "name": "Master",
+    "volume": 1.0,
+    "mute": false,
+    "receives": [
+      {
+        "from": "t1",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "t2",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "t3",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "t4",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "t5",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "t6",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "t7",
+        "channel": "main",
+        "volume": 1.0
+      },
+      {
+        "from": "t8",
+        "channel": "main",
+        "volume": 1.0
+      }
+    ],
+    "devices": [
+      {
+        "kind": 67,
+        "values": {
+          "mode": 1.0,
+          "low_cut": 0.0,
+          "high_cut": 0.9453125,
+          "dc_filter": 1.0
+        }
+      },
+      {
+        "kind": 72,
+        "values": {
+          "mode": 1.0,
+          "detect": 0.0,
+          "couple": 0.0,
+          "auto_gain": 0.0078125,
+          "lookahead": 0.015625,
+          "threshold": 0.703125,
+          "ratio": 0.25,
+          "attack": 0.15625,
+          "release": 0.5,
+          "out_gain": 0.5
+        }
+      }
+    ],
+    "placements": [],
+    "lanes": []
+  }
+}
