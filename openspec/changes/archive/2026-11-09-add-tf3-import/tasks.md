@@ -44,5 +44,5 @@
 
 ## Workflow follow-up
 
-- [ ] Ask the user about the editor-only modules if the survey (1.2) finds Transplant using them (bring the capture comparison of both modes), and about adding the 128 presets to the DAW library
-- [ ] Follow-up change: Pandora (Revision 2011) uses an older Tunefish 3: 21 instruments of 100 bytes stored instrument-major (the first 98 match parameters 0–97 of the known list, then one value and the instrument index; no effect slots) and a different song encoding (1-byte name length; patterns not in the 5-byte cell layout). Needs that engine's parameter list and effects reverse-engineered from the executable; its capture (D2a) is the acceptance reference
+- [x] Ask the user about the editor-only modules if the survey (1.2) finds Transplant using them (bring the capture comparison of both modes), and about adding the 128 presets to the DAW library
+- Follow-up change (not part of this one): Pandora (Revision 2011) uses an older Tunefish 3: 21 instruments of 100 bytes stored instrument-major (the first 98 match parameters 0–97 of the known list, then one value and the instrument index; no effect slots) and a different song encoding (1-byte name length; patterns not in the 5-byte cell layout). Needs that engine's parameter list and effects reverse-engineered from the executable; its capture (D2a) is the acceptance reference
