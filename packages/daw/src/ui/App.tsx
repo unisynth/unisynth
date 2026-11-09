@@ -36,7 +36,7 @@ import { initDevice, loadInto, renderAll, renderDevice } from "./app/device.ts";
 import { aboutText, devLabel, headerClick, headerKey, headerMenu, initTracks, renameTo, renameTrack, selectTrack, setVolume, toggleArm, toggleMuteSolo, updateArmed } from "./app/tracks.ts";
 import { bounceSong, dirtyUpd, exportSong, importFile, initFiles, markClean, newSong, openSong, save } from "./app/files.ts";
 import { attachRoll, centreRoll, detachRoll, drawRoll, fitRoll, followRoll, genRoll, initRoll, inRoll, moveRollPh, rollLoopChanged, zoomRoll } from "./app/roll.ts";
-import { initEngine, livePush, onBuffer, onOpenFilters, seek, setPlay, songOf, stopPressed } from "./app/engine.ts";
+import { audible, initEngine, livePush, onBuffer, onOpenFilters, seek, setPlay, songOf, stopPressed } from "./app/engine.ts";
 import { allNotesOff, auditionEntry, connectMidi, noteOff, noteOn, setBend, setWheel, toggleKb } from "./app/audition.ts";
 import { mixerActions } from "./app/mixer.ts";
 import { initTabs, showTab } from "./app/tabs.ts";
@@ -81,7 +81,7 @@ export function start(daw: Daw): void {
   const rowActions: WithTrack<TrackActions, Track | ClipTrack> = {
     devLabel: t => devLabel(t), about: t => t.about ? aboutText(t.about) : "", rename: (t, v) => renameTo(t, v),
     pattern: (t, name) => raw(t).pats?.[name] ?? null, autoLane: (t, ln) => addLane(t, ln as never), addAutoLane: t => addAutoLane(t),
-    mute: t => toggleMuteSolo(t, false), solo: t => toggleMuteSolo(t, true), arm: t => toggleArm(t), volume: (t, v, done) => setVolume(t, v, done),
+    mute: t => toggleMuteSolo(t, false), solo: t => toggleMuteSolo(t, true), audible: t => audible(t), arm: t => toggleArm(t), volume: (t, v, done) => setVolume(t, v, done),
     click: (t, e) => headerClick(t, e), key: (t, e, h) => headerKey(t, e, h), menu: (t, e) => headerMenu(t, e), startRename: t => renameTrack(t),
   };
   mountTracks(hdrs, lanes, lw, tracks as unknown as Track[], rowActions as unknown as TrackActions);

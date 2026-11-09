@@ -24,6 +24,8 @@ export interface TrackActions {
   addAutoLane(t: Track): void;
   mute(t: Track): void;
   solo(t: Track): void;
+  /** Heard in live playback (not muted, not silenced by another track's solo): its lane greys out otherwise. */
+  audible(t: Track): boolean;
   arm(t: Track): void;
   /** Live while the fader moves; `done` at the end of the gesture (one undo step). */
   volume(t: Track, db: number, done: boolean): void;
@@ -179,7 +181,7 @@ function LaneRow(p: { r: Row; a: TrackActions }): JSX.Element {
   const reg = (el: HTMLDivElement) => { laneEl.set(t.id, el); onCleanup(() => { if (laneEl.get(t.id) === el) laneEl.delete(t.id); }); };
   return <>
     <div ref={reg} class="lane track" classList={{ sel: selectedId() === t.id, buslane: bus }} data-track={t.id} aria-label={`${t.name} clips`}
-      style={{ opacity: t.mute ? 0.45 : undefined }}>
+      style={{ opacity: p.a.audible(t) ? undefined : 0.45 }}>
       {bus ? <span class="busnote">bus track · no clips · audio from sends</span> : null}
       <For each={clips()}>{(c) => <Clip t={t} c={c} pattern={p.a.pattern} later={later} />}</For>
     </div>

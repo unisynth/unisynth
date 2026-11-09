@@ -350,6 +350,17 @@ test("header controls drive the mixer strip (store): fader keys are one undo ste
   await page.locator("#tab-dev").click();
 }, 30_000);
 
+test("solo greys the lanes it silences, like mute greys its own; unsolo restores", async () => {
+  await open();
+  const op = (id: string) => page.locator(`.lane.track[data-track="${id}"]`).evaluate((el) => (el as HTMLElement).style.opacity);
+  await hdr("bass").locator('[aria-label="Solo Bass"]').click();
+  expect(await op("bass")).toBe("");
+  expect(await op("kick")).toBe("0.45");
+  expect(await op("lead")).toBe("0.45");
+  await hdr("bass").locator('[aria-label="Solo Bass"]').click();
+  expect(await op("kick")).toBe("");
+}, 30_000);
+
 // spec synth-daw "Off-screen arrangement content" (daw-solid-ts 5.2): windowed rows
 test("50 tracks: fewer than 50 lanes exist and the scroll height covers all 50 (spec: Large song)", async () => {
   await open("big");

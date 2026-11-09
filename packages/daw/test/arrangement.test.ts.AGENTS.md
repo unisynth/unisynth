@@ -15,6 +15,7 @@ Pull-only (not auto-injected).
   - follow: while playing, the view pages when the playhead reaches the right edge; a hand scroll pauses follow
   - 50 tracks: every header and lane in order; Arrow Down walks to the last track, which scrolls into view
   - header controls drive the mixer strip (store): fader keys are one undo step each, mute is one
+  - solo greys the lanes it silences, like mute greys its own; unsolo restores
   - 50 tracks: fewer than 50 lanes exist and the scroll height covers all 50 (spec: Large song)
   - 50 tracks: Arrow Down past the view scrolls, and the next header exists, has focus and is selected (spec: Keyboard to an off-screen track)
   - 50 tracks: no critical or serious accessibility violations (axe)
