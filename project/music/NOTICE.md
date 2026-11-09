@@ -63,13 +63,15 @@ The DAW's library (published with the DAW as `site/daw/data/library.json`) also 
 Enigma Studio 3's Tunefish 3 bank (`binary/tf3programs`), converted to unified-synth devices. No licence is stated
 for them either: they belong to Brain Control and are published on the same terms, pending permission.
 
-`released/v2/` holds 358 Farbrausch V2 songs, every `.v2m` of the local corpus that parses, once per checksum, written
+`released/v2/` holds 442 Farbrausch V2 songs, every `.v2m` of the local corpus that parses, once per checksum, written
 by `tools/v2-extract/make-demos.py`:
 - 13 carved by v2redux from farbrausch / .theprodukkt release executables
 - 14 from farbrausch's fr_public repository, including the two version-6 acceptance songs
 - 320 from the V2M collection of jgilje/v2m-player, which points to modland
 - 10 by Teo from modland's own V2 directory (`pub/modules/V2/Teo/`, `teo-*.song.json`), published with his permission
 - 1 carved by v2redux from Teo's release executable Ivory (Revision 2015, after `upx -d`), `teo-ivory.song.json`, published with his permission
+- 84 more from modland's own V2 directory that the v2m-player collection lacks (by checksum; 6 other versions of
+  songs already here and a second copy of one file are left out); a `coop-Other` folder credits both authors
 
 Credits come only from where each file was found: the demo for carved songs, the repository path, or modland's
 `Author--title` file name. Composers the source does not name are not guessed (7 songs say "not named"). 18 songs are

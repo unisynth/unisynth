@@ -12,6 +12,7 @@ files from modland's own V2 directory). Authors in PERMITTED gave permission; th
 Composers that the source does not name are not guessed. Uses target/release/{synth-convert,song}.
 """
 import json, os, re, subprocess, sys, tempfile
+from urllib.parse import quote
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SONGS = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("V2_SONGS", os.path.expanduser("~/Downloads/64k-tools/synth-lab/v2songs"))
@@ -91,10 +92,14 @@ def credits(file):
     if kind == "release":
         return RELEASES[stem]
     if kind == "modland_ftp":
-        a, t = stem.split("--", 1)
-        orig = t.replace("_", " ") + ".v2m"
-        url = f"{MODLAND_FTP}/{a}/{orig.replace(' ', '%20')}"
-        return t.replace("_", " "), a.replace("_", " "), url, f"modland's V2 collection (`pub/modules/V2/{a}/{orig}`)"
+        # `Author--title` or `Author--coop-Other--title` = modland's `Author/[coop-Other/]title.v2m`, spaces as `_`
+        parts = [p if p == "_unknown" else p.replace("_", " ") for p in stem.split("--")]
+        path = "/".join(parts) + ".v2m"
+        url = f"{MODLAND_FTP}/{quote(path, safe="/()'!,")}"
+        author = None if parts[0] == "_unknown" else parts[0]
+        if len(parts) == 3 and parts[1].startswith("coop-"):
+            author = f"{author} and {parts[1][5:]}"
+        return parts[-1], author, url, f"modland's V2 collection (`pub/modules/V2/{path}`)"
     # modland: the v2m-player collection; modland names files `Author--title`
     orig = next((f for f in (stem + ".v2mz", name) if os.path.exists(os.path.join(PLAYER, f))), name)
     url = f"https://github.com/jgilje/v2m-player/blob/master/v2m/{orig}"
