@@ -257,6 +257,17 @@ export function page(entries: Entry[], bankUrl = "../daw/data/bank.dls", wasmUrl
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Songs · unisynth</title>
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="unisynth">
+<meta property="og:title" content="Songs · unisynth">
+<meta property="og:description" content="Listen to demoscene music played by unisynth: songs from 64k intros and open-source synths, converted to one soft synth.">
+<meta property="og:url" content="https://unisynth.exceed.hu/songs/">
+<meta property="og:image" content="https://unisynth.exceed.hu/social.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="unisynth by robson / Exceed: one soft synth for a 64k intro, with the browser DAW">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://unisynth.exceed.hu/social.png">
 <link rel="icon" type="image/svg+xml" href="${ICON}">
 <meta name="theme-color" content="#0e1013">
 <style>

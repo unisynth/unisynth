@@ -1,0 +1,75 @@
+<!doctype html>
+<!-- Social preview card (1280×640: GitHub repo social preview, og:image / twitter:image). Same tokens as site/index.html.
+     Render: tools/social-card/render.sh → site/social.png -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+:root {
+  --bg: #0e1013; --bg-2: #121417; --panel: #1b1e23; --line: #2c3139;
+  --fg: #e4e8ee; --dim: #8a94a3; --faint: #5f6875;
+  --osc: #f0a04b; --filt: #3fc1c9; --env: #6fd08c; --lfo: #a98bf5; --mod: #ee7aa8;
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; width: 1280px; height: 640px; overflow: hidden; background: var(--bg); color: var(--fg); font-family: var(--sans); }
+.card { position: relative; width: 1280px; height: 640px; isolation: isolate; }
+/* the DAW, tilted in from the right, fading into the background */
+.shot { position: absolute; right: -120px; top: 70px; width: 780px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+  transform: perspective(1400px) rotateY(-16deg) rotateX(4deg); transform-origin: right center; box-shadow: 0 30px 80px #000c; z-index: -2; }
+.shot img { display: block; width: 100%; }
+.card::before { content: ""; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(90deg, var(--bg) 0 38%, #0e1013e0 52%, #0e101333 78%, #0e101300 100%),
+              linear-gradient(0deg, var(--bg) 0, #0e101300 30%); }
+/* phosphor wave across the bottom, like the hero */
+svg.wave { position: absolute; left: 0; bottom: 118px; width: 1280px; height: 120px; z-index: -1; opacity: .55; }
+.txt { position: absolute; left: 72px; top: 64px; width: 640px; }
+.presents { display: inline-block; font: 17px var(--mono); color: var(--dim); background: #0e1013d9; border: 1px solid var(--line); border-radius: 6px; padding: 4px 12px; margin: 0 0 26px; }
+.presents b { color: var(--fg); font-weight: 600; }
+.word { font: 800 150px/.82 var(--mono); letter-spacing: -.07em; margin: 0 0 34px -6px; white-space: nowrap; }
+.word .s { -webkit-text-stroke: 3px var(--fg); color: transparent; }
+.lede { font-size: 27px; line-height: 1.42; margin: 0; max-width: 31ch; }
+.o { color: var(--osc); } .f { color: var(--filt); } .m { color: var(--mod); }
+.strip { position: absolute; left: 0; right: 0; bottom: 0; height: 110px; display: grid; grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid var(--line); background: var(--bg); }
+.ch { padding: 20px 0 0 72px; border-right: 1px solid var(--line); }
+.ch:last-child { border-right: 0; }
+.ch .v { font: 700 34px var(--mono); letter-spacing: -.02em; }
+.ch .l { font: 15px var(--mono); color: var(--dim); margin-top: 4px; }
+.ch:nth-child(1) .v { color: var(--osc); } .ch:nth-child(2) .v { color: var(--filt); } .ch:nth-child(3) .v { color: var(--env); } .ch:nth-child(4) .v { color: var(--lfo); }
+.url { position: absolute; right: 48px; top: 40px; font: 18px var(--mono); color: var(--dim); background: #0e1013cc; padding: 4px 10px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="shot"><img src="../../site/media/daw.jpg" alt=""></div>
+  <svg class="wave" viewBox="0 0 1280 120" preserveAspectRatio="none" aria-hidden="true">
+    <defs><linearGradient id="w" x1="0" x2="1"><stop offset=".05" stop-color="#f0a04b"/><stop offset=".4" stop-color="#3fc1c9"/><stop offset=".7" stop-color="#3fc1c9"/><stop offset=".95" stop-color="#6fd08c"/></linearGradient></defs>
+    <path id="p" fill="none" stroke="url(#w)" stroke-width="3" stroke-linecap="round"/>
+  </svg>
+  <div class="url">unisynth.exceed.hu</div>
+  <div class="txt">
+    <p class="presents"><b>robson</b> / Exceed presents</p>
+    <h1 class="word"><span class="u">uni</span><span class="s">synth</span></h1>
+    <p class="lede">One soft synth for a 64k intro. Four synth families from <span class="o">two decades</span> of the demoscene, rebuilt as settings of the <span class="f">same voice</span>, checked <span class="m">until they agree</span>.</p>
+  </div>
+  <div class="strip">
+    <div class="ch"><div class="v">13,312 B</div><div class="l">engine + song, packed</div></div>
+    <div class="ch"><div class="v">43/43</div><div class="l">legacy parity tests</div></div>
+    <div class="ch"><div class="v">9.6×</div><div class="l">real time, one thread</div></div>
+    <div class="ch"><div class="v">480</div><div class="l">songs in the browser DAW</div></div>
+  </div>
+</div>
+<script>
+// phase-mod wave: a carrier bent by a slower modulator, fading in amplitude toward the edges
+let d = "";
+for (let x = 0; x <= 1280; x += 4) {
+  const t = x / 1280, env = Math.sin(Math.PI * t) ** 0.7;
+  const y = 60 + 46 * env * Math.sin(2 * Math.PI * 7 * t + 2.2 * Math.sin(2 * Math.PI * 3 * t));
+  d += (x ? "L" : "M") + x + " " + y.toFixed(1);
+}
+document.getElementById("p").setAttribute("d", d);
+</script>
+</body>
+</html>
