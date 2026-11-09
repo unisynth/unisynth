@@ -2,9 +2,9 @@
   "format": "song/2",
   "meta": {
     "title": "fr-08 .the .product",
-    "author": "farbrausch",
-    "description": "fr-08 .the .product by farbrausch, a Farbrausch V2 song (.v2m format version 0) taken from the release executable of fr-08 .the .product, carved by v2redux at its own format version (`corpus/embedded/fr08.v2m`). 120 BPM, 11:01, 20 tracks. This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. Against the v2redux reference render it differs by -0.13 dB loudness and at most -0.45 @ 63 Hz in any octave band (tools/unisynth-parity, A/B listening approved 2026-10-28). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
-    "copyright": "© farbrausch",
+    "author": "kb / farbrausch",
+    "description": "fr-08 .the .product by kb / farbrausch, a Farbrausch V2 song (.v2m format version 0) taken from the release executable of fr-08 .the .product, carved by v2redux at its own format version (`corpus/embedded/fr08.v2m`). Music credited to kb on Demozoo (fr-08: .the .product, 2000, production 10103). 120 BPM, 11:01, 20 tracks. This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. Against the v2redux reference render it differs by -0.13 dB loudness and at most -0.45 @ 63 Hz in any octave band (tools/unisynth-parity, A/B listening approved 2026-10-28). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
+    "copyright": "© kb / farbrausch",
     "url": "https://github.com/spheenik/v2redux/tree/master/corpus/embedded",
     "adapted_from": "fr-08 .the .product (V2M, format version 0), https://github.com/spheenik/v2redux/tree/master/corpus/embedded"
   },

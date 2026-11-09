@@ -2,9 +2,9 @@
   "format": "song/2",
   "meta": {
     "title": "ouverture",
-    "author": "V2mPlayer",
-    "description": "ouverture by V2mPlayer, a Farbrausch V2 song (.v2m format version 5) taken from the V2M collection of jgilje/v2m-player (`v2m/V2mPlayer--ouverture.v2mz`; its README points to modland). 120 BPM, 2:55, 7 tracks. The V2 file's last tick is at 202:57; the song here ends 4 s after the last note (a note held more than 16 s past the last note-on is cut there). This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. This song was not parity-checked on its own; the V2 import passes on the 18 songs that were (within 0.9 dB loudness and 1.8 dB per octave band of the v2redux reference). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
-    "copyright": "© V2mPlayer",
+    "author": "kb / farbrausch",
+    "description": "ouverture by kb / farbrausch, a Farbrausch V2 song (.v2m format version 5) taken from the V2M collection of jgilje/v2m-player (`v2m/V2mPlayer--ouverture.v2mz`; its README points to modland). Music credited to kb on Demozoo (Ouverture, 64K executable music, 2004). 120 BPM, 2:55, 7 tracks. The V2 file's last tick is at 202:57; the song here ends 4 s after the last note (a note held more than 16 s past the last note-on is cut there). This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. This song was not parity-checked on its own; the V2 import passes on the 18 songs that were (within 0.9 dB loudness and 1.8 dB per octave band of the v2redux reference). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
+    "copyright": "© kb / farbrausch",
     "url": "https://github.com/jgilje/v2m-player/blob/master/v2m/V2mPlayer--ouverture.v2mz",
     "adapted_from": "ouverture (V2M, format version 5), https://github.com/jgilje/v2m-player/blob/master/v2m/V2mPlayer--ouverture.v2mz"
   },

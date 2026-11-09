@@ -2,9 +2,9 @@
   "format": "song/2",
   "meta": {
     "title": "0test",
-    "author": "not named",
-    "description": "0test, a Farbrausch V2 song (.v2m format version 5) taken from the V2M collection of jgilje/v2m-player (`v2m/0test.v2m`; its README points to modland). The same file is also at modland/Dafunk--introtune.v2m in the local corpus. The source does not name the author. 120 BPM, 4:05, 16 tracks. This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. This song was not parity-checked on its own; the V2 import passes on the 18 songs that were (within 0.9 dB loudness and 1.8 dB per octave band of the v2redux reference). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
-    "copyright": "© its authors",
+    "author": "Dafunk",
+    "description": "0test by Dafunk, a Farbrausch V2 song (.v2m format version 5) taken from the V2M collection of jgilje/v2m-player (`v2m/0test.v2m`; its README points to modland). The same file is also at modland/Dafunk--introtune.v2m in the local corpus. Music credited to Dafunk in the file name of the same file elsewhere in the collection (Dafunk--introtune.v2m). 120 BPM, 4:05, 16 tracks. This is an adapted version, not the original recording: converted by `synth-convert v2m` to the unified synth (instrument kind 64) and imported with `song import`. This song was not parity-checked on its own; the V2 import passes on the 18 songs that were (within 0.9 dB loudness and 1.8 dB per octave band of the v2redux reference). No licence is stated: the music belongs to its authors. It is published here as an adapted reference copy while its authors are asked for permission, and is removed at any author's request.",
+    "copyright": "© Dafunk",
     "url": "https://github.com/jgilje/v2m-player/blob/master/v2m/0test.v2m",
     "adapted_from": "0test (V2M, format version 5), https://github.com/jgilje/v2m-player/blob/master/v2m/0test.v2m"
   },

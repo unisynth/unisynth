@@ -2,7 +2,7 @@
   "format": "song/2",
   "meta": {
     "title": "Engage",
-    "author": "logicoma (the composer is not named in the repository)",
+    "author": "H0ffman and Wobble / logicoma (credited on Demozoo and pouet for the music of logicoma's intro Engage, 2017)",
     "description": "Engage, an Ableton Live project in the WaveSabre converter test suite, named after logicoma's 2017 intro Engage (http://www.pouet.net/prod.php?which=69658), which the WaveSabre README lists as made with WaveSabre. This is an adapted version, not the original recording: The project was converted to a WaveSabre song (the `synth-mix` layout), then by `synth-convert ws` to the unified synth (instrument kind 64, effects kinds 65-73), then imported with `song import` (lanes cut into 2-, 4- or 8-bar patterns with variants, notes rounded to 960 ticks per beat; track names from the original project where it has them). Instruments and effects are the unified equivalents of the WaveSabre devices and sound close to, not identical with, the original (parity target: 1 dB loudness, 3 dB per octave band).",
     "copyright": "Copyright 2012-2021 WaveSabre Team",
     "license": "MIT",
