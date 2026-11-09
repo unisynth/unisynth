@@ -39,3 +39,9 @@ __pycache__/
 
 # Icon mockup screenshots
 mockups/icon/shots/
+
+# Composer contact research (personal data, never commit)
+project/music/contacts.private.md
+
+# pi harness context diagnostics
+context-budget.json
