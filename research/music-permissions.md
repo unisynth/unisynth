@@ -2,7 +2,8 @@
 
 The songs in `project/music/released/` (no licence; see `project/music/NOTICE.md`) are published while their authors
 are asked. This page holds the request template and every composer to ask, generated from each song's `meta.author`
-(2026-11-09). Teo already gave permission (his songs are not listed) and helps reach the other musicians.
+(2026-11-09). Teo already gave permission (his songs are not listed) and helps reach the other musicians. Agoston,
+Teo and Vincenzo's joint alias, gave permission for its two songs (not listed either).
 
 ## Request template
 
@@ -32,12 +33,11 @@ Thanks for the music, and for making it in a 64k synth in the first place.
 robson / Exceed
 ```
 
-## Composers named (91 entries, 334 songs)
+## Composers named (90 entries, 332 songs)
 
 Grouped by the credited nick; co-credits stay together. Collection = which engine the song came from.
 
 - 505 — 5 song(s), V2: banjo man, geekcamp, metro, no exit, that way
-- Agoston — 2 song(s), V2: ag04 - les'ters, female
 - Andr00 — 1 song(s), V2: diatom
 - Bionic — 1 song(s), V2: muppets
 - Chip (ES) — 3 song(s), V2: invasors from the planet disco, no tv, saga monster system
@@ -160,4 +160,5 @@ collection (via modland), whose musicians are rarely named.
 | Who | Asked | Answer |
 |---|---|---|
 | Teo | 2026-11-09 | yes, all his music (`NOTICE.md` "Published with permission") |
+| Agoston (Teo and Vincenzo) | 2026-11-09 | yes, both songs (female, ag04 - les'ters); Vincenzo's Nightform still to ask |
 | Brain Control (Skyrunner, mad, payne) | | |

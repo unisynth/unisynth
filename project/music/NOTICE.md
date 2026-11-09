@@ -77,6 +77,7 @@ by `tools/v2-extract/make-demos.py`:
 - 320 from the V2M collection of jgilje/v2m-player, which points to modland
 - 10 by Teo from modland's own V2 directory (`pub/modules/V2/Teo/`, `teo-*.song.json`), published with his permission
 - 1 carved by v2redux from Teo's release executable Ivory (Revision 2015, after `upx -d`), `teo-ivory.song.json`, published with his permission
+- 2 by Agoston (Teo and Vincenzo's joint alias) among modland's V2 songs below, `agoston-*.song.json`, published with their permission
 - 84 more from modland's own V2 directory that the v2m-player collection lacks (by checksum; 6 other versions of
   songs already here and a second copy of one file are left out); a `coop-Other` folder credits both authors
 
@@ -95,6 +96,11 @@ Teo gave permission on 2026-11-09 to publish his music here as adapted versions 
 songs `v2/teo-*.song.json` (damptraktor, downdraft, f14a, himiko, k0rnmeister, spark, speedway, sunbeam,
 tranceformator (bozon), unlzx from modland; Ivory, Revision 2015 executable music, carved from its release). The music belongs to Teo; each file's `meta` says so, and a song is removed at his
 request.
+
+Agoston is the joint alias of Teo and Vincenzo. They gave permission on 2026-11-09 for Agoston's music: the two V2
+songs `v2/agoston-female.song.json` (female) and `v2/agoston-ag04-les-ters.song.json` (ag04 - les'ters, from modland's
+`pub/modules/V2/Agoston/`). The music belongs to them; a song is removed at their request. Vincenzo's own Nightform
+(`nightform`, Digital Dynamite and Lethargy, 2026) is not covered and stays pending.
 
 ## MIT (WaveSabre)
 

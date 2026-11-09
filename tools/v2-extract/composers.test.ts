@@ -33,3 +33,17 @@ test("songs without a credit say so", () => {
     }
   }
 });
+
+test("Agoston (Teo and Vincenzo's joint alias) is published with permission; every other song states its permission or the licence note", () => {
+  for (const slug of ["agoston-female", "agoston-ag04-les-ters"]) {
+    const m = meta(slug);
+    expect(m.author, slug).toBe("Agoston");
+    expect(m.description, slug).toContain("Agoston is the joint alias of Teo and Vincenzo");
+    expect(m.description, slug).toContain("gave permission");
+    expect(m.description, slug).not.toContain("while its authors are asked for permission");
+  }
+  for (const f of readdirSync(DIR)) {
+    const d: string = JSON.parse(readFileSync(DIR + f, "utf8")).meta.description;
+    expect(/gave permission \(\d{4}-\d\d-\d\d\)/.test(d) !== d.includes("while its authors are asked for permission"), f).toBe(true);
+  }
+});

@@ -65,6 +65,8 @@ LICENCE = ("No licence is stated: the music belongs to its authors. It is publis
 PERMITTED = {
     "Teo": ("Teo gave permission (2026-11-09) to publish his music here as adapted versions; the music belongs to "
             "him and is removed at his request."),
+    "Agoston": ("Agoston is the joint alias of Teo and Vincenzo; they gave permission (2026-11-09) to publish Agoston's "
+                "music here as adapted versions; the music belongs to them and is removed at their request."),
 }
 # authors whose songs are not published here (keyed by the song's author credit): removed on request
 WITHDRAWN = {"Cyborg Jeff"}

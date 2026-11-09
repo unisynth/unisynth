@@ -14,7 +14,7 @@ Pull-only (not auto-injected). V2 (Farbrausch) corpus, reference renders, oracle
 - `v2.test.ts`: `features` names osc/ring/parallel filter/LFO env/speech; acceptance checksums (skipped without v2redux).
 
 ## Contracts
-- Songs never committed from here except via `make-demos.py` output (published pending permission).
+- Songs never committed from here except via `make-demos.py` output (published pending permission; `PERMITTED` authors (Teo; Agoston = Teo and Vincenzo) get their permission sentence instead of `LICENCE`, `WITHDRAWN` authors are left out). `composers.test.ts`: `composers.json` credits match the songs; every song states either a permission or the licence note.
 
 ## History
 - See change: add-v2-import, unify-v2-algorithms.
