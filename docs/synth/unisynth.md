@@ -1662,7 +1662,7 @@ closed (noise width and the fine window: it now reads 0.00 dB). The current figu
 
 Released songs (`project/music/released/`, no licence; committed while the authors are asked for permission, see
 `project/music/NOTICE.md`) are written by
-`tools/ws-extract/make-demos.py` (25 WaveSabre intros), `tools/tf-extract/make-demos.py` (Skyrunner's Tunefish 4
+`tools/ws-extract/make-demos.py` (26 WaveSabre intros), `tools/tf-extract/make-demos.py` (Skyrunner's Tunefish 4
 soundtracks of Brain Control's Aten Hotep and Naumachia Insianis, read from the running intros) and `research/tbl-mini-cauldron/tools/make_demos.py` (TBL's
 three clocked soundtracks: Jizz "Smokeout", Stash "over2" and "bluish" by Probe, as `tbl-jizz-smokeout`,
 `tbl-stash-over2`, `tbl-stash-bluish`; `synth-convert xm … --names` gives the track names, `<sample> (record r,

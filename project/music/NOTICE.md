@@ -25,7 +25,7 @@ with WaveSabre.
 
 ## Released songs (`released/`, pending the authors' permission)
 
-`released/` holds 25 WaveSabre songs taken from released 64K intros and executable music (2018-2026; Robo Outer Space Epos uses QM's fork device Screwdriver, played as the distortion's curve mode), extracted with
+`released/` holds 26 WaveSabre songs taken from released 64K intros and executable music (2018-2026; Robo Outer Space Epos uses QM's fork device Screwdriver, played as the distortion's curve mode), extracted with
 `tools/ws-extract` and written by `tools/ws-extract/make-demos.py`. **No licence is stated for any of them: the music
 belongs to its authors.** They are committed and published as adapted reference copies while each production's
 authors are sent the link and asked for permission; a song is removed at any author's request.
@@ -33,7 +33,7 @@ Each file's `meta` names the production, its authors and music credit (Demozoo),
 or Demozoo link, and says that it is an adapted version (converted to the unified synth, within 0.5 dB loudness and
 ~1 dB per octave band of the original engine). Track names are derived from instrument and notes, not the authors'.
 The full list and the productions that could not be extracted are in `research/wavesabre-intros.md`.
-Exception: Teo gave permission (2026-11-09) for his music, so `hydra`, `lint-c` and `ouefvoke` are published with
+Exception: Teo gave permission (2026-11-09) for his music, so `hydra`, `lint-c`, `ouefvoke` and `invot-teih-martx` are published with
 his permission (see below).
 
 It also holds three songs of The Black Lotus's 1997 64K intros, music by Probe: "Smokeout" (Jizz, 1st at Wired 1997)
@@ -83,7 +83,8 @@ adapted version. `modland/KB--fr-013_flybye-loader.v2m` does not parse and is no
 
 Teo gave permission on 2026-11-09 to publish his music here as adapted versions and pointed to his V2 songs on modland
 (<https://ftpmirror.infania.net/sites/modland/pub/modules/V2/Teo/>). This covers the WaveSabre songs `hydra`
-(Hydra, 2020), `lint-c` (Lint:C by Digital Dynamite, 2019) and `ouefvoke` (Ouefvoke by Rebels, 2023), and the eleven V2
+(Hydra, 2020), `lint-c` (Lint:C by Digital Dynamite, 2019), `ouefvoke` (Ouefvoke by Rebels, 2023) and
+`invot-teih-martx` (invot teih martx by Rebels, 2022), and the eleven V2
 songs `v2/teo-*.song.json` (damptraktor, downdraft, f14a, himiko, k0rnmeister, spark, speedway, sunbeam,
 tranceformator (bozon), unlzx from modland; Ivory, Revision 2015 executable music, carved from its release). The music belongs to Teo; each file's `meta` says so, and a song is removed at his
 request.

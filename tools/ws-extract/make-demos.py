@@ -43,6 +43,7 @@ SONGS = [
     ("miami-night-cruise", "292348-0", (-0.03, 0.83), "32K executable music that placed 6th in the executable music competition at Revision Online 2021."),
     ("multiplicity", "292347-0", (0.05, 0.21), "32K executable music that placed 4th in the executable music competition at Revision Online 2021."),
     ("astrophage", "304945-0", (-0.08, 0.81), "Logicoma's 64K invitation intro (January 2022), released outside a competition."),
+    ("invot-teih-martx", "315543-0", (0.17, 0.60), "A 64K intro that won the Modern Demo competition at Demosplash 2022."),
     ("try-stopping", "322403-1", (-0.03, 0.83), "32K executable music that placed 6th in the executable music competition at Revision 2023. (The WaveSabre test suite has an earlier project file of it; that test song is eladamri.song.json.)"),
     ("ouefvoke", "326949-1", (-0.47, 0.68), "A 64K intro that shared 1st place in the PC 64K intro competition at Evoke 2023."),
     ("skranglefant", "342236-0", (-0.15, 0.91), "32K executable music that placed 3rd in the executable music competition at Revision 2024."),

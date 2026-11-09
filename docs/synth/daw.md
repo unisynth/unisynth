@@ -258,7 +258,7 @@ headers (threaded bounce works) and proxies the rest to `DAW_API`. Keep Solid st
 modules: a hot-reloaded module re-runs, and a store defined next to components would start empty. Type-check with
 `npx tsc -p packages/daw/tsconfig.json`; UI cost with `ROOT=<repo> SONG=<song> bun packages/daw/bench/ui-mixer.ts`.
 
-The song list also shows `project/music/released/`: 25 WaveSabre songs from released intros and executable music
+The song list also shows `project/music/released/`: 26 WaveSabre songs from released intros and executable music
 (and, in `released/v2/`, 442 Farbrausch V2 songs from `tools/v2-extract/make-demos.py`, eleven of them by Teo with his permission),
 two Tunefish 4 songs of Brain Control's intros (Aten Hotep, Naumachia Insianis) from `tools/tf-extract/make-demos.py`,
 built locally by `python3 tools/ws-extract/make-demos.py` (no licence; committed while the authors are asked for permission, see `project/music/NOTICE.md`).
