@@ -32,7 +32,7 @@ Thanks for the music, and for making it in a 64k synth in the first place.
 robson / Exceed
 ```
 
-## Composers named (92 entries, 338 songs)
+## Composers named (91 entries, 334 songs)
 
 Grouped by the credited nick; co-credits stay together. Collection = which engine the song came from.
 
@@ -42,7 +42,6 @@ Grouped by the credited nick; co-credits stay together. Collection = which engin
 - Bionic — 1 song(s), V2: muppets
 - Chip (ES) — 3 song(s), V2: invasors from the planet disco, no tv, saga monster system
 - CrazyMan — 1 song(s), V2: a - bounce (additional music)
-- Cyborg Jeff — 4 song(s), V2: a - bounce (main music), b - incubation, e - departure, f - felix's workshop
 - Dafunk — 16 song(s), V2: 0test, angel and devil-orig by josss, breeze, coop-Quickyman--blindfolded, coop-Quickyman--deepspace, coop-Quickyman--hardscratchrebound screamin … (+10 more)
 - Dalezy — 7 song(s), V2: 12 dolls for a december moon, arkham 1798, blackout in mordor, friday the 6th, malewitsch, monolith … (+1 more)
 - Darkman007 — 5 song(s), V2: atmta, dejavu, first, sphr, synthezation

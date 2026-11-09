@@ -4,7 +4,7 @@ import { items, patchSong } from "./songs-drift.ts";
 test("every tracked song and patch is an item, with unique slugs", () => {
   const all = items();
   expect(all.filter((i) => i.file.endsWith(".patch.json")).length).toBe(2);
-  expect(all.filter((i) => i.file.startsWith("project/music/released/v2/")).length).toBe(442);
+  expect(all.filter((i) => i.file.startsWith("project/music/released/v2/")).length).toBe(438);
   expect(all.filter((i) => i.slug.startsWith("template-")).length).toBe(2);
   expect(new Set(all.map((i) => i.slug)).size).toBe(all.length);
 });

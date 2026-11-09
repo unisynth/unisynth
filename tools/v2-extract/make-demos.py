@@ -66,6 +66,8 @@ PERMITTED = {
     "Teo": ("Teo gave permission (2026-11-09) to publish his music here as adapted versions; the music belongs to "
             "him and is removed at his request."),
 }
+# authors whose songs are not published here (keyed by the song's author credit): removed on request
+WITHDRAWN = {"Cyborg Jeff"}
 
 
 def slug(s):
@@ -151,6 +153,10 @@ def main():
         credit = COMPOSERS.get(stem if r["file"].startswith("acceptance/") else r["file"])
         if credit:
             author = credit["author"]
+        if author in WITHDRAWN:
+            del seen[r["sha256"]]
+            skipped.append(f"{r['file']}: withdrawn ({author})")
+            continue
         base = {"acceptance": "v2-" + stem, "fr_public": stem.split("__")[-1]}.get(r["file"].split("/")[0], stem)
         s = slug(base)
         while s in slugs:
