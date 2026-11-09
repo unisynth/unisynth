@@ -6,6 +6,7 @@ Surveys, specs and standalone probes (each probe crate is its own `[workspace]`,
 |---|---|
 | `daw-research.md` | DAW/tracker survey for a `unisynth` DAW: DAW parts, Ableton vs trackers, demoscene authoring, AudioWorklet + wasm, gaps (blob = player format, `Player::seek` re-renders from 0), options A plugin / B web DAW (recommended) / C native; §8 (2026) WebCLAP + DAWproject alternatives. → see `daw-research.md.AGENTS.md`. |
 | `glorp-devices.md` | Glorp win64 dump: 14 device dispatches, ABI caveat, isolated Wine reference render. All 14 ids implemented in `crates/glorp` (ID 30 last; cascade topologies 1/2 refused), tap-checked; per-id parity + perf/size (external probes) are measured results. → see `glorp-devices.md.AGENTS.md`. |
+| `music-permissions.md` | Permission requests for `project/music/released/` songs: request template (EN mail), credited composers grouped by nick (92 entries, 338 songs; Teo excluded, already permitted), songs without a known composer (122: keygen/cracktro groups, modland V2mPlayer folder, group-only credits), status table. Generated from each song's `meta.author` (2026-11-09). |
 | `size-compare/.gitignore` | Ignores `out/`. |
 | `size-compare/compare.sh` | Legacy vs unified packed size, seven reference songs × six configs (`z s 3 bz bs b3`); drives `ws-size-probe`, `tf-size-probe`, `us-size-probe`; writes `tools/unisynth-parity/size-compare.md`. → see `size-compare.AGENTS.md`. |
 | `size-compare/README.md` | Usage + env (`WS_SONG_DIR`, `TF_SONGS`, `ES4_SONGS`); resumable `out/results.csv`. |
