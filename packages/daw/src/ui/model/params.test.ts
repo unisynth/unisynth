@@ -36,7 +36,8 @@ test("instrument lookup: ip by name, defaults, option names, osc type", () => {
 });
 test("effects: mode picks the table; devName and effectChoices", () => {
   const multi = tables.find((t) => t.kind !== 64 && P.nModes(t.kind) > 1)!;
-  const n = P.nModes(multi.kind), d1: Device = { kind: multi.kind, values: { mode: 1 / (n - 1) } };
+  // the stored value of mode 1 (its position: a plain choice, or the expanded one of add-elevated-import)
+  const d1: Device = { kind: multi.kind, values: { mode: P.modeValue(multi.kind, 1) } };
   expect(P.modeOf(d1)).toBe(1);
   expect(P.tableOf(d1)!.mode).toBe(1);
   expect(P.devName(d1)).toBe(P.tableOf(d1)!.label);
@@ -83,9 +84,9 @@ test("bytes: base64 round trip; GM index", () => {
 test("osc type labels: the engine's expanded choice, new kinds by label, gaps never a kind", () => {
   const o = P.ip("osc1.type").options!;
   expect(o.length).toBe(25);
-  expect([o[0], o[1], o[3], o[8], o[24]]).toEqual(["Off", "Points", "PAD table", "Sampler", "Clocked"]);
-  expect(o.filter((x) => x === P.GAP).length).toBe(10);
-  for (const [label, kind] of [["Sampler", 4], ["Points", 13], ["PAD table", 14], ["Clocked", 12]] as const)
+  expect([o[0], o[1], o[3], o[5], o[8], o[24]]).toEqual(["Off", "Points", "PAD table", "Pair", "Sampler", "Clocked"]);
+  expect(o.filter((x) => x === P.GAP).length).toBe(9);
+  for (const [label, kind] of [["Sampler", 4], ["Points", 13], ["PAD table", 14], ["Clocked", 12], ["Pair", 15]] as const)
     expect(P.oscType(inst({ "osc1.type": P.optValue("osc1.type", label) }), 1)).toBe(kind);
 });
 test("a Points slot's controls exist and its drawn cycle is the engine's (pts::cycle fixtures)", () => {
@@ -116,4 +117,27 @@ test("a PAD slot's table inputs are load-time values: no automation, rebuild on 
   expect(auto).toContain("osc2.s0");
   expect(P.fmtVal(pad, P.ip("osc1.s4"), 1)).toBe("gauss");
   expect(P.fmtVal(pad, P.ip("osc1.s4"), 1 / 3)).toBe("detune");
+});
+
+test("Elevated's fields show: the pair's controls, the drop, the linear envelope, the new effect modes", () => {
+  for (const n of ["drop.base", "drop.rate", "env1.linear", "env1.hold", "env4.hold"]) expect(P.ip(n)).toBeDefined();
+  expect(P.ip("env1.linear").options).toEqual(["Off", "On"]);
+  expect(P.ip("drop.base").unit).toBe("Hz");
+  // their texts: the drop's base in Hz, its rate as a halving time, a linear envelope's times without the 1 ms floor
+  const d = inst({ "drop.base": 50 / 20000, "env1.linear": 1 });
+  expect(P.fmtVal(d, P.ip("drop.base"), 50 / 20000)).toBe("50.0 Hz");
+  expect(P.fmtVal(d, P.ip("drop.rate"), 0)).toBe("off");
+  expect(P.fmtVal(d, P.ip("drop.rate"), 1 + Math.log10(0.0007) / 6)).toBe("½ in 22 ms");
+  expect(P.fmtVal(d, P.ip("env1.attack"), Math.sqrt(3 / 44.1 / 5000))).toBe("0 ms");
+  expect(P.fmtVal(d, P.ip("env1.hold"), Math.sqrt(500 / 5000))).toBe("500 ms");
+});
+
+test("an effect's mode reads through its stored position (the expanded distortion, EQ and delay choices)", () => {
+  // distortion: 7 positions, the earlier modes at 2·id, Elevated's at the odd ones
+  const v = (k: number, name: string) => P.modeValue(k, tables.find((t) => t.kind === k && t.label.endsWith(name))!.mode);
+  for (const [k, name] of [[65, "Knee"], [65, "Sine"], [65, "Curve"], [65, "Wrap"], [67, "SVF LFO"], [67, "Cut"], [68, "Allpass"], [68, "Ms"]] as const) {
+    const d: Device = { kind: k, values: { mode: v(k, name) } };
+    expect(P.tableOf(d)!.label.endsWith(name)).toBe(true);
+  }
+  expect(P.modeValue(65, 1)).toBeCloseTo(2 / 6); // curve keeps the value a 4-mode choice gave it
 });

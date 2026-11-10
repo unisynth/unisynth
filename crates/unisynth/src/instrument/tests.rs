@@ -535,7 +535,7 @@ fn registry_builds_the_instrument_and_rejects_other_kinds() {
     assert!(UDevice::need(64, &chunk, &env).unwrap() > 0);
     assert_eq!(UDevice::need(74, &chunk, &env).err(), Some(LoadError::UnsupportedKind(74)));
     assert_eq!(UDevice::need(3, &chunk, &env).err(), Some(LoadError::UnsupportedKind(3)));
-    let mut mem = vec![0u8; 1 << 16];
+    let mut mem = vec![0u8; UDevice::need(64, &chunk, &env).unwrap()];
     let mut pool = Pool::new(&mut mem);
     let d = UDevice::load(64, &chunk, &env, &mut pool, &mut Lcg(1)).unwrap();
     assert_eq!((d.param_count(), d.event_lookahead()), (v3::COUNT, 0));
@@ -1073,6 +1073,19 @@ mod osc_pts;
 
 #[cfg(all(feature = "us-osc-pm", feature = "us-osc-pad"))]
 mod osc_pad;
+
+#[cfg(all(feature = "us-osc-pair", feature = "us-env-seconds", feature = "us-chunk-wide"))]
+mod elevated;
+
+/// A pair slot in a build without its module does not load.
+#[cfg(all(not(feature = "us-osc-pair"), feature = "us-env-seconds"))]
+#[test]
+fn a_pair_slot_needs_its_module() {
+    let mut v = v3::DEFAULTS;
+    v[v3::osc(0, v3::o::TYPE)] = v3::osc_type::encode(v3::osc_type::PAIR);
+    let c = crate::chunk::encode(&v, &[]);
+    assert_eq!(UInstrument::need(&c).err(), Some(LoadError::UnsupportedModule(crate::module::OSC_PAIR)));
+}
 
 #[cfg(all(feature = "us-osc-pm", feature = "us-osc-sample", feature = "us-sample-dls", feature = "us-sample-gsm"))]
 mod osc_sample;

@@ -1,4 +1,4 @@
-//! The instrument parameter layout (kind 64, chunk versions 3 and 4): 321 values in module blocks, the defaults and
+//! The instrument parameter layout (kind 64, chunk versions 3 and 4): 331 values in module blocks, the defaults and
 //! (host-side) the names and laws per index. Change unify-v2-algorithms, design "v3 layout (frozen, task 6.4)"; the
 //! layout before it is [`old`] (host-only, for the migration). A chunk stores only the values that differ from
 //! [`DEFAULTS`]; indices 0–239 take one byte in a chunk, the rest two.
@@ -22,13 +22,14 @@
 //! cc        285..291 controllers 2–7
 //! speech    291..294 on, select, pitch
 //! pts ×3    294..321 9 each (change add-tf3-import): point count, segment modes ×5, layers, layer detune, spread
+//! el        321..331 (change add-elevated-import): pitch drop base and rate, then linear and hold per envelope
 //! ```
 //!
 //! Everything except the sample indices is normalized 0..1. Fields on a 7-bit step law store `step / 128`
 //! ([`v2_raw`] gives the step).
 
 /// Number of values in a patch.
-pub const COUNT: usize = PTS + OSC_SLOTS * pt::LEN;
+pub const COUNT: usize = el::ENV + ENV_SLOTS * el::ENV_LEN;
 
 /// A 7-bit step field's step (`128 · p`).
 #[inline]
@@ -152,6 +153,9 @@ pub mod osc_type {
     pub const POINTS: usize = 1;
     /// PAD table (change add-tf3-import): a static PADsynth table built at load (`shape::PAD_*`).
     pub const PAD: usize = 3;
+    /// Pair oscillator (change add-elevated-import): two naive copies at phase ratios `2 − d` and `d`
+    /// (`shape::PAIR_*`).
+    pub const PAIR: usize = 5;
     pub const COUNT: usize = 25;
     #[inline]
     pub fn decode(p: f32) -> usize {
@@ -163,7 +167,7 @@ pub mod osc_type {
     /// Whether position `t` holds no type (a free position of the expanded choice).
     #[inline]
     pub const fn is_gap(t: usize) -> bool {
-        t >= COUNT || (t % 2 == 1 && t != POINTS && t != PAD)
+        t >= COUNT || (t % 2 == 1 && t != POINTS && t != PAD && t != PAIR)
     }
     /// Whether type `t` is a naive generator.
     #[inline]
@@ -234,6 +238,12 @@ pub mod shape {
     /// `Choice(4)`: single, detune, spread, gauss.
     pub const PAD_PROFILE: usize = 4;
     pub const PAD_DRIVE: usize = 5;
+    /// Pair oscillator (change add-elevated-import): waveform (`Choice(3)`: sine, square, saw), phase shift (turns),
+    /// detune `d = 2p` (0.5 is `d = 1`), polarity (`Choice(2)`: as is, negated).
+    pub const PAIR_WAVE: usize = 0;
+    pub const PAIR_SHIFT: usize = 1;
+    pub const PAIR_DETUNE: usize = 2;
+    pub const PAIR_POLARITY: usize = 3;
 }
 
 /// Noise group.
@@ -500,10 +510,29 @@ pub const fn pts(i: usize, fld: usize) -> usize {
     PTS + i * pt::LEN + fld
 }
 
+/// Elevated fields (change add-elevated-import, appended after the point fields; two-byte indices): the voice's pitch
+/// drop, `drop.base` (`20 000·p` Hz) and `drop.rate` (`1 − k = 10^(−6(1 − p))` per sample, 0 = off), then each
+/// envelope's `linear` (`Choice(2)`) and `hold` (`5000·p²` ms) (design D3, D4).
+pub const EL: usize = PTS + OSC_SLOTS * pt::LEN;
+pub mod el {
+    pub const DROP_BASE: usize = super::EL;
+    pub const DROP_RATE: usize = DROP_BASE + 1;
+    /// First envelope field; envelope `i`'s field `fld` is [`super::el_env`].
+    pub const ENV: usize = DROP_BASE + 2;
+    pub const LINEAR: usize = 0;
+    pub const HOLD: usize = 1;
+    pub const ENV_LEN: usize = 2;
+}
+/// Index of Elevated envelope field `fld` (`el::LINEAR`, `el::HOLD`) of envelope `i`.
+pub const fn el_env(i: usize, fld: usize) -> usize {
+    el::ENV + i * el::ENV_LEN + fld
+}
+
 /// First two-byte index of the chunk escape (`chunk::SHORT`).
 pub const TWO_BYTE: usize = 240;
 const _: () = assert!(ch::FXROUTE == TWO_BYTE - 1 && SPEECH + 3 == 294, "the frozen v3 layout (design 6.4)");
-const _: () = assert!(COUNT == 321, "the add-tf3-import layout (design D3)");
+const _: () = assert!(EL == 321, "the add-tf3-import layout (design D3)");
+const _: () = assert!(COUNT == 331, "the add-elevated-import layout (design D3, D4)");
 
 /// Index of the sample index of oscillator slot `i`.
 pub const fn smp_index(i: usize) -> usize {

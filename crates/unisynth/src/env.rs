@@ -79,6 +79,12 @@ pub struct EnvP {
     /// A seconds-law attack of 0 is instant instead of 1 ms: a voice with a clocked slot sets it (the source has no
     /// attack; change add-cauldron-xm-import).
     pub instant: bool,
+    /// Elevated's linear timed envelope (change add-elevated-import D4): attack, decay, hold (`hold`) and release run
+    /// on their own, linear in level, times `law::lin_ms`; a note-off ends it at once. Only with `us-env-linear`.
+    #[cfg(feature = "us-env-linear")]
+    pub linear: bool,
+    #[cfg(feature = "us-env-linear")]
+    pub hold: f32,
 }
 
 /// The law this build runs for a requested seconds or rate law: a build with one of them runs it for both (a patch that
@@ -134,6 +140,15 @@ pub fn check(by_rate: bool) -> Result<(), synth_core::mix::LoadError> {
 }
 
 impl EnvP {
+    /// A linear timed envelope (always false without `us-env-linear`).
+    #[inline]
+    pub fn is_linear(&self) -> bool {
+        #[cfg(feature = "us-env-linear")]
+        return self.linear;
+        #[cfg(not(feature = "us-env-linear"))]
+        false
+    }
+
     pub const DEFAULT: EnvP = EnvP {
         law: time_law::SECONDS,
         curve: curve::QUADRATIC,
@@ -146,6 +161,10 @@ impl EnvP {
         amp: 1.0,
         coarse: false,
         instant: false,
+        #[cfg(feature = "us-env-linear")]
+        linear: false,
+        #[cfg(feature = "us-env-linear")]
+        hold: 0.0,
     };
 
     pub fn read(p: &[f32; pm::COUNT], i: usize) -> Self {
@@ -177,6 +196,10 @@ impl EnvP {
             amp: if FRAME { p[pm::env(i, e::AMPLIFY)] } else { 1.0 },
             coarse: frame && cfg!(feature = "us-quirk-coarse-env") && pm::quirk_on(p, pm::quirk::COARSE_ENV),
             instant: false,
+            #[cfg(feature = "us-env-linear")]
+            linear: crate::law::choice(p[pm::el_env(i, pm::el::LINEAR)], 2) == 1,
+            #[cfg(feature = "us-env-linear")]
+            hold: p[pm::el_env(i, pm::el::HOLD)],
         }
     }
 
@@ -274,6 +297,64 @@ impl Env {
         }
     }
 
+    /// A note-off: a linear timed envelope ends at once (Elevated's cut, change add-elevated-import D4), any other
+    /// releases ([`Env::release`]).
+    pub fn note_off(&mut self, ep: &EnvP) {
+        if ep.is_linear() {
+            *self = Env::new();
+        } else {
+            self.release();
+        }
+    }
+
+    /// A linear timed envelope's frames to the end of its stage at `rate` (rounded up, at least 1), `None` for another
+    /// envelope or a finished one: the voice ends its control segment there, so the stage corners are frame-exact
+    /// (a 3-frame attack keeps its click; change add-elevated-import).
+    #[cfg(feature = "us-env-linear")]
+    pub fn linear_left(&self, ep: &EnvP, rate: f32) -> Option<u32> {
+        if !ep.linear {
+            return None;
+        }
+        let secs = |p: f32| crate::law::lin_ms(p) * 0.001;
+        let len = match self.stage {
+            Stage::Attack => secs(ep.a),
+            Stage::Decay => secs(ep.d),
+            Stage::Sustain => secs(ep.hold),
+            Stage::Release => secs(ep.r),
+            Stage::Finished => return None,
+        };
+        Some((libm::ceilf((len - self.pos) * rate - 1e-3)).max(1.0) as u32)
+    }
+
+    /// The linear timed envelope: each stage linear in level over its `law::lin_ms` time, a zero-length stage skipped;
+    /// the hold keeps the sustain level for `hold`, then the release falls from it to 0 and the envelope ends.
+    #[cfg(feature = "us-env-linear")]
+    fn advance_linear(&mut self, mut t: f32, ep: &EnvP) {
+        let secs = |p: f32| crate::law::lin_ms(p) * 0.001;
+        loop {
+            let (len, from, to, next) = match self.stage {
+                Stage::Attack => (secs(ep.a), 0.0, 1.0, Stage::Decay),
+                Stage::Decay => (secs(ep.d), 1.0, ep.s, Stage::Sustain),
+                Stage::Sustain => (secs(ep.hold), ep.s, ep.s, Stage::Release),
+                Stage::Release => (secs(ep.r), ep.s, 0.0, Stage::Finished),
+                Stage::Finished => {
+                    *self = Env::new();
+                    return;
+                }
+            };
+            if t >= len - self.pos {
+                t -= (len - self.pos).max(0.0);
+                self.stage = next;
+                self.pos = 0.0;
+                self.v = to;
+            } else {
+                self.pos += t;
+                self.v = from + (to - from) * self.pos / len;
+                return;
+            }
+        }
+    }
+
     /// Starts the release from the current level (no effect before the note or once released).
     pub fn release(&mut self) {
         if !matches!(self.stage, Stage::Release | Stage::Finished) {
@@ -302,6 +383,14 @@ impl Env {
     /// line: inlined into the voice's control step it packs worse.
     #[inline(never)]
     pub fn advance(&mut self, mut t: f32, ep: &EnvP, decay_mod: f32) {
+        #[cfg(feature = "us-env-linear")]
+        if ep.linear {
+            self.advance_linear(t, ep);
+            if FRAME {
+                self.out.set(self.v * ep.amp);
+            }
+            return;
+        }
         // each curve's code is built with the law that brings it (until the format switch); a build with one law knows its
         // curve, so the others' code drops out
         let (secs, rate) = (cfg!(feature = "us-env-seconds"), cfg!(feature = "us-env-rate"));

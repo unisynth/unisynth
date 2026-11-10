@@ -43,6 +43,9 @@ pub enum Kind {
     /// Tunefish 3's PAD table (change add-tf3-import): reads the instrument's table, keeps a [`crate::pts::Pts`].
     #[cfg(feature = "us-osc-pad")]
     Pad,
+    /// Elevated's oscillator pair (change add-elevated-import): two naive copies at phase ratios `2 − d` and `d`.
+    #[cfg(feature = "us-osc-pair")]
+    Pair,
 }
 
 impl Kind {
@@ -69,6 +72,10 @@ impl Kind {
             osc_type::PAD => Ok(Kind::Pad),
             #[cfg(not(feature = "us-osc-pad"))]
             osc_type::PAD => missing(module::OSC_PAD),
+            #[cfg(feature = "us-osc-pair")]
+            osc_type::PAIR => Ok(Kind::Pair),
+            #[cfg(not(feature = "us-osc-pair"))]
+            osc_type::PAIR => missing(module::OSC_PAIR),
             #[cfg(feature = "us-osc-wt")]
             osc_type::WAVETABLE => Ok(Kind::Wt),
             #[cfg(not(feature = "us-osc-wt"))]
@@ -105,6 +112,9 @@ pub struct Slot {
     pub v2s: crate::v2::Opt<V2Slot>,
     /// Clocked: the detuned second saw, the phrase frame counter and the noise state.
     pub clk: ClockedSlot,
+    /// Pair: the second copy's phase in turns (the first copy's is `phase`).
+    #[cfg(feature = "us-osc-pair")]
+    pub phase_b: f64,
 }
 
 /// A clocked slot's running state. `phase2` (turns) is the original's second saw: kept across note-ons, as the
@@ -300,6 +310,8 @@ impl Slot {
             fresh: true,
             v2s: crate::v2::Opt::new(V2Slot { cnt: 0, nf: crate::v2::Lrc { l: 0.0, b: 0.0 }, nseed: 0, init: false }),
             clk: ClockedSlot { phase2: 0.0, t: 0.0, rng: 0, y: 0.0, prev: 0.0, v1: 0.0, flt: None, h: [0.0; 4], frac: 0.0, lp: ClockedLp { k: 0.0, c: [[0.0; 5]; 2], s: [[0.0; 2]; 2] } },
+            #[cfg(feature = "us-osc-pair")]
+            phase_b: 0.0,
         }
     }
 
@@ -342,8 +354,71 @@ impl Slot {
                 self.clk.t = 0.0;
                 self.clk.rng = ((phase * 4_294_967_296.0) as u64 as u32) | 1;
             }
+            // Elevated restarts both copies from phase 0 at every note
+            #[cfg(feature = "us-osc-pair")]
+            Kind::Pair => {
+                self.phase = 0.0;
+                self.phase_b = 0.0;
+            }
             _ => {}
         }
+    }
+}
+
+/// Stands in for the pair settings when the module is left out (zero-size, so no other slot pays for them).
+#[cfg(not(feature = "us-osc-pair"))]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct PairT;
+
+/// A pair slot's settings (change add-elevated-import, design D2): waveform ([`pair_wave`]), phase shift in turns,
+/// the copies' phase ratios `2 − d` and `d`, and the polarity (`±1`). Not ramped.
+#[cfg(feature = "us-osc-pair")]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct PairT {
+    pub wave: u8,
+    pub shift: f32,
+    pub ra: f32,
+    pub rb: f32,
+    pub sign: f32,
+}
+
+/// Pair waveforms (`shape::PAIR_WAVE`, `Choice(3)`).
+pub mod pair_wave {
+    pub const SINE: u8 = 0;
+    pub const SQUARE: u8 = 1;
+    pub const SAW: u8 = 2;
+}
+
+#[cfg(feature = "us-osc-pair")]
+impl PairT {
+    pub fn from_shape(sh: &[f32; pm::o::SHAPES]) -> Self {
+        let d = 2.0 * sh[pm::shape::PAIR_DETUNE];
+        PairT {
+            wave: crate::law::choice(sh[pm::shape::PAIR_WAVE], 3) as u8,
+            shift: sh[pm::shape::PAIR_SHIFT],
+            ra: 2.0 - d,
+            rb: d,
+            sign: if crate::law::choice(sh[pm::shape::PAIR_POLARITY], 2) == 1 { -1.0 } else { 1.0 },
+        }
+    }
+}
+
+/// One copy of a pair at phase `t` (turns): fold `x = 2·(t − round(t))` into −1..1, then sine `sin(πx)`, square
+/// (+1 above 0, else −1) or saw `x`. Ties of `round` go away from zero, as the original's x87 rounding never meets one
+/// in practice (a phase exactly on a half turn).
+#[inline]
+pub fn pair_wave(t: f64, wave: u8) -> f32 {
+    let x = 2.0 * (t - libm::round(t));
+    match wave {
+        pair_wave::SINE => sin_turns(0.5 * x),
+        pair_wave::SQUARE => {
+            if x > 0.0 {
+                1.0
+            } else {
+                -1.0
+            }
+        }
+        _ => x as f32,
     }
 }
 
@@ -379,6 +454,8 @@ pub struct SlotT {
     pub clk: ClockedT,
     /// How the slot meets the running sum of the earlier slots ([`combine`]).
     pub combine: u8,
+    /// Pair: waveform, shift, ratios, polarity.
+    pub pair: PairT,
 }
 
 /// How a slot meets the running sum of the earlier slots (change unify-v2-algorithms 5.1): added (panned by the slot
@@ -469,6 +546,7 @@ pub struct SlotRamps {
     smp: smp::Cfg,
     v2: crate::v2::Opt<V2T>,
     clk: ClockedT,
+    pair: PairT,
 }
 
 impl SlotRamps {
@@ -499,6 +577,7 @@ impl SlotRamps {
         }
         self.combine = t.combine;
         self.clk = t.clk;
+        self.pair = t.pair;
     }
 
     pub fn to(&mut self, t: &SlotT, frames: u32) {
@@ -522,6 +601,7 @@ impl SlotRamps {
         }
         self.combine = t.combine;
         self.clk = t.clk;
+        self.pair = t.pair;
     }
 
     pub fn retarget(&mut self, t: &SlotT, frames: u32) {
@@ -545,6 +625,7 @@ impl SlotRamps {
         }
         self.combine = t.combine;
         self.clk = t.clk;
+        self.pair = t.pair;
     }
 }
 
@@ -609,6 +690,18 @@ pub fn sample(
                 None => (0.0, 0.0),
             };
             (a * gain * mix, b * gain * mix, (a + b) * 0.5 * gain * send)
+        }
+        // Elevated's pair: both copies advance before they are read (the original adds the step, then reads)
+        #[cfg(feature = "us-osc-pair")]
+        Kind::Pair => {
+            let p = &r.pair;
+            slot.phase += (inc * p.ra) as f64;
+            slot.phase -= libm::floor(slot.phase);
+            slot.phase_b += (inc * p.rb) as f64;
+            slot.phase_b -= libm::floor(slot.phase_b);
+            let s = p.shift as f64;
+            let y = (pair_wave(slot.phase + s, p.wave) + pair_wave(slot.phase_b + s, p.wave)) * p.sign * gain;
+            (y * mix, y * mix, y * send)
         }
         #[cfg(feature = "us-osc-points")]
         Kind::Pts => {
@@ -958,8 +1051,12 @@ mod tests {
     fn gaps_are_bad_chunks_and_new_types_name_their_module() {
         use crate::params::osc_type;
         use synth_core::mix::LoadError;
-        assert!(matches!(Kind::from_type(5), Err(LoadError::BadChunk)));
+        assert!(matches!(Kind::from_type(7), Err(LoadError::BadChunk)));
         assert!(matches!(Kind::from_type(23), Err(LoadError::BadChunk)));
+        #[cfg(feature = "us-osc-pair")]
+        assert!(matches!(Kind::from_type(osc_type::PAIR), Ok(Kind::Pair)));
+        #[cfg(not(feature = "us-osc-pair"))]
+        assert!(matches!(Kind::from_type(osc_type::PAIR), Err(LoadError::UnsupportedModule(crate::module::OSC_PAIR))));
         #[cfg(feature = "us-osc-points")]
         assert!(matches!(Kind::from_type(osc_type::POINTS), Ok(Kind::Pts)));
         #[cfg(not(feature = "us-osc-points"))]

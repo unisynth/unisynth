@@ -34,3 +34,4 @@ Pull-only (not auto-injected).
 - `run`/`run_ext` → `render_span` (8-frame voice tick, 32-frame control grid);
 - `check_modules` → `UnsupportedModule` per missing feature;
 - `probe` taps.
+- `check_voice` refuses `drop.rate > 0` without `us-voice-drop` and `envN.linear` without `us-env-linear`; `render_span` also ticks a voice whose segment ended off the 8-frame grid (only with `us-env-linear`). See change: add-elevated-import.

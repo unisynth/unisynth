@@ -58,6 +58,7 @@ pub fn instrument_why(chunk: &[u8], reach: Reach) -> Result<Why, LoadError> {
             // a point field that is set has a two-byte index: the chunk-wide rule below reports it
             osc_type::POINTS => add(&mut out, m::OSC_POINTS, kind("a point oscillator")),
             osc_type::PAD => add(&mut out, m::OSC_PAD, kind("a PAD table")),
+            osc_type::PAIR => add(&mut out, m::OSC_PAIR, kind("a pair oscillator")),
             t if osc_type::is_gap(t) => return Err(LoadError::BadChunk), // as `Kind::from_type`
             osc_type::WAVETABLE => add(&mut out, m::OSC_WAVETABLE, kind("wavetable")),
             osc_type::SAMPLER => {
@@ -197,6 +198,16 @@ pub fn instrument_why(chunk: &[u8], reach: Reach) -> Result<Why, LoadError> {
     }
     if mono && span(v::SLIDE).1 > 0.0 {
         add(&mut out, m::VOICE_GLIDE, format!("{} is above 0 in mono mode{}", n(v::SLIDE), lane(v::SLIDE)));
+    }
+    // the Elevated fields have two-byte indices: a set one also brings the chunk-wide rule below (add-elevated-import)
+    if span(pm::el::DROP_RATE).1 > 0.0 {
+        add(&mut out, m::VOICE_DROP, format!("{} is above 0{}", n(pm::el::DROP_RATE), lane(pm::el::DROP_RATE)));
+    }
+    for i in 0..pm::ENV_SLOTS {
+        let li = pm::el_env(i, pm::el::LINEAR);
+        if choices(li, 2).any(|c| c == 1) {
+            add(&mut out, m::ENV_LINEAR, format!("{} is on{}", n(li), lane(li)));
+        }
     }
     if law::count(span(v::UNISON).1, 1, 16) > 1 {
         add(&mut out, m::VOICE_UNISON, format!("{} is above one voice{}", n(v::UNISON), lane(v::UNISON)));

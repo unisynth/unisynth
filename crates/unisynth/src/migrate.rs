@@ -438,7 +438,7 @@ use crate::fx::TAG as FX_TAG;
 
 /// The mode of an old effect chunk's mode value (the expanded choice of chunk v1/v2).
 pub fn old_fx_mode(k: u8, p: f32) -> usize {
-    let (old, later) = (crate::fx::mode_count(k), crate::fx::mode_total(k) - crate::fx::mode_count(k));
+    let (old, later) = (crate::fx::mode_count(k), crate::fx::migrated_total(k) - crate::fx::mode_count(k));
     if later == 0 || old == 0 {
         law::choice(p, old.max(1))
     } else if old == 1 {
@@ -450,7 +450,7 @@ pub fn old_fx_mode(k: u8, p: f32) -> usize {
 
 /// The old layout's stored value of effect mode `mode` of kind `k` (what the converters write before the migration).
 pub fn old_fx_mode_value(k: u8, mode: usize) -> f32 {
-    let (old, later) = (crate::fx::mode_count(k), crate::fx::mode_total(k) - crate::fx::mode_count(k));
+    let (old, later) = (crate::fx::mode_count(k), crate::fx::migrated_total(k) - crate::fx::mode_count(k));
     if later == 0 {
         if old > 1 { mode as f32 / (old - 1) as f32 } else { 0.0 }
     } else if old == 1 {
@@ -492,7 +492,7 @@ pub fn effect_chunk(k: u8, b: &[u8]) -> Result<Vec<u8>, MigrateError> {
         v.push(0.0);
     }
     let mode = old_fx_mode(k, v[0]);
-    v[0] = pm::choice_value(mode, crate::fx::mode_total(k));
+    v[0] = crate::fx::mode_value(k, mode);
     if let Some(e) = era_param(k, mode) {
         let version = v.get(1 + e).map_or(6, |&p| law::count(p, 0, 6));
         v.truncate(1 + e);

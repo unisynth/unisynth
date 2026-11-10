@@ -74,7 +74,9 @@ const OSC_SHAPES: Record<number, (string | null)[]> = { 1: ["waveform"], 2: ["wa
   // layers are their own parameters (POINT_FIELDS)
   13: ["p1 offset", "p1 value", "p2 offset", "p2 value", "p3 offset", "p3 value", "p4 offset", "p4 value", "drive"],
   // PAD table: s0–s4 build the table when the instrument loads (a change rebuilds the device), drive plays live
-  14: ["bandwidth", "scale", "damp", "harmonics", "profile", "drive"] };  // s1 loop mode, s2 boundary, s5 reverse, s6 interp, s7 source: samplerPre; index: osc<i>.sample
+  14: ["bandwidth", "scale", "damp", "harmonics", "profile", "drive"],
+  // Pair (add-elevated-import): Elevated's two naive copies at ratios 2 − d and d; s1 the phase shift, s2 = d/2
+  15: ["wave", "phase shift", "detune", "polarity"] };  // s1 loop mode, s2 boundary, s5 reverse, s6 interp, s7 source: samplerPre; index: osc<i>.sample
 const range = (n: number) => [...Array(n)].map((_, k) => k + 1);
 /** A Points slot's own fields and their labels (`osc<i>.<field>`); `mode<k>` ends at point k. */
 const POINT_LABELS: Record<string, string> = { points: "points", mode1: "seg 1", mode2: "seg 2", mode3: "seg 3", mode4: "seg 4", mode_last: "last seg",
@@ -256,7 +258,7 @@ function Instrument(p: { t: Track; d: Device }): JSX.Element {
         <button class="bypass" aria-pressed={!!d.bypass} title="Bypass the instrument" aria-label="Bypass instrument" onClick={() => A.bypass(t, t.devices.indexOf(d))}>⏻</button></span></h3>
     <div class="devbody">
       <div class="dcol c-voice" data-k="voice">
-        <PGroup t={t} d={d} title="Voice" ps={() => P(["mode", "steal", "one_shot", "env1_at_output", "master", "pan", "capacity", "unison", "uni_detune", "uni_spread", "slide", "glide", "transpose", "velocity", "start_spread", "noise_level"])} o={{ cols: 4 }} />
+        <PGroup t={t} d={d} title="Voice" ps={() => P(["mode", "steal", "one_shot", "env1_at_output", "master", "pan", "capacity", "unison", "uni_detune", "uni_spread", "slide", "glide", "transpose", "velocity", "start_spread", "noise_level", "drop.base", "drop.rate"])} o={{ cols: 4 }} />
         <PGroup t={t} d={d} title="Noise" ps={() => P(["noise.band_on", "noise.hp", "noise.lp"])} o={{ cols: 2 }} />
       </div>
       <div class="dcol"><Block k="osc" label="Oscillators" count={() => used("osc")}>{range(3).map(osc)}</Block></div>
@@ -270,7 +272,7 @@ function Instrument(p: { t: Track; d: Device }): JSX.Element {
         </>)}
       </Block></div>
       <div class="dcol"><Block k="env" label="Envelopes" count={() => used("env")}>
-        {range(4).map((i) => card("env", i, [`env${i}.law`, `env${i}.attack`, `env${i}.decay`, `env${i}.sustain`, `env${i}.release`, `env${i}.curve_slope`], 3))}
+        {range(4).map((i) => card("env", i, [`env${i}.law`, `env${i}.attack`, `env${i}.decay`, `env${i}.sustain`, `env${i}.release`, `env${i}.curve_slope`, `env${i}.linear`, `env${i}.hold`], 3))}
       </Block></div>
       <div class="dcol">
         <Block k="lfo" label="LFOs" count={() => used("lfo")}>{range(2).map((i) => card("lfo", i, [`lfo${i}.shape`, `lfo${i}.sync`, `lfo${i}.rate`, `lfo${i}.depth`], 2))}</Block>

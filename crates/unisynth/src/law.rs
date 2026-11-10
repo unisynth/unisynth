@@ -146,6 +146,32 @@ pub fn env_ms(p: f32) -> f32 {
     p * p * 5000.0 + 1.0
 }
 
+/// Linear timed envelope stage time in milliseconds, `5000·p²` with no minimum (change add-elevated-import D4: Elevated's
+/// attacks are a few frames).
+#[inline]
+pub fn lin_ms(p: f32) -> f32 {
+    let p = c01(p);
+    p * p * 5000.0
+}
+
+/// Pitch drop base frequency in Hz, `20 000·p` (change add-elevated-import D3).
+#[inline]
+pub fn drop_hz(p: f32) -> f32 {
+    20_000.0 * c01(p)
+}
+
+/// Pitch drop: `log2 k` of the per-sample factor `k = 1 − 10^(−6(1 − p))` (0 for `p = 0`: off), so `kⁿ =
+/// exp2(n·log2 k)`. Kept as `log2 k` (from `log1p`) because k sits a hair under 1.
+#[inline]
+pub fn drop_log2k(p: f32) -> f32 {
+    let p = c01(p);
+    if p <= 0.0 {
+        return 0.0;
+    }
+    let m = crate::fm::exp2f(-6.0 * (1.0 - p) * core::f32::consts::LOG2_10);
+    libm::log1pf(-m.min(1.0 - f32::EPSILON)) * core::f32::consts::LOG2_E
+}
+
 /// Index `0..n` of an enumeration stored as `i/(n − 1)`.
 #[inline]
 pub fn choice(p: f32, n: usize) -> usize {
@@ -268,6 +294,20 @@ pub mod host {
     }
     pub fn inv_env_ms(ms: f32) -> f32 {
         inv_sqrt(ms, 1.0, 5000.0)
+    }
+    pub fn inv_lin_ms(ms: f32) -> f32 {
+        inv_sqrt(ms, 0.0, 5000.0)
+    }
+    pub fn inv_drop_hz(hz: f32) -> f32 {
+        c01(hz / 20_000.0)
+    }
+    /// `p` for a per-sample drop factor `k` (`k ≥ 1` → 0, off).
+    pub fn inv_drop_k(k: f64) -> f32 {
+        if k >= 1.0 {
+            return 0.0;
+        }
+        let m = (1.0 - k).max(1e-6);
+        c01((1.0 + libm::log10(m) / 6.0) as f32)
     }
     pub fn inv_choice(i: usize, n: usize) -> f32 {
         if n < 2 { 0.0 } else { c01(i as f32 / (n - 1) as f32) }

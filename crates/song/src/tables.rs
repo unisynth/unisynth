@@ -87,6 +87,13 @@ pub const EFFECT_MODES: &[(u8, usize)] = &[
     (kind::DISTORTION, 3),
     (kind::FLANGER, 2),
     (kind::CHORUS, 1),
+    // change add-elevated-import
+    (kind::DISTORTION, 4),
+    (kind::DISTORTION, 5),
+    (kind::DISTORTION, 6),
+    (kind::EQ, 3),
+    (kind::DELAY, 3),
+    (kind::DELAY, 4),
 ];
 
 pub fn kind_name(k: u8) -> &'static str {
@@ -107,10 +114,10 @@ pub fn kind_name(k: u8) -> &'static str {
 
 pub fn mode_names(k: u8) -> &'static [&'static str] {
     match k {
-        kind::DISTORTION => &["Shaper", "Curve", "Power", "Wrap"],
+        kind::DISTORTION => &["Shaper", "Curve", "Power", "Wrap", "Atan", "Sine", "Knee"],
         kind::CRUSHER => &["Crusher"],
-        kind::EQ => &["Parametric", "3-band", "Cut"],
-        kind::DELAY => &["Tempo", "Ms", "Modulated"],
+        kind::EQ => &["Parametric", "3-band", "Cut", "SVF LFO"],
+        kind::DELAY => &["Tempo", "Ms", "Modulated", "Ping-pong", "Allpass"],
         kind::CHORUS => &["Chorus", "One tap"],
         kind::FLANGER => &["Phaser", "Ring", "Comb"],
         kind::REVERB => &["Freeverb", "Compact", "Rooms", "Comb"],
@@ -187,6 +194,20 @@ fn effect_params(k: u8, mode: usize) -> Vec<(&'static str, f32)> {
         // offset 2p − 1; comb delay p·16384 frames, amount, sweep p·0.01 per frame, restart (any change)
         (kind::DISTORTION, 3) => vec![("drive", 0.25), ("offset", 0.5)],
         (kind::FLANGER, 2) => vec![("delay", 0.0), ("amount", 0.0), ("sweep", 0.0), ("restart", 0.0)],
+        // Elevated's machines (change add-elevated-import; laws in unisynth `fx/elevated.rs`)
+        (kind::DISTORTION, 4) | (kind::DISTORTION, 5) => vec![("factor", 0.5), ("gain", 1.0 / 16.0)],
+        (kind::DISTORTION, 6) => vec![("threshold", 0.25), ("ratio", 0.25), ("offset", 0.5)],
+        (kind::EQ, 3) => vec![
+            ("cutoff", 4096.0 / 65536.0),
+            ("resonance", 0.5),
+            ("lfo1_rate", 0.0),
+            ("lfo1_depth", 0.0),
+            ("lfo2_rate", 0.0),
+            ("lfo2_depth", 0.0),
+            ("dry", 0.5),
+            ("output", 0.0),
+        ],
+        (kind::DELAY, 3) | (kind::DELAY, 4) => vec![("length", 4410.0 / 65536.0), ("feedback", 0.75)],
         _ => vec![],
     }
 }
@@ -207,10 +228,10 @@ fn choice_options(i: usize, law: Law) -> Vec<String> {
             if at(params::OSC, params::o::LEN, params::OSC_SLOTS, params::o::TYPE) {
                 // the id is the stored position; free positions of the expanded choice show "—" (change add-tf3-import)
                 &[
-                    "Off", "Points", "Phase mod", "PAD table", "Saw/pulse", "—", "Wavetable", "—", "Sampler", "—", "Naive saw/tri", "—", "Naive pulse",
+                    "Off", "Points", "Phase mod", "PAD table", "Saw/pulse", "Pair", "Wavetable", "—", "Sampler", "—", "Naive saw/tri", "—", "Naive pulse",
                     "—", "Sine", "—", "Coloured noise", "—", "FM", "—", "Aux in A", "—", "Aux in B", "—", "Clocked",
                 ]
-            } else if i >= params::PTS && i < params::COUNT && n == 3 {
+            } else if i >= params::PTS && i < params::EL && n == 3 {
                 &["Step", "Linear", "Spline"]
             } else if at(params::OSC, params::o::LEN, params::OSC_SLOTS, params::o::COMBINE) {
                 &["Add", "Multiply (ring)", "Replace"]
@@ -290,6 +311,9 @@ fn unit_range(law: Law) -> (&'static str, f32, f32) {
         Law::Count(lo, hi) => ("", lo as f32, hi as f32),
         Law::Index => ("", 0.0, 255.0),
         Law::EnvTime => ("ms", 1.0, 5001.0),
+        Law::LinTime => ("ms", 0.0, 5000.0),
+        Law::DropHz => ("Hz", 0.0, 20_000.0),
+        Law::DropRate => ("", 0.0, 1.0),
         Law::Raw => ("", 0.0, 65_535.0),
         Law::Steps => ("steps", 0.0, 128.0),
         Law::Unit | Law::Pan | Law::Shape | Law::ModAmount => ("", 0.0, 1.0),
@@ -327,8 +351,8 @@ fn instrument() -> Table {
 
 fn effect(k: u8, mode: usize) -> Table {
     let modes = mode_names(k);
-    // the mode is `Choice(mode_total(k))`
-    let positions = unisynth::fx::mode_total(k);
+    // the mode is `Choice(positions(k))`: a mode id per stored position, free positions show "—" (add-elevated-import)
+    let positions = unisynth::fx::positions(k);
     let _ = inv_choice;
     let mut ps = vec![Param {
         index: 0,
@@ -339,7 +363,7 @@ fn effect(k: u8, mode: usize) -> Table {
         unit: "",
         min: 0.0,
         max: positions.saturating_sub(1) as f32,
-        options: (0..positions).map(|m| modes.get(m).map_or("—".to_string(), |s| s.to_string())).collect(),
+        options: (0..positions).map(|p| modes.get(unisynth::fx::mode_at(k, p)).map_or("—".to_string(), |s| s.to_string())).collect(),
         structural: true,
         raw: false,
     }];

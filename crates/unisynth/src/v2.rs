@@ -237,6 +237,12 @@ impl DistP {
         d
     }
 
+    /// The overdrive arithmetic with explicit gains, `gain2·atan(gain1·x + offs)` on the exact arctangent: Elevated's
+    /// atan distortion `b·atan(x/a)` is `(1/a, b, 0)` (change add-elevated-import).
+    pub fn overdrive(gain1: f32, gain2: f32, offs: f32) -> Self {
+        DistP { mode: dmode::OVERDRIVE, gain1, gain2, offs, native: true, ..Default::default() }
+    }
+
     /// Overdrive with the exact arctangent (format versions below 6).
     pub fn native_atan(mut self, on: bool) -> Self {
         self.native = on;

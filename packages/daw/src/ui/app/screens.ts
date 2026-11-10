@@ -32,6 +32,12 @@ export function oscView(d: Device, i: number): Screen {
         pts.map(([x, w]) => `<circle class="mk" cx="${(x * 100).toFixed(2)}" cy="${y(w).toFixed(2)}" r="1.4"/>`).join("");
     }
     if (ty === 14) return padSketch(v("s0"), v("s1"), v("s2"), v("s3"), choice(v("s4"), 4));
+    if (ty === 15) {
+      // Elevated's pair (unisynth `osc::pair_wave`): two copies at 2 − d and d turns per cycle, shifted, folded to ±1
+      const wave = choice(v("s0"), 3), sh = v("s1"), dd = 2 * v("s2"), sign = choice(v("s3"), 2) ? -1 : 1;
+      const one = (t: number): number => { const x = 2 * (t - Math.round(t)); return wave === 0 ? Math.sin(Math.PI * x) : wave === 1 ? (x > 0 ? 1 : -1) : x; };
+      return scrMid + scrLine(scrPath((x) => 20 - 8 * sign * (one(2 * x * (2 - dd) + sh) + one(2 * x * dd + sh))));
+    }
     let f: (x: number) => number;
     if (ty === 2) { const pulse = choice(v("s0"), 2), pw = .05 + .9 * v("s1"); f = (x) => { const ph = (x * 2) % 1; return 20 - 15 * (pulse ? (ph < pw ? 1 : -1) : 2 * ph - 1); }; }
     else if (ty === 3) { const hn = 1 + Math.round(v("s1") * 15), dm = 1 + v("s2") * 3; let pk = 0; const g = (x: number): number => { let y = 0; for (let k = 1; k <= hn; k++) y += Math.sin(TAU * 2 * k * x) / k ** dm; return y; };

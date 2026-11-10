@@ -10,3 +10,4 @@ Pull-only (not auto-injected).
 
 - See change: shrink-unified-synth, add-v2-import, add-cauldron-xm-import, unify-v2-algorithms 1.3, 6.5–6.8
 - `FX_CHORUS_TF3 = 65` "us-fx-chorus-tf3" (chorus, one-tap mode; add-tf3-import 6.4).
+- 66 `OSC_PAIR`, 67 `VOICE_DROP`, 68 `ENV_LINEAR`, 69 `FX_EQ_SVF_LFO`, 70–72 `FX_DISTORTION_ATAN/SINE/KNEE`, 73–74 `FX_DELAY_PINGPONG/ALLPASS`. See change: add-elevated-import.

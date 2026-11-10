@@ -13,6 +13,11 @@ fn fnv(x: &[f32]) -> u64 {
 
 /// Parameter sets: a few settings that make each mode audible, by seed.
 fn params(k: u8, i: usize) -> Vec<f32> {
+    // Elevated's swept filter is a Chamberlin step, unstable for large coefficients as the original is: Atrium's first
+    // filter (cutoff 8192, q 0.3125, one LFO 7168 deep at 7e-6 per sample, low-pass), its LFO sped up to sweep here
+    if (k, i) == (kind::EQ, 3) {
+        return vec![old_mode_value(k, i), 8192.0 / 65536.0, 0.3125 / 2.0, 0.05, 7168.0 / 65536.0, 0.0, 0.0, 0.5, 0.0];
+    }
     let mut p = vec![old_mode_value(k, i)];
     p.extend(values(500 + 10 * (k as u32 - 65) + i as u32, 14));
     p
@@ -22,7 +27,8 @@ fn params(k: u8, i: usize) -> Vec<f32> {
 fn golden() {
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/golden_fx.txt");
     let mut got = vec![];
-    for &(k, i, id) in MODES.iter() {
+    for &(k, i, id, _) in MODES.iter() {
+        let i = i as usize;
         let p = params(k, i);
         let chunk = chunk(k, &p);
         let ok = |rate, tempo| UFx::need(k, &chunk, &Env { rate, tempo, bank: None }).is_ok();

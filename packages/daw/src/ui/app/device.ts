@@ -12,7 +12,7 @@ import * as devst from "../state/device.ts";
 import * as lib from "../state/library.ts";
 import { persist as store } from "../state/persist.ts";
 import { overrides } from "../state/view.ts";
-import { choice, devName, effectChoices, fmtVal, ip, loadTime, modSrcName, nModes, optValue, oscType, paramOf, routesOf, SLOTS, type SlotGroup, slotKeys, slotUsed, smpShapes, tableOf, TARGETS, vget } from "../model/params.ts";
+import { choice, devName, effectChoices, fmtVal, ip, loadTime, modeValue, modSrcName, nModes, optValue, oscType, paramOf, routesOf, SLOTS, type SlotGroup, slotKeys, slotUsed, smpShapes, tableOf, TARGETS, vget } from "../model/params.ts";
 import { engineDev, instOf, links } from "../model/track.ts";
 import { bytesToB64 } from "../model/bytes.ts";
 import { api, E, selected, tracks } from "./session.ts";
@@ -129,8 +129,8 @@ function removeDev(t: UITrack, i: number): void {
   rebuildTracks(); renderAll(); commit(before, `${t.name}: ${name} removed${gone ? `, with ${gone} automation lane${gone > 1 ? "s" : ""}` : ""}`);
 }
 export function addEffect(t: UITrack, label: string): void {
-  const tb = effectChoices().find(x => x.label === label); if (!tb) return; const before = snap(), n = nModes(tb.kind);
-  t.devices.push({ kind: tb.kind, values: { mode: n > 1 ? tb.mode / (n - 1) : 0 } }); rebuildTracks(); renderAll(); commit(before, `${t.name}: ${label} added`);
+  const tb = effectChoices().find(x => x.label === label); if (!tb) return; const before = snap();
+  t.devices.push({ kind: tb.kind, values: { mode: modeValue(tb.kind, tb.mode) } }); rebuildTracks(); renderAll(); commit(before, `${t.name}: ${label} added`);
 }
 function savePreset(d: Device, btn: HTMLElement): void {
   const pop = document.createElement("div"); pop.className = "menu"; pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Save preset");

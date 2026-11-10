@@ -7,3 +7,4 @@ Pull-only (not auto-injected).
 ## History
 
 - See change: add-v2-import, unify-v2-algorithms 6.5–6.8
+- Worst case 1751 bytes (331 values: 240 one-byte, 91 two-byte pairs). See change: add-elevated-import.

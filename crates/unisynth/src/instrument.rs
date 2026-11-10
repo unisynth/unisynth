@@ -133,6 +133,12 @@ fn check_voice(values: &[f32; COUNT]) -> Result<(), LoadError> {
     if !cfg!(feature = "us-voice-oneshot") {
         uses(law::choice(values[v::ONE_SHOT], 2) == 1, crate::module::VOICE_ONESHOT)?;
     }
+    if !cfg!(feature = "us-voice-drop") {
+        uses(values[pm::el::DROP_RATE] > 0.0, crate::module::VOICE_DROP)?;
+    }
+    if !cfg!(feature = "us-env-linear") {
+        uses((0..pm::ENV_SLOTS).any(|i| law::choice(values[pm::el_env(i, pm::el::LINEAR)], 2) == 1), crate::module::ENV_LINEAR)?;
+    }
     if !cfg!(feature = "us-matrix") {
         uses((0..pm::MOD_SLOTS).any(|s| crate::modmx::routes(values, s)), crate::module::MATRIX)?;
     }
@@ -355,13 +361,14 @@ fn render_span(
     let mut pos = 0;
     while pos < l.len() {
         let at = abs + pos as u64;
-        if at % FINE as u64 == 0 {
-            for v in voices.voices_mut().iter_mut().filter(|v| v.is_on()) {
-                v.tick(sh, at);
-            }
-            if at % CONTROL as u64 == 0 {
-                voices.tick();
-            }
+        // every voice on the fine grid, and a voice whose segment ended off it (a linear envelope's stage corner)
+        let grid = at % FINE as u64 == 0;
+        let off_grid = cfg!(feature = "us-env-linear"); // only a linear envelope ends a segment off the grid
+        for v in voices.voices_mut().iter_mut().filter(|v| v.is_on() && (grid || (off_grid && v.left() == 0))) {
+            v.tick(sh, at);
+        }
+        if at % CONTROL as u64 == 0 {
+            voices.tick();
         }
         // up to the next tick: the end of the shortest voice segment (a fine one is FINE frames), or the next
         // control boundary when no voice is sounding

@@ -4,7 +4,8 @@
 # Songs: the seven reference songs from out/songs plus V2 songs converted by this tree's synth-convert
 # (fr08 brullwurfel candytron kkrieger debris platinum; skipped when $V2_SONGS is absent).
 #   research/us-size-probe/songs-size.sh [tree]     (default: this checkout; ONLY=<song regex> measures a subset;
-#   EXTRA_FEATS=<cargo features> adds features to every song's list)
+#   EXTRA_FEATS=<cargo features> adds features to every song's list; DROP_FEAT=<us-feature> removes one, for its cost)
+# Atrium and Elevated join when their sources are present (ELEVATED_SRC, ELEVATED_REF; change add-elevated-import).
 set -u
 T=$(cd "${1:-$(dirname "$0")/../..}" && pwd)
 export PATH="$HOME/.cargo/bin:$PATH" WINEDEBUG=-all WINEPREFIX="${WINEPREFIX:-$HOME/.wine-64k}"
@@ -19,6 +20,10 @@ v2() { [ -f "$2" ] && "$C" v2m "$2" "$D/v2-$1.song" 4 2>/dev/null; }
 v2 fr08 "$S/acceptance/fr08.v2m"; v2 brullwurfel "$S/acceptance/brullwurfel.v2m"; v2 candytron "$S/acceptance/candytron.v2m"
 v2 kkrieger "$S/acceptance/kkrieger.v2m"; v2 debris "$S/fr_public/werkkzeug3__data__debris__debris_ost.v2m"
 v2 platinum "$S/modland/KB--fr-052_platinum.v2m"
+# songs of Mentor's 4k synth (change add-elevated-import; skipped when the sources are absent, see tools/elevated-parity)
+ev() { [ -f "$2" ] && "$C" elevated "$2" "$D/$1.song" 2>/dev/null; }
+ev atrium "${ELEVATED_SRC:-$HOME/Downloads/zenekk/TBC - Atrium}/music.asm"
+ev elevated "${ELEVATED_REF:-/tmp/elevated-ref}/elevated-src/src/music.asm"
 F="-Clinker-flavor=lld-link -Ctarget-cpu=pentium4 -Crelocation-model=static -Zlocation-detail=none"
 for a in /ENTRY:start /SUBSYSTEM:WINDOWS /NODEFAULTLIB /DEBUG:NONE /OPT:REF /OPT:ICF /SAFESEH:NO /BASE:0x400000 /DYNAMICBASE:NO /FIXED; do F="$F -Clink-arg=$a"; done
 cd "$T/research/us-size-probe"
@@ -26,6 +31,7 @@ for s in "$D"/*.song; do
   [ -n "${ONLY:-}" ] && ! [[ "$(basename "$s" .song)" =~ ^($ONLY)$ ]] && continue
   feats=$("$C" features "$s" 2>/dev/null | head -1 | tr ',' '\n' | sed 's|^|unisynth/|' | paste -sd, -)
   [ -n "${EXTRA_FEATS:-}" ] && feats="$feats,$EXTRA_FEATS"   # e.g. unisynth/us-sample-stereo (cost of a feature)
+  [ -n "${DROP_FEAT:-}" ] && feats=$(echo "$feats" | tr ',' '\n' | grep -vx "unisynth/$DROP_FEAT" | paste -sd, -)   # its marginal cost
   US_SONG="$s" RUSTFLAGS="$F" cargo build -q --release --features "baked${feats:+,$feats}" --target i686-pc-windows-msvc || { echo "$(basename "$s"): build failed"; continue; }
   e=target/i686-pc-windows-msvc/release/us-size-probe.exe
   rm -f "$D/sq.exe"; [ -x "$W" ] && [ -f "$SQ" ] && "$W" "$SQ" -i "$e" -o "$D/sq.exe" >/dev/null 2>&1

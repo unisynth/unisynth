@@ -48,3 +48,4 @@ Pull-only (not auto-injected).
 
 - Oscillator slots: `Kind` (`Pm`, `Blit`, `Sampler`, `Wt`, `V2` naive, `Clocked`;
 - `from_type` → `UnsupportedModule`), `Slot`, `SlotT`/`SlotRamps`, `sample` → `(left, right, send)`, `mix_in` + `combine::*`, `v2_sample`, clocked generator/filter/resampler.
+- `Kind::Pair` (`us-osc-pair`, type position 5): `PairT` (wave, shift, ratios `2 − d`/`d`, sign; zero-size stand-in without the module), `pair_wave(t, wave)` (`x = 2(t − round t)`: sine `sin πx`, square, saw), `Slot.phase_b` (second copy's f64 phase), `Slot::start` resets both. See change: add-elevated-import.

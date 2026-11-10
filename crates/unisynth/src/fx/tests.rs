@@ -80,14 +80,26 @@ fn env(rate: f64, tempo: i32) -> Env<'static> {
 /// The v3 chunk of the old-layout effect values `vals` (`[mode as stored before the switch, params…]`): the tests
 /// keep their meaning across the format switch (change unify-v2-algorithms 6.5) and the effect golden pins it.
 pub(super) fn chunk(k: u8, vals: &[f32]) -> Vec<u8> {
+    // a mode the old layout never had ([`old_mode_value`]'s marker `−1 − id`): the v3 chunk directly
+    if let Some(&m) = vals.first().filter(|m| **m < 0.0) {
+        let mut v = vals.to_vec();
+        v[0] = super::mode_value(k, (-1.0 - m) as usize);
+        let mut c: Vec<u8> = v.iter().flat_map(|x| x.to_le_bytes()).collect();
+        c.extend(super::TAG);
+        return c;
+    }
     let mut old: Vec<u8> = vals.iter().flat_map(|x| x.to_le_bytes()).collect();
     old.extend((old.len() as i32 + 4).to_le_bytes());
     crate::migrate::effect_chunk(k, &old).unwrap()
 }
 
-/// The old layout's stored value of mode `m` of kind `k` (the expanded choice).
+/// The old layout's stored value of mode `m` of kind `k` (the expanded choice), or the marker `−1 − m` for a mode added
+/// after the migration (change add-elevated-import), which [`chunk`] writes as a v3 chunk.
 pub(super) fn old_mode_value(k: u8, m: usize) -> f32 {
-    let (old, later) = (mode_count(k), mode_total(k) - mode_count(k));
+    if m >= super::migrated_total(k) {
+        return -1.0 - m as f32;
+    }
+    let (old, later) = (mode_count(k), super::migrated_total(k) - mode_count(k));
     if later == 0 {
         mode(m, old)
     } else if old == 1 {
@@ -230,7 +242,8 @@ fn parameters_past_the_end_are_ignored_and_the_count_is_one_more_than_the_mode_h
 #[test]
 fn a_mode_the_build_lacks_is_named_at_load() {
     let env = env(44100.0, 120);
-    for &(k, i, id) in MODES.iter() {
+    for &(k, i, id, _) in MODES.iter() {
+        let i = i as usize;
         let chunk = chunk(k, &[old_mode_value(k, i)]);
         let r = UFx::need(k, &chunk, &env);
         let built = match id {
@@ -257,6 +270,12 @@ fn a_mode_the_build_lacks_is_named_at_load() {
             m::FX_DISTORTION_WRAP => cfg!(feature = "us-fx-distortion-wrap"),
             m::FX_FLANGER_COMB => cfg!(feature = "us-fx-flanger-comb"),
             m::FX_CHORUS_TF3 => cfg!(feature = "us-fx-chorus-tf3"),
+            m::FX_DISTORTION_ATAN => cfg!(feature = "us-fx-distortion-atan"),
+            m::FX_DISTORTION_SINE => cfg!(feature = "us-fx-distortion-sine"),
+            m::FX_DISTORTION_KNEE => cfg!(feature = "us-fx-distortion-knee"),
+            m::FX_EQ_SVF_LFO => cfg!(feature = "us-fx-eq-svf-lfo"),
+            m::FX_DELAY_PINGPONG => cfg!(feature = "us-fx-delay-pingpong"),
+            m::FX_DELAY_ALLPASS => cfg!(feature = "us-fx-delay-allpass"),
             _ => false,
         };
         if built {
@@ -287,7 +306,8 @@ fn effect_kinds_load_through_the_registry() {
 #[test]
 fn reset_restores_the_loaded_state_and_calls_do_not_matter() {
     let (l, r) = noise(9, 5000);
-    for &(k, i, _) in MODES.iter() {
+    for &(k, i, _, _) in MODES.iter() {
+        let i = i as usize;
         let n = mode_count(k);
         let mut vals = vec![mode(i, n)];
         vals.extend(values(40 + i as u32, 14));
@@ -502,7 +522,8 @@ fn three_band_eq_corners_follow_the_song_rate() {
 #[test]
 fn automating_a_parameter_is_loading_it() {
     let (l, r) = noise(11, 2500);
-    for &(k, i, _) in MODES.iter() {
+    for &(k, i, _, _) in MODES.iter() {
+        let i = i as usize;
         let n = mode_count(k);
         let mut a = vec![mode(i, n)];
         a.extend(values(70 + i as u32, 14));
@@ -678,7 +699,8 @@ fn the_ring_flanger_sweeps_at_the_same_speed_in_seconds_at_any_rate() {
 #[test]
 fn odd_call_sizes_change_nothing_for_any_mode() {
     let (l, r) = noise(13, 6000);
-    for &(k, i, _) in MODES.iter() {
+    for &(k, i, _, _) in MODES.iter() {
+        let i = i as usize;
         let n = mode_count(k);
         let mut v = vec![mode(i, n)];
         v.extend(values(300 + i as u32, 14));
@@ -823,10 +845,12 @@ fn the_random_parameter_sets_cover_the_range_of_each_parameter() {
 
 #[test]
 fn every_mode_is_a_plain_choice_and_its_old_value_migrates_to_it() {
-    // v3: the mode is `Choice(mode_total(k))`; the old expanded value of every mode migrates to it
-    for &(k, i, _) in MODES.iter() {
+    // v3: the mode is `Choice(positions(k))` at the mode's stored position; the old expanded value of every mode
+    // migrates to it
+    for &(k, i, _, pos) in MODES.iter() {
+        let (i, pos) = (i as usize, pos as usize);
         assert_eq!(mode_of_value(k, super::mode_value(k, i)), i, "kind {k} mode {i}");
-        assert_eq!(super::mode_value(k, i), mode(i, mode_total(k)));
+        assert_eq!(super::mode_value(k, i), mode(pos, super::positions(k)));
         assert_eq!(mode_of(k, &chunk(k, &[old_mode_value(k, i)])), i, "kind {k} mode {i}: the old value");
     }
     // an old mode value read as v3 would be another mode: the tag keeps old chunks out
@@ -1061,4 +1085,26 @@ fn a_freeverb_answers_its_memory() {
     let n = q(0.0).expect("a known memory") as usize;
     assert!(n >= 8192 + super::law::ms_to_len(500.0, 44100.0), "{n}");
     assert_eq!(q(1.0), None, "frozen");
+}
+
+#[test]
+fn expanded_mode_choices_keep_every_earlier_stored_value() {
+    // change add-elevated-import: distortion 4 → 7, EQ 3 → 5, delay 3 → 5 positions; earlier modes at 2·id
+    use super::{mode_at, positions, GAP};
+    assert_eq!((positions(kind::DISTORTION), positions(kind::EQ), positions(kind::DELAY)), (7, 5, 5));
+    let before = [(kind::DISTORTION, 4), (kind::EQ, 3), (kind::DELAY, 3), (kind::CHORUS, 2), (kind::FLANGER, 3), (kind::REVERB, 4), (kind::COMPRESSOR, 2)];
+    for (k, n) in before {
+        for id in 0..n {
+            // the value a chunk stored before this change selects the same mode now
+            assert_eq!(mode_of_value(k, mode(id, n)), id, "kind {k} mode {id}");
+            assert_eq!(super::mode_value(k, id), mode(id, n), "kind {k} mode {id} writes the same value");
+        }
+    }
+    assert_eq!([1, 3, 5].map(|p| mode_at(kind::DISTORTION, p)), [4, 5, 6]);
+    assert_eq!([1, 3].map(|p| mode_at(kind::EQ, p)), [3, GAP]);
+    assert_eq!([1, 3].map(|p| mode_at(kind::DELAY, p)), [3, 4]);
+    // the free EQ position is a bad chunk, as a free oscillator type is
+    let mut c: Vec<u8> = [mode(3, 5), 0.5].iter().flat_map(|x| x.to_le_bytes()).collect();
+    c.extend(super::TAG);
+    assert_eq!(UFx::need(kind::EQ, &c, &env(44100.0, 120)), Err(LoadError::BadChunk));
 }

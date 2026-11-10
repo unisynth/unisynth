@@ -10,10 +10,11 @@ MODULES="us-osc-pm us-osc-blit us-osc-wt us-osc-sample us-sample-gsm us-sample-d
          us-voice-lfo us-voice-glide us-voice-mono us-voice-unison us-voice-oneshot us-matrix us-matrix-add us-speech us-automation
          us-osc-naive us-flt-feedback us-flt-parallel us-drive us-env-frame us-lfo-frame us-voice-out us-strip us-chunk-wide
          us-osc-combine us-quirk-exact-math us-quirk-integer-fm us-quirk-fixed-seed us-quirk-lcg-noise us-quirk-coarse-env
-         us-osc-points us-osc-pad"
+         us-osc-points us-osc-pad us-osc-pair us-voice-drop us-env-linear"
 FX="us-fx-distortion-shaper us-fx-distortion-curve us-fx-distortion-power us-fx-crusher us-fx-eq-parametric us-fx-eq-3band us-fx-delay-tempo
     us-fx-delay-ms us-fx-chorus us-fx-chorus-tf3 us-fx-flanger-phaser us-fx-flanger-ring us-fx-reverb-freeverb us-fx-reverb-compact
-    us-fx-reverb-rooms us-fx-compressor us-fx-formant us-fx-eq-cut us-fx-delay-modulated us-fx-reverb-comb us-fx-compressor-lookahead"
+    us-fx-reverb-rooms us-fx-compressor us-fx-formant us-fx-eq-cut us-fx-delay-modulated us-fx-reverb-comb us-fx-compressor-lookahead
+    us-fx-distortion-atan us-fx-distortion-sine us-fx-distortion-knee us-fx-eq-svf-lfo us-fx-delay-pingpong us-fx-delay-allpass"
 SETS=("" $MODULES $FX "us-osc" "us-flt" "us-env" "us-voice" "us-fx" "us-all"
       "us-osc,us-noise,us-flt,us-env,us-fx" "us-osc,us-noise,us-flt,us-env,us-voice,us-fx" "us-osc,us-noise,us-flt,us-env,us-voice,us-matrix,us-fx")  # the last three: everything but the voice paths / the matrix / automation (gated tests, goldens)
 fail=0

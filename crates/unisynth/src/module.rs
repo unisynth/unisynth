@@ -105,6 +105,16 @@ modules! {
     OSC_POINTS = 63, "us-osc-points", "point oscillator";
     OSC_PAD = 64, "us-osc-pad", "PAD table oscillator";
     FX_CHORUS_TF3 = 65, "us-fx-chorus-tf3", "chorus, one-tap mode";
+    // change add-elevated-import
+    OSC_PAIR = 66, "us-osc-pair", "pair oscillator";
+    VOICE_DROP = 67, "us-voice-drop", "pitch drop";
+    ENV_LINEAR = 68, "us-env-linear", "linear timed envelope";
+    FX_EQ_SVF_LFO = 69, "us-fx-eq-svf-lfo", "EQ, SVF LFO mode";
+    FX_DISTORTION_ATAN = 70, "us-fx-distortion-atan", "distortion, atan mode";
+    FX_DISTORTION_SINE = 71, "us-fx-distortion-sine", "distortion, sine mode";
+    FX_DISTORTION_KNEE = 72, "us-fx-distortion-knee", "distortion, knee mode";
+    FX_DELAY_PINGPONG = 73, "us-fx-delay-pingpong", "delay, ping-pong mode";
+    FX_DELAY_ALLPASS = 74, "us-fx-delay-allpass", "delay, allpass mode";
 }
 
 /// The module of quirk index `q` (a `params::quirk` index).

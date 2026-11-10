@@ -41,6 +41,12 @@ pub enum Law {
     Raw,
     /// A 7-bit step: `step = 128·p`.
     Steps,
+    /// Linear timed envelope time in ms, `5000·p²` (change add-elevated-import).
+    LinTime,
+    /// Pitch drop base in Hz, `20 000·p`.
+    DropHz,
+    /// Pitch drop factor per sample `k` (1 = off).
+    DropRate,
 }
 
 impl Law {
@@ -65,6 +71,9 @@ impl Law {
             Law::Count(lo, hi) => law::count(p, lo, hi) as f32,
             Law::Index => law::index(p) as f32,
             Law::Steps => v2_raw(p),
+            Law::LinTime => law::lin_ms(p),
+            Law::DropHz => law::drop_hz(p),
+            Law::DropRate => crate::fm::exp2f(law::drop_log2k(p)),
             Law::Pan | Law::Unit | Law::EnvTime | Law::Shape | Law::ModAmount | Law::Raw => p,
         }
     }
@@ -90,6 +99,9 @@ impl Law {
             Law::Index => inv::inv_index(v as u8),
             Law::Steps => v / 128.0,
             Law::Unit => v,
+            Law::LinTime => inv::inv_lin_ms(v),
+            Law::DropHz => inv::inv_drop_hz(v),
+            Law::DropRate => inv::inv_drop_k(v as f64),
             Law::RatioFine | Law::Pan | Law::EnvTime | Law::Shape | Law::ModAmount | Law::Raw => return None,
         })
     }
@@ -202,6 +214,15 @@ pub fn law_of(i: usize) -> Law {
             _ => Choice(3),
         };
     }
+    if i == el::DROP_BASE {
+        return DropHz;
+    }
+    if i == el::DROP_RATE {
+        return DropRate;
+    }
+    if let Some(fld) = group(el::ENV, el::ENV_LEN, ENV_SLOTS) {
+        return if fld == el::LINEAR { Choice(2) } else { LinTime };
+    }
     if i < COUNT {
         return Steps;
     }
@@ -271,10 +292,14 @@ pub fn name(i: usize) -> String {
         format!("ctl.cc{}", i - CC + 2)
     } else if i < PTS {
         format!("speech.{}", ["on", "select", "pitch"][i - SPEECH])
-    } else if i < COUNT {
+    } else if i < EL {
         const P: [&str; pt::LEN] =
             ["points", "mode1", "mode2", "mode3", "mode4", "mode_last", "layers", "layer_detune", "layer_spread"];
         slot(PTS, pt::LEN, &P, "osc")
+    } else if i < el::ENV {
+        String::from(["drop.base", "drop.rate"][i - EL])
+    } else if i < COUNT {
+        slot(el::ENV, el::ENV_LEN, &["linear", "hold"], "env")
     } else {
         format!("param{i}")
     }

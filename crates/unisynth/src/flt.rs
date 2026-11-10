@@ -19,6 +19,9 @@ pub const NS: usize = 9;
 /// feedback-form filter types, the drive, the channel strip's drive); without one, the state-variable and 4-pole steps
 /// compile to the plain input-form and one-step arithmetic.
 const FORMS: bool = cfg!(any(feature = "us-flt-feedback", feature = "us-drive", feature = "us-strip"));
+/// The state-variable step once per sample (Elevated's filter, the EQ's `svf-lfo` mode; change add-elevated-import):
+/// a non-zero `c[4]` of state-variable coefficients, which every other user leaves at 0.
+const ONE_STEP: bool = cfg!(feature = "us-fx-eq-svf-lfo");
 
 /// The kinds of the drive's filter modes (from mode 5) in order.
 pub const STEPS_KINDS: [Kind; 7] = [Kind::SvfLp, Kind::SvfBp, Kind::SvfHp, Kind::SvfNotch, Kind::SvfAll, Kind::Pole4Lp, Kind::Pole4Hp];
@@ -475,7 +478,9 @@ pub fn run(kind: Kind, c: &[f32; NC], s: &mut [f32; NS], x: f32) -> f32 {
                     _ => high + band + low,
                 }
             };
-            let y = if FORMS {
+            let y = if ONE_STEP && c[4] != 0.0 {
+                step(x)
+            } else if FORMS {
                 let y1 = step(al * s[2] + (1.0 - al) * x);
                 al * y1 + (1.0 - al) * step(x)
             } else {

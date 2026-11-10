@@ -164,6 +164,7 @@ pub fn features(s: &Song) -> Vec<String> {
                     ot::WAVETABLE => out.insert("us-osc-wt"),
                     ot::SAMPLER => out.insert(if choice(at(o::SHAPE + shape::SMP_SOURCE), p::smp_source::COUNT) != p::smp_source::GSM { "us-sample-dls" } else { "us-sample-gsm" }),
                     ot::CLOCKED => out.insert("us-osc-clocked"),
+                    ot::PAIR => out.insert("us-osc-pair"),
                     t if ot::is_naive(t) => out.insert("us-osc-naive"),
                     _ => false,
                 };
@@ -186,6 +187,12 @@ pub fn features(s: &Song) -> Vec<String> {
             for slot in 0..p::ENV_SLOTS {
                 out.insert(["us-env-seconds", "us-env-rate", "us-env-frame"][choice(v[p::ENV + slot * e::LEN + e::LAW], p::env_law::COUNT)]);
             }
+            if v[p::el::DROP_RATE] > 0.0 {
+                out.insert("us-voice-drop");
+            }
+            if (0..p::ENV_SLOTS).any(|i| choice(v[p::el_env(i, p::el::LINEAR)], 2) == 1) {
+                out.insert("us-env-linear");
+            }
         } else if let Some(name) = fx_feature(d.kind, tables::mode_of(d.kind, &d.values)) {
             out.insert(name);
         }
@@ -193,25 +200,8 @@ pub fn features(s: &Song) -> Vec<String> {
     out.into_iter().map(String::from).collect()
 }
 
+/// The cargo feature of effect kind `k`'s mode `mode` (`None` for a free position): the module the player's load check
+/// names (`fx::module_of`), so every mode is covered (change add-elevated-import: the hand list missed the later modes).
 fn fx_feature(k: u8, mode: usize) -> Option<&'static str> {
-    use unisynth::kind::*;
-    Some(match (k, mode) {
-        (DISTORTION, 0) => "us-fx-distortion-shaper",
-        (DISTORTION, 1) => "us-fx-distortion-curve",
-        (DISTORTION, _) => "us-fx-distortion-power",
-        (CRUSHER, _) => "us-fx-crusher",
-        (EQ, 0) => "us-fx-eq-parametric",
-        (EQ, _) => "us-fx-eq-3band",
-        (DELAY, 0) => "us-fx-delay-tempo",
-        (DELAY, _) => "us-fx-delay-ms",
-        (CHORUS, _) => "us-fx-chorus",
-        (FLANGER, 0) => "us-fx-flanger-phaser",
-        (FLANGER, _) => "us-fx-flanger-ring",
-        (REVERB, 0) => "us-fx-reverb-freeverb",
-        (REVERB, 1) => "us-fx-reverb-compact",
-        (REVERB, _) => "us-fx-reverb-rooms",
-        (COMPRESSOR, _) => "us-fx-compressor",
-        (FORMANT, _) => "us-fx-formant",
-        _ => return None,
-    })
+    unisynth::fx::module_of(k, mode).map(unisynth::module::feature)
 }

@@ -20,13 +20,31 @@ export function initParams(tables: Table[], phys: typeof physical): void {
   TABLES = tables; physical = phys;
   INST_T = tables.find((t) => t.kind === 64);
   byName = new Map((INST_T?.params ?? []).map((p) => [p.name, p]));
+  // an effect kind's stored mode positions (its mode parameter's options) and the mode at each: the engine expanded
+  // some mode choices (add-elevated-import), so a stored position is not the mode id; each table's mode default is its
+  // own stored value
+  BY_POS = new Map();
+  for (const t of tables) {
+    const mp = t.kind === 64 ? undefined : t.params.find((p) => p.name === "mode");
+    if (!mp) continue;
+    const n = Math.max(1, mp.options.length), e = BY_POS.get(t.kind) ?? { n, mode: Array<number>(n).fill(-1) };
+    e.mode[choice(mp.default, n)] = t.mode; BY_POS.set(t.kind, e);
+  }
 }
+/** Per effect kind: stored mode positions and the mode id at each (−1 = a free position). */
+let BY_POS = new Map<number, { n: number; mode: number[] }>();
 
 /** Option index of a 0–1 value over `n` options. */
 export const choice = (p: number, n: number): number => Math.min(n - 1, Math.max(0, Math.floor(p * (n - 1) + .5)));
 export const nModes = (k: number): number => TABLES.filter((t) => t.kind === k).length;
-/** Mode of an effect (0 for the instrument); read-only and hot: reads the raw device. */
-export const modeOf = (d: Device): number => { const r = raw(d); return r.kind === 64 ? 0 : choice(r.values.mode ?? 0, nModes(r.kind)); };
+/** Mode of an effect (0 for the instrument); read-only and hot: reads the raw device. A free position reads as mode 0. */
+export const modeOf = (d: Device): number => {
+  const r = raw(d); if (r.kind === 64) return 0;
+  const e = BY_POS.get(r.kind); if (!e) return 0;
+  return Math.max(0, e.mode[choice(r.values.mode ?? 0, e.n)] ?? 0);
+};
+/** The stored value of effect kind `k`'s mode `mode` (the value its table's mode parameter defaults to). */
+export const modeValue = (k: number, mode: number): number => TABLES.find((t) => t.kind === k && t.mode === mode)?.params.find((p) => p.name === "mode")?.default ?? 0;
 export const tableOf = (d: Device): Table | undefined => { const k = raw(d).kind, m = modeOf(d); return TABLES.find((t) => t.kind === k && t.mode === m); };
 export const paramOf = (d: Device, name: string): Param | undefined => tableOf(d)?.params.find((p) => p.name === name);
 export const devName = (d: Device): string => d.kind === 64 ? (d.preset || "Unisynth") : tableOf(d)?.label ?? `kind ${d.kind}`;
@@ -50,11 +68,11 @@ export function optValue(name: string, label: string): number { const o = ip(nam
 export const GAP = "—";
 /**
  * Oscillator kind of slot `i`, by its option label (not the engine's stored position, which add-tf3-import expanded):
- * 0 Off … 4 Sampler, 5–11 the naive generators, 12 Clocked, 13 Points, 14 PAD table.
+ * 0 Off … 4 Sampler, 5–11 the naive generators, 12 Clocked, 13 Points, 14 PAD table, 15 Pair (add-elevated-import).
  */
 export function oscType(d: Device, i: number): number {
   return Math.max(0, ["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive saw/tri", "Naive pulse", "Sine", "Coloured noise", "FM",
-    "Aux in A", "Aux in B", "Clocked", "Points", "PAD table"].indexOf(optName(d, `osc${i}.type`) ?? ""));
+    "Aux in A", "Aux in B", "Clocked", "Points", "PAD table", "Pair"].indexOf(optName(d, `osc${i}.type`) ?? ""));
 }
 /** PAD table profiles (`osc<i>.s4` of a PAD slot, a choice over 4; engine `pad`). */
 export const PAD_PROFILES = ["single", "detune", "spread", "gauss"];
@@ -144,8 +162,15 @@ export function fmtVal(d: Device, p: Param, v: number): string {
   if (law === "Cutoff" || law === "FixedHz" || law === "LfoRate") return x >= 1000 ? (x / 1000).toFixed(2) + "k" : x.toFixed(x < 10 ? 2 : 0) + " Hz";
   if (law === "Gain") return x <= 0 ? "−∞ dB" : (20 * Math.log10(x)).toFixed(1) + " dB";
   if (law === "Time") return x.toFixed(x < 1 ? 3 : 2) + " s";
+  const secs = (t: number): string => t >= 1 ? t.toFixed(2) + " s" : Math.round(t * 1000) + " ms";
+  // Elevated's fields (add-elevated-import): linear envelope times, the drop's base and its halving time
+  if (law === "LinTime") return secs(x / 1000);
+  if (law === "DropHz") return x.toFixed(x < 100 ? 1 : 0) + " Hz";
+  if (law === "DropRate") return x >= 1 ? "off" : "½ in " + secs(Math.log(0.5) / Math.log(x) / 44100);
   if (law === "EnvTime") {
     const m = /^env(\d)\.(attack|decay|release)$/.exec(p.name), tf = m && d.kind === 64 && envRate(vget(d, ip(`env${m[1]}.law`)));
+    // a linear envelope's times are 5000·p² ms, no 1 ms floor (unisynth `law::lin_ms`)
+    if (m && d.kind === 64 && choice(vget(d, ip(`env${m[1]}.linear`)), 2) === 1) return secs(5 * v * v);
     const s = tf ? tfEnvSeconds(m[2]!, v, vget(d, ip(`env${m[1]}.sustain`)), vget(d, ip(`env${m[1]}.curve_slope`))) : envMs(v) / 1000;
     return !isFinite(s) ? (m?.[2] === "decay" ? "holds" : "∞") : s >= 1 ? s.toFixed(2) + " s" : Math.round(s * 1000) + " ms";
   }

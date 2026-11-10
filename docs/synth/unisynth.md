@@ -72,7 +72,8 @@ flowchart LR
 ## Parameters
 
 The v3 layout (change unify-v2-algorithms, task 6.4): 294 values in module blocks, plus the point fields that change
-add-tf3-import appended (321 in all), everything normalized (0..1)
+add-tf3-import appended (321) and the Elevated fields that change add-elevated-import appended (331 in all), everything
+normalized (0..1)
 except the three sample indices (raw whole numbers). Indices below 240 take one chunk byte, the rest two (they need
 `us-chunk-wide`). A value outside its law is clamped, and NaN reads as 0. The layout before it (260 values, chunk
 versions 1 and 2) is frozen host-side as `params::old` for the migration; the player rejects it.
@@ -95,6 +96,7 @@ versions 1 and 2) is frozen host-side as `params::old` for the migration; the pl
 | controllers 2–7 | 285–290 | 6 | `ctl.cc2` … `ctl.cc7` (breath, 3–6, volume; default CC7 = 127/128) |
 | speech | 291–293 | 3 | `speech.on`, `speech.select`, `speech.pitch` |
 | point fields ×3 | 294–320 | 9 each | `osc{n}.points` (`count(1..4)`), `mode1`–`mode4`, `mode_last` (step / linear / spline), `layers` (`count(1..11)`), `layer_detune` (`10p³` Hz), `layer_spread` (`10p⁴` Hz); add-tf3-import, read by `points` (and `pad`: the detune) slots |
+| Elevated fields | 321–330 | 10 | `drop.base` (`20 000p` Hz), `drop.rate` (`1 − k = 10^(−6(1 − p))` per sample, 0 = off), then per envelope `envN.linear` (off / on) and `envN.hold` (`5000p²` ms); add-elevated-import, see [Pair oscillator](#pair-oscillator-us-osc-pair) |
 
 **Choices are plain** `Choice(n)` (`law::choice`, stored `k/(n − 1)`), except the oscillator type: an expanded
 `Choice(25)` whose id is the stored position (change add-tf3-import). Off, phase mod, saw/pulse, wavetable, sampler,
@@ -197,8 +199,8 @@ flowchart TD
     X -- yes --> OK["values = defaults + pairs"]
 ```
 
-- The encoding is canonical (sorted, defaults omitted): the same patch gives the same bytes. The worst case is 1691
-  bytes (all 321 values differ); a Slaughter-like patch is about 100 bytes.
+- The encoding is canonical (sorted, defaults omitted): the same patch gives the same bytes. The worst case is 1751
+  bytes (all 331 values differ); a Slaughter-like patch is about 100 bytes.
 - The three sample indices (`oscN.sample`) are the only raw values. Each reads like the legacy `(int)v`, 1-based,
   0 = none; DLS uses the legacy `(int)v − 1`. A GSM index beyond the section is an error, a DLS index is checked against
   the bank at render.
@@ -666,6 +668,25 @@ flowchart LR
 - **Cost.** 256 kB per PAD slot; 5.7–17 ms to build (release). The magnitude spectrum matches the original's per
   profile (bands of 16 bins within 2 % of the peak band); phases differ (random in both).
 
+### Pair oscillator (`us-osc-pair`)
+
+Elevated's oscillator pair (change add-elevated-import; Mentor's 4k synth, `docs/synth/elevated.md`), stored at the
+free type position 5. One slot plays two naive copies of a waveform from two f64 phases that advance by `inc·(2 − d)`
+and `inc·d`. Both start at 0 at every note-on and advance before they are read (the original reads `φ·(2 − d)` and
+`φ·d` from one unwrapped phase; two wrapped phases are the same under any pitch movement). Each copy adds the phase
+shift `s` and folds to `x = 2·(t − round(t))`, then gives sine `sin(πx)`, square (+1 above 0, else −1) or saw `x`. The
+slot is their sum, times −1 with the polarity set: an added negated pair is the original's subtract. Shape fields:
+`s0` wave (`Choice(3)`), `s1` shift (turns), `s2` detune `d = 2p`, `s3` polarity (`Choice(2)`). Two more voice settings
+come with Elevated:
+
+- **Pitch drop** (`us-voice-drop`, `drop.base`, `drop.rate`): the voice frequency is `b + (f − b)·k^(n+1)` at frame `n`
+  after note-on (`Move::Drop`, evaluated at the control points, the increment ramped between them; kicks fall from the
+  note to the base).
+- **Linear timed envelope** (`us-env-linear`, `envN.linear`, `envN.hold`): attack 0 → 1, decay → sustain, hold, release
+  → 0, each linear over `5000p²` ms (no 1 ms floor). It ends by itself, and a note-off ends it at once (Elevated's `0x7F`
+  cut). With envelope 1 linear, the voice ends its control segment at each stage corner (`Env::linear_left`; the
+  instrument ticks a voice whose segment ended off the 8-frame grid), so a 3-frame attack keeps its corner.
+
 ### Decimation stage (points and PAD)
 
 Both Tunefish 3 slot types always run Tunefish 3's oversampling and decimation (spec §3.3): the slot renders `k`
@@ -961,6 +982,7 @@ the parity tools.
 | channel strip | V2 | `V2Chan` (DCF, compressor, boost, distortion, chorus) |
 | speech | V2 | Ronan (`ronan.cpp`) |
 | clocked oscillator, flanger `comb`, distortion `wrap` | TBL Jizz / Stash (1997) | Probe's mini-cauldron (`research/tbl-mini-cauldron`): waveforms, comb/doubler, wrap-around specials |
+| pair oscillator, pitch drop, linear timed envelope; EQ `svf-lfo`, distortion `atan`/`sine`/`knee`, delay `ping-pong`/`allpass` | Mentor's 4k synth (Elevated, Atrium; TBC 2008–09) | `synth.asm`: the synth machine, filter (coupled-form LFOs), distortion and compressor machines, delay and allpass (`research/elevated-synth.md`) |
 | reverb `Comb`, delay `Modulated`, compressor `Look-ahead`, EQ `Cut` | V2 | `V2Reverb`, `V2ModDel`, `V2Comp`, post filters |
 | matrix Add, CC2–7, centred note | V2 | `storeV2Values` modulation |
 | the quirks (`quirk.*`) and the converter's version-dependent writes | V2 format versions 0–6, the 2004 build | v2redux `v2eras.h` ledger |
@@ -1208,8 +1230,23 @@ in "Provenance".
 | 71 reverb | Comb (4): time, high cut, low cut, volume; wet only, mono input |
 | 72 compressor | Look-ahead (9): detect (off/peak/RMS), couple (stereo link), auto gain, lookahead, threshold, ratio, attack, release, out gain |
 
-Mode ids per kind (the order of `fx::MODES`): distortion shaper, curve, power, wrap; EQ parametric, 3band, cut; delay
-tempo, ms, modulated; flanger phaser, ring, comb; reverb freeverb, compact, rooms, comb; compressor, look-ahead.
+Mode ids per kind (the order modes were added): distortion shaper, curve, power, wrap, atan, sine, knee; EQ parametric,
+3band, cut, svf-lfo; delay tempo, ms, modulated, ping-pong, allpass; flanger phaser, ring, comb; reverb freeverb,
+compact, rooms, comb; compressor, look-ahead. **The stored mode is a position, not the id** (`fx::MODES` carries both;
+change add-elevated-import). Distortion (7 positions), EQ (5) and delay (5) were expanded as the oscillator type was:
+every earlier mode keeps its stored value at position `2·id`, and the Elevated modes sit at the odd positions. EQ
+position 3 is free and gives `BadChunk` at load. The old-layout migration decodes against `fx::migrated_total`.
+
+The Elevated modes (change add-elevated-import, `fx/elevated.rs`, one feature each):
+
+| Kind | mode |
+|---|---|
+| 65 distortion | atan (2): `y = b·atan(x/a)`, `a = 10^(6p − 3)`, `b = 16p` (V2's overdrive arithmetic, exact arctangent) |
+| 65 distortion | sine (2): `y = b·sin(a·x)`, same laws |
+| 65 distortion | knee (3): threshold `t = 4p`, ratio `r = 4p`, offset `o = 4p − 2`; `y = sign(x)·(t + (|x| − t)·r + o)` for `|x| ≥ t`, else `x` |
+| 67 EQ | svf-lfo (8): cutoff, resonance `q = 2p`, LFO 1 rate (`0.01p` per sample) and depth, LFO 2 rate and depth (cutoff and depths `65 536p`, the original's units), dry `2p − 1`, output low/high/band. The shared state-variable step (`flt::run`, input form) once per sample at `g = (cutoff + l₁ + l₂)·f32::from_bits(0x3815_0000)`; the LFOs are the coupled-form recurrence in closed form from the absolute frame (seekable) |
+| 68 delay | ping-pong (2): length `round(65 536p)` frames, feedback `2p − 1`; `y = x + g·w`, the line stores the channels swapped |
+| 68 delay | allpass (2): the same laws; `v_L = x_L + g·w_R`, `v_R = x_R + g·w_L`, `y_L = w_R − g·v_L`, `y_R = w_L − g·v_R` |
 
 The mini-cauldron modes (change add-cauldron-xm-import, features `us-fx-flanger-comb`, `us-fx-distortion-wrap`):
 
@@ -1509,6 +1546,12 @@ a few dB between engines while a song of a few dozen notes agrees on loudness (t
 over seven seeds; every synthetic patch in `tests/tunefish.rs`, single layer: ≤ 1 dB, bands ≤ 3 dB). The pan matches at
 rest; a pan modulated through the matrix scales the equal-power value instead of the linear balance.
 
+### Elevated / Atrium (`music.asm`, change add-elevated-import)
+
+`synth-convert elevated <music.asm> <out.song> [--table 7|8] [--solo k] [tail]`: a song of Mentor's 4k synth as a
+unified song. Format, the machine-tree routing and the mapping are in [`elevated.md`](elevated.md). Parity against
+the original code: `tools/elevated-parity`.
+
 ### Tunefish 3 projects (`.e3prj`, change add-tf3-import)
 
 An Enigma Studio 3 project (XML) holds Tunefish 3 songs and instruments (`docs/synth/tunefish3.md`; behaviour in
@@ -1663,7 +1706,8 @@ closed (noise width and the fine window: it now reads 0.00 dB). The current figu
 Released songs (`project/music/released/`, no licence; committed while the authors are asked for permission, see
 `project/music/NOTICE.md`) are written by
 `tools/ws-extract/make-demos.py` (26 WaveSabre intros), `tools/tf-extract/make-demos.py` (Skyrunner's Tunefish 4
-soundtracks of Brain Control's Aten Hotep and Naumachia Insianis, read from the running intros) and `research/tbl-mini-cauldron/tools/make_demos.py` (TBL's
+soundtracks of Brain Control's Aten Hotep and Naumachia Insianis, read from the running intros) and `tools/elevated-parity/make-demos.py` (TBC's 4k intros Atrium and Elevated, music by Puryx, from their `music.asm`; Elevated
+carries its source release's CC BY-NC-SA 3.0) and `research/tbl-mini-cauldron/tools/make_demos.py` (TBL's
 three clocked soundtracks: Jizz "Smokeout", Stash "over2" and "bluish" by Probe, as `tbl-jizz-smokeout`,
 `tbl-stash-over2`, `tbl-stash-bluish`; `synth-convert xm … --names` gives the track names, `<sample> (record r,
 class)`). The clocked songs are large (2.8, 13.2 and 5.3 MB of JSON: per-tick automation). Through the song JSON they

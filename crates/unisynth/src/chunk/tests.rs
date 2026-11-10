@@ -132,14 +132,14 @@ fn round_trip_is_bit_exact_and_canonical() {
 
 #[test]
 #[cfg(feature = "us-chunk-wide")]
-fn worst_case_size_is_1691_bytes() {
+fn worst_case_size_is_1751_bytes() {
     let mut v = defaults();
     v.iter_mut().for_each(|x| *x = 0.123); // every value differs from its default
     assert!(v.iter().zip(defaults()).all(|(a, b)| *a != b));
     let c = encode(&v, &[]);
-    // version, escaped count (3), 240 one-byte pairs, 81 two-byte pairs, sample count
+    // version, escaped count (3), 240 one-byte pairs, 91 two-byte pairs, sample count
     assert_eq!(c.len(), 1 + 3 + 5 * SHORT + 6 * (pm::COUNT - SHORT) + 1);
-    assert_eq!(c.len(), 1691);
+    assert_eq!(c.len(), 1751);
     assert_eq!(readable(Chunk::parse(&c).unwrap().values()), readable(v));
 }
 

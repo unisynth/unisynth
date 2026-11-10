@@ -112,6 +112,10 @@ enum Move {
     /// Linear in frequency (the mini-cauldron's glide, change add-cauldron-xm-import): from `from` semitones, `t`
     /// of the way (0..1), advancing `per_frame` per frame.
     Hz { from: f32, t: f32, per_frame: f32 },
+    /// Elevated's pitch drop (change add-elevated-import D3): the frequency `b + (f − b)·k^(n+1)` Hz at frame `n`
+    /// after note-on, `f` the note's, `b` the base; `l2k = log2 k`.
+    #[cfg(feature = "us-voice-drop")]
+    Drop { f: f32, b: f32, l2k: f32, n: u32 },
 }
 
 /// Voice pitch in semitones with its movement towards a target (slide = linear, glide = exponential).
@@ -127,7 +131,25 @@ impl Pitch {
         Pitch { cur: note, target: note, mv: Move::Snap }
     }
 
+    /// A pitch drop from note `note` towards `base` Hz (per-sample factor `exp2(l2k)`), at its note-on frame.
+    #[cfg(feature = "us-voice-drop")]
+    fn drop(note: f32, base: f32, l2k: f32) -> Self {
+        let f = 440.0 * crate::fm::exp2f((note - 69.0) / 12.0);
+        let mut p = Pitch { cur: note, target: note, mv: Move::Drop { f, b: base, l2k, n: 0 } };
+        p.advance(0);
+        p
+    }
+
     fn advance(&mut self, dt: u32) {
+        #[cfg(feature = "us-voice-drop")]
+        if let Move::Drop { f, b, l2k, n } = self.mv {
+            let n = n.saturating_add(dt);
+            let hz = (b + (f - b) * crate::fm::exp2f(l2k * (n + 1) as f32)).max(1e-3);
+            self.cur = 69.0 + 12.0 * libm::log2f(hz / 440.0);
+            self.target = self.cur;
+            self.mv = Move::Drop { f, b, l2k, n };
+            return;
+        }
         if !cfg!(feature = "us-voice-glide") {
             self.cur = self.target; // without glide/slide every move is a snap
             return;
@@ -153,6 +175,8 @@ impl Pitch {
                     self.mv = Move::Hz { from, t, per_frame };
                 }
             }
+            #[cfg(feature = "us-voice-drop")]
+            Move::Drop { .. } => {}
             Move::Expo(tau) => {
                 let d = (self.target - self.cur) * crate::fm::expf(-(dt as f32) / tau);
                 if libm::fabsf(d) < 1e-3 {
@@ -269,8 +293,9 @@ impl Ctl {
         self.mm.eval(sh.p, &src);
     }
 
-    fn release(&mut self) {
-        self.env.iter_mut().for_each(Env::release);
+    /// A note-off: every envelope releases, a linear timed one ends at once.
+    fn release(&mut self, fx: &Fixed) {
+        self.env.iter_mut().zip(&fx.envp).for_each(|(e, ep)| e.note_off(ep));
     }
 }
 
@@ -788,7 +813,11 @@ impl<'a> Voice<'a> {
         } else {
             osc::ClockedT::default()
         };
-        SlotT { inc, gain, mix, pan_l, pan_r, pm_out, feedback, wf, pw, leak, det, spread, drive, layers: layers as usize, smp, v2: Opt::default(), clk, combine }
+        #[cfg(feature = "us-osc-pair")]
+        let pair = if self.slots[i].kind == Kind::Pair { osc::PairT::from_shape(&shapes) } else { osc::PairT::default() };
+        #[cfg(not(feature = "us-osc-pair"))]
+        let pair = osc::PairT::default();
+        SlotT { inc, gain, mix, pan_l, pan_r, pm_out, feedback, wf, pw, leak, det, spread, drive, layers: layers as usize, smp, v2: Opt::default(), clk, combine, pair }
     }
 
 
@@ -1010,7 +1039,11 @@ impl<'a> Voice<'a> {
     /// Runs on every grid frame for a sounding voice.
     pub fn tick(&mut self, sh: &Shared, frame: u64) {
         if self.seg_pos >= self.seg_len {
-            let len = if self.fine > 0 { FINE } else { CONTROL - (frame % CONTROL as u64) as u32 };
+            let len = if self.fine > 0 { FINE - (frame % FINE as u64) as u32 } else { CONTROL - (frame % CONTROL as u64) as u32 };
+            // a linear timed envelope 1 ends the segment at its stage corner (off the grid; the instrument ticks a voice
+            // whose segment has ended)
+            #[cfg(feature = "us-env-linear")]
+            let len = self.end.env[0].linear_left(&self.fx.envp[0], sh.rate).map_or(len, |n| len.min(n));
             self.begin_segment(sh, len);
         }
     }
@@ -1205,7 +1238,18 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
         self.rng = Xorshift::new(cx.rng.next_u32());
         let n = note as f32;
         let glide = sh.p[v::GLIDE];
-        let pitch = if cfg!(feature = "us-voice-glide") && glide > 0.0 && self.has_pitch {
+        #[cfg(feature = "us-voice-drop")]
+        let l2k = law::drop_log2k(sh.p[pm::el::DROP_RATE]);
+        #[cfg(not(feature = "us-voice-drop"))]
+        let l2k = 0.0f32;
+        let pitch = if l2k < 0.0 {
+            // Elevated's drop restarts from the note at every note-on, whatever the voice played before
+            #[cfg(feature = "us-voice-drop")]
+            let p = Pitch::drop(n, law::drop_hz(sh.p[pm::el::DROP_BASE]), l2k);
+            #[cfg(not(feature = "us-voice-drop"))]
+            let p = Pitch::snap(n);
+            p
+        } else if cfg!(feature = "us-voice-glide") && glide > 0.0 && self.has_pitch {
             let tau = (law::time(glide) * sh.rate).max(1e-3);
             Pitch { cur: self.end.pitch.cur, target: n, mv: Move::Expo(tau) }
         } else {
@@ -1351,7 +1395,8 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
             return;
         }
         let sh = cx.sh;
-        self.edit(&sh, |c| c.release());
+        let fx = self.fx;
+        self.edit(&sh, |c| c.release(&fx));
         self.fine = FINE_SPAN;
     }
 
@@ -1402,5 +1447,28 @@ mod pitch_tests {
         p.slide_to(48.0, 1000.0);
         p.advance(500);
         assert!((p.cur - 42.0).abs() < 1e-4);
+    }
+}
+
+#[cfg(all(test, feature = "us-voice-drop"))]
+mod drop_tests {
+    use super::*;
+
+    fn hz(p: &Pitch) -> f32 {
+        440.0 * crate::fm::exp2f((p.cur - 69.0) / 12.0)
+    }
+
+    #[test]
+    fn a_kick_drop_falls_from_the_note_to_the_base() {
+        // note 45 = 110 Hz towards 40 Hz at k = 0.9995 per sample: b + (f − b)·k^(n+1)
+        let l2k = libm::log2f(0.9995);
+        let mut p = Pitch::drop(45.0, 40.0, l2k);
+        assert!((hz(&p) - (40.0 + 70.0 * 0.9995)).abs() < 0.01, "note-on: {}", hz(&p));
+        assert!((hz(&p) - 110.0).abs() < 0.5);
+        p.advance(441);
+        let want = 40.0 + 70.0 * 0.9995f64.powi(442) as f32;
+        assert!((hz(&p) - want).abs() < 0.01, "10 ms: {} vs {want}", hz(&p));
+        p.advance(44100 - 441);
+        assert!((hz(&p) - 40.0).abs() < 0.1, "1 s: {}", hz(&p));
     }
 }

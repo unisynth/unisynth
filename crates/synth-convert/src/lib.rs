@@ -6,6 +6,7 @@ pub mod auto;
 pub mod capacity;
 pub mod cauldron;
 pub mod e3prj;
+pub mod elevated;
 pub mod features;
 pub mod fx;
 pub mod instr;

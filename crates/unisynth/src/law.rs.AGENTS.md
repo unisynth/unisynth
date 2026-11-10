@@ -8,3 +8,4 @@ Pull-only (not auto-injected).
 - Start phase: `start_spread` 10^(6p−2) samples, `start_phase(u, p, inc)` = `u` scaled to that many samples of the period (whole turn at p = 1);
 - `host::inv_start_spread`.
 - `bend_semitones`: |bend − 0.5| ≤ 0.5/255 is exactly 0 (automation byte 128 must not detune; test `bend_centre_tests`).
+- `lin_ms` (`5000p²`, no floor), `drop_hz` (`20 000p`), `drop_log2k` (log2 of `k = 1 − 10^(−6(1 − p))`, 0 = off); host `inv_lin_ms`, `inv_drop_hz`, `inv_drop_k`. See change: add-elevated-import.

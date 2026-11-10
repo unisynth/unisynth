@@ -16,7 +16,8 @@
 //!
 //! V2 modes (change add-v2-import, `fx/v2.rs`): 67 EQ 2 cut, 68 delay 2 v2, 71 reverb 3 v2, 72 compressor 1 v2.
 //! Mini-cauldron modes (change add-cauldron-xm-import): 65 distortion 3 wrap (`fx/wrap.rs`), 70 flanger 2 comb
-//! (`fx/comb.rs`).
+//! (`fx/comb.rs`). Elevated modes (change add-elevated-import, `fx/elevated.rs`): 65 distortion 4 atan, 5 sine, 6 knee,
+//! 67 EQ 3 svf-lfo, 68 delay 3 ping-pong, 4 allpass, stored at the odd positions of the expanded mode choices (`MODES`).
 //!
 //! Every (kind, mode) is a Cargo feature (`us-fx-*`); a chunk that selects a mode the build lacks fails at load with
 //! `UnsupportedModule` naming it. The mode is chosen by the chunk only (`set_param(0, …)` is ignored): it sizes the
@@ -87,6 +88,15 @@ mod wrap;
 mod compact;
 #[cfg(any(feature = "us-fx-eq-cut", feature = "us-fx-delay-modulated", feature = "us-fx-reverb-comb", feature = "us-fx-compressor-lookahead"))]
 mod v2;
+#[cfg(any(
+    feature = "us-fx-distortion-atan",
+    feature = "us-fx-distortion-sine",
+    feature = "us-fx-distortion-knee",
+    feature = "us-fx-eq-svf-lfo",
+    feature = "us-fx-delay-pingpong",
+    feature = "us-fx-delay-allpass"
+))]
+pub mod elevated;
 
 /// The effect's own parameters of a chunk (the values after the mode), for sizing memory before the effect exists.
 pub struct Params<'c>(&'c [u8]);
@@ -130,34 +140,76 @@ trait Effect<'a>: Sized {
 /// The v3 effect chunk's last four bytes (`i32` −253: never a legacy size trailer, and a NaN, never a value).
 pub const TAG: [u8; 4] = 0xFFFF_FF03u32.to_le_bytes();
 
-/// `(kind, mode, module id)` for every mode of every kind, in mode order (the mode id is its `Choice(n)` position).
-const MODES: [(u8, usize, u8); 23] = [
-    (kind::DISTORTION, 0, m::FX_DISTORTION_SHAPER),
-    (kind::DISTORTION, 1, m::FX_DISTORTION_CURVE),
-    (kind::DISTORTION, 2, m::FX_DISTORTION_POWER),
-    (kind::CRUSHER, 0, m::FX_CRUSHER),
-    (kind::EQ, 0, m::FX_EQ_PARAMETRIC),
-    (kind::EQ, 1, m::FX_EQ_3BAND),
-    (kind::DELAY, 0, m::FX_DELAY_TEMPO),
-    (kind::DELAY, 1, m::FX_DELAY_MS),
-    (kind::CHORUS, 0, m::FX_CHORUS),
-    (kind::FLANGER, 0, m::FX_FLANGER_PHASER),
-    (kind::FLANGER, 1, m::FX_FLANGER_RING),
-    (kind::REVERB, 0, m::FX_REVERB_FREEVERB),
-    (kind::REVERB, 1, m::FX_REVERB_COMPACT),
-    (kind::REVERB, 2, m::FX_REVERB_ROOMS),
-    (kind::COMPRESSOR, 0, m::FX_COMPRESSOR),
-    (kind::FORMANT, 0, m::FX_FORMANT),
-    (kind::EQ, 2, m::FX_EQ_CUT),
-    (kind::DELAY, 2, m::FX_DELAY_MODULATED),
-    (kind::REVERB, 3, m::FX_REVERB_COMB),
-    (kind::COMPRESSOR, 1, m::FX_COMPRESSOR_LOOKAHEAD),
+/// `(kind, mode, module id, stored position)` for every mode of every kind. The mode id numbers a kind's modes in the
+/// order they were added; the stored value is the position's `Choice(positions(k))` value. Change add-elevated-import
+/// expanded the distortion (4 → 7 positions), EQ (3 → 5) and delay (3 → 5) choices so every earlier mode keeps its
+/// stored value at position `2·id` and the new modes take odd positions; the EQ's position 3 is free ([`GAP`]).
+const MODES: [(u8, u8, u8, u8); 29] = [
+    (kind::DISTORTION, 0, m::FX_DISTORTION_SHAPER, 0),
+    (kind::DISTORTION, 1, m::FX_DISTORTION_CURVE, 2),
+    (kind::DISTORTION, 2, m::FX_DISTORTION_POWER, 4),
+    (kind::CRUSHER, 0, m::FX_CRUSHER, 0),
+    (kind::EQ, 0, m::FX_EQ_PARAMETRIC, 0),
+    (kind::EQ, 1, m::FX_EQ_3BAND, 2),
+    (kind::DELAY, 0, m::FX_DELAY_TEMPO, 0),
+    (kind::DELAY, 1, m::FX_DELAY_MS, 2),
+    (kind::CHORUS, 0, m::FX_CHORUS, 0),
+    (kind::FLANGER, 0, m::FX_FLANGER_PHASER, 0),
+    (kind::FLANGER, 1, m::FX_FLANGER_RING, 1),
+    (kind::REVERB, 0, m::FX_REVERB_FREEVERB, 0),
+    (kind::REVERB, 1, m::FX_REVERB_COMPACT, 1),
+    (kind::REVERB, 2, m::FX_REVERB_ROOMS, 2),
+    (kind::COMPRESSOR, 0, m::FX_COMPRESSOR, 0),
+    (kind::FORMANT, 0, m::FX_FORMANT, 0),
+    (kind::EQ, 2, m::FX_EQ_CUT, 4),
+    (kind::DELAY, 2, m::FX_DELAY_MODULATED, 4),
+    (kind::REVERB, 3, m::FX_REVERB_COMB, 3),
+    (kind::COMPRESSOR, 1, m::FX_COMPRESSOR_LOOKAHEAD, 1),
     // change add-cauldron-xm-import: stored at the free positions (distortion 0.25, flanger 0.5)
-    (kind::DISTORTION, 3, m::FX_DISTORTION_WRAP),
-    (kind::FLANGER, 2, m::FX_FLANGER_COMB),
+    (kind::DISTORTION, 3, m::FX_DISTORTION_WRAP, 6),
+    (kind::FLANGER, 2, m::FX_FLANGER_COMB, 2),
     // change add-tf3-import: the chorus had one mode, stored as 0, which stays mode 0
-    (kind::CHORUS, 1, m::FX_CHORUS_TF3),
+    (kind::CHORUS, 1, m::FX_CHORUS_TF3, 1),
+    // change add-elevated-import: Elevated's machines at the odd positions of the expanded choices
+    (kind::DISTORTION, 4, m::FX_DISTORTION_ATAN, 1),
+    (kind::DISTORTION, 5, m::FX_DISTORTION_SINE, 3),
+    (kind::DISTORTION, 6, m::FX_DISTORTION_KNEE, 5),
+    (kind::EQ, 3, m::FX_EQ_SVF_LFO, 1),
+    (kind::DELAY, 3, m::FX_DELAY_PINGPONG, 1),
+    (kind::DELAY, 4, m::FX_DELAY_ALLPASS, 3),
 ];
+
+/// The mode id of a free stored position (refused at load with `BadChunk`, as a free oscillator type is).
+pub const GAP: usize = usize::MAX;
+
+/// Modes per kind when the old layout was migrated (before change add-elevated-import): the old chunks' mode values
+/// decode against these totals (`migrate::old_fx_mode`), never against later additions.
+const MIGRATED_TOTAL: [(u8, usize); 9] = [
+    (kind::DISTORTION, 4),
+    (kind::CRUSHER, 1),
+    (kind::EQ, 3),
+    (kind::DELAY, 3),
+    (kind::CHORUS, 2),
+    (kind::FLANGER, 3),
+    (kind::REVERB, 4),
+    (kind::COMPRESSOR, 2),
+    (kind::FORMANT, 1),
+];
+
+/// Modes of kind `k` the old-layout migration knows (see [`MIGRATED_TOTAL`]).
+pub fn migrated_total(k: u8) -> usize {
+    MIGRATED_TOTAL.iter().find(|e| e.0 == k).map_or(0, |e| e.1)
+}
+
+/// Stored positions of kind `k`'s mode choice (its modes plus the free positions).
+pub fn positions(k: u8) -> usize {
+    MODES.iter().filter(|e| e.0 == k).map(|e| e.3 as usize + 1).max().unwrap_or(0)
+}
+
+/// The mode at stored position `pos` of kind `k`, [`GAP`] for a free one.
+pub fn mode_at(k: u8, pos: usize) -> usize {
+    MODES.iter().find(|e| e.0 == k && e.3 as usize == pos).map_or(GAP, |e| e.1 as usize)
+}
 
 /// Modes per kind before change add-v2-import: the old layout's expanded mode choice (the migration decodes it).
 const OLD_MODES: [(u8, usize); 9] = [
@@ -182,15 +234,16 @@ pub fn mode_total(k: u8) -> usize {
     MODES.iter().filter(|e| e.0 == k).count()
 }
 
-/// The mode a stored mode value selects (`Choice(mode_total(k))`).
+/// The mode a stored mode value selects (`Choice(positions(k))`, [`GAP`] at a free position).
 #[inline]
 pub fn mode_of_value(k: u8, p: f32) -> usize {
-    plaw::choice(p, mode_total(k))
+    mode_at(k, plaw::choice(p, positions(k)))
 }
 
 /// The stored value of mode `mode` of kind `k`.
 pub fn mode_value(k: u8, mode: usize) -> f32 {
-    crate::params::choice_value(mode, mode_total(k))
+    let pos = MODES.iter().find(|e| e.0 == k && e.1 as usize == mode).map_or(mode, |e| e.3 as usize);
+    crate::params::choice_value(pos, positions(k))
 }
 
 /// The mode a chunk selects.
@@ -200,7 +253,7 @@ pub fn mode_of(k: u8, chunk: &[u8]) -> usize {
 
 /// The module id of mode `mode` of effect kind `k`.
 pub fn module_of(k: u8, mode: usize) -> Option<u8> {
-    MODES.iter().find(|e| e.0 == k && e.1 == mode).map(|e| e.2)
+    MODES.iter().find(|e| e.0 == k && e.1 as usize == mode).map(|e| e.2)
 }
 
 /// True for the effect kinds 65–73.
@@ -209,7 +262,10 @@ pub fn is_effect(k: u8) -> bool {
 }
 
 fn missing(k: u8, mode: usize) -> LoadError {
-    match MODES.iter().find(|e| e.0 == k && e.1 == mode) {
+    if mode == GAP && is_effect(k) {
+        return LoadError::BadChunk;
+    }
+    match MODES.iter().find(|e| e.0 == k && e.1 as usize == mode) {
         Some(e) => LoadError::UnsupportedModule(e.2),
         None => LoadError::UnsupportedKind(k),
     }
@@ -299,6 +355,12 @@ modes! {
     "us-fx-distortion-wrap" DISTORTION 3 Wrap wrap::Wrap,
     "us-fx-flanger-comb" FLANGER 2 Comb comb::Comb<'a>,
     "us-fx-chorus-tf3" CHORUS 1 Chorus3 chorus3::Chorus3<'a>,
+    "us-fx-distortion-atan" DISTORTION 4 Atan elevated::Atan,
+    "us-fx-distortion-sine" DISTORTION 5 Sine elevated::Sine,
+    "us-fx-distortion-knee" DISTORTION 6 Knee elevated::Knee,
+    "us-fx-eq-svf-lfo" EQ 3 SvfLfo elevated::SvfLfo,
+    "us-fx-delay-pingpong" DELAY 3 PingPong elevated::PingPong<'a>,
+    "us-fx-delay-allpass" DELAY 4 Allpass elevated::Allpass<'a>,
 }
 
 /// The chunk's form: whole values and the version tag (a trusted build: generated songs, checked on the host). A

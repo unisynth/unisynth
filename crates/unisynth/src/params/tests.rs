@@ -14,8 +14,9 @@ fn bytes() -> impl Iterator<Item = f32> {
 #[test]
 fn groups_are_contiguous_and_fill_the_patch() {
     // the frozen v3 layout (design "v3 layout (frozen, task 6.4)"), then the add-tf3-import point fields
-    assert_eq!([VS, OSC, NOISE, FILT, ENV, LFO, MOD, CTL, DRIVE, QUIRK, STRIP, MOD2, CC, SPEECH, PTS, COUNT],
-               [16, 23, 98, 102, 126, 162, 178, 218, 221, 225, 230, 261, 285, 291, 294, 321]);
+    // and the add-elevated-import fields
+    assert_eq!([VS, OSC, NOISE, FILT, ENV, LFO, MOD, CTL, DRIVE, QUIRK, STRIP, MOD2, CC, SPEECH, PTS, EL, COUNT],
+               [16, 23, 98, 102, 126, 162, 178, 218, 221, 225, 230, 261, 285, 291, 294, 321, 331]);
     assert_eq!((vs::AMP_SOURCE, vs::BALANCE), (16, 22));
     assert_eq!((o::LEN, f::LEN, e::LEN, l::LEN, m::LEN), (25, 6, 9, 8, 4));
     assert_eq!(osc(2, o::LEN - 1) + 1, NOISE);
@@ -29,7 +30,9 @@ fn groups_are_contiguous_and_fill_the_patch() {
     assert_eq!(ch::COMP + ch::COMP_LEN, MOD2);
     assert_eq!(cc(7) + 1, SPEECH);
     assert_eq!(speech::PITCH + 1, PTS);
-    assert_eq!(pts(2, pt::LEN - 1) + 1, COUNT);
+    assert_eq!(pts(2, pt::LEN - 1) + 1, EL);
+    assert_eq!((el::DROP_BASE, el::DROP_RATE, el::ENV), (EL, EL + 1, EL + 2));
+    assert_eq!(el_env(ENV_SLOTS - 1, el::ENV_LEN - 1) + 1, COUNT);
     assert_eq!(pt::MODE + pt::MODES, pt::LAYERS);
     assert_eq!(o::SHAPE + o::SHAPES, o::SAMPLE);
     // the one-byte range ends inside the strip, after its ten most-set fields
@@ -529,13 +532,13 @@ fn every_earlier_type_keeps_its_stored_value_at_twice_its_old_id() {
 
 #[test]
 fn new_types_take_odd_positions_and_the_rest_are_gaps() {
-    assert_eq!((osc_type::POINTS, osc_type::PAD, osc_type::COUNT), (1, 3, 25));
-    for t in [osc_type::POINTS, osc_type::PAD] {
+    assert_eq!((osc_type::POINTS, osc_type::PAD, osc_type::PAIR, osc_type::COUNT), (1, 3, 5, 25));
+    for t in [osc_type::POINTS, osc_type::PAD, osc_type::PAIR] {
         assert_eq!(osc_type::decode(osc_type::encode(t)), t);
         assert!(!osc_type::is_gap(t) && !osc_type::is_naive(t));
     }
     let gaps: std::vec::Vec<usize> = (0..osc_type::COUNT + 2).filter(|&t| osc_type::is_gap(t)).collect();
-    assert_eq!(gaps, [5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 26]);
+    assert_eq!(gaps, [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 26]);
 }
 
 #[test]
@@ -614,5 +617,26 @@ fn needs_names_the_feedback_module_for_tunefish_3_filter_forms() {
     for t in [filter_type::RBJ_BP, filter_type::RBJ_HP, filter_type::NOTCH] {
         assert!(!with(t, 0.0).contains(&crate::module::FILTER_FEEDBACK), "type {t}, form 0");
         assert!(with(t, 1.0).contains(&crate::module::FILTER_FEEDBACK), "type {t}: Tunefish 3's form");
+    }
+}
+
+#[test]
+fn elevated_fields_have_names_laws_and_off_defaults() {
+    assert_eq!((name(el::DROP_BASE), name(el::DROP_RATE)), ("drop.base".into(), "drop.rate".into()));
+    assert_eq!((name(el_env(0, el::LINEAR)), name(el_env(3, el::HOLD))), ("env1.linear".into(), "env4.hold".into()));
+    assert!(matches!(host::law_of(el::DROP_BASE), host::Law::DropHz));
+    assert!(matches!(host::law_of(el::DROP_RATE), host::Law::DropRate));
+    assert!(matches!(host::law_of(el_env(2, el::LINEAR)), host::Law::Choice(2)));
+    assert!(matches!(host::law_of(el_env(2, el::HOLD)), host::Law::LinTime));
+    for i in EL..COUNT {
+        assert_eq!(DEFAULTS[i], 0.0, "{}: off by default", name(i));
+    }
+    // the laws and their inverses
+    assert!(near(law::lin_ms(inv::inv_lin_ms(1234.5)), 1234.5, 0.01));
+    assert!(near(law::drop_hz(inv::inv_drop_hz(50.0)), 50.0, 1e-3));
+    assert_eq!(law::drop_log2k(0.0), 0.0, "0 is off: k = 1");
+    for k in [0.9993f64, 0.999_084_5, 0.9, 0.5] {
+        let got = libm::exp2(law::drop_log2k(inv::inv_drop_k(k)) as f64);
+        assert!((got - k).abs() < 2e-6 * (1.0 - k).max(1e-3) / 1e-3, "k {k}: {got}");
     }
 }

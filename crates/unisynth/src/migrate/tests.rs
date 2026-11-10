@@ -179,7 +179,7 @@ fn an_old_effect_chunk_becomes_tagged() {
 
 /// The old layout's stored value of effect mode `m` (the expanded choice).
 fn old_mode_value(k: u8, m: usize) -> f32 {
-    let (old, later) = (crate::fx::mode_count(k), crate::fx::mode_total(k) - crate::fx::mode_count(k));
+    let (old, later) = (crate::fx::mode_count(k), crate::fx::migrated_total(k) - crate::fx::mode_count(k));
     if later == 0 {
         if old > 1 { m as f32 / (old - 1) as f32 } else { 0.0 }
     } else if old == 1 {

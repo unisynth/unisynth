@@ -27,3 +27,4 @@ Pull-only (not auto-injected).
 ## Former AGENTS.md row (moved, full text)
 
 - ADSR envelopes advanced by elapsed seconds at control rate: `Env`, `EnvP` (law seconds/rate/frame, curve quadratic/power/exponential), `Stage`; load checks → `UnsupportedModule(ENV_*)`; laws compile out per `us-env-*`.
+- Linear timed envelope (`us-env-linear`): `EnvP.linear/hold` (only with the module; `is_linear()`), `advance_linear` (attack, decay, hold, release linear over `law::lin_ms`, ends by itself), `note_off(ep)` (a linear envelope ends at once, else `release`), `linear_left(ep, rate)` (frames to the stage corner: the voice ends its segment there). See change: add-elevated-import.

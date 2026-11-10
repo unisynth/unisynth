@@ -10,3 +10,4 @@ Pull-only (not auto-injected).
 ## History
 
 - See change: add-unified-synth, add-v2-import, add-cauldron-xm-import, add-quiet-track-skip, unify-v2-algorithms 6.5–6.8
+- `MODES` rows `(kind, mode id, module, stored position)` (u8 each): distortion 7 / EQ 5 / delay 5 positions, earlier modes at `2·id`, Elevated modes at odd positions; `positions(k)`, `mode_at(k, pos)` (`GAP` → `BadChunk`), `mode_value`/`mode_of_value` through the position, `migrated_total` (frozen counts for `migrate::old_fx_mode`); modes `elevated::{Atan, Sine, Knee, SvfLfo, PingPong, Allpass}`. See change: add-elevated-import.
