@@ -12,3 +12,4 @@ Pull-only (not auto-injected).
 - See change: unify-v2-algorithms 6.5–6.8
 - See change: add-tf3-import 2.1 (type choice 13 → 25 positions, point fields, design D3/D5; doubt-reviewed cross-model)
 - `osc_type::PAIR` = 5 (`is_gap` keeps 7…23 free), `shape::PAIR_*` (wave, shift, detune `2p`, polarity), the appended block `EL` 321–330: `el::DROP_BASE`, `DROP_RATE`, per envelope `el_env(i, LINEAR | HOLD)`; `COUNT` 331. See change: add-elevated-import.
+- `osc_type::SHAPER_TONE` 7, `SWEEP_DRUM` 9 (no longer `is_gap`); `shape::TONE_*` (carrier, modulator, depth, volume, drive, shape, FM, rate) and `shape::DRUM_*` (volume, freq, sweep, growth, drive, shape, env, slope, curve). See change: add-fudge-softsynth.

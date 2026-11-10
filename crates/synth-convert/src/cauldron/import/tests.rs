@@ -190,7 +190,7 @@ fn generated_samples_map_to_records_and_variants() {
     use crate::xm::{Instrument, Sample, Xm};
     let smp = |name: &str| Sample { name: name.into(), loop_start: 0, loop_len: 0, volume: 64, finetune: 0, loop_kind: 0, bits16: false, pan: 128, relative: 0, data: vec![0; 4] };
     let ins = |names: &[&str]| Instrument { name: String::new(), keymap: [0; 96], vol_env: Default::default(), pan_env: Default::default(), vibrato: [0; 4], fadeout: 0, samples: names.iter().map(|n| smp(n)).collect() };
-    let xm = |instruments| Xm { name: String::new(), channels: 1, restart: 0, linear: true, speed: 6, bpm: 125, order: vec![], patterns: vec![], instruments };
+    let xm = |instruments| Xm { name: String::new(), channels: 1, restart: 0, linear: true, speed: 6, bpm: 125, order: vec![], patterns: vec![], instruments, mix: Default::default() };
     let j = jizz();
     let m = identify(&j, &xm(vec![ins(&["Probe111.smp"]), ins(&["Ahh.smp", "Probe14.smp"])])).unwrap();
     assert_eq!(m, [vec![Some((10, 0))], vec![None, Some((0, 3))]]);

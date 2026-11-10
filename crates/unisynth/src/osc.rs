@@ -22,6 +22,25 @@ impl Wt {
 }
 use synth_core::mix::LoadError;
 
+/// Engine oscillator types (change add-fudge-softsynth): Fudge's generators as slots.
+#[cfg(any(feature = "us-osc-shaper-tone", feature = "us-osc-sweep-drum"))]
+pub mod engine;
+#[cfg(any(feature = "us-osc-shaper-tone", feature = "us-osc-sweep-drum"))]
+pub use engine::{EngineSlot, EngineT};
+/// Stand in for the engine state and settings when no engine type is built (zero-size).
+#[cfg(not(any(feature = "us-osc-shaper-tone", feature = "us-osc-sweep-drum")))]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct EngineT;
+#[cfg(not(any(feature = "us-osc-shaper-tone", feature = "us-osc-sweep-drum")))]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct EngineSlot;
+#[cfg(not(any(feature = "us-osc-shaper-tone", feature = "us-osc-sweep-drum")))]
+impl EngineSlot {
+    pub const fn new() -> Self {
+        EngineSlot
+    }
+}
+
 /// What a slot is, fixed at load (`o::TYPE` is a structural parameter).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
@@ -46,6 +65,12 @@ pub enum Kind {
     /// Elevated's oscillator pair (change add-elevated-import): two naive copies at phase ratios `2 − d` and `d`.
     #[cfg(feature = "us-osc-pair")]
     Pair,
+    /// Fudge's tone with a two-stage shaper (change add-fudge-softsynth): [`engine::ToneT`].
+    #[cfg(feature = "us-osc-shaper-tone")]
+    ShaperTone,
+    /// Fudge's sweep drum (change add-fudge-softsynth): [`engine::DrumT`].
+    #[cfg(feature = "us-osc-sweep-drum")]
+    SweepDrum,
 }
 
 impl Kind {
@@ -76,6 +101,14 @@ impl Kind {
             osc_type::PAIR => Ok(Kind::Pair),
             #[cfg(not(feature = "us-osc-pair"))]
             osc_type::PAIR => missing(module::OSC_PAIR),
+            #[cfg(feature = "us-osc-shaper-tone")]
+            osc_type::SHAPER_TONE => Ok(Kind::ShaperTone),
+            #[cfg(not(feature = "us-osc-shaper-tone"))]
+            osc_type::SHAPER_TONE => missing(module::OSC_SHAPER_TONE),
+            #[cfg(feature = "us-osc-sweep-drum")]
+            osc_type::SWEEP_DRUM => Ok(Kind::SweepDrum),
+            #[cfg(not(feature = "us-osc-sweep-drum"))]
+            osc_type::SWEEP_DRUM => missing(module::OSC_SWEEP_DRUM),
             #[cfg(feature = "us-osc-wt")]
             osc_type::WAVETABLE => Ok(Kind::Wt),
             #[cfg(not(feature = "us-osc-wt"))]
@@ -115,6 +148,30 @@ pub struct Slot {
     /// Pair: the second copy's phase in turns (the first copy's is `phase`).
     #[cfg(feature = "us-osc-pair")]
     pub phase_b: f64,
+    /// Engine types: frame index, direction and the engine's carried state.
+    pub eng: EngineSlot,
+}
+
+impl Kind {
+    /// An engine type (change add-fudge-softsynth): played at `256·hz` engine frames per second through the clocked
+    /// resampler, seeking at a non-legato note-on.
+    #[inline]
+    pub fn is_engine(self) -> bool {
+        match self {
+            #[cfg(feature = "us-osc-shaper-tone")]
+            Kind::ShaperTone => true,
+            #[cfg(feature = "us-osc-sweep-drum")]
+            Kind::SweepDrum => true,
+            _ => false,
+        }
+    }
+
+    /// A kind that plays a precalc sample's generator: the clocked kind or an engine type. Its timed attack of 0 is
+    /// instant, its envelopes follow the playback rate, and its restart is declicked (`voice`).
+    #[inline]
+    pub fn is_clocked_like(self) -> bool {
+        (cfg!(feature = "us-osc-clocked") && self == Kind::Clocked) || self.is_engine()
+    }
 }
 
 /// A clocked slot's running state. `phase2` (turns) is the original's second saw: kept across note-ons, as the
@@ -312,7 +369,18 @@ impl Slot {
             clk: ClockedSlot { phase2: 0.0, t: 0.0, rng: 0, y: 0.0, prev: 0.0, v1: 0.0, flt: None, h: [0.0; 4], frac: 0.0, lp: ClockedLp { k: 0.0, c: [[0.0; 5]; 2], s: [[0.0; 2]; 2] } },
             #[cfg(feature = "us-osc-pair")]
             phase_b: 0.0,
+            eng: EngineSlot::new(),
         }
+    }
+
+    /// Engine types: the non-legato note-on of design D4 (add-fudge-softsynth): seek to `start`, forwards or
+    /// backwards, and restart the resampler (its history and fraction), so the first output is the start frame two
+    /// frames later.
+    #[cfg(any(feature = "us-osc-shaper-tone", feature = "us-osc-sweep-drum"))]
+    pub fn engine_start(&mut self, e: &EngineT, start: i64, back: bool) {
+        self.eng.seek(e, start, back);
+        self.clk.h = [0.0; 4];
+        self.clk.frac = 0.0;
     }
 
     /// Clocked: the phrase frame at this note-on ([`clocked_t0`]); [`Slot::start`] has reset the phase. The filter
@@ -456,6 +524,8 @@ pub struct SlotT {
     pub combine: u8,
     /// Pair: waveform, shift, ratios, polarity.
     pub pair: PairT,
+    /// Engine types: the engine's settings.
+    pub eng: EngineT,
 }
 
 /// How a slot meets the running sum of the earlier slots (change unify-v2-algorithms 5.1): added (panned by the slot
@@ -547,6 +617,7 @@ pub struct SlotRamps {
     v2: crate::v2::Opt<V2T>,
     clk: ClockedT,
     pair: PairT,
+    eng: EngineT,
 }
 
 impl SlotRamps {
@@ -578,6 +649,7 @@ impl SlotRamps {
         self.combine = t.combine;
         self.clk = t.clk;
         self.pair = t.pair;
+        self.eng = t.eng;
     }
 
     pub fn to(&mut self, t: &SlotT, frames: u32) {
@@ -602,6 +674,7 @@ impl SlotRamps {
         self.combine = t.combine;
         self.clk = t.clk;
         self.pair = t.pair;
+        self.eng = t.eng;
     }
 
     pub fn retarget(&mut self, t: &SlotT, frames: u32) {
@@ -626,6 +699,7 @@ impl SlotRamps {
         self.combine = t.combine;
         self.clk = t.clk;
         self.pair = t.pair;
+        self.eng = t.eng;
     }
 }
 
@@ -681,6 +755,13 @@ pub fn sample(
             // its `o::PM_OUT` is the second saw's phase byte: no send
             let _ = send;
             let y = clocked(slot, inc as f64, &r.clk) * gain;
+            (y * mix, y * mix, 0.0)
+        }
+        // engine types: `o::PM_OUT` is a position byte, no send (design D2)
+        #[cfg(any(feature = "us-osc-shaper-tone", feature = "us-osc-sweep-drum"))]
+        k if k.is_engine() => {
+            let e = r.eng;
+            let y = resampled(slot, engine::FRAMES_PER_CYCLE * inc as f64, |s| s.eng.next(&e)) * gain;
             (y * mix, y * mix, 0.0)
         }
         #[cfg(feature = "us-osc-wt")]
@@ -930,10 +1011,17 @@ fn clocked(slot: &mut Slot, inc: f64, c: &ClockedT) -> f32 {
         Some(d) => libm::rint(pitch) + d as f64,
         None => pitch,
     };
+    resampled(slot, clock, |s| clocked_frame(s, pitch, c) as f32)
+}
+
+/// The clocked resampler (shared by the engine types, change add-fudge-softsynth): `clock` source frames per output
+/// frame from `frame`, a 4-point Catmull-Rom over the last four (latency 2 source frames), then [`ClockedLp`].
+#[inline]
+fn resampled(slot: &mut Slot, clock: f64, mut frame: impl FnMut(&mut Slot) -> f32) -> f32 {
     slot.clk.frac += clock;
     while slot.clk.frac >= 1.0 {
         slot.clk.frac -= 1.0;
-        let x = clocked_frame(slot, pitch, c) as f32;
+        let x = frame(slot);
         let h = &mut slot.clk.h;
         *h = [h[1], h[2], h[3], x];
     }
@@ -1051,7 +1139,7 @@ mod tests {
     fn gaps_are_bad_chunks_and_new_types_name_their_module() {
         use crate::params::osc_type;
         use synth_core::mix::LoadError;
-        assert!(matches!(Kind::from_type(7), Err(LoadError::BadChunk)));
+        assert!(matches!(Kind::from_type(11), Err(LoadError::BadChunk)));
         assert!(matches!(Kind::from_type(23), Err(LoadError::BadChunk)));
         #[cfg(feature = "us-osc-pair")]
         assert!(matches!(Kind::from_type(osc_type::PAIR), Ok(Kind::Pair)));
@@ -1224,6 +1312,26 @@ mod tests {
             (osc_type::SINE, Kind::V2, cfg!(feature = "us-osc-naive"), module::OSC_NAIVE),
             (osc_type::CLOCKED, Kind::Clocked, cfg!(feature = "us-osc-clocked"), module::OSC_CLOCKED),
         ] {
+            match later(ty) {
+                Ok(k) => assert!(on && k == [Kind::Off, want, Kind::Off]),
+                Err(e) => assert!(!on && e == LoadError::UnsupportedModule(id)),
+            }
+        }
+        // the engine types (change add-fudge-softsynth) at positions 7 and 9
+        for (ty, on, id) in [
+            (osc_type::SHAPER_TONE, cfg!(feature = "us-osc-shaper-tone"), module::OSC_SHAPER_TONE),
+            (osc_type::SWEEP_DRUM, cfg!(feature = "us-osc-sweep-drum"), module::OSC_SWEEP_DRUM),
+        ] {
+            assert!(!osc_type::is_gap(ty));
+            match later(ty) {
+                Ok(k) => assert!(on && k[1].is_engine() && k[1].is_clocked_like()),
+                Err(e) => assert!(!on && e == LoadError::UnsupportedModule(id)),
+            }
+        }
+        for ty in [11, 13, 23] {
+            assert_eq!(later(ty).err(), Some(LoadError::BadChunk), "position {ty} stays free");
+        }
+        for (ty, want, on, id) in [(osc_type::PM, Kind::Pm, cfg!(feature = "us-osc-pm"), module::OSC_PM)] {
             match later(ty) {
                 Ok(k) => assert!(on && k == [Kind::Off, want, Kind::Off]),
                 Err(e) => assert!(!on && e == LoadError::UnsupportedModule(id)),

@@ -66,13 +66,93 @@ export function envRate(v: number): boolean { const o = ip("env1.law").options; 
 export function optValue(name: string, label: string): number { const o = ip(name).options || [], i = o.indexOf(label); return i <= 0 || o.length < 2 ? 0 : i / (o.length - 1); }
 /** The label of a free position of an expanded choice (the engine's tables; never offered). */
 export const GAP = "—";
+/** The DAW's oscillator kinds by option label (index = kind). */
+const OSC_KINDS = ["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive saw/tri", "Naive pulse", "Sine", "Coloured noise", "FM",
+  "Aux in A", "Aux in B", "Clocked", "Points", "PAD table", "Pair", "Shaper tone", "Sweep drum"];
 /**
  * Oscillator kind of slot `i`, by its option label (not the engine's stored position, which add-tf3-import expanded):
- * 0 Off … 4 Sampler, 5–11 the naive generators, 12 Clocked, 13 Points, 14 PAD table, 15 Pair (add-elevated-import).
+ * 0 Off … 4 Sampler, 5–11 the naive generators, 12 Clocked, 13 Points, 14 PAD table, 15 Pair (add-elevated-import),
+ * 16 Shaper tone, 17 Sweep drum (add-fudge-softsynth).
  */
 export function oscType(d: Device, i: number): number {
-  return Math.max(0, ["Off", "Phase mod", "Saw/pulse", "Wavetable", "Sampler", "Naive saw/tri", "Naive pulse", "Sine", "Coloured noise", "FM",
-    "Aux in A", "Aux in B", "Clocked", "Points", "PAD table", "Pair"].indexOf(optName(d, `osc${i}.type`) ?? ""));
+  return Math.max(0, OSC_KINDS.indexOf(optName(d, `osc${i}.type`) ?? ""));
+}
+/** The kind of an `osc<i>.type` value (as `oscType`, for a value not yet stored). */
+export const oscKindOf = (v: number): number => { const o = ip("osc1.type").options; return Math.max(0, OSC_KINDS.indexOf(o[choice(v, o.length)] ?? "")); };
+
+// ---- engine types (change add-fudge-softsynth): Fudge's generators as slots (unisynth `osc::engine`) ----
+export const TONE = 16, DRUM = 17;
+/** Sweep drum envelope curves (`s8`, a choice over 3). */
+export const DRUM_CURVES = ["linear", "1 − sin", "cos"];
+/** Engine shape `k`'s value from its stored `p` (design D3's laws): tone periods 1024p, depth 64p, volume 256p, drive and
+ * shape p, FM on/off, rate 16p; drum volume 512p, start frequency 4p, sweep p, growth p/64, drive, shape and envelope
+ * start p, envelope slope (2p − 1)/16 per frame, curve. */
+export function engineValue(ty: number, k: number, p: number): number {
+  const tone = [1024 * p, 1024 * p, 64 * p, 256 * p, p, p, choice(p, 2), 16 * p, 0];
+  const drum = [512 * p, 4 * p, p, p / 64, p, p, p, (2 * p - 1) / 16, choice(p, 3)];
+  return (ty === TONE ? tone : drum)[k] ?? 0;
+}
+/** An engine shape value's text. */
+export function engineText(ty: number, k: number, p: number): string {
+  const x = engineValue(ty, k, p), pct = (y: number) => (y * 100).toFixed(0) + "%";
+  const num = (y: number) => y !== 0 && Math.abs(y) < 1e-3 ? y.toExponential(1).replace("-", "−") : String(+y.toPrecision(3)).replace("-", "−");
+  if (ty === TONE) return [num(x), num(x), num(x) + " rad", num(x), pct(x), pct(x), x ? "on" : "off", "×" + num(x)][k] ?? "";
+  return [num(x), num(x) + " rad", num(x) + " rad", num(x), pct(x), pct(x), pct(x), num(x), DRUM_CURVES[x] ?? ""][k] ?? "";
+}
+/** The values a slot takes when it becomes an engine type: Fudge's instrument 1 (tone) or 8 (drum) as its shape, and
+ * its start and direction bytes (`tracking`, `pm_out`, `feedback`, hidden on an engine slot) at 0: frame 0, forwards. */
+export function typeDefaults(ty: number, i: number): Record<string, number> {
+  const f = Math.fround;
+  const s = (vals: number[]) => ({ ...Object.fromEntries(vals.map((v, k) => [`osc${i}.s${k}`, v])), [`osc${i}.tracking`]: 0, [`osc${i}.pm_out`]: 0, [`osc${i}.feedback`]: 0 });
+  if (ty === TONE) return s([128 / 1024, 128 / 1024, 1 / 64, 110 / 256, 0, 0, 0, 1 / 16, 0]);
+  if (ty === DRUM) return s([257 / 512, f(0.11) / 4, f(4e-5), 0, 0, 0.5, 1, ((f(1) - f(0.3)) / 1380 * 16 + 1) / 2, 0.5]);
+  return {};
+}
+/** `x` stored to f32 rounding toward zero (the original's FPU mode; unisynth `engine::f32t`). */
+const f32view = new DataView(new ArrayBuffer(4));
+function f32t(x: number): number {
+  f32view.setFloat32(0, x);
+  if (Math.abs(f32view.getFloat32(0)) > Math.abs(x)) f32view.setUint32(0, f32view.getUint32(0) - 1);
+  return f32view.getFloat32(0);
+}
+/**
+ * The first `n` frames an engine slot generates (−1..1), for the drawing: the frame functions of unisynth
+ * `osc::engine` (the tone in integers, the drum in truncating f32 steps), in doubles where the engine runs x87-like.
+ */
+export function engineFrames(ty: number, sh: number[], n: number): number[] {
+  const v = (k: number) => engineValue(ty, k, sh[k] ?? 0), out: number[] = [], TAU = 2 * Math.PI;
+  if (ty === TONE) {
+    const [car, mod, depth, vol, drive, shape, fm, rate] = [0, 1, 2, 3, 4, 5, 6, 7].map(v) as number[];
+    const amp = f32t(vol! * 255);
+    let c = 0;
+    for (let i = 0; i < n; i++) {
+      const t = i * rate!, m = f32t(Math.sin(TAU / mod! * t) * depth!);
+      const ph = fm ? TAU / (car! + m + f32t(t) * f32t(1e-12)) * t : m;
+      // a period of 0 makes the phase NaN: the engine's integer conversion gives 0
+      let x = Math.trunc(Math.sin(ph) * amp) || 0;
+      if (Math.abs(x) < 8160) { c = 4 * x; x = Math.trunc((1 - drive!) * x + drive! * 4 * x); }
+      if (x > 16320) c = Math.trunc((16320 - Math.trunc((x - 16320) / 4)) * 127 / 80);
+      else if (x < -16320) c = Math.trunc((-16320 - Math.trunc((x + 16320) / 4)) * 127 / 80);
+      out.push(Math.max(-32385, Math.min(32385, Math.trunc((1 - shape!) * x + shape! * c))) / 32768);
+    }
+    return out;
+  }
+  let [vol, freq, sweep, growth, drive, shape, env, slope, curve] = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(v) as number[];
+  const amp = f32t(vol! * 255), k = f32t(0.0125);
+  freq = f32t(freq!); sweep = f32t(sweep!); const accel = -f32t(growth!);
+  let c = 0;
+  for (let i = 0; i < n; i++) {
+    freq = f32t(freq - sweep); sweep = f32t(sweep - accel);
+    let s = f32t(Math.sin(i * freq) * amp);
+    if (Math.abs(s) < 8160) { c = f32t(s * 4); s = f32t((1 - drive!) * s + drive! * (s * 4)); }
+    if (s > 16320) c = f32t((16320 - (s - 16320) * 0.25) * 127 * k);
+    else if (s < -16320) c = f32t((-16320 - (s + 16320) * 0.25) * 127 * k);
+    s = Math.max(-32385, Math.min(32385, f32t((1 - shape!) * s + shape! * c)));
+    const e = Math.max(0, Math.min(1, f32t(env! - i * slope!)));
+    const y = curve === 0 ? s * e : curve === 1 ? (1 - Math.sin(Math.PI / 2 - e * Math.PI / 2)) * s : Math.cos(Math.PI / 2 - e * Math.PI / 2) * s;
+    out.push(Math.trunc(f32t(y)) / 32768);
+  }
+  return out;
 }
 /** PAD table profiles (`osc<i>.s4` of a PAD slot, a choice over 4; engine `pad`). */
 export const PAD_PROFILES = ["single", "detune", "spread", "gauss"];
@@ -158,6 +238,7 @@ export function fmtVal(d: Device, p: Param, v: number): string {
   if (p.raw) return String(Math.round(v));
   if (/^osc\d\.s[034]$/.test(p.name) && oscType(d, +p.name[3]!) === 4) return (v * 100).toFixed(1) + " %";
   if (/^osc\d\.s4$/.test(p.name) && oscType(d, +p.name[3]!) === 14) return PAD_PROFILES[choice(v, 4)]!;
+  { const m = /^osc(\d)\.s(\d)$/.exec(p.name), ty = m && d.kind === 64 ? oscType(d, +m[1]!) : 0; if (ty === TONE || ty === DRUM) return engineText(ty, +m![2]!, v); }
   const x = physical(d.kind, modeOf(d), p.index, v), law = p.law;
   if (law === "Cutoff" || law === "FixedHz" || law === "LfoRate") return x >= 1000 ? (x / 1000).toFixed(2) + "k" : x.toFixed(x < 10 ? 2 : 0) + " Hz";
   if (law === "Gain") return x <= 0 ? "−∞ dB" : (20 * Math.log10(x)).toFixed(1) + " dB";

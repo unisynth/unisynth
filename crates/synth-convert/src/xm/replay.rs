@@ -440,7 +440,8 @@ pub fn replay(x: &Xm, rate: u32) -> Result<Replay, String> {
                         let ep = env(&ins.pan_env, ch.env_pos[1], 32.0);
                         let vol = ch.vol as f64 / 64.0 * ev / 64.0 * ch.fade as f64 / 32768.0 * global as f64 / 64.0;
                         let pan = ch.pan as f64 + (ep - 32.0) * (128.0 - (ch.pan as f64 - 128.0).abs()) / 32.0;
-                        out[i].ticks.push(TickCtl { row: first, at: t, frame, frames, freq: freq(per), vol, pan: (pan / 256.0).clamp(0.0, 1.0) });
+                        let (vol, pan) = x.mix.pan(vol, (pan / 256.0).clamp(0.0, 1.0));
+                        out[i].ticks.push(TickCtl { row: first, at: t, frame, frames, freq: freq(per), vol, pan });
                         let done = (vol == 0.0 && !ch.key_on && ch.fade == 0) || (e == 0xE && sub == 0xC && ch.vol == 0);
                         env_advance(&ins.vol_env, &mut ch.env_pos[0], ch.key_on);
                         env_advance(&ins.pan_env, &mut ch.env_pos[1], ch.key_on);

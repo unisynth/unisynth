@@ -17,3 +17,4 @@ Pull-only (not auto-injected).
 - Effects (kinds 65–73, modes).
 - Converter: V2 songs (`.v2m`), mini-cauldron XMs, generator maps for plain XMs (`xm-gen/1`, the note byte contract, replay additions; add-plain-xm-import), WaveSabre instruments, Tunefish instrument + `.tfm` songs, walkthrough (CLI examples), feature list (`features`), demo songs (`tools/demo-songs/build.ts`).
 - Parity, speed and size (`tools/unisynth-parity`).
+- Engine types section (Shaper tone, Sweep drum: clock from pitch, D3 laws table, seek in fixed state, budget); converter: Fudge engines, v3 type after migration, `post_levels`, openmpt's ModPlug mix (`xm::Mix`), dropped note-ons instead of the too-close error. See change: add-fudge-softsynth.

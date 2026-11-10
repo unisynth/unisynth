@@ -43,6 +43,17 @@ pub trait Source {
     fn reverses(&self, _key: usize) -> bool {
         true
     }
+    /// The oscillator type of the key's instrument slot 1 when the old layout cannot hold it (change
+    /// add-fudge-softsynth, design D5): set after the song's migration to v3.
+    fn v3_type(&self, _key: usize) -> Option<usize> {
+        None
+    }
+    /// The XM volume and pan go after the key's effect chain, on a post EQ (the cauldron's echo, comb and doubler hear
+    /// the sample before them); `false`: on the voice, as for a stored sample (one lane each, no post device; change
+    /// add-fudge-softsynth: a generated sample has no chain).
+    fn post_levels(&self) -> bool {
+        true
+    }
 }
 
 pub fn convert<S: Source>(src: &S, xm: &Xm, rate: i32, opts: Options) -> Result<Converted, String> {
@@ -233,7 +244,8 @@ pub fn convert<S: Source>(src: &S, xm: &Xm, rate: i32, opts: Options) -> Result<
         let c = controls(&r, plan, dec, |i| paths[i].end);
         muted += c.muted;
         warnings.extend(c.warnings.iter().cloned());
-        levels(&c, latency, &mut values, &mut autos, Some(1 + chain.devices.len()));
+        let post = src.post_levels();
+        levels(&c, latency, &mut values, &mut autos, post.then_some(1 + chain.devices.len()));
         // the decimation low-pass follows the slide: the stored Nyquist times the playing ratio (it sits at the
         // chain's end, before the post gain)
         if let Some((k, nyq)) = chain.lowpass {
@@ -251,12 +263,14 @@ pub fn convert<S: Source>(src: &S, xm: &Xm, rate: i32, opts: Options) -> Result<
         }
         let mut devs = vec![Dev { kind: unisynth::kind::INSTRUMENT, chunk: unisynth::migrate::encode_old(&values, &[], &[]) }];
         devs.extend(chain.devices.iter().map(|(k, v)| Dev { kind: *k, chunk: unisynth::migrate::encode_old_fx(v) }));
-        devs.push(Dev { kind: unisynth::kind::EQ, chunk: unisynth::migrate::encode_old_fx(&post_gain()) });
+        if post {
+            devs.push(Dev { kind: unisynth::kind::EQ, chunk: unisynth::migrate::encode_old_fx(&post_gain()) });
+        }
         let (extra, make_up) = ambience.devices(tempo);
         devs.extend(extra.iter().map(|(k, v)| Dev { kind: *k, chunk: unisynth::migrate::encode_old_fx(v) }));
         let halve = src.gain(plan.record);
         let clips = if opts.exact_chain { vec![] } else { compact::clips(chain) };
-        built.push((devs, autos, lane, (XM_GAIN * halve / chain.level * make_up) as f32, clips));
+        built.push((devs, autos, lane, (xm.mix.level(xm.channels) * halve / chain.level * make_up) as f32, clips));
     }
     // the clips each track's notes never reach (compact::idle_clips: a solo render per clip, tracks in parallel),
     // left out last first so the indices hold
@@ -276,12 +290,17 @@ pub fn convert<S: Source>(src: &S, xm: &Xm, rate: i32, opts: Options) -> Result<
         });
         found.into_inner().unwrap()
     };
-    for ((mut devs, mut autos, lane, volume, _), idle) in built.into_iter().zip(idle) {
+    // instrument devices whose slot 1 takes a v3-only type after the migration (design D5 of add-fudge-softsynth)
+    let mut v3_types: Vec<(usize, usize)> = vec![];
+    for (((mut devs, mut autos, lane, volume, _), idle), plan) in built.into_iter().zip(idle).zip(&plans) {
         for &i in idle.iter().rev() {
             compact::remove_device(&mut devs, &mut autos, i);
         }
         idle_clips += idle.len();
         let base = song.devices.len();
+        if let Some(t) = src.v3_type(plan.record) {
+            v3_types.push((base, t));
+        }
         song.devices.extend(devs);
         let devices = (base..song.devices.len()).collect();
         song.tracks.push(Trk { volume, receives: vec![], devices, lane: song.lanes.len(), autos });
@@ -321,7 +340,7 @@ pub fn convert<S: Source>(src: &S, xm: &Xm, rate: i32, opts: Options) -> Result<
         let (extra, make_up) = ambience.devices(tempo);
         song.devices.extend(extra.iter().map(|(k, v)| Dev { kind: *k, chunk: unisynth::migrate::encode_old_fx(v) }));
         let devices = (base..song.devices.len()).collect();
-        song.tracks.push(Trk { volume: (XM_GAIN * make_up) as f32, receives: vec![], devices, lane: song.lanes.len(), autos });
+        song.tracks.push(Trk { volume: (xm.mix.level(xm.channels) * make_up) as f32, receives: vec![], devices, lane: song.lanes.len(), autos });
         song.lanes.push(lane);
     }
     // the master: every track summed, no devices
@@ -329,6 +348,16 @@ pub fn convert<S: Source>(src: &S, xm: &Xm, rate: i32, opts: Options) -> Result<
     song.tracks.push(Trk { volume: 1.0, receives: (0..n).map(|t| (t, 0, 1.0)).collect(), devices: vec![], lane: song.lanes.len(), autos: vec![] });
     song.lanes.push(vec![]);
     song.length = length;
+    if !v3_types.is_empty() {
+        // the stand-in's fields and byte lanes migrate verbatim: only the type is left to set
+        song.to_v3().map_err(|e| e.to_string())?;
+        for (d, t) in v3_types {
+            let c = &mut song.devices[d].chunk;
+            let mut v = unisynth::chunk::Chunk::parse(c).map_err(|e| format!("engine instrument: {e:?}"))?.values();
+            v[unisynth::params::osc(0, unisynth::params::o::TYPE)] = unisynth::params::osc_type::encode(t);
+            *c = unisynth::chunk::encode(&v, &[]);
+        }
+    }
     let name = |key: Option<usize>, i: usize, class: i32| {
         let t = &r.triggers[i];
         src.track_name(key, class, &xm.instruments[t.instrument], t.instrument, t.sample)

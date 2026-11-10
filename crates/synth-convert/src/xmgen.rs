@@ -20,6 +20,7 @@ use crate::cauldron::{Chain, PEv, PhraseEv, LANE_LEAD, LATCH_WINDOW};
 use crate::xm::Xm;
 use serde_json::Value;
 
+mod fudge;
 #[cfg(test)]
 mod tests;
 
@@ -89,6 +90,15 @@ pub trait Engine: Sync {
     /// It starts at any frame and runs either way (by replaying from frame 0 at a note-on when its state carries
     /// over, design D4): a backward pass plays the frames in reverse. Otherwise a backward pass plays forwards.
     fn seekable(&self, params: &Value) -> bool;
+    /// The record is one this engine plays (checked with the map, so [`Engine::instrument`] cannot fail later).
+    fn validate(&self, _params: &Value) -> Result<(), String> {
+        Ok(())
+    }
+    /// The engine's oscillator type when the old layout cannot hold it (change add-fudge-softsynth, design D5): the
+    /// instrument stands in as the clocked type, and the converter sets this type after migrating the song to v3.
+    fn v3_type(&self) -> Option<usize> {
+        None
+    }
     /// The instrument values playing the sample at phrase clock `clock` (Hz: sample frames per second at the
     /// track's class, `cauldron::R` × its ratio; bend and transpose carry the rest, as the clocked playback rate).
     fn instrument(&self, params: &Value, clock: f64) -> [f32; unisynth::params::old::COUNT];
@@ -113,6 +123,8 @@ pub const MAX_POSITION: u32 = 255 * 4096 + 255 * 16;
 pub fn engines() -> Vec<&'static dyn Engine> {
     #[allow(unused_mut)]
     let mut v: Vec<&'static dyn Engine> = vec![];
+    v.push(&fudge::ShaperTone);
+    v.push(&fudge::SweepDrum);
     #[cfg(test)]
     v.push(&tests::CountFrames);
     v
@@ -156,9 +168,10 @@ pub fn check(map: &Map, xm: &Xm) -> Result<(), String> {
     }
     for e in &map.samples {
         if let Some(g) = &e.generated {
-            if engine(&g.engine).is_none() {
+            let Some(en) = engine(&g.engine) else {
                 return Err(format!("engine `{}` (instrument {} sample {}) is not available in this build", g.engine, e.instrument, e.sample));
-            }
+            };
+            en.validate(&g.params).map_err(|m| format!("generator map: instrument {} sample {} (`{}`): {m}", e.instrument, e.sample, g.engine))?;
         }
     }
     Ok(())
@@ -212,23 +225,44 @@ pub fn tone_events(p: &Path, seekable: bool) -> Vec<PhraseEv> {
 /// The note every generated note plays (the engine's pitch is its clock, not the note).
 pub const NOTE: u8 = 60;
 
-/// The note lane and the contract's byte lanes (device 0) for generated notes at song frames.
-/// A note whose bytes differ from the previous note's less than `LANE_LEAD` frames after it is an error: its bytes
-/// would step before the previous note-on reads its own.
+/// The note-ons that cannot latch their bytes (change add-fudge-softsynth): a note whose bytes differ from the previous
+/// note's less than `LANE_LEAD` frames after it would step them before the previous note-on reads its own, so the
+/// earlier note-on goes. A re-entry (an off and an on at one frame) leaves the running note playing on; a fresh note
+/// goes with the off that ends it. The later note-on, a trigger's onset, stays exact. Events in song-frame order.
+fn latchable(evs: Vec<(i64, PEv)>) -> Vec<(i64, PEv)> {
+    let bytes = |e: &PEv| match *e {
+        PEv::Gen { hi, lo, back } => Some((hi, lo, back)),
+        _ => None,
+    };
+    let mut keep = vec![true; evs.len()];
+    let mut ons: Vec<usize> = vec![];
+    for i in 0..evs.len() {
+        let Some(b) = bytes(&evs[i].1) else { continue };
+        while let Some(&j) = ons.last() {
+            if bytes(&evs[j].1) == Some(b) || evs[i].0 - LANE_LEAD > evs[j].0 {
+                break;
+            }
+            keep[j] = false;
+            ons.pop();
+            if j > 0 && keep[j - 1] && matches!(evs[j - 1].1, PEv::Off) && evs[j - 1].0 == evs[j].0 {
+                keep[j - 1] = false;
+            } else if let Some(k) = (j + 1..evs.len()).find(|&k| keep[k] && matches!(evs[k].1, PEv::Off)) {
+                keep[k] = false;
+            }
+        }
+        ons.push(i);
+    }
+    evs.into_iter().zip(keep).filter_map(|(e, k)| k.then_some(e)).collect()
+}
+
+/// The note lane and the contract's byte lanes (device 0) for generated notes at song frames ([`latchable`] first).
 pub fn note_lanes(evs: impl Iterator<Item = (i64, PEv)>, values: &mut [f32; unisynth::params::old::COUNT]) -> Result<Lanes, String> {
     use unisynth::params::old::{self as pm, o};
     let (mut hi, mut lo, mut back) = (vec![], vec![], vec![]);
     let (mut lane, mut t) = (vec![], 0i64);
-    let mut last: Option<(i64, (u8, u8, u8))> = None;
-    for (f, what) in evs {
+    for (f, what) in latchable(evs.collect()) {
         match what {
             PEv::Gen { hi: h, lo: l, back: b } => {
-                if let Some((g, bytes)) = last {
-                    if bytes != (h, l, b) && f - LANE_LEAD <= g {
-                        return Err(format!("generated notes {} frames apart at song frame {f}: the byte contract needs {}", f - g, LANE_LEAD + 1));
-                    }
-                }
-                last = Some((f, (h, l, b)));
                 hi.push((f - LANE_LEAD, h));
                 lo.push((f - LANE_LEAD, l));
                 back.push((f - LANE_LEAD, b));
@@ -319,5 +353,11 @@ impl crate::xm::convert::Source for GenSource<'_> {
     fn reverses(&self, key: usize) -> bool {
         let (g, e) = self.gens[key];
         !e.seekable(&g.params)
+    }
+    fn v3_type(&self, key: usize) -> Option<usize> {
+        self.gens[key].1.v3_type()
+    }
+    fn post_levels(&self) -> bool {
+        false
     }
 }

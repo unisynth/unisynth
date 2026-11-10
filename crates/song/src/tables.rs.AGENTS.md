@@ -16,3 +16,4 @@ Pull-only (not auto-injected).
 - Label `<Kind> · <mode>` when the kind has several modes.
 
 See change: add-v2-import, add-tbl-demo-songs, add-cauldron-xm-import, unify-v2-algorithms.
+- Osc type labels "Shaper tone" (7), "Sweep drum" (9); 7 free positions left. See change: add-fudge-softsynth.

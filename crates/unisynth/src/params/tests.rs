@@ -533,12 +533,13 @@ fn every_earlier_type_keeps_its_stored_value_at_twice_its_old_id() {
 #[test]
 fn new_types_take_odd_positions_and_the_rest_are_gaps() {
     assert_eq!((osc_type::POINTS, osc_type::PAD, osc_type::PAIR, osc_type::COUNT), (1, 3, 5, 25));
-    for t in [osc_type::POINTS, osc_type::PAD, osc_type::PAIR] {
+    assert_eq!((osc_type::SHAPER_TONE, osc_type::SWEEP_DRUM), (7, 9));
+    for t in [osc_type::POINTS, osc_type::PAD, osc_type::PAIR, osc_type::SHAPER_TONE, osc_type::SWEEP_DRUM] {
         assert_eq!(osc_type::decode(osc_type::encode(t)), t);
         assert!(!osc_type::is_gap(t) && !osc_type::is_naive(t));
     }
     let gaps: std::vec::Vec<usize> = (0..osc_type::COUNT + 2).filter(|&t| osc_type::is_gap(t)).collect();
-    assert_eq!(gaps, [7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 26]);
+    assert_eq!(gaps, [11, 13, 15, 17, 19, 21, 23, 25, 26]);
 }
 
 #[test]
@@ -587,7 +588,9 @@ fn needs_names_the_new_modules_and_refuses_gaps_like_the_loader() {
     assert!(with(osc_type::POINTS).unwrap().contains(&crate::module::OSC_POINTS));
     assert!(with(osc_type::PAD).unwrap().contains(&crate::module::OSC_PAD));
     assert!(!with(osc_type::POINTS).unwrap().contains(&crate::module::CHUNK_WIDE), "no point field set");
-    assert!(matches!(with(9), Err(synth_core::mix::LoadError::BadChunk)));
+    assert!(with(osc_type::SHAPER_TONE).unwrap().contains(&crate::module::OSC_SHAPER_TONE));
+    assert!(with(osc_type::SWEEP_DRUM).unwrap().contains(&crate::module::OSC_SWEEP_DRUM));
+    assert!(matches!(with(11), Err(synth_core::mix::LoadError::BadChunk)));
 }
 
 #[test]

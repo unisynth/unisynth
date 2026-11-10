@@ -10,7 +10,8 @@ import { readFileSync } from "node:fs";
 // local was named `inst` (the Object.assign / delete patterns know only master|t|d|c|n|tr); same writes, now seen.
 // 97 since unify-v2-algorithms: a library load no longer moves lanes to `filt1.cutoff` (it refuses instead).
 // 96 since 9.3: a song load restores the new master through the store instead of deleting and assigning its keys.
-const BASELINE = 96;
+// 95 since add-fudge-softsynth: the panel's parameter edit writes through `setDeviceValue` (state/song.ts).
+const BASELINE = 95;
 /** The session code that still writes the model (app.js until daw-solid-ts 9.1 split it into these). */
 const SESSION = ["ui/App.tsx", "ui/app/audition.ts", "ui/app/mixer.ts", "ui/app/tabs.ts", "ui/model/params.ts", "ui/model/track.ts", "ui/model/bytes.ts", "ui/app/session.ts", "ui/app/core.ts", "ui/app/transport.ts", "ui/app/engine.ts", "ui/app/automation.ts", "ui/app/arrange.ts", "ui/app/theme.ts", "ui/app/clips.ts", "ui/app/roll.ts", "ui/app/device.ts", "ui/app/screens.ts", "ui/app/samples.ts", "ui/app/files.ts", "ui/app/tracks.ts"];
 

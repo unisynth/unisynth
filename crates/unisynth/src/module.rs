@@ -115,6 +115,9 @@ modules! {
     FX_DISTORTION_KNEE = 72, "us-fx-distortion-knee", "distortion, knee mode";
     FX_DELAY_PINGPONG = 73, "us-fx-delay-pingpong", "delay, ping-pong mode";
     FX_DELAY_ALLPASS = 74, "us-fx-delay-allpass", "delay, allpass mode";
+    // change add-fudge-softsynth
+    OSC_SHAPER_TONE = 75, "us-osc-shaper-tone", "shaper tone oscillator";
+    OSC_SWEEP_DRUM = 76, "us-osc-sweep-drum", "sweep drum oscillator";
 }
 
 /// The module of quirk index `q` (a `params::quirk` index).

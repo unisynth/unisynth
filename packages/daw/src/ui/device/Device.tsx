@@ -65,6 +65,10 @@ export interface DeviceActions extends SamplerActions {
 export { SLOTS };
 const SLOT_NOUN = { osc: "Osc", filt: "Filter", env: "Env", lfo: "LFO" };
 const OSC_COMMON = ["tracking", "coarse", "fine", "octave", "ratio", "ratio_fine", "fixed_hz", "gain", "mix", "pan", "pm_out", "feedback"];
+// the common fields a kind reads, where it is not all of them: an engine type (add-fudge-softsynth) always tracks the
+// note, and its tracking, PM out and feedback are the converter's start and direction bytes, fixed Hz unused
+const ENGINE_COMMON = ["coarse", "fine", "octave", "ratio", "gain", "mix", "pan"];
+const OSC_COMMON_BY_TYPE: Record<number, string[]> = { 16: ENGINE_COMMON, 17: ENGINE_COMMON };
 const OSC_SHAPES: Record<number, (string | null)[]> = { 1: ["waveform"], 2: ["waveform", "pulse width"], 3: ["bandwidth", "harmonics", "damp", "scale", "mod", "drive", "layers", "layer detune", "layer spread"],
   4: ["start", null, null, "loop start", "loop length"],
   // the naive generators (5–11): the colour; type, combine and law are their own parameters
@@ -76,7 +80,10 @@ const OSC_SHAPES: Record<number, (string | null)[]> = { 1: ["waveform"], 2: ["wa
   // PAD table: s0–s4 build the table when the instrument loads (a change rebuilds the device), drive plays live
   14: ["bandwidth", "scale", "damp", "harmonics", "profile", "drive"],
   // Pair (add-elevated-import): Elevated's two naive copies at ratios 2 − d and d; s1 the phase shift, s2 = d/2
-  15: ["wave", "phase shift", "detune", "polarity"] };  // s1 loop mode, s2 boundary, s5 reverse, s6 interp, s7 source: samplerPre; index: osc<i>.sample
+  15: ["wave", "phase shift", "detune", "polarity"],
+  // engine types (add-fudge-softsynth): Fudge's tone and sweep drum, their nine shape values (unisynth osc::engine)
+  16: ["carrier", "modulator", "depth", "volume", "drive", "shape", "FM", "rate"],
+  17: ["volume", "start freq", "sweep", "growth", "drive", "shape", "env start", "env slope", "env curve"] };  // s1 loop mode, s2 boundary, s5 reverse, s6 interp, s7 source: samplerPre; index: osc<i>.sample
 const range = (n: number) => [...Array(n)].map((_, k) => k + 1);
 /** A Points slot's own fields and their labels (`osc<i>.<field>`); `mode<k>` ends at point k. */
 const POINT_LABELS: Record<string, string> = { points: "points", mode1: "seg 1", mode2: "seg 2", mode3: "seg 3", mode4: "seg 4", mode_last: "last seg",
@@ -124,7 +131,8 @@ function PCtl(p: { t: Track; d: Device; p: Param; label?: string; aria?: string 
     // long lists (mod targets: 142) hold the current option only until the select is first used: a selection
     // remounts the panel, and these options were two thirds of its elements (daw-solid-ts 9.4)
     const shown = prm.options.filter((o) => o !== GAP).length; // free positions of an expanded choice are not offered
-    const [full, setFull] = createSignal(shown <= LAZY_OPTIONS), fill = () => setFull(true);
+    // a slot's type list stays whole (18 since add-fudge-softsynth): picking a type is the panel's main choice
+    const [full, setFull] = createSignal(shown <= LAZY_OPTIONS || prm.name.endsWith(".type")), fill = () => setFull(true);
     return <label class="pchoice"><span>{short}</span>
       <select aria-label={aria()} onPointerDown={fill} onFocus={fill} onKeyDown={fill} onChange={(e) => {
         const i = +e.currentTarget.value, v = idx ? i / 255 : prm.options.length > 1 ? i / (prm.options.length - 1) : 0;
@@ -237,7 +245,7 @@ function Instrument(p: { t: Track; d: Device }): JSX.Element {
       // a Points slot's offsets, values and segment modes are its Points grid (`post`); count, drive and layers knobs
       const ks = ty() === 4 ? A.smpShapes(d, i) : ty() === 13 ? [8] : sh.map((_, k) => k);
       const own = ty() === 4 ? [`osc${i}.sample`] : ty() === 13 ? ["points", "layers", "layer_detune", "layer_spread"].map((f) => `osc${i}.${f}`) : [];
-      return [A.ip(`osc${i}.type`), ...OSC_COMMON.map((f) => A.ip(`osc${i}.${f}`)), ...ks.map((k) => A.ip(`osc${i}.s${k}`)), ...own.map((nm) => A.ip(nm))];
+      return [A.ip(`osc${i}.type`), ...(OSC_COMMON_BY_TYPE[ty()] ?? OSC_COMMON).map((f) => A.ip(`osc${i}.${f}`)), ...ks.map((k) => A.ip(`osc${i}.s${k}`)), ...own.map((nm) => A.ip(nm))];
     }));
     // the screen: a waveform drawing, or the sampler block (6.3)
     const pre = () => { const k = ty(); return k === 4 ? <Sampler t={t} d={d} i={i} a={A} /> as HTMLElement : k ? A.screen(t, d, "osc", i) : null; };

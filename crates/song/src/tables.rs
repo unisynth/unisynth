@@ -228,7 +228,8 @@ fn choice_options(i: usize, law: Law) -> Vec<String> {
             if at(params::OSC, params::o::LEN, params::OSC_SLOTS, params::o::TYPE) {
                 // the id is the stored position; free positions of the expanded choice show "—" (change add-tf3-import)
                 &[
-                    "Off", "Points", "Phase mod", "PAD table", "Saw/pulse", "Pair", "Wavetable", "—", "Sampler", "—", "Naive saw/tri", "—", "Naive pulse",
+                    "Off", "Points", "Phase mod", "PAD table", "Saw/pulse", "Pair", "Wavetable", "Shaper tone", "Sampler", "Sweep drum", "Naive saw/tri", "—",
+                    "Naive pulse",
                     "—", "Sine", "—", "Coloured noise", "—", "FM", "—", "Aux in A", "—", "Aux in B", "—", "Clocked",
                 ]
             } else if i >= params::PTS && i < params::EL && n == 3 {

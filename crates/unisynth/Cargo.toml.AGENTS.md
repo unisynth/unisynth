@@ -7,3 +7,4 @@ Pull-only (not auto-injected).
 - `us-trusted` (generated compo songs only, never default); internal `us-mono-sum`; host-only `std`, `probe` (= `std`);
 - `threads` → `synth-core/threads`.
 - Size gating: design D11.
+- `us-osc-shaper-tone`, `us-osc-sweep-drum` (each enables `us-osc-clocked`), in `us-osc`. See change: add-fudge-softsynth.

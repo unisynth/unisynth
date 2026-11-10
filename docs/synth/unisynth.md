@@ -687,6 +687,49 @@ come with Elevated:
   cut). With envelope 1 linear, the voice ends its control segment at each stage corner (`Env::linear_left`; the
   instrument ticks a voice whose segment ended off the 8-frame grid), so a 3-frame attack keeps its corner.
 
+### Engine types: Shaper tone and Sweep drum (`us-osc-shaper-tone`, `us-osc-sweep-drum`)
+
+Fudge's two sample generators (Alien Sex Clone, 1998; change add-fudge-softsynth, `osc/engine.rs`), at the free type
+positions 7 and 9. Each feature enables `us-osc-clocked`: an engine slot runs through the clocked resampler (4-point
+Catmull-Rom, latency 2 engine frames, the reconstruction low-pass below one engine frame per output frame).
+
+- **Clock from the slot pitch:** `256·hz/rate` engine frames per output frame, `hz` the slot frequency (note, coarse,
+  fine, octave, ratio, bend, transpose; the slot always tracks the note, its `FIXED_HZ` is unused). Speed follows pitch
+  as in sample playback, and a 256-frame loop sounds at the note.
+- **Frames** in the original's semantics: 16-bit values, every f32 store and integer conversion truncating toward zero
+  (`f32t`, `trunc`), the rest in f64. Output `/32768`; the slot sends 0 into the next slot.
+  - *Shaper tone:* `t = i·rate`; modulator `m = f32(sin(2πt/mod)·depth)`; phase `m` (FM off) or
+    `2πt/(car + m + f32(t)·10⁻¹²)`; `v = trunc(sin(phase)·f32(vol·255))`. Then the shaper: `|v| < 8160` sets the
+    carried value to `4v` and blends `v` toward `4v` by drive; past ±16320 (after that) the carried value becomes the
+    fold `(16320 − (v − 16320)/4)·127/80` (integer divisions); `v` blends toward the carried value by shape; clip ±32385.
+  - *Sweep drum:* per frame `freq −= sweep`, `sweep += growth` (f32), `s = f32(sin(i·freq)·f32(vol·255))`, the same
+    shaper in f32 (fold factor `127·f32(0.0125)`), clip, then the envelope `e = clamp(start − i·slope, 0, 1)` linear,
+    as `1 − sin(π/2·(1 − e))` or `cos(π/2·(1 − e))`.
+- **Shape fields** (exact power-of-two laws, so a map's f32 comes back bit for bit):
+
+  | s | Shaper tone | Sweep drum |
+  |---|---|---|
+  | 0 | carrier period `1024p` | volume `512p` |
+  | 1 | modulator period `1024p` | start frequency `4p` rad/frame |
+  | 2 | depth `64p` rad | sweep `p` |
+  | 3 | volume `256p` | growth `p/64` |
+  | 4 | drive `p` | drive `p` |
+  | 5 | shape `p` | shape `p` |
+  | 6 | FM `Choice(2)` | envelope start `p` |
+  | 7 | rate `16p` | envelope slope `(2p − 1)/16` per frame |
+  | 8 | – | curve `Choice(3)`: linear, 1 − sin, cos |
+
+- **Note-on** (non-legato): the start frame `TRACKING·4096 + PM_OUT·16` and a backward pass `FEEDBACK ≥ 128` (bytes
+  `round(255p)`, the note byte contract below), then the resampler restarts. A seek gives the frames a run from frame 0
+  would, in fixed-size state (no heap):
+  - the tone is closed-form in the frame index except its carried value, which a seek or a backward step recovers by
+    scanning back to the frame that set it (frame 0 always does: `sin 0 = 0`);
+  - the drum replays only its sweep from frame 0 (two f32 steps a frame), then scans the last 64 frequencies for the
+    carried value. A backward pass serves a 64-frame block (`i16`) of exact forward frames.
+  - Worst note-on 36–44 µs over every 16th start frame of Fudge's 22 samples (release build).
+- The carried value a generator inherited from the previous call (the map's `carry`) is never audible, and the tone's
+  fourth argument is never read. Against the reference XM every tone is bit-exact and every drum within one step.
+
 ### Decimation stage (points and PAD)
 
 Both Tunefish 3 slot types always run Tunefish 3's oversampling and decimation (spec §3.3): the slot renders `k`
@@ -1477,9 +1520,21 @@ mini-cauldron patch data, a generator map (`xmgen`, told apart by `"format": "xm
 - The conversion is the mini-cauldron's flow (`src/xm/convert.rs`, a `Source` per format): replay, paths, pitch
   classes with transpose + bend as the playback rate, volume/pan lanes, stored samples on a GSM sampler.
 - **Engines** are oscillator types of their own (free odd positions of the type choice), run through the clocked
-  machinery (phrase clock = `R` × the track's ratio, Catmull-Rom resampling, reconstruction low-pass). They arrive with
-  their changes (`add-fudge-softsynth`, `add-poespack-softsynth`); until then a map's conversion fails naming the
-  engine, and the parity reports the song pending.
+  resampler. Fudge's `fm-shaper` and `sweep-drum` (`xmgen/fudge.rs`) play on the [engine types](#engine-types-shaper-tone-and-sweep-drum-us-osc-shaper-tone-us-osc-sweep-drum):
+  - the record's raw words are written on the types' laws (integer flags read as integers);
+  - an argument a law cannot hold exactly is an error naming the instrument, sample and argument (the drum's slope
+    within 2⁻²⁸);
+  - the clock `C` becomes the slot pitch `C/256` Hz at note 60 (octave, coarse, fine).
+
+  The old layout cannot hold types 7 and 9, so the instrument is built with the clocked type as a stand-in; after the
+  song's migration to v3 the converter sets slot 1's type (`Source::v3_type`). Their volume and pan go on the voice, as
+  for a stored sample (`Source::post_levels`: no post EQ, no chain). Poespack arrives with `add-poespack-softsynth`;
+  until then its maps fail naming the engine, and the parity reports those songs pending.
+- **openmpt's mix** (`xm::Mix`): the parity reference mixes a "FastTracker v2.00" XM whose song name holds a NUL or
+  whose sample names are not FT2's (NUL-padded, or not the length the reserved byte gives) as "ModPlug Tracker
+  1.0–1.16" (`MixLevels::Original`). That is a linear pan law (played as equal-power pan `p²/g²` with volume ×
+  `g = √((1 − p)² + p²)`) at the level `23.4/PreAmpTable[channels/2]`. Alien Sex Clone and Theta are such files; others
+  stay FT2 (`XM_GAIN` 0.375, equal-power).
 
 **Note byte contract** (engines with one note per run of the sample): a note starts at each trigger, loop re-entry and
 ping-pong turn, with its start frame in the slot's per-note bytes, latched from `LANE_LEAD` before the note-on:
@@ -1490,8 +1545,9 @@ ping-pong turn, with its start frame in the slot's per-note bytes, latched from 
 | `o::PM_OUT` | the rest ÷ 16 (rounded; 1 048 560 + 4080 frames at most) |
 | `o::FEEDBACK` | 255: a backward pass (seekable engines), else 0 |
 
-A note whose bytes differ from the previous note's starts more than `LANE_LEAD` frames after it, or the conversion
-fails (the three XMs' tightest re-entry is 255 frames). A non-seekable engine plays a backward pass forwards from its
+A note whose bytes differ from the previous note's starts more than `LANE_LEAD` frames after it. If one comes closer,
+the earlier note-on is dropped (a re-entry: the running note plays on; a fresh note: with the off that ends it), so the
+later onset stays exact. Alien Sex Clone has one: a 256-frame ping-pong drum re-enters 59 frames before a cut. A non-seekable engine plays a backward pass forwards from its
 lowest frame. Phrase engines bring their own events and lanes.
 
 **XM replay additions** (FT2 semantics, pinned to `openmpt123` renders of synthetic songs in

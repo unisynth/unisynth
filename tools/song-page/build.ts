@@ -74,6 +74,7 @@ export function groupOf(rel: string, url = ""): string {
   if (basename(rel).startsWith("tbl-")) return "The Black Lotus, 1997";
   if (TUNEFISH_INTROS.includes(basename(rel, ".song.json"))) return "Brain Control 64K intros (Tunefish)";
   if (MENTOR_INTROS.includes(basename(rel, ".song.json"))) return "TBC 4K intros (Mentor's synth)";
+  if (XM_SOFTSYNTH_INTROS.includes(basename(rel, ".song.json"))) return GUS_1998;
   return "64K intros and executable music (WaveSabre)";
 }
 
@@ -83,7 +84,12 @@ export const TUNEFISH_INTROS = ["aten-hotep", "naumachia-insianis", "train-contr
 /** 4k intro songs of Mentor's synth, written by `tools/elevated-parity/make-demos.py`. */
 export const MENTOR_INTROS = ["atrium", "elevated"];
 
-export const GROUPS = ["Demo songs", "64K intros and executable music (WaveSabre)", "Brain Control 64K intros (Tunefish)", "TBC 4K intros (Mentor's synth)", "The Black Lotus, 1997", "Farbrausch productions", "V2M collection (via modland)"];
+/** The 1998 GUS 64K intros whose XM samples a softsynth generated, written by `tools/xm-gen/make-demos.py` (change
+ * add-fudge-softsynth; Quad's Pure and Theta join with add-poespack-softsynth). */
+export const XM_SOFTSYNTH_INTROS = ["fudge-alien-sex-clone"];
+const GUS_1998 = "GUS 64K intros, 1998 (softsynth XMs)";
+
+export const GROUPS = ["Demo songs", "64K intros and executable music (WaveSabre)", "Brain Control 64K intros (Tunefish)", "TBC 4K intros (Mentor's synth)", "The Black Lotus, 1997", GUS_1998, "Farbrausch productions", "V2M collection (via modland)"];
 
 /** A URL-safe id from the path relative to project/music (`released/v2/foo.song.json` → `v2-foo`). */
 export function slugOf(rel: string): string {
@@ -236,11 +242,14 @@ registerProcessor("song-player", SongPlayer);`;
 export const ACCENT: Record<string, string> = {
   "Demo songs": "env", "64K intros and executable music (WaveSabre)": "osc",
   "Brain Control 64K intros (Tunefish)": "voice", "TBC 4K intros (Mentor's synth)": "fx", "The Black Lotus, 1997": "mod",
+  // the other 1990s XM softsynth intros share TBL's accent (the seven module colours are taken)
+  [GUS_1998]: "mod",
   "Farbrausch productions": "filt", "V2M collection (via modland)": "lfo",
 };
 export const CHIP: Record<string, string> = {
   "Demo songs": "demo", "64K intros and executable music (WaveSabre)": "WaveSabre 64K",
   "Brain Control 64K intros (Tunefish)": "Brain Control", "TBC 4K intros (Mentor's synth)": "TBC 4K", "The Black Lotus, 1997": "TBL 1997",
+  [GUS_1998]: "GUS 64K 1998",
   "Farbrausch productions": "Farbrausch", "V2M collection (via modland)": "V2M collection",
 };
 const ICON = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctitle%3Eunisynth%3C/title%3E%3Cdefs%3E%3ClinearGradient id='t' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%231b1e23'/%3E%3Cstop offset='1' stop-color='%230e1013'/%3E%3C/linearGradient%3E%3ClinearGradient id='w' x1='8' y1='0' x2='56' y2='0' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='.12' stop-color='%23f0a04b'/%3E%3Cstop offset='.36' stop-color='%233fc1c9'/%3E%3Cstop offset='.64' stop-color='%233fc1c9'/%3E%3Cstop offset='.88' stop-color='%236fd08c'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='1' y='1' width='62' height='62' rx='14' fill='url(%23t)' stroke='%232c3139' stroke-width='1.5'/%3E%3Cpath d='M8 33.4L8.8 33.5L9.5 33.4L10.3 33.2L11 32.8L11.8 32.3L12.5 31.7L13.3 30.9L14 30L14.8 29L15.5 27.9L16.3 26.7L17 25.5L17.8 24.3L18.5 23.1L19.3 22.2L20 21.5L20.8 21L21.5 21L22.3 21.3L23 22.2L23.8 23.5L24.5 25.3L25.3 27.5L26 30L26.8 32.7L27.5 35.6L28.3 38.3L29 40.8L29.8 43L30.5 44.6L31.3 45.7L32 46L32.8 45.7L33.5 44.6L34.3 43L35 40.8L35.8 38.3L36.5 35.6L37.3 32.7L38 30L38.8 27.5L39.5 25.3L40.3 23.5L41 22.2L41.8 21.3L42.5 21L43.3 21L44 21.5L44.8 22.2L45.5 23.1L46.3 24.3L47 25.5L47.8 26.7L48.5 27.9L49.3 29L50 30L50.8 30.9L51.5 31.7L52.3 32.3L53 32.8L53.8 33.2L54.5 33.4L55.3 33.5L56 33.4' fill='none' stroke='url(%23w)' stroke-width='5.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E`;

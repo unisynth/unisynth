@@ -17,7 +17,7 @@ fn song(rows: u16, cells: &[(usize, Cell)], instruments: Vec<Instrument>) -> Xm 
     for &(r, cell) in cells {
         c[r] = cell;
     }
-    Xm { name: "t".into(), channels: 1, restart: 0, linear: true, speed: 6, bpm: 125, order: vec![0], patterns: vec![Pattern { rows, cells: c }], instruments }
+    Xm { name: "t".into(), channels: 1, restart: 0, linear: true, speed: 6, bpm: 125, order: vec![0], patterns: vec![Pattern { rows, cells: c }], instruments, mix: Default::default() }
 }
 
 fn note(n: u8, effect: u8, param: u8) -> Cell {

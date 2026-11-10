@@ -51,3 +51,4 @@ Pull-only (not auto-injected).
 - `Voice<'a>` (`synth_core::voice::Voice<NoteCx>`): start/end control state per 32-frame segment, `Ramp`s, `tick`/`left`/`render`; slot targets via mod matrix, noise, 4 filter slots, wavetable rebuild, samplers, `VoiceSet`, clocked slots + `Declick`;
 - `probe` taps.
 - `Move::Drop {f, b, l2k, n}` (`us-voice-drop`): `b + (f − b)·k^(n+1)` at control points, `Pitch::drop` at note-on; pair `PairT` in `slot_targets`; `Ctl::release(&Fixed)` → `Env::note_off`; `tick` ends a segment at a linear envelope 1's stage corner (`us-env-linear`). See change: add-elevated-import.
+- Engine slots always take the note path (skip the `FIXED_HZ` branch, as clocked); `engine_t(kind, shapes)` builds `SlotT.eng`; non-legato note-on: `engine::start_of(TRACKING, PM_OUT, FEEDBACK)` → `Slot::engine_start`; `instant`/declick/envelope resample for any `is_clocked_like` kind. See change: add-fudge-softsynth.

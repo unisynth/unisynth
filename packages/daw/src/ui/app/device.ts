@@ -9,10 +9,11 @@ import * as live1 from "../device/live.ts";
 import { openLibrary } from "../library/Library.tsx";
 import * as arrange from "../state/arrange.ts";
 import * as devst from "../state/device.ts";
+import { setDeviceValue } from "../state/song.ts";
 import * as lib from "../state/library.ts";
 import { persist as store } from "../state/persist.ts";
 import { overrides } from "../state/view.ts";
-import { choice, devName, effectChoices, fmtVal, ip, loadTime, modeValue, modSrcName, nModes, optValue, oscType, paramOf, routesOf, SLOTS, type SlotGroup, slotKeys, slotUsed, smpShapes, tableOf, TARGETS, vget } from "../model/params.ts";
+import { choice, devName, effectChoices, fmtVal, ip, loadTime, modeValue, modSrcName, nModes, optValue, oscKindOf, oscType, paramOf, routesOf, SLOTS, type SlotGroup, slotKeys, slotUsed, smpShapes, tableOf, TARGETS, typeDefaults, vget } from "../model/params.ts";
 import { engineDev, instOf, links } from "../model/track.ts";
 import { bytesToB64 } from "../model/bytes.ts";
 import { api, E, selected, tracks } from "./session.ts";
@@ -178,7 +179,13 @@ function deviceActions(): DeviceActions {
     ip, tableOf, nModes, devName, fmtVal, vget, choice, oscType, smpShapes, slotUsed, routesOf, modSrcName,
     senders: t => senders(t).map(x => x.name),
     sideSenders: t => tracks.filter(x => x.sends.some(s1 => s1[0] === t.name && s1[1] === "side")).map(x => x.name),
-    setParam: (t, d, p, v, msg) => { const before = snap(); d.values[p.name] = v; liveParam(t, d, p, v); if (p.structural || p.name.endsWith(".type") || p.name === "mode") renderDevice(); commit(before, msg); },
+    setParam: (t, d, p, v, msg) => {
+      // a slot that becomes an engine type takes that type's shape values (add-fudge-softsynth): another type's values
+      // mean nothing to it; one undo step with the type change
+      const slot = d.kind === 64 ? /^osc(\d)\.type$/.exec(p.name) : null;
+      const before = snap(); setDeviceValue(d, p.name, v, slot ? typeDefaults(oscKindOf(v), +slot[1]!) : {});
+      liveParam(t, d, p, v); if (p.structural || p.name.endsWith(".type") || p.name === "mode") renderDevice(); commit(before, msg);
+    },
     knobInput: (t, d, p, v) => { d.values[p.name] = v; if (!(recOn && playing && recordPoint(t, d, p, v))) knobEdited(t, d, p); liveParam(t, d, p, v); },
     grab: (t, d, p) => { held = p; grab(t, d, p); },
     release: (t, d, p) => { held = null; release(t, d, p); if (loadTime(d, p)) livePush(); },

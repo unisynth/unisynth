@@ -85,7 +85,8 @@ test("osc type labels: the engine's expanded choice, new kinds by label, gaps ne
   const o = P.ip("osc1.type").options!;
   expect(o.length).toBe(25);
   expect([o[0], o[1], o[3], o[5], o[8], o[24]]).toEqual(["Off", "Points", "PAD table", "Pair", "Sampler", "Clocked"]);
-  expect(o.filter((x) => x === P.GAP).length).toBe(9);
+  // 7 since add-fudge-softsynth took positions 7 and 9
+  expect(o.filter((x) => x === P.GAP).length).toBe(7);
   for (const [label, kind] of [["Sampler", 4], ["Points", 13], ["PAD table", 14], ["Clocked", 12], ["Pair", 15]] as const)
     expect(P.oscType(inst({ "osc1.type": P.optValue("osc1.type", label) }), 1)).toBe(kind);
 });
@@ -140,4 +141,39 @@ test("an effect's mode reads through its stored position (the expanded distortio
     expect(P.tableOf(d)!.label.endsWith(name)).toBe(true);
   }
   expect(P.modeValue(65, 1)).toBeCloseTo(2 / 6); // curve keeps the value a 4-mode choice gave it
+});
+
+// ---- engine types (change add-fudge-softsynth) ----
+test("engine types: kinds by label, value text in their units, Fudge's defaults", () => {
+  const o = P.ip("osc1.type").options!;
+  expect([o[7], o[9]]).toEqual(["Shaper tone", "Sweep drum"]);
+  expect(o.filter((x) => x === P.GAP).length).toBe(7);
+  for (const [label, kind] of [["Shaper tone", P.TONE], ["Sweep drum", P.DRUM]] as const) {
+    expect(P.oscType(inst({ "osc1.type": P.optValue("osc1.type", label) }), 1)).toBe(kind);
+    expect(P.oscKindOf(P.optValue("osc1.type", label))).toBe(kind);
+  }
+  expect(P.oscKindOf(P.optValue("osc1.type", "Pair"))).toBe(15);
+  // instrument 8 of Alien Sex Clone: volume 257, start frequency 0.11 rad, curve 1 − sin
+  const drum = inst({ "osc1.type": P.optValue("osc1.type", "Sweep drum"), ...P.typeDefaults(P.DRUM, 1) });
+  const txt = (k: number) => P.fmtVal(drum, P.ip(`osc1.s${k}`), P.vget(drum, P.ip(`osc1.s${k}`)));
+  expect([txt(0), txt(1), txt(5), txt(6), txt(8)]).toEqual(["257", "0.11 rad", "50%", "100%", "1 − sin"]);
+  expect(txt(7)).toBe("5.1e−4");  // per frame
+  const tone = inst({ "osc2.type": P.optValue("osc2.type", "Shaper tone"), ...P.typeDefaults(P.TONE, 2) });
+  const t2 = (k: number) => P.fmtVal(tone, P.ip(`osc2.s${k}`), P.vget(tone, P.ip(`osc2.s${k}`)));
+  expect([t2(0), t2(2), t2(3), t2(6), t2(7)]).toEqual(["128", "1 rad", "110", "off", "×1"]);
+  // the hidden start and direction bytes start at frame 0, forwards; other kinds keep their values
+  expect([P.typeDefaults(P.DRUM, 3)["osc3.tracking"], P.typeDefaults(P.DRUM, 3)["osc3.pm_out"], P.typeDefaults(P.TONE, 3)["osc3.feedback"]]).toEqual([0, 0, 0]);
+  expect(P.typeDefaults(15, 1)).toEqual({});
+});
+test("the engine drawing follows unisynth osc::engine (frames of Fudge's instruments 1, 17 and 8, within 2 LSB)", () => {
+  const sh = (d: Record<string, number>) => [0, 1, 2, 3, 4, 5, 6, 7, 8].map((k) => d[`osc1.s${k}`] ?? 0);
+  const near = (got: number[], at: number[], want: number[]) => at.forEach((i, j) => expect(Math.abs(got[i]! * 32768 - want[j]!)).toBeLessThanOrEqual(2));
+  const at = [0, 1, 10, 50, 100, 200, 1000, 3000];
+  near(P.engineFrames(P.TONE, sh(P.typeDefaults(P.TONE, 1)), 3001), at, [0, 1375, 12738, 16624, -23307, -10474, -22382, 10474]);
+  // tone 17: depth 2.5, shape ½, FM on
+  const t17 = [128 / 1024, 128 / 1024, 2.5 / 64, 110 / 256, 0, 0.5, 1, 1 / 16, 0];
+  near(P.engineFrames(P.TONE, t17, 3001), at, [0, 3437, 22749, 21752, -24292, -22433, -19112, 24620]);
+  // a period of 0 draws silence, as the engine's NaN → 0 conversion plays it
+  expect(P.engineFrames(P.TONE, [0, 0, 1 / 64, 110 / 256, 0, 0, 1, 1 / 16, 0], 64).every((x) => x === 0)).toBe(true);
+  near(P.engineFrames(P.DRUM, sh(P.typeDefaults(P.DRUM, 1)), 1380), [0, 1, 10, 50, 100, 200, 500, 1000, 1379], [0, 17958, 32126, -30235, -29807, 27246, 19821, 8816, 2353]);
 });

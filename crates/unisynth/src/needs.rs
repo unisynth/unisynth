@@ -59,6 +59,8 @@ pub fn instrument_why(chunk: &[u8], reach: Reach) -> Result<Why, LoadError> {
             osc_type::POINTS => add(&mut out, m::OSC_POINTS, kind("a point oscillator")),
             osc_type::PAD => add(&mut out, m::OSC_PAD, kind("a PAD table")),
             osc_type::PAIR => add(&mut out, m::OSC_PAIR, kind("a pair oscillator")),
+            osc_type::SHAPER_TONE => add(&mut out, m::OSC_SHAPER_TONE, kind("a shaper tone oscillator")),
+            osc_type::SWEEP_DRUM => add(&mut out, m::OSC_SWEEP_DRUM, kind("a sweep drum oscillator")),
             t if osc_type::is_gap(t) => return Err(LoadError::BadChunk), // as `Kind::from_type`
             osc_type::WAVETABLE => add(&mut out, m::OSC_WAVETABLE, kind("wavetable")),
             osc_type::SAMPLER => {

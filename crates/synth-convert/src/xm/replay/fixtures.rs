@@ -40,7 +40,7 @@ fn song(rows: Vec<Cell>, vibrato: [u8; 4]) -> Xm {
     let n = rows.len() as u16 + 1;
     let mut cells = rows;
     cells.push(Cell::default());
-    Xm { name: "ft2 fixture".into(), channels: 1, restart: 0, linear: true, speed: 6, bpm: 125, order: vec![0], patterns: vec![Pattern { rows: n, cells }], instruments }
+    Xm { name: "ft2 fixture".into(), channels: 1, restart: 0, linear: true, speed: 6, bpm: 125, order: vec![0], patterns: vec![Pattern { rows: n, cells }], instruments, mix: Default::default() }
 }
 
 // XM effect numbers past F: G 0x10, H 0x11, P 0x19, R 0x1B, X 0x21

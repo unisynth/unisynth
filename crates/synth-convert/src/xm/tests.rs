@@ -129,6 +129,7 @@ fn sample() -> Xm {
             },
             Instrument { name: "empty".into(), keymap: [0; 96], vol_env: Env::default(), pan_env: Env::default(), vibrato: [0; 4], fadeout: 0, samples: vec![] },
         ],
+        mix: Mix::Ft2,
     }
 }
 
@@ -164,4 +165,32 @@ fn unsupported_files_name_their_cause() {
     let mut x = sample();
     x.patterns[0].cells.pop(); // a pattern's data must hold rows × channels cells
     assert!(parse(&write(&x)).unwrap_err().contains("pattern 0"));
+}
+
+/// openmpt's mix by its tracker detection (change add-fudge-softsynth): the 1998 softsynth XMs as openmpt123 --info
+/// names them (Alien Sex Clone and Theta "ModPlug Tracker 1.0 - 1.16", Pure "FastTracker 2 or compatible").
+#[test]
+fn the_mix_follows_openmpts_detection() {
+    let zenekk = std::env::var("ZENEKK_DIR").map(std::path::PathBuf::from).unwrap_or_else(|_| std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join("Downloads/zenekk"));
+    for (f, want) in [("Fudge - Alien Sex Clone.xm", Mix::ModPlug), ("Quad - Theta.xm", Mix::ModPlug), ("Quad - Pure.xm", Mix::Ft2)] {
+        let Ok(b) = std::fs::read(zenekk.join(f)) else {
+            eprintln!("skip: {f} absent");
+            continue;
+        };
+        assert_eq!(parse(&b).unwrap().mix, want, "{f}");
+    }
+}
+
+#[test]
+fn a_modplug_files_linear_pan_as_equal_power() {
+    // hard left and right keep the level; the centre is linear's ½ per side: √(1 − p′)·g = 1 − p, √p′·g = p
+    for p in [0.0, 0.2, 0.5, 0.9, 1.0] {
+        let (g, q) = Mix::ModPlug.pan(1.0, p);
+        let (l, r) = ((1.0 - q).sqrt() * g, q.sqrt() * g);
+        assert!((l - (1.0 - p)).abs() < 1e-12 && (r - p).abs() < 1e-12, "{p}: {l} {r}");
+    }
+    assert_eq!(Mix::Ft2.pan(0.7, 0.3), (0.7, 0.3));
+    // the level follows openmpt's pre-amp table: 20 channels 168, 18 channels 164
+    assert!((Mix::ModPlug.level(20) / Mix::ModPlug.level(18) - 164.0 / 168.0).abs() < 1e-12);
+    assert_eq!(Mix::Ft2.level(20), crate::cauldron::import::XM_GAIN);
 }

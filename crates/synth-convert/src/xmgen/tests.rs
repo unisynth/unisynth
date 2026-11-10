@@ -37,7 +37,7 @@ fn ins(s: Sample) -> Instrument {
 /// One channel, speed 6, BPM 125, `rows` rows.
 fn xm(rows: Vec<Cell>, instruments: Vec<Instrument>) -> Xm {
     let n = rows.len() as u16;
-    Xm { name: "t".into(), channels: 1, restart: 0, linear: true, speed: 6, bpm: 125, order: vec![0], patterns: vec![Pattern { rows: n, cells: rows }], instruments }
+    Xm { name: "t".into(), channels: 1, restart: 0, linear: true, speed: 6, bpm: 125, order: vec![0], patterns: vec![Pattern { rows: n, cells: rows }], instruments, mix: Default::default() }
 }
 
 fn generated(instrument: usize, length: u32) -> Entry {
@@ -193,6 +193,34 @@ fn stored_and_generated_in_one_song() {
     assert_eq!(samples, 1);
 }
 
+/// Spec "Engine tracks in the v3 layout" (add-fudge-softsynth, design D5): a Fudge drum's track is a v3 instrument
+/// whose slot 1 is the Sweep drum, its byte lanes address slot 1's v3 fields, and it plays; a forward loop's
+/// re-entries and an offset write the start bytes.
+#[test]
+fn an_engine_track_takes_its_type_after_the_migration() {
+    use unisynth::params::{o, osc, osc_type};
+    let record = serde_json::json!({"frames": 256, "args": [1123942400u32, 1036831949u32, 966609234u32, 3076135571u32, 0, 1056964608u32, 1065353216u32, 1065353216u32, 0], "carry": 1185420165u32});
+    let x = xm(
+        vec![Cell { note: C5, instrument: 1, ..Cell::default() }, Cell::default(), Cell { note: C5, instrument: 1, effect: 9, param: 1, ..Cell::default() }, Cell::default()],
+        vec![ins(sample(512, 0, 1))],
+    );
+    let map = Map { intro: "t".into(), samples: vec![Entry { instrument: 1, sample: 0, generated: Some(Generated { engine: "sweep-drum".into(), length: 512, params: record }) }] };
+    let c = crate::xm::convert::convert(&GenSource::new(&map, &x).unwrap(), &x, 44100, crate::cauldron::import::Options::default()).unwrap();
+    let blob = c.song.write().unwrap();
+    assert!(synth_core::mix::Song::parse(&blob).is_ok());
+    let song = crate::model::SongM::read(&blob).unwrap();
+    let t = &song.tracks[0];
+    let d = &song.devices[t.devices[0]];
+    let v = unisynth::chunk::Chunk::parse(&d.chunk).unwrap().values();
+    assert_eq!(osc_type::decode(v[osc(0, o::TYPE)]), osc_type::SWEEP_DRUM);
+    assert_eq!(v[osc(0, o::SHAPE + unisynth::params::shape::DRUM_SHAPE)], 0.5, "the stand-in's shape values come through");
+    let params: Vec<usize> = t.autos.iter().filter(|a| a.device == 0).map(|a| a.param).collect();
+    assert!(params.contains(&osc(0, o::PM_OUT)), "the offset's start byte: {params:?}");
+    // it loads and plays in a unisynth build with the engine types
+    let out = song::render::render(&blob, None).unwrap();
+    assert!(out.iter().any(|s| s.abs() > 0.01), "the drum sounds");
+}
+
 #[test]
 fn the_byte_contract_as_lanes() {
     use unisynth::params::old::{self as pm, o};
@@ -268,12 +296,27 @@ fn identical_records_share_an_instrument() {
 #[test]
 fn notes_too_close_for_their_bytes() {
     let mut values = unisynth::params::old::DEFAULTS;
-    // different bytes LANE_LEAD apart: the second note's step would land on the first note-on
+    // different bytes LANE_LEAD apart: the second note's step would land on the first note-on, so the first is dropped
     let evs = vec![(1000, PEv::Gen { hi: 0, lo: 1, back: 0 }), (1100, PEv::Off), (1000 + LANE_LEAD, PEv::Gen { hi: 0, lo: 2, back: 0 }), (2000, PEv::Off)];
-    assert!(note_lanes(evs.into_iter(), &mut values).unwrap_err().contains("128 frames apart"));
+    let (lane, _) = note_lanes(evs.into_iter(), &mut values).unwrap();
+    assert_eq!(lane, vec![(1128, NOTE, Some(127)), (872, NOTE, None)]);
+    // a re-entry (off and on at one frame) 59 frames before a cut: the running note plays on to the cut
+    let evs = vec![
+        (1000, PEv::Gen { hi: 0, lo: 0, back: 0 }),
+        (1255, PEv::Off),
+        (1255, PEv::Gen { hi: 0, lo: 16, back: 255 }),
+        (1314, PEv::Off),
+        (1314, PEv::Gen { hi: 1, lo: 0, back: 0 }),
+        (2000, PEv::Off),
+    ];
+    let (lane, autos) = note_lanes(evs.into_iter(), &mut values).unwrap();
+    assert_eq!(lane, vec![(1000, NOTE, Some(127)), (314, NOTE, None), (0, NOTE, Some(127)), (686, NOTE, None)]);
+    let hi = autos.iter().find(|a| a.param == unisynth::params::old::osc(0, unisynth::params::old::o::TRACKING)).expect("a start-byte lane");
+    assert_eq!(hi.points.last().unwrap().1, 1);
     // the same bytes (a forward loop's re-entries) may follow as closely as they come
     let evs = vec![(1000, PEv::Gen { hi: 0, lo: 1, back: 0 }), (1050, PEv::Off), (1050, PEv::Gen { hi: 0, lo: 1, back: 0 }), (2000, PEv::Off)];
-    assert!(note_lanes(evs.into_iter(), &mut values).is_ok());
+    let (lane, _) = note_lanes(evs.into_iter(), &mut values).unwrap();
+    assert_eq!(lane.len(), 4);
 }
 
 /// The committed maps (`tools/xm-gen/maps`, task 5.1): what each intro stored; against its XM when `$ZENEKK_DIR`
@@ -295,8 +338,11 @@ fn the_committed_maps() {
             eprintln!("skip: {xm} absent");
             continue;
         };
-        let e = check(&m, &crate::xm::parse(&bytes).unwrap()).unwrap_err();
-        assert!(e.starts_with("engine `"), "{name}: {e}");
+        // Fudge's engines are built (change add-fudge-softsynth); poespack's are not yet
+        match (name, check(&m, &crate::xm::parse(&bytes).unwrap())) {
+            ("fudge-asc", r) => r.unwrap(),
+            (_, r) => assert!(r.unwrap_err().starts_with("engine `"), "{name}"),
+        }
     }
 }
 
@@ -317,3 +363,4 @@ fn a_non_seekable_backward_run_starts_at_its_lowest_frame() {
         .collect();
     assert!(!entries.is_empty() && entries.iter().all(|&b| b == (0, 32, 0)), "{entries:?}");
 }
+

@@ -46,6 +46,19 @@ const FINE_SPAN: u32 = 256;
 
 /// The voice-wide pitch offset in semitones: transpose (on the voice's 7-bit step law, `step − 64`) plus the pitch
 /// bend.
+/// An engine slot's settings from its shape values (change add-fudge-softsynth); none for other kinds.
+#[inline]
+#[allow(unused_variables)]
+fn engine_t(kind: Kind, shapes: &[f32; pm::o::SHAPES]) -> osc::EngineT {
+    match kind {
+        #[cfg(feature = "us-osc-shaper-tone")]
+        Kind::ShaperTone => osc::EngineT::Tone(osc::engine::ToneT::from_shape(shapes)),
+        #[cfg(feature = "us-osc-sweep-drum")]
+        Kind::SweepDrum => osc::EngineT::Drum(osc::engine::DrumT::from_shape(shapes)),
+        _ => osc::EngineT::default(),
+    }
+}
+
 fn tuning(p: &[f32; pm::COUNT]) -> f32 {
     let tr = if VoiceSet::of(p).steps { pm::v2_raw(p[v::TRANSPOSE]) - 64.0 } else { law::transpose(p[v::TRANSPOSE]) };
     tr + law::bend_semitones(p[pm::ctl::BEND], p[pm::ctl::BEND_RANGE])
@@ -744,8 +757,9 @@ impl<'a> Voice<'a> {
             + 12.0 * law::octave(p[f(pm::o::OCTAVE)])
             + mm.offset(t(target::OSC_PITCH));
         let ratio = law::ratio(p[f(pm::o::RATIO)]) + law::ratio_fine(p[f(pm::o::RATIO_FINE)]);
-        // a clocked slot always tracks the note: its `TRACKING` is the age byte, its `FIXED_HZ` the word byte
-        let clocked = self.slots[i].kind == Kind::Clocked;
+        // a clocked slot always tracks the note: its `TRACKING` is the age byte, its `FIXED_HZ` the word byte; an engine
+        // slot's `TRACKING` is a position byte (change add-fudge-softsynth, design D2)
+        let clocked = self.slots[i].kind == Kind::Clocked || self.slots[i].kind.is_engine();
         let hz = if !clocked && law::choice(p[f(pm::o::TRACKING)], 2) == 1 {
             law::fixed_hz(p[f(pm::o::FIXED_HZ)]) * hz_scale
         } else {
@@ -817,7 +831,8 @@ impl<'a> Voice<'a> {
         let pair = if self.slots[i].kind == Kind::Pair { osc::PairT::from_shape(&shapes) } else { osc::PairT::default() };
         #[cfg(not(feature = "us-osc-pair"))]
         let pair = osc::PairT::default();
-        SlotT { inc, gain, mix, pan_l, pan_r, pm_out, feedback, wf, pw, leak, det, spread, drive, layers: layers as usize, smp, v2: Opt::default(), clk, combine, pair }
+        let eng = engine_t(self.slots[i].kind, &shapes);
+        SlotT { inc, gain, mix, pan_l, pan_r, pm_out, feedback, wf, pw, leak, det, spread, drive, layers: layers as usize, smp, v2: Opt::default(), clk, combine, pair, eng }
     }
 
 
@@ -1257,7 +1272,7 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
         };
         self.has_pitch = true;
         // a clocked instrument's timed attack of 0 is instant: the mini-cauldron has no attack
-        let instant = cfg!(feature = "us-osc-clocked") && self.slots.iter().any(|s| s.kind == Kind::Clocked);
+        let instant = cfg!(feature = "us-osc-clocked") && self.slots.iter().any(|s| s.kind.is_clocked_like());
         // its restart zeroes the filter's output: a note cut while sounding (a ping-pong joint) would drop in one
         // frame, so the step is carried and faded out; a forward retrigger's old note has faded to 0 (no step)
         #[cfg(feature = "us-osc-clocked")]
@@ -1339,6 +1354,13 @@ impl<'a, 'c> PoolVoice<NoteCx<'c>> for Voice<'a> {
                 // the phrase frame of this note: the converter writes it as the velocity
                 let t0 = osc::clocked_t0(libm::roundf(self.vel * 128.0) as u8);
                 self.slots[i].clocked_start(t0, &t.slot[i].clk);
+            }
+            // an engine slot seeks to the converter's start frame (change add-fudge-softsynth, design D4)
+            #[cfg(any(feature = "us-osc-shaper-tone", feature = "us-osc-sweep-drum"))]
+            if self.slots[i].kind.is_engine() {
+                let f = |fld: usize| sh.p[pm::osc(i, fld)];
+                let (start, back) = osc::engine::start_of(f(pm::o::TRACKING), f(pm::o::PM_OUT), f(pm::o::FEEDBACK));
+                self.slots[i].engine_start(&t.slot[i].eng, start, back);
             }
         }
         #[cfg(feature = "us-osc-wt")]

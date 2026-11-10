@@ -165,6 +165,8 @@ pub fn features(s: &Song) -> Vec<String> {
                     ot::SAMPLER => out.insert(if choice(at(o::SHAPE + shape::SMP_SOURCE), p::smp_source::COUNT) != p::smp_source::GSM { "us-sample-dls" } else { "us-sample-gsm" }),
                     ot::CLOCKED => out.insert("us-osc-clocked"),
                     ot::PAIR => out.insert("us-osc-pair"),
+                    ot::SHAPER_TONE => out.insert("us-osc-shaper-tone"),
+                    ot::SWEEP_DRUM => out.insert("us-osc-sweep-drum"),
                     t if ot::is_naive(t) => out.insert("us-osc-naive"),
                     _ => false,
                 };

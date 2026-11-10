@@ -2,7 +2,7 @@
 // redrawn by the panel through `_draw` from the values shown now (automation at the playhead, else stored).
 import type { Device } from "../../model.ts";
 import type { Param } from "../../engine.ts";
-import { choice, envCurve, envRate, ip, oscType, pointCycle, vget } from "../model/params.ts";
+import { choice, DRUM, engineFrames, engineValue, envCurve, envRate, ip, oscType, pointCycle, TONE, vget } from "../model/params.ts";
 import { E } from "./session.ts";
 import { curVal } from "./automation.ts";
 import { css } from "./theme.ts";
@@ -37,6 +37,15 @@ export function oscView(d: Device, i: number): Screen {
       const wave = choice(v("s0"), 3), sh = v("s1"), dd = 2 * v("s2"), sign = choice(v("s3"), 2) ? -1 : 1;
       const one = (t: number): number => { const x = 2 * (t - Math.round(t)); return wave === 0 ? Math.sin(Math.PI * x) : wave === 1 ? (x > 0 ? 1 : -1) : x; };
       return scrMid + scrLine(scrPath((x) => 20 - 8 * sign * (one(2 * x * (2 - dd) + sh) + one(2 * x * dd + sh))));
+    }
+    if (ty === TONE || ty === DRUM) {
+      // the engine's own first frames (add-fudge-softsynth): four carrier periods of a tone, a drum to its envelope's end
+      const sh = [0, 1, 2, 3, 4, 5, 6, 7, 8].map((k) => v(`s${k}`));
+      const slope = engineValue(DRUM, 7, sh[7]!), start = engineValue(DRUM, 6, sh[6]!);
+      const n = ty === TONE ? Math.min(4096, Math.ceil(4 * engineValue(TONE, 0, sh[0]!) / Math.max(1e-3, engineValue(TONE, 7, sh[7]!))))
+        : Math.min(4096, slope > 0 ? Math.ceil(start / slope) : 1024);
+      const w = engineFrames(ty, sh, Math.max(2, n));
+      return scrMid + scrLine(scrPath((x) => 20 - 18 * w[Math.min(w.length - 1, Math.round(x * (w.length - 1)))]!, 200));
     }
     let f: (x: number) => number;
     if (ty === 2) { const pulse = choice(v("s0"), 2), pw = .05 + .9 * v("s1"); f = (x) => { const ph = (x * 2) % 1; return 20 - 15 * (pulse ? (ph < pw ? 1 : -1) : 2 * ph - 1); }; }

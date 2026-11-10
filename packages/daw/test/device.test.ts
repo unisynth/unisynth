@@ -243,6 +243,37 @@ test("points and PAD table slots (add-tf3-import): a column per point that follo
   expect((await track("bass")).devices[0].values["osc2.type"] ?? 0).toBe(0);
 }, 30_000);
 
+test("engine types (add-fudge-softsynth): a slot's fields follow its type; a drum's defaults come with it, one undo step", async () => {
+  await open();
+  const opts = (await page.evaluate(() => (window as any).DAW.tables[0].params.find((p: any) => p.name === "osc2.type").options)) as string[];
+  const ty = page.locator('#device select[aria-label$=" osc2.type"]');
+  const knob = (f: string) => page.locator(`#device [data-param="osc2.${f}"]`);
+  await ty.selectOption(String(opts.indexOf("Phase mod")));
+  await knob("feedback").waitFor();
+  const before = (await track("bass")).devices[0].values, d0 = await depth();
+  await ty.selectOption(String(opts.indexOf("Sweep drum")));
+  await knob("s8").waitFor();
+  // the drum's nine fields with Fudge's instrument 8 as defaults, in its units
+  expect(await knob("s0").getAttribute("aria-valuetext")).toBe("257");
+  expect(await knob("s1").getAttribute("aria-valuetext")).toBe("0.11 rad");
+  expect(await knob("s8").getAttribute("aria-valuetext")).toBe("1 − sin");
+  expect(await page.locator('#device [aria-label="Osc 2"]').textContent()).toContain("env slope");
+  // only the common fields it reads: no tracking, fixed Hz, PM out or feedback
+  for (const f of ["coarse", "fine", "octave", "ratio", "gain", "mix", "pan"]) expect(await knob(f).count()).toBe(1);
+  for (const f of ["fixed_hz", "pm_out", "feedback"]) expect(await knob(f).count()).toBe(0);
+  expect(await page.locator('#device select[aria-label$=" osc2.tracking"]').count()).toBe(0);
+  expect(await page.locator('#device [aria-label="Osc 2"] svg.scr path.ln').count()).toBe(1);  // the drawn drum
+  expect(await depth()).toBe(d0 + 1);
+  // back to another type: its own fields, the common ones again
+  await ty.selectOption(String(opts.indexOf("Pair")));
+  await knob("feedback").waitFor();
+  expect(await page.locator('#device [aria-label="Osc 2"]').textContent()).toContain("phase shift");
+  await undo(); await undo();
+  await knob("feedback").waitFor();
+  const after = (await track("bass")).devices[0].values;
+  for (const k of Object.keys(after).filter((k) => k.startsWith("osc2."))) expect(after[k]).toBe(before[k]);
+}, 30_000);
+
 /** A 0.5 s mono 44.1 kHz sine WAV in the temp root. */
 function toneWav(hz = 220): string {
   const n = 22050, wav = Buffer.alloc(44 + n * 2);

@@ -23,6 +23,53 @@ pub struct Xm {
     pub order: Vec<u8>,
     pub patterns: Vec<Pattern>,
     pub instruments: Vec<Instrument>,
+    /// How openmpt (the parity reference) mixes the file ([`Mix`]).
+    pub mix: Mix,
+}
+
+/// How openmpt mixes an XM (change add-fudge-softsynth), from the part of its tracker detection (`Load_xm.cpp`) that
+/// picks the mix levels. A "FastTracker v2.00" file whose song name holds a NUL, or whose sample name is not what
+/// FT2 writes (FT2 stores the name's length in the reserved byte and pads with spaces; ModPlug pads with NULs), is
+/// "ModPlug Tracker 1.0 – 1.16" there, mixed with `MixLevels::Original`: a linear pan law at a level set by its
+/// pre-amp table. Everything else stays FT2 (`MixLevels::CompatibleFT2`, equal-power pan at [`XM_GAIN`]). Not
+/// modelled: openmpt's other detections (PlayerPRO, MIDI-enabled instruments, other trackers' names) and the play
+/// behaviour it resets for ModPlug files.
+///
+/// [`XM_GAIN`]: crate::cauldron::import::XM_GAIN
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub enum Mix {
+    #[default]
+    Ft2,
+    ModPlug,
+}
+
+/// openmpt's pre-attenuation by channel count (`Sndmix.cpp`, `PreAmpTable[channels / 2]`).
+const PRE_AMP: [f64; 16] = [96.0, 96.0, 96.0, 112.0, 128.0, 136.0, 144.0, 152.0, 160.0, 164.0, 168.0, 172.0, 176.0, 180.0, 184.0, 188.0];
+/// A ModPlug file's hard-panned level times its pre-amp entry: one full-volume note of a stored sample swapped into
+/// Alien Sex Clone (20 channels: 0.139 of the sample's RMS over the note, × 168) and Theta (18: 0.143, × 164). The
+/// converted Alien Sex Clone then plays within 0.1 dB of openmpt's render.
+const MODPLUG_LEVEL: f64 = 23.4;
+
+impl Mix {
+    /// A hard-panned full-volume channel's level (the track volume of a converted song).
+    pub fn level(self, channels: u16) -> f64 {
+        match self {
+            Mix::Ft2 => crate::cauldron::import::XM_GAIN,
+            Mix::ModPlug => MODPLUG_LEVEL / PRE_AMP[(channels.clamp(1, 31) / 2) as usize],
+        }
+    }
+
+    /// A channel's volume and pan (`0..1`) as unisynth's equal-power pan plays them: the same for FT2; for ModPlug's
+    /// linear law `(1 − p, p)`, the pan `p²/g²` and the volume times `g = √((1 − p)² + p²)`.
+    pub fn pan(self, vol: f64, p: f64) -> (f64, f64) {
+        match self {
+            Mix::Ft2 => (vol, p),
+            Mix::ModPlug => {
+                let g2 = (1.0 - p) * (1.0 - p) + p * p;
+                (vol * g2.sqrt(), p * p / g2)
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -119,11 +166,12 @@ pub fn parse(b: &[u8]) -> Result<Xm, String> {
     if r.take(17, "id")? != b"Extended Module: " {
         return Err("not an XM file (no \"Extended Module: \" id)".into());
     }
+    let nul_name = r.b.get(17..37).is_some_and(|s| s.contains(&0));
     let name = r.text(20, "song name")?;
     if r.u8("id byte")? != 0x1A {
         return Err("not an XM file (byte 37 is not 0x1A)".into());
     }
-    r.take(20, "tracker name")?;
+    let ft2_name = r.take(20, "tracker name")? == b"FastTracker v2.00   ";
     let version = r.u16("version")?;
     if version != 0x0104 {
         return Err(format!("XM version {version:#06x} (only 0x0104)"));
@@ -163,10 +211,14 @@ pub fn parse(b: &[u8]) -> Result<Xm, String> {
         patterns.push(Pattern { rows, cells: unpack(data, rows as usize * channels as usize).map_err(|e| format!("pattern {i}: {e}"))? });
     }
     let mut instruments = Vec::with_capacity(nins.min(256));
+    let mut ft2_samples = true;
     for i in 0..nins {
-        instruments.push(instrument(&mut r).map_err(|e| format!("instrument {}: {e}", i + 1))?);
+        let (ins, ft2) = instrument(&mut r).map_err(|e| format!("instrument {}: {e}", i + 1))?;
+        instruments.push(ins);
+        ft2_samples &= ft2;
     }
-    Ok(Xm { name, channels, restart, linear, speed, bpm, order, patterns, instruments })
+    let mix = if ft2_name && (nul_name || !ft2_samples) { Mix::ModPlug } else { Mix::Ft2 };
+    Ok(Xm { name, channels, restart, linear, speed, bpm, order, patterns, instruments, mix })
 }
 
 /// FT2's packed cells: a byte with bit 7 set flags the fields that follow; otherwise it is the note of a full cell.
@@ -205,7 +257,8 @@ fn env(r: &mut R, what: &str) -> Result<[(u16, u16); 12], String> {
     Ok(e)
 }
 
-fn instrument(r: &mut R) -> Result<Instrument, String> {
+/// An instrument, and whether its sample headers are as FT2 writes them ([`Mix`]).
+fn instrument(r: &mut R) -> Result<(Instrument, bool), String> {
     let start = r.p;
     let size = r.u32("instrument header size")? as usize;
     let name = r.text(22, "instrument name")?;
@@ -217,7 +270,7 @@ fn instrument(r: &mut R) -> Result<Instrument, String> {
             return Err(format!("header size {size}"));
         }
         r.take(size - 29, "instrument header")?;
-        return Ok(ins);
+        return Ok((ins, true));
     }
     if size < 241 {
         return Err(format!("header size {size} (at least 241 with samples)"));
@@ -239,10 +292,14 @@ fn instrument(r: &mut R) -> Result<Instrument, String> {
     ins.fadeout = r.u16("fadeout")?;
     r.take(start + size - r.p, "instrument header")?;
     let mut heads = vec![];
+    let mut ft2 = true;
     for _ in 0..ns {
         let (bytes, ls, ll) = (r.u32("sample length")?, r.u32("loop start")?, r.u32("loop length")?);
         let h = r.take(6, "sample header")?;
         let (volume, finetune, kind, pan, relative) = (h[0], h[1] as i8, h[2], h[3], h[4] as i8);
+        // FT2: the reserved byte is the name's length, the rest of the name spaces
+        let reserved = h[5] as usize;
+        ft2 &= reserved <= 22 && r.b.get(r.p + reserved..r.p + 22).is_some_and(|s| s.iter().all(|&c| c == b' '));
         let name = r.text(22, "sample name")?;
         heads.push((bytes, ls, ll, volume, finetune, kind, pan, relative, name));
     }
@@ -262,5 +319,5 @@ fn instrument(r: &mut R) -> Result<Instrument, String> {
         };
         ins.samples.push(Sample { name, loop_start: ls / w, loop_len: ll / w, volume, finetune, loop_kind: kind & 3, bits16, pan, relative, data });
     }
-    Ok(ins)
+    Ok((ins, ft2))
 }

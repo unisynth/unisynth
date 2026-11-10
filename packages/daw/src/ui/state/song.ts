@@ -41,3 +41,10 @@ export function restoreTracks(song: SongRoot, at: [number, UITrack][], master?: 
     if (master) modifyMutable(song.master, reconcile(master, { key: "id" }));
   });
 }
+
+/** A device value edited on the panel, with `extra` values set in the same edit (change add-fudge-softsynth: a slot
+ * that becomes an engine type takes that type's shape values). An action: the write ratchet's way out of the session
+ * modules. */
+export function setDeviceValue(d: { values: Record<string, number> }, name: string, v: number, extra: Record<string, number>): void {
+  batch(() => { d.values[name] = v; Object.assign(d.values, extra); });
+}

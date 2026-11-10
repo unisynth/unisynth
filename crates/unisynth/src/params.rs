@@ -156,6 +156,10 @@ pub mod osc_type {
     /// Pair oscillator (change add-elevated-import): two naive copies at phase ratios `2 − d` and `d`
     /// (`shape::PAIR_*`).
     pub const PAIR: usize = 5;
+    /// Engine types (change add-fudge-softsynth): Fudge's tone with a two-stage shaper and its sweep drum, played at
+    /// `256·hz` engine frames per second (`shape::TONE_*`, `shape::DRUM_*`, `osc::engine`).
+    pub const SHAPER_TONE: usize = 7;
+    pub const SWEEP_DRUM: usize = 9;
     pub const COUNT: usize = 25;
     #[inline]
     pub fn decode(p: f32) -> usize {
@@ -167,7 +171,7 @@ pub mod osc_type {
     /// Whether position `t` holds no type (a free position of the expanded choice).
     #[inline]
     pub const fn is_gap(t: usize) -> bool {
-        t >= COUNT || (t % 2 == 1 && t != POINTS && t != PAD && t != PAIR)
+        t >= COUNT || (t % 2 == 1 && t != POINTS && t != PAD && t != PAIR && t != SHAPER_TONE && t != SWEEP_DRUM)
     }
     /// Whether type `t` is a naive generator.
     #[inline]
@@ -244,6 +248,28 @@ pub mod shape {
     pub const PAIR_SHIFT: usize = 1;
     pub const PAIR_DETUNE: usize = 2;
     pub const PAIR_POLARITY: usize = 3;
+    /// Shaper tone (change add-fudge-softsynth, design D3): carrier and modulator periods `1024p` (time units),
+    /// depth `64p` (rad), volume `256p`, drive and shape `p`, FM (`Choice(2)`), rate `16p` (time units per frame).
+    pub const TONE_CARRIER: usize = 0;
+    pub const TONE_MODULATOR: usize = 1;
+    pub const TONE_DEPTH: usize = 2;
+    pub const TONE_VOLUME: usize = 3;
+    pub const TONE_DRIVE: usize = 4;
+    pub const TONE_SHAPE: usize = 5;
+    pub const TONE_FM: usize = 6;
+    pub const TONE_RATE: usize = 7;
+    /// Sweep drum (change add-fudge-softsynth, design D3): volume `512p`, start frequency `4p` (rad per frame),
+    /// sweep `p`, sweep growth `p/64`, drive and shape `p`, envelope start `p`, envelope fall per frame
+    /// `(2p − 1)/16`, envelope curve (`Choice(3)`: linear, 1 − sin, cos).
+    pub const DRUM_VOLUME: usize = 0;
+    pub const DRUM_FREQ: usize = 1;
+    pub const DRUM_SWEEP: usize = 2;
+    pub const DRUM_GROWTH: usize = 3;
+    pub const DRUM_DRIVE: usize = 4;
+    pub const DRUM_SHAPE: usize = 5;
+    pub const DRUM_ENV: usize = 6;
+    pub const DRUM_SLOPE: usize = 7;
+    pub const DRUM_CURVE: usize = 8;
 }
 
 /// Noise group.

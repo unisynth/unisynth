@@ -1077,6 +1077,9 @@ mod osc_pad;
 #[cfg(all(feature = "us-osc-pair", feature = "us-env-seconds", feature = "us-chunk-wide"))]
 mod elevated;
 
+#[cfg(all(feature = "us-osc-shaper-tone", feature = "us-osc-sweep-drum", feature = "us-env-seconds"))]
+mod engine;
+
 /// A pair slot in a build without its module does not load.
 #[cfg(all(not(feature = "us-osc-pair"), feature = "us-env-seconds"))]
 #[test]

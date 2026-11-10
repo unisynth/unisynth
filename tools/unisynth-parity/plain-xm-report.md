@@ -4,6 +4,6 @@ Generated 2026-11-10 by `bun tools/unisynth-parity/plain-xm.ts`. Reference: `ope
 
 | Intro | Status | Ours vs reference | Received XM vs reference | Note |
 |---|---|---|---|---|
-| fudge-asc | pending | – | -0.00 dB, bands ≤ 0.00 dB, within tolerance | engine `fm-shaper` not in this build yet |
+| fudge-asc | pass | -0.18 dB, bands ≤ 0.62 dB, within tolerance | -0.00 dB, bands ≤ 0.00 dB, within tolerance |  |
 | quad-theta | pending | – | -0.06 dB, bands ≤ 2.06 dB, within tolerance | engine `poespack` not in this build yet |
 | quad-pure | pending | – | 0.00 dB, bands ≤ 0.00 dB, within tolerance | engine `poespack` not in this build yet |
