@@ -587,6 +587,9 @@ pub enum PEv {
     /// A v2 tie's glide window (its first `GLIDE` frames) starts or ends where either word is above 32767: the
     /// original's pitch register then holds the signed word (`shape::CLK_VERSION` ½).
     Glide { on: bool },
+    /// A generated sample's note-on (`xmgen`, change add-plain-xm-import): start-position bytes (`o::TRACKING`,
+    /// `o::PM_OUT`) and the backward byte (`o::FEEDBACK`). Written by `xmgen::note_lanes`, never by the cauldron.
+    Gen { hi: u8, lo: u8, back: u8 },
 }
 
 /// The notes of one trigger of `variant` of `call`'s record `record` (design D1, D6), in phrase time. Untied steps
@@ -683,6 +686,7 @@ pub fn note_lanes(evs: impl Iterator<Item = (i64, PEv)>, values: &mut [f32; unis
             PEv::Off => push(&mut lane, f, held, None),
             // a window edge, not a note start: half a lane lead centres the player's sub-block step on it
             PEv::Glide { on } => glide.push((f - LANE_LEAD / 2, if on { 128 } else { 255 })),
+            PEv::Gen { .. } => unreachable!("generated notes go through xmgen::note_lanes"),
         }
     }
     let (rid, fid, pid) = (pm::osc(0, o::SHAPE + sp::CLK_RETRIG), pm::osc(0, o::FINE), pm::osc(0, o::PM_OUT));

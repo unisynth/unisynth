@@ -1,20 +1,31 @@
 //! FastTracker II tick replay of an [`Xm`] (change add-cauldron-xm-import, task 5.2): the order list at its speed and
 //! BPM, rows tick by tick, and per channel the triggers with their per-tick control (frequency, volume, pan). The
-//! effect set is the one the mini-cauldron songs use (spec "XM control replay"); anything else is an error naming
-//! the pattern, row and channel. Linear frequency table only (`Xm::linear`); no auto-vibrato.
+//! effect set is the one the mini-cauldron songs and the plain XMs of change add-plain-xm-import use (spec "XM control
+//! replay"); anything else is an error naming the pattern, row and channel. Linear frequency table only (`Xm::linear`).
 //!
 //! Semantics (FT2): a tick lasts `trunc(rate·2.5/bpm)` frames at the render rate (as openmpt renders: BPM 151 is 730
-//! frames at 44.1 kHz, not 730.13); `Fxx` sets the speed (< 0x20) or BPM on tick 0 and the row uses it.
+//! frames at 44.1 kHz, not 730.13); `Fxx` sets the speed (< 0x20) or BPM on tick 0 and the row uses it; `F00` does
+//! nothing (as openmpt plays an XM).
 //! Period `7680 − 64·(note − 1 + relative) − finetune/2`, frequency `8363·2^((4608 − period)/768)` Hz. Volume
 //! `vol/64 · env/64 · fade/32768 · global/64`; panning `pan + (env − 32)·(128 − |pan − 128|)/32`. Envelopes run
 //! one point-tick per tick, hold at the sustain point while the key is down, and jump from the loop end to the loop
 //! start; after a key-off the fadeout subtracts `fadeout` from 32768 per tick (a key-off without a volume envelope
-//! cuts the note). Slides act on ticks after the first; `E1x`/`E2x`, set volume/panning on tick 0.
+//! cuts the note). Slides act on ticks after the first; `E1x`/`E2x`, `X1x`/`X2x` (period ∓ x), set volume/panning and
+//! the volume column's fine slides on tick 0. `Hxy` and `Pxy` slide by x up (right) or y down (left), memories per
+//! channel. `Gxx`/`Hxy` change the global volume when their channel is processed (FT2 applies it to every channel of
+//! the tick; equal when the effect is on channel 0, as in the songs). `Rxy` (multi retrig): a counter per channel runs
+//! on every tick except a note's tick 0 (which resets it) across rows; at y it retriggers the sample, changes the
+//! volume by FT2's x table, then sets the row's volume column again if it is a set volume. Auto-vibrato as FT2: from
+//! each trigger, position += rate per tick (tick 0 included), depth ramped in `256·depth/sweep` per tick (1/256 units)
+//! while the key is down, period += `wave(position)·amplitude / 2^14` truncated toward 0, with FT2's waves (negated sine table, square ±64,
+//! ramps).
 
 use super::{Cell, Env, Xm};
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+pub(crate) mod fixtures;
 
 /// One tick of a trigger: its start time (s) and frame, length in frames, playback frequency (Hz), final volume (0–1)
 /// and pan (`pan/256`: 0 left, ½ centre, as openmpt).
@@ -80,6 +91,18 @@ struct Ch {
     slide: u8,
     vib: (u8, u8),
     vib_pos: u8,
+    global_slide: u8,
+    pan_slide: u8,
+    xfine_up: u8,
+    xfine_down: u8,
+    // Rxy: volume change and interval memories, the tick counter
+    retrig_vol: u8,
+    retrig_speed: u8,
+    retrig_cnt: u8,
+    // auto-vibrato: position, amplitude and sweep step (1/256 of a depth unit)
+    av_pos: u8,
+    av_amp: i32,
+    av_sweep: i32,
 }
 
 /// FT2's limits for a slid period.
@@ -96,6 +119,64 @@ fn freq(period: f64) -> f64 {
 
 /// FT2's vibrato table (half a sine, 0–255).
 const VIB: [u8; 32] = [0, 24, 49, 74, 97, 120, 141, 161, 180, 197, 212, 224, 235, 244, 250, 253, 255, 253, 250, 244, 235, 224, 212, 197, 180, 161, 141, 120, 97, 74, 49, 24];
+
+/// FT2's auto-vibrato sine: −64·sin(2πi/256), rounded.
+fn av_sine(i: u8) -> i32 {
+    -(64.0 * (std::f64::consts::TAU * i as f64 / 256.0).sin()).round() as i32
+}
+
+/// The auto-vibrato's period offset this tick (FT2: position first, then the wave; the amplitude ramps in while the
+/// key is down).
+fn auto_vibrato(ins: &super::Instrument, ch: &mut Ch) -> f64 {
+    let [kind, _, depth, rate] = ins.vibrato;
+    if depth == 0 {
+        return 0.0;
+    }
+    if ch.av_sweep > 0 && ch.key_on {
+        ch.av_amp += ch.av_sweep;
+        if ch.av_amp >> 8 > depth as i32 {
+            ch.av_amp = (depth as i32) << 8;
+            ch.av_sweep = 0;
+        }
+    }
+    ch.av_pos = ch.av_pos.wrapping_add(rate);
+    let p = ch.av_pos;
+    let w = match kind {
+        1 => if p > 127 { 64 } else { -64 },
+        2 => (((p as i32 >> 1) + 64) & 127) - 64,
+        3 => (((-(p as i32 >> 1)) + 64) & 127) - 64,
+        _ => av_sine(p),
+    };
+    // truncated toward 0 (openmpt's renders: a floor is a period unit off on the sweep's first ticks)
+    ((w * ch.av_amp) / 16384) as f64
+}
+
+/// A new trigger restarts the auto-vibrato (amplitude 0 with a sweep, else the full depth).
+fn av_start(ins: &super::Instrument, ch: &mut Ch) {
+    let [_, sweep, depth, _] = ins.vibrato;
+    ch.av_pos = 0;
+    if sweep > 0 {
+        ch.av_amp = 0;
+        ch.av_sweep = ((depth as i32) << 8) / sweep as i32;
+    } else {
+        ch.av_amp = (depth as i32) << 8;
+        ch.av_sweep = 0;
+    }
+}
+
+/// FT2's `Rxy` volume change (x).
+fn retrig_volume(vol: i32, x: u8) -> i32 {
+    let v = match x {
+        1..=5 => vol - (1 << (x - 1)),
+        6 => vol * 2 / 3,
+        7 => vol / 2,
+        9..=0xD => vol + (1 << (x - 9)),
+        0xE => vol * 3 / 2,
+        0xF => vol * 2,
+        _ => vol,
+    };
+    v.clamp(0, 64)
+}
 
 fn env_value(e: &Env, pos: u16) -> f64 {
     let p = &e.points;
@@ -130,18 +211,25 @@ fn env_advance(e: &Env, pos: &mut u16, key_on: bool) {
     }
 }
 
-/// Supported: effects 0 (arpeggio), 1–4, 8, 9, A, C, D, F, G and E1, E2, E9, EC, ED, EE; volume column set volume
-/// (0x10–0x50) and set panning (0xC0–0xCF).
+/// Supported: effects 0 (arpeggio), 1–4, 8, 9, A, C, D, F, G, H, P, R and E1, E2, E9, EC, ED, EE, X1, X2; volume
+/// column set volume (0x10–0x50), fine volume slide down/up (0x80–0x9F) and set panning (0xC0–0xCF).
 fn supported(c: &Cell) -> Result<(), String> {
     let ok = match c.effect {
-        0..=4 | 8 | 9 | 0xA | 0xC | 0xD | 0xF | 0x10 => true,
+        0..=4 | 8 | 9 | 0xA | 0xC | 0xD | 0xF | 0x10 | 0x11 | 0x19 | 0x1B => true,
         0xE => matches!(c.param >> 4, 1 | 2 | 9 | 0xC | 0xD | 0xE),
+        0x21 => matches!(c.param >> 4, 1 | 2),
         _ => false,
     };
     if !ok {
-        return Err(if c.effect == 0xE { format!("effect E{:X}", c.param >> 4) } else { format!("effect {:X}", c.effect) });
+        return Err(match c.effect {
+            0xE => format!("effect E{:X}", c.param >> 4),
+            0x21 => format!("effect X{:X}", c.param >> 4),
+            // FT2 shows effects past F as letters (G = 0x10)
+            e @ 0x10..=0x23 => format!("effect {}", (b'G' + e - 0x10) as char),
+            e => format!("effect {e:X}"),
+        });
     }
-    if !(c.volume == 0 || (0x10..=0x50).contains(&c.volume) || (0xC0..=0xCF).contains(&c.volume)) {
+    if !(c.volume == 0 || (0x10..=0x50).contains(&c.volume) || (0x80..=0x9F).contains(&c.volume) || (0xC0..=0xCF).contains(&c.volume)) {
         return Err(format!("volume column {:#04x}", c.volume));
     }
     Ok(())
@@ -150,11 +238,6 @@ fn supported(c: &Cell) -> Result<(), String> {
 pub fn replay(x: &Xm, rate: u32) -> Result<Replay, String> {
     if !x.linear {
         return Err("Amiga frequency table".into());
-    }
-    for (i, ins) in x.instruments.iter().enumerate() {
-        if ins.vibrato[2] != 0 {
-            return Err(format!("instrument {}: auto-vibrato", i + 1));
-        }
     }
     let n = x.channels as usize;
     let mut chs: Vec<Ch> = (0..n).map(|_| Ch { fade: 32768, ..Ch::default() }).collect();
@@ -174,7 +257,7 @@ pub fn replay(x: &Xm, rate: u32) -> Result<Replay, String> {
         for (c, cell) in cells.iter().enumerate() {
             supported(cell).map_err(|e| format!("{e} at pattern {pi}, row {row}, channel {c}"))?;
             match (cell.effect, cell.param >> 4) {
-                (0xF, _) if cell.param == 0 => return Err(format!("F00 (stop) at pattern {pi}, row {row}, channel {c}")),
+                (0xF, _) if cell.param == 0 => {} // FT2 and openmpt ignore F00
                 (0xF, _) if cell.param < 0x20 => speed = cell.param as u32,
                 (0xF, _) => bpm = cell.param as u32,
                 (0xD, _) => brk = Some((cell.param >> 4) as usize * 10 + (cell.param & 15) as usize),
@@ -213,10 +296,24 @@ pub fn replay(x: &Xm, rate: u32) -> Result<Replay, String> {
                                 ch.period = (ch.period + 4.0 * ch.fine_down as f64).min(PERIOD_MAX);
                             }
                             (0x10, _) => global = (p as i32).min(64),
+                            (0x21, 1) => {
+                                if p & 15 != 0 {
+                                    ch.xfine_up = p & 15;
+                                }
+                                ch.period = (ch.period - ch.xfine_up as f64).max(PERIOD_MIN);
+                            }
+                            (0x21, 2) => {
+                                if p & 15 != 0 {
+                                    ch.xfine_down = p & 15;
+                                }
+                                ch.period = (ch.period + ch.xfine_down as f64).min(PERIOD_MAX);
+                            }
                             _ => {}
                         }
                         match cell.volume {
                             v @ 0x10..=0x50 => ch.vol = v as i32 - 0x10,
+                            v @ 0x80..=0x8F => ch.vol = (ch.vol - (v & 15) as i32).max(0),
+                            v @ 0x90..=0x9F => ch.vol = (ch.vol + (v & 15) as i32).min(64),
                             v @ 0xC0..=0xCF => ch.pan = (v as i32 & 15) * 16,
                             _ => {}
                         }
@@ -256,6 +353,20 @@ pub fn replay(x: &Xm, rate: u32) -> Result<Replay, String> {
                                 let s = ch.slide;
                                 ch.vol = if s >> 4 != 0 { (ch.vol + (s >> 4) as i32).min(64) } else { (ch.vol - (s & 15) as i32).max(0) };
                             }
+                            (0x11, _) => {
+                                if p != 0 {
+                                    ch.global_slide = p;
+                                }
+                                let s = ch.global_slide;
+                                global = if s >> 4 != 0 { (global + (s >> 4) as i32).min(64) } else { (global - (s & 15) as i32).max(0) };
+                            }
+                            (0x19, _) => {
+                                if p != 0 {
+                                    ch.pan_slide = p;
+                                }
+                                let s = ch.pan_slide;
+                                ch.pan = if s >> 4 != 0 { (ch.pan + (s >> 4) as i32).min(255) } else { (ch.pan - (s & 15) as i32).max(0) };
+                            }
                             _ => {}
                         }
                     }
@@ -273,6 +384,39 @@ pub fn replay(x: &Xm, rate: u32) -> Result<Replay, String> {
                             ch.env_pos = [0, 0];
                             ch.fade = 32768;
                             ch.key_on = true;
+                            av_start(&x.instruments[ch.ins - 1], ch);
+                        }
+                    }
+                    // Rxy: the memories on tick 0; the counter on every tick but a note's first
+                    if e == 0x1B {
+                        if first {
+                            if p >> 4 != 0 {
+                                ch.retrig_vol = p >> 4;
+                            }
+                            if p & 15 != 0 {
+                                ch.retrig_speed = p & 15;
+                            }
+                        }
+                        if first && cell.note != 0 && cell.note != 97 {
+                            ch.retrig_cnt = 0;
+                        } else if ch.retrig_speed != 0 {
+                            ch.retrig_cnt += 1;
+                            if ch.retrig_cnt >= ch.retrig_speed {
+                                ch.retrig_cnt = 0;
+                                ch.vol = retrig_volume(ch.vol, ch.retrig_vol);
+                                if (0x10..=0x50).contains(&cell.volume) {
+                                    ch.vol = cell.volume as i32 - 0x10;
+                                }
+                                if let Some(i) = ch.cur {
+                                    let tr = Trigger { tick, frame, at: t, offset: 0, ticks: vec![], ..out[i].clone() };
+                                    ch.cur = Some(out.len());
+                                    out.push(tr);
+                                    ch.env_pos = [0, 0];
+                                    ch.fade = 32768;
+                                    ch.key_on = true;
+                                    av_start(&x.instruments[ch.ins - 1], ch);
+                                }
+                            }
                         }
                     }
                     if e == 0xE && sub == 0xC && at_tick((p & 15) as u32) {
@@ -290,6 +434,7 @@ pub fn replay(x: &Xm, rate: u32) -> Result<Replay, String> {
                             per += if ch.vib_pos & 0x80 == 0 { -v } else { v } * 4.0;
                             ch.vib_pos = ch.vib_pos.wrapping_add(ch.vib.0 * 4);
                         }
+                        per += auto_vibrato(ins, ch);
                         let env = |e: &Env, pos: u16, off: f64| if e.flags & 1 != 0 { env_value(e, pos) } else { off };
                         let ev = env(&ins.vol_env, ch.env_pos[0], 64.0);
                         let ep = env(&ins.pan_env, ch.env_pos[1], 32.0);
@@ -374,6 +519,7 @@ fn note_on(x: &Xm, ch: &mut Ch, cell: &Cell, c: usize, (tick, frame, t): (usize,
             ch.cur = Some(out.len());
             out.push(Trigger { channel: c, tick, frame, at: t, instrument: ch.ins - 1, sample: s, note: cell.note, offset, ticks: vec![] });
             ch.vib_pos = 0;
+            av_start(ins, ch);
             ch.env_pos = [0, 0];
             ch.fade = 32768;
             ch.key_on = true;

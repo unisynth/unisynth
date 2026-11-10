@@ -4,6 +4,7 @@
 //! header 9, packing 0, sample header 40), the linear frequency table, and every count checked against the bytes
 //! left, so a short or foreign file is an error naming its cause, never a panic.
 
+pub mod convert;
 pub mod replay;
 
 #[cfg(test)]

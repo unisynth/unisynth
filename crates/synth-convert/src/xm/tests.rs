@@ -2,7 +2,7 @@ use super::*;
 
 /// Writes an XM as FT2 does (header 276, pattern header 9, packed cells, instrument header 263 or 29 when empty,
 /// sample headers 40, delta-coded data).
-fn write(x: &Xm) -> Vec<u8> {
+pub(crate) fn write(x: &Xm) -> Vec<u8> {
     let mut b = Vec::new();
     let pad = |b: &mut Vec<u8>, s: &str, n: usize| {
         let mut v = s.as_bytes().to_vec();

@@ -1455,6 +1455,51 @@ record 3); a filter past its stability edge stays smoother than the original's i
 extreme slow-down's echo, baked into the original's sample, is near-silent in ours (song 1 21.5–22 s). Parity:
 all 3 songs and 82 of 85 phrases, 85 of 88 checks (`bun tools/unisynth-parity/cauldron.ts`).
 
+### Generator maps: plain XMs (change add-plain-xm-import)
+
+XMs whose intro synthesized most samples at start-up with its own engine, then played them with a tracker player:
+Fudge's Alien Sex Clone and Quad's Pure and Theta (1998, GUS). A song stores only the samples the original stored;
+every generated one is played live by its engine. `synth-convert xm <in.xm> <map.json> <out.song>` takes, in place of
+mini-cauldron patch data, a generator map (`xmgen`, told apart by `"format": "xm-gen/1"`):
+
+```json
+{"format": "xm-gen/1", "intro": "fudge-asc", "samples": [
+  {"instrument": 1, "sample": 0, "kind": "generated", "engine": "fm-shaper", "length": 4096,
+   "params": {"frames": 4096, "args": [1124073472, 1124073472, 1065353216, "..."]}},
+  {"instrument": 7, "sample": 0, "kind": "stored"}]}
+```
+
+- Every non-empty XM sample is listed once (instruments from 1); a generated `length` equals the XM sample's; `params`
+  is the engine's record as the original computed it (integer flags stay integers). Identical records share one
+  instrument. A missing engine, sample or record is an error that names it; nothing is written.
+- Maps come from the running originals: `tools/xm-gen/run.sh` (writer of every byte of the module buffer, generator
+  calls hooked) writes `tools/xm-gen/maps/*.json`. Stored: Fudge 7, 14, 15; Theta 1, 2, 3, 18; Pure 33, 34, 35.
+- The conversion is the mini-cauldron's flow (`src/xm/convert.rs`, a `Source` per format): replay, paths, pitch
+  classes with transpose + bend as the playback rate, volume/pan lanes, stored samples on a GSM sampler.
+- **Engines** are oscillator types of their own (free odd positions of the type choice), run through the clocked
+  machinery (phrase clock = `R` × the track's ratio, Catmull-Rom resampling, reconstruction low-pass). They arrive with
+  their changes (`add-fudge-softsynth`, `add-poespack-softsynth`); until then a map's conversion fails naming the
+  engine, and the parity reports the song pending.
+
+**Note byte contract** (engines with one note per run of the sample): a note starts at each trigger, loop re-entry and
+ping-pong turn, with its start frame in the slot's per-note bytes, latched from `LANE_LEAD` before the note-on:
+
+| Byte | Meaning |
+|---|---|
+| `o::TRACKING` | start frame ÷ 4096 |
+| `o::PM_OUT` | the rest ÷ 16 (rounded; 1 048 560 + 4080 frames at most) |
+| `o::FEEDBACK` | 255: a backward pass (seekable engines), else 0 |
+
+A note whose bytes differ from the previous note's starts more than `LANE_LEAD` frames after it, or the conversion
+fails (the three XMs' tightest re-entry is 255 frames). A non-seekable engine plays a backward pass forwards from its
+lowest frame. Phrase engines bring their own events and lanes.
+
+**XM replay additions** (FT2 semantics, pinned to `openmpt123` renders of synthetic songs in
+`tests/data/ft2_fixtures.json`): volume column fine slides, `Hxy`, `Pxy`, `X1x`/`X2x`, `Rxy` (counter across rows, a
+note's tick 0 resets it, a retrigger re-applies the row's set-volume column), auto-vibrato (amplitude truncated toward
+0), `F00` ignored. Parity: `bun tools/unisynth-parity/plain-xm.ts` against each XM with the map build's generated
+samples (Theta's XM is a later build than its executable). Research: `research/xm-softsynth-intros.md`.
+
 ### WaveSabre instruments
 
 Each instrument becomes one kind-64 device. Its patch is a pure function of the legacy parameters, built through their

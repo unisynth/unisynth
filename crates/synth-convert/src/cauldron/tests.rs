@@ -417,6 +417,7 @@ mod phrase {
                         held = false;
                     }
                     PEv::Tune { .. } | PEv::Glide { .. } => {}
+                    PEv::Gen { .. } => panic!("record {ri}: a generated note in a phrase"),
                 }
             }
             assert!(!held, "record {ri}: the phrase ends released");

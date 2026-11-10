@@ -7,7 +7,7 @@
 //! synth-convert patch <patch.txt> <phrase.txt> <out.song>
 //!                                                       one Tunefish patch (112 numbers) played by a phrase (`block note velocity` lines)
 //! synth-convert xm-phrase <patches.json> <call> <record> <variant> <out.song>
-//! synth-convert xm <in.xm> <patches.json> <out.song> [--names <tracks.json>] [--controls tick|row|note] [--thin <bytes>] [--keep-layers] [--split-pitches] [--dry] [--exact-chain]
+//! synth-convert xm <in.xm> <patches.json | map.json> <out.song> [--names <tracks.json>] [--controls tick|row|note] [--thin <bytes>] [--keep-layers] [--split-pitches] [--dry] [--exact-chain]
 //! synth-convert xm-triggers <in.xm>
 //!                                                       one mini-cauldron phrase trigger (call jizz | bluish | song0; parity entry)
 //! synth-convert elevated <music.asm> <out.song> [--table 7|8] [--solo k] [tail-s]
@@ -22,7 +22,7 @@
 use std::process::ExitCode;
 use synth_convert::Converted;
 
-const USAGE: &str = "usage: synth-convert ws <in.song> <out.song>\n       synth-convert tfm <in.tfm> <out.song> [tail-seconds]\n       synth-convert v2m <in.v2m> <out.song> [tail-seconds] [--channels hex] [--era auto|kkrieger2004]   (Farbrausch V2, format versions 0-6)\n       synth-convert tf4m <in.tf4m> <out.song> [tail-seconds]   (2013 Tunefish 4 of Enigma Studio 4)\n       synth-convert tf4m-tfm <in.tf4m> <out.tfm>   (the same song in the final .tfm layout)\n       synth-convert patch <patch.txt> <phrase.txt> <out.song>\n       synth-convert e3prj <in.e3prj> <out.song> [--song <id>] [--editor | --engine 2011] [tail-seconds]   (Tunefish 3: an Enigma Studio 3 project; player mode unless --editor; --engine 2011: the 2011 engine's player (Pandora), its own laws)\n       synth-convert tf3 <program.txt> <out.chunk> [--editor]   (one Tunefish 3 preset as a unified instrument chunk)\n       synth-convert xm <in.xm> <patches.json> <out.song> [--names <tracks.json>] [--controls tick|row|note] [--thin <bytes>] [--keep-layers] [--split-pitches] [--dry] [--exact-chain]   (a mini-cauldron XM: TBL Jizz, Stash; XM volume/pan/pitch per tick (default), row or note; --thin: lanes within that many bytes of 255, slides as ramps; stereo/echo layers dropped and pitch tracks packed unless --keep-layers / --split-pitches; the dropped layers' echo and room come back as a stereo delay and reverb unless --dry; one low-pass stage (none from 16 kHz) and only the clips the notes reach unless --exact-chain)\n       synth-convert xm-phrase <patches.json> <jizz|bluish|song0> <record> <variant> <out.song>   (one mini-cauldron phrase)\n       synth-convert xm-triggers <in.xm>   (the XM replay's triggers: start s, volume, offset)\n       synth-convert elevated <music.asm> <out.song> [--table 7|8] [--solo k] [tail-seconds]   (Mentor's 4k synth: Elevated, Atrium; reads the music.h beside it; --table: the machine table, detected when absent; --solo: only synth k, as the reference harness)
+const USAGE: &str = "usage: synth-convert ws <in.song> <out.song>\n       synth-convert tfm <in.tfm> <out.song> [tail-seconds]\n       synth-convert v2m <in.v2m> <out.song> [tail-seconds] [--channels hex] [--era auto|kkrieger2004]   (Farbrausch V2, format versions 0-6)\n       synth-convert tf4m <in.tf4m> <out.song> [tail-seconds]   (2013 Tunefish 4 of Enigma Studio 4)\n       synth-convert tf4m-tfm <in.tf4m> <out.tfm>   (the same song in the final .tfm layout)\n       synth-convert patch <patch.txt> <phrase.txt> <out.song>\n       synth-convert e3prj <in.e3prj> <out.song> [--song <id>] [--editor | --engine 2011] [tail-seconds]   (Tunefish 3: an Enigma Studio 3 project; player mode unless --editor; --engine 2011: the 2011 engine's player (Pandora), its own laws)\n       synth-convert tf3 <program.txt> <out.chunk> [--editor]   (one Tunefish 3 preset as a unified instrument chunk)\n       synth-convert xm <in.xm> <patches.json | map.json> <out.song> [--names <tracks.json>] [--controls tick|row|note] [--thin <bytes>] [--keep-layers] [--split-pitches] [--dry] [--exact-chain]   (a mini-cauldron XM with its patch data: TBL Jizz, Stash; or a plain XM with its generator map, format xm-gen/1: stored samples on a sampler, generated ones as notes of their engines; XM volume/pan/pitch per tick (default), row or note; --thin: lanes within that many bytes of 255, slides as ramps; stereo/echo layers dropped and pitch tracks packed unless --keep-layers / --split-pitches; the dropped layers' echo and room come back as a stereo delay and reverb unless --dry; one low-pass stage (none from 16 kHz) and only the clips the notes reach unless --exact-chain)\n       synth-convert xm-phrase <patches.json> <jizz|bluish|song0> <record> <variant> <out.song>   (one mini-cauldron phrase)\n       synth-convert xm-triggers <in.xm>   (the XM replay's triggers: start s, volume, offset)\n       synth-convert elevated <music.asm> <out.song> [--table 7|8] [--solo k] [tail-seconds]   (Mentor's 4k synth: Elevated, Atrium; reads the music.h beside it; --table: the machine table, detected when absent; --solo: only synth k, as the reference harness)
        synth-convert migrate <in.song> <out.song>   (a unified song of the old layout → v3)\n       synth-convert features <unified.song> [--explain | --json] [--cost <marginal.csv>]\n       synth-convert rust <unified.song> <out.rs> [bank.dls]   (compo build: validated song as Rust + module assert)";
 
 fn read(path: &str) -> Result<Vec<u8>, String> {
@@ -208,10 +208,19 @@ fn run(args: &[String]) -> Result<(), String> {
                     _ => return Err(USAGE.to_string()),
                 }
             }
-            // a mini-cauldron XM with its patch data (change add-cauldron-xm-import); an error writes nothing
-            let p = synth_convert::cauldron::load(&text(patches)?).map_err(|e| format!("{patches}: {e}"))?;
+            // a mini-cauldron XM with its patch data (change add-cauldron-xm-import), or a plain XM with its generator
+            // map (`xm-gen/1`, change add-plain-xm-import), told apart by the JSON's keys; an error writes nothing
+            let json = text(patches)?;
             let x = synth_convert::xm::parse(&read(input)?).map_err(|e| format!("{input}: {e}"))?;
-            let c = synth_convert::cauldron::import::convert_with(&p, &x, 44100, opts).map_err(|e| format!("{input}: {e}"))?;
+            let c = if synth_convert::xmgen::is_map(&json) {
+                let m = synth_convert::xmgen::load(&json).map_err(|e| format!("{patches}: {e}"))?;
+                let src = synth_convert::xmgen::GenSource::new(&m, &x).map_err(|e| format!("{patches}: {e}"))?;
+                synth_convert::xm::convert::convert(&src, &x, 44100, opts)
+            } else {
+                let p = synth_convert::cauldron::load(&json).map_err(|e| format!("{patches}: {e}"))?;
+                synth_convert::cauldron::import::convert_with(&p, &x, 44100, opts)
+            }
+            .map_err(|e| format!("{input}: {e}"))?;
             for w in &c.warnings {
                 eprintln!("warning: {w}");
             }

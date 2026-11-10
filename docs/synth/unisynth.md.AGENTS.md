@@ -3,7 +3,7 @@
 Pull-only (not auto-injected).
 
 ## Scope
-`crates/unisynth` + `crates/synth-convert` (changes add-unified-synth, add-v2-import, add-cauldron-xm-import, unify-v2-algorithms). Source of truth = crates; page ≈ 120 KB, grows per task group.
+`crates/unisynth` + `crates/synth-convert` (changes add-unified-synth, add-v2-import, add-cauldron-xm-import, add-plain-xm-import, unify-v2-algorithms). Source of truth = crates; page ≈ 120 KB, grows per task group.
 
 ## Sections (current)
 - Where it sits; instrument slot diagram (kind 64 instrument, kinds 65–73 effects).
@@ -15,5 +15,5 @@ Pull-only (not auto-injected).
 - Mono-sum voice, drive, channel strip, speech, provenance (V2 modules, `us-v2`).
 - Module features, song map, songs as Rust (`synth-convert rust`), elementary functions (`fm.rs`), goldens, editor probe (`probe`, host only), memory.
 - Effects (kinds 65–73, modes).
-- Converter: V2 songs (`.v2m`), mini-cauldron XMs, WaveSabre instruments, Tunefish instrument + `.tfm` songs, walkthrough (CLI examples), feature list (`features`), demo songs (`tools/demo-songs/build.ts`).
+- Converter: V2 songs (`.v2m`), mini-cauldron XMs, generator maps for plain XMs (`xm-gen/1`, the note byte contract, replay additions; add-plain-xm-import), WaveSabre instruments, Tunefish instrument + `.tfm` songs, walkthrough (CLI examples), feature list (`features`), demo songs (`tools/demo-songs/build.ts`).
 - Parity, speed and size (`tools/unisynth-parity`).

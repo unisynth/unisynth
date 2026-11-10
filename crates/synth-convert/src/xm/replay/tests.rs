@@ -189,7 +189,125 @@ fn pattern_break_and_delay() {
 fn unsupported_effects_are_named() {
     let e = replay(&song(3, &[(2, note(C5, 0x7, 0x11))], vec![ins(Env::default(), 0)]), 44100).unwrap_err();
     assert!(e.contains("effect 7") && e.contains("pattern 0") && e.contains("row 2") && e.contains("channel 0"), "{e}");
-    let mut i = ins(Env::default(), 0);
-    i.vibrato = [0, 0, 4, 2];
-    assert!(replay(&song(1, &[(0, note(C5, 0, 0))], vec![i]), 44100).unwrap_err().contains("auto-vibrato"));
+    // the volume column's vibrato and tone portamento (spec "Unsupported volume column")
+    for v in [0xA3, 0xF2] {
+        let cell = Cell { volume: v, ..note(C5, 0, 0) };
+        let e = replay(&song(2, &[(1, cell)], vec![ins(Env::default(), 0)]), 44100).unwrap_err();
+        assert!(e.contains(&format!("volume column {v:#04x}")) && e.contains("row 1") && e.contains("channel 0"), "{e}");
+    }
+}
+
+// The FT2 extensions (change add-plain-xm-import), each against what openmpt123 rendered from the same song
+// (`fixtures.rs`, `tests/data/ft2_fixtures.json`) and the spec's scenarios.
+
+use super::fixtures::{fixtures, recorded, tone_hz, Rendered, TICK_FRAMES};
+
+fn fixture(name: &str) -> (Replay, Rendered) {
+    let x = fixtures().into_iter().find(|f| f.0 == name).unwrap().1;
+    (run(&x), recorded().remove(name).unwrap())
+}
+
+/// Per tick of the song: the sounding trigger's control (the last trigger started by then).
+fn per_tick(r: &Replay) -> Vec<TickCtl> {
+    let mut v: Vec<TickCtl> = vec![];
+    for t in &r.triggers {
+        for c in &t.ticks {
+            let i = (c.frame / TICK_FRAMES as u64) as usize;
+            if v.len() <= i {
+                v.resize(i + 1, *c);
+            }
+            v[i] = *c;
+        }
+    }
+    v
+}
+
+fn cents(a: f64, b: f64) -> f64 {
+    1200.0 * (a / b).log2()
+}
+
+#[test]
+fn volume_column_fine_slide() {
+    let (r, f) = fixture("volcol_fine");
+    let v: Vec<f64> = per_tick(&r).iter().map(|c| c.vol * 64.0).collect();
+    // spec: 37 for every tick of the first row, 39 for every tick of the second
+    assert!(v[6..12].iter().all(|x| (x - 37.0).abs() < 1e-9) && v[12..18].iter().all(|x| (x - 39.0).abs() < 1e-9), "{v:?}");
+    let ctl = per_tick(&r);
+    for (t, c) in ctl.iter().enumerate() {
+        let want = f.ticks[t].0 / f.ticks[0].0 * ctl[0].vol;
+        assert!((c.vol - want).abs() < 0.01 * ctl[0].vol, "tick {t}: {} vs openmpt {want}", c.vol);
+    }
+}
+
+#[test]
+fn multi_retrig() {
+    let (r, f) = fixture("retrig");
+    // openmpt's onsets (8 frames into the burst's first cycle) fall on the replay's triggers
+    let ticks: Vec<usize> = r.triggers.iter().map(|t| t.tick).collect();
+    let heard: Vec<usize> = f.onsets.iter().map(|o| o.0 / TICK_FRAMES).collect();
+    assert_eq!(ticks, heard);
+    // spec: R43 every 3 ticks; tick 3 keeps 48 (row 0's volume column sets it again), tick 6 has 40; R00 goes on
+    let vols: Vec<f64> = r.triggers.iter().map(|t| (t.ticks[0].vol * 64.0).round()).collect();
+    assert_eq!(&vols[..7], &[48.0, 48.0, 40.0, 32.0, 24.0, 16.0, 16.0]);
+    for (t, o) in r.triggers.iter().zip(&f.onsets).take(7) {
+        let want = o.1 / f.onsets[0].1 * 48.0;
+        assert!((t.ticks[0].vol * 64.0 - want).abs() < 0.5, "tick {}: {} vs openmpt {want}", t.tick, t.ticks[0].vol * 64.0);
+    }
+}
+
+#[test]
+fn global_volume_slide() {
+    let (r, f) = fixture("global_slide");
+    let ctl = per_tick(&r);
+    for (t, c) in ctl.iter().enumerate() {
+        let want = f.ticks[t].0 / f.ticks[0].0 * ctl[0].vol;
+        assert!((c.vol - want).abs() < 0.01 * ctl[0].vol, "tick {t}: {} vs openmpt {want}", c.vol);
+    }
+    assert_eq!((ctl[11].vol * 64.0 * 64.0).round(), 22.0 * 64.0, "G20, then H02 for five ticks: global 22");
+}
+
+#[test]
+fn panning_slide() {
+    let (r, f) = fixture("pan_slide");
+    let ctl = per_tick(&r);
+    // openmpt's pan law is linear: R/(L+R) = pan/256 (the set-pan rows 0..4 calibrate it)
+    for (t, c) in ctl.iter().enumerate() {
+        let (l, rr, _) = f.ticks[t];
+        let heard = 256.0 * rr / (l + rr);
+        assert!((c.pan * 256.0 - heard).abs() < 1.0, "tick {t}: {} vs openmpt {heard}", c.pan * 256.0);
+    }
+    // spec: P04 at pan 128 for one row at speed 6 is 108 at the row's last tick
+    assert_eq!(ctl[41].pan * 256.0, 108.0);
+}
+
+#[test]
+fn extra_fine_portamento() {
+    let (r, f) = fixture("extra_fine");
+    for (t, c) in per_tick(&r).iter().enumerate() {
+        assert!(cents(tone_hz(c.freq), f.ticks[t].2).abs() < 0.2, "tick {t}: {} vs openmpt {}", tone_hz(c.freq), f.ticks[t].2);
+    }
+}
+
+#[test]
+fn auto_vibrato() {
+    for name in ["autovib_sine_sweep", "autovib_square", "autovib_ramp_down", "autovib_ramp_up"] {
+        let (r, f) = fixture(name);
+        let ctl = per_tick(&r);
+        assert_eq!(ctl.len(), f.ticks.len());
+        for (t, c) in ctl.iter().enumerate() {
+            assert!(cents(tone_hz(c.freq), f.ticks[t].2).abs() < 0.2, "{name} tick {t}: {} vs openmpt {}", tone_hz(c.freq), f.ticks[t].2);
+        }
+    }
+    // spec: with a sweep, tick 0 is unmodulated
+    let (r, _) = fixture("autovib_sine_sweep");
+    assert_eq!(r.triggers[0].ticks[0].freq, 8363.0 * 2.0);
+}
+
+#[test]
+fn f00_does_nothing() {
+    // openmpt plays an XM's F00 row (its note at tick 12) and the next row (tick 18) at the same speed
+    let (r, f) = fixture("stop");
+    assert_eq!(r.triggers.iter().map(|t| t.tick).collect::<Vec<_>>(), [0, 12, 18]);
+    assert!(f.onsets.iter().any(|o| o.0 / TICK_FRAMES == 18), "{:?}", f.onsets);
+    assert!((r.length - 30.0 * TICK).abs() < 1e-9, "{}", r.length);
 }

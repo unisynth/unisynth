@@ -21,6 +21,7 @@ pub mod tfm;
 pub mod v2conv;
 pub mod v2m;
 pub mod xm;
+pub mod xmgen;
 
 use model::{Auto, Dev, SongM};
 use std::fmt;
