@@ -78,6 +78,16 @@ in its `music.asm` and `synth.asm`, so `elevated.song.json` carries `CC-BY-NC-SA
 non-commercially. Both are published while Puryx and Mentor are asked for permission through Teo, and are removed at
 their request; adapted versions.
 
+It also holds "Alien Sex Clone", the soundtrack of Fudge's 64K intro that won the PC 64K intro competition at The Party
+1998, music by Simon (Demozoo 21494; Demozoo music 202313 credits Echo and Simn for the final version of the song),
+`fudge-alien-sex-clone.song.json`, written by `tools/xm-gen/make-demos.py`. The intro generated 22 of its 25 XM samples
+with two generators of its own; they play here as the unified synth's Shaper tone and Sweep drum oscillators with the
+original's arguments (read from the running intro by `tools/xm-gen`), every generated sample within one 16-bit step of
+the original's. `synth-convert xm` converted the XM with that generator map (within 0.2 dB loudness and 0.7 dB per octave
+band of the OpenMPT render of the original XM, `tools/unisynth-parity/plain-xm.ts`). Track names are derived from the XM
+instrument and speed class. **No licence is stated: the music belongs to its authors.** Same rules: published pending
+the authors' permission, removed at their request, adapted version.
+
 The DAW's library (published with the DAW as `site/daw/data/library.json`) also lists the 53 distinct presets of
 Enigma Studio 3's Tunefish 3 bank (`binary/tf3programs`), converted to unified-synth devices. No licence is stated
 for them either: they belong to Brain Control and are published on the same terms, pending permission.
