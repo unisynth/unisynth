@@ -33,7 +33,7 @@ Thanks for the music, and for making it in a 64k synth in the first place.
 robson / Exceed
 ```
 
-## Composers named (90 entries, 332 songs)
+## Composers named (91 entries, 334 songs)
 
 Grouped by the credited nick; co-credits stay together. Collection = which engine the song came from.
 
@@ -96,6 +96,7 @@ Grouped by the credited nick; co-credits stay together. Collection = which engin
 - Platosha — 1 song(s), V2: happy birthday, tarh! (anaglyph)
 - Preston — 10 song(s), V2: ambience, broken mac, chaos constructions 2011 invitation, chiptown, dejavu - chipyxa #7 invitation, demo or suck … (+4 more)
 - Probe (The Black Lotus) — 3 song(s), TBL XM: bluish, over2, Smokeout
+- Puryx (Christian Rønde; TBC with Loonies and Rgba), with Mentor (TBC, synth) — 2 song(s), Mentor's 4k synth: Atrium, Elevated (Elevated's source release states CC BY-NC-SA 3.0; asking anyway, via Teo)
 - QM — 1 song(s), WaveSabre: Robo Outer Space Epos
 - Quickyman — 70 song(s), V2: agony remix, alone in darkness, arcane remix, around the bass, breakbeconacid, clever little badass … (+64 more)
 - Ronny — 2 song(s), V2: fr-019 poem to a horse-final version, fr-019 poem to a horse-party version
@@ -162,3 +163,4 @@ collection (via modland), whose musicians are rarely named.
 | Teo | 2026-11-09 | yes, all his music (`NOTICE.md` "Published with permission") |
 | Agoston (Teo and Vincenzo) | 2026-11-09 | yes, both songs (female, ag04 - les'ters); Vincenzo's Nightform still to ask |
 | Brain Control (Skyrunner, mad, payne) | | |
+| Puryx and Mentor (TBC): Atrium, Elevated | via Teo | |

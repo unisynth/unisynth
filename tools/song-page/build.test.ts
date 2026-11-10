@@ -29,6 +29,8 @@ test("groups follow the folder and the source", () => {
   expect(groupOf("released/aten-hotep.song.json")).toBe("Brain Control 64K intros (Tunefish)");
   expect(groupOf("released/naumachia-insianis.song.json")).toBe("Brain Control 64K intros (Tunefish)");
   expect(groupOf("released/transplant.song.json")).toBe("Brain Control 64K intros (Tunefish)");
+  expect(groupOf("released/atrium.song.json")).toBe("TBC 4K intros (Mentor's synth)");
+  expect(groupOf("released/elevated.song.json")).toBe("TBC 4K intros (Mentor's synth)");
   expect(groupOf("released/v2/v2-fr08.song.json", "https://github.com/spheenik/v2redux")).toBe("Farbrausch productions");
   expect(groupOf("released/v2/dafunk-breeze.song.json", "https://github.com/jgilje/v2m-player/blob/master/v2m/x")).toBe("V2M collection (via modland)");
   expect(slugOf("released/v2/v2-fr08.song.json")).toBe("v2-v2-fr08");

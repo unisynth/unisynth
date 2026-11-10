@@ -66,6 +66,18 @@ oscillator offset are not reproduced, so the layered instruments sound quieter t
 stated: the music belongs to Brain Control.** Same rules: published pending Brain Control's permission, removed at
 their request, adapted version.
 
+It also holds the two songs of TBC's 4k intros, music by Puryx, played by Mentor's 4k synthesizer: "Atrium" (TBC &
+Loonies, 1st in the PC 4k intro competition at Breakpoint 2008) and "Elevated" (Rgba & TBC, 1st at Breakpoint 2009),
+`atrium.song.json` and `elevated.song.json`, written by `tools/elevated-parity/make-demos.py`. They were converted from
+the intros' song files (`music.asm`) by `synth-convert elevated` (within 0.14 dB loudness and 1.1 dB per octave band of
+the original synth code, which `tools/elevated-parity` assembles and runs; both pass the timing check against captures
+of the released intros). Track names are derived from each track's instrument and notes. **Atrium: no licence is
+stated, the music belongs to its authors.** Elevated's public source release (scene.org
+`rgba_tbc_elevated_source.zip`) states the Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported licence
+in its `music.asm` and `synth.asm`, so `elevated.song.json` carries `CC-BY-NC-SA-3.0`; it is shared under that licence,
+non-commercially. Both are published while Puryx and Mentor are asked for permission through Teo, and are removed at
+their request; adapted versions.
+
 The DAW's library (published with the DAW as `site/daw/data/library.json`) also lists the 53 distinct presets of
 Enigma Studio 3's Tunefish 3 bank (`binary/tf3programs`), converted to unified-synth devices. No licence is stated
 for them either: they belong to Brain Control and are published on the same terms, pending permission.
