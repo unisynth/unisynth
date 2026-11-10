@@ -73,7 +73,7 @@ code { font-size: .86em; background: var(--panel-2); border: 1px solid var(--lin
 .osc-pick { display: flex; flex-direction: column; gap: 10px; }
 .osc-pick .lbl { font: 11px var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--dim); display: flex; justify-content: space-between; }
 .osc-pick .lbl b { color: var(--osc); font-weight: 500; text-transform: none; letter-spacing: 0; }
-.pills { display: grid; grid-template-columns: repeat(6, 1fr); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #0b0c0fcc; backdrop-filter: blur(4px); }
+.pills { display: grid; grid-template-columns: repeat(7, 1fr); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #0b0c0fcc; backdrop-filter: blur(4px); }
 .pills button { all: unset; cursor: pointer; text-align: center; padding: 13px 4px; font: 12px var(--mono); color: var(--dim); border-right: 1px solid var(--line); transition: color .2s, background .2s; }
 .pills button:last-child { border-right: 0; }
 .pills button:hover { color: var(--fg); }
@@ -335,12 +335,12 @@ footer { margin-top: 160px; border-top: 1px solid var(--line); background: var(-
     <p class="presents"><b>robson</b> / Exceed presents</p>
     <h1 class="word" aria-label="unisynth"><span class="u">uni</span><span class="s">synth</span></h1>
     <div class="hero-low">
-      <div><p class="lede">One soft synth for a 64k intro. Four synth families from <span class="o">two decades</span> of the demoscene, rebuilt as settings of the <span class="f">same voice</span>, and checked against the originals <span class="m">until they agree</span>.</p>
+      <div><p class="lede">One soft synth for a 64k intro. Five synth families from <span class="o">two decades</span> of the demoscene, rebuilt as settings of the <span class="f">same voice</span>, and checked against the originals <span class="m">until they agree</span>.</p>
       <div class="cta"><a class="btn pri" href="daw/">Open the DAW <span aria-hidden="true">→</span></a><a class="btn" href="https://github.com/unisynth/unisynth"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg> unisynth/unisynth</a></div></div>
       <div class="osc-pick">
         <div class="lbl"><span>osc1 · type</span><b id="osc-name">phase-mod operator</b></div>
         <div class="pills" role="group" aria-label="Oscillator type drawn in the background">
-          <button aria-pressed="true">pm</button><button aria-pressed="false">blit</button><button aria-pressed="false">wt</button><button aria-pressed="false">sample</button><button aria-pressed="false">naive</button><button aria-pressed="false">cauldron</button>
+          <button aria-pressed="true">pm</button><button aria-pressed="false">blit</button><button aria-pressed="false">wt</button><button aria-pressed="false">sample</button><button aria-pressed="false">naive</button><button aria-pressed="false">cauldron</button><button aria-pressed="false">pair</button>
         </div>
         <div class="from" id="osc-from">lineage: WaveSabre · Logicoma</div>
       </div>
@@ -351,7 +351,7 @@ footer { margin-top: 160px; border-top: 1px solid var(--line); background: var(-
     <div class="ch" role="listitem"><span class="meter"><i></i></span><div class="v">43/43</div><div class="l">legacy device tests pass parity against the engines they were written for</div></div>
     <div class="ch" role="listitem"><span class="meter"><i></i></span><div class="v">9.6×</div><div class="l">real time on one thread for the heaviest reference track. The original: 7.1×.</div></div>
     <div class="ch" role="listitem"><span class="meter"><i></i></span><div class="v">15 → 9</div><div class="l">legacy effects merged into nine effect kinds, every algorithm kept whole</div></div>
-    <div class="ch" role="listitem"><span class="meter"><i></i></span><div class="v">260</div><div class="l">normalized parameters per instrument</div></div>
+    <div class="ch" role="listitem"><span class="meter"><i></i></span><div class="v">331</div><div class="l">normalized parameters per instrument</div></div>
   </div>
 </div>
 
@@ -414,10 +414,10 @@ footer { margin-top: 160px; border-top: 1px solid var(--line); background: var(-
     </div>
     <div class="rack">
       <article class="dev w8 rv" style="--acc: var(--osc)">
-        <div class="devhd"><span class="led"></span>osc · six types</div>
+        <div class="devhd"><span class="led"></span>osc · seven types</div>
         <div class="body">
-          <h3>One oscillator slot, six engines</h3>
-          <p>Phase-mod operator, band-limited saw and pulse, spectral wavetable with 1–10 unison layers, a sampler for GSM and GM.DLS, V2's naive oscillator, and the 1997 cauldron waveforms.</p>
+          <h3>One oscillator slot, seven engines</h3>
+          <p>Phase-mod operator, band-limited saw and pulse, spectral wavetable with 1–10 unison layers, a sampler for GSM and GM.DLS, V2's naive oscillator, the 1997 cauldron waveforms, and the detuned oscillator pair of a 4k synth.</p>
           <canvas class="mini" data-mini="osc" aria-hidden="true"></canvas>
           <div class="ft"><svg class="knob" viewBox="0 0 52 52" data-v="1" aria-hidden="true"></svg><div><span class="n">3 slots</span><span class="u">chained by phase modulation</span></div></div>
         </div>
@@ -439,10 +439,10 @@ footer { margin-top: 160px; border-top: 1px solid var(--line); background: var(-
         </div>
       </article>
       <article class="dev rv" style="--acc: var(--voice)">
-        <div class="devhd"><span class="led"></span>convert · four formats</div>
+        <div class="devhd"><span class="led"></span>convert · five formats</div>
         <div class="body">
-          <h3>Four families in, one format out</h3>
-          <p>The converter reads WaveSabre, Tunefish 4, Farbrausch V2 and mini-cauldron music. A failed conversion writes nothing at all.</p>
+          <h3>Five families in, one format out</h3>
+          <p>The converter reads WaveSabre, Tunefish 4, Farbrausch V2, mini-cauldron and 4k-synth music. A failed conversion writes nothing at all.</p>
           <div class="ft"><svg class="knob" viewBox="0 0 52 52" data-v="1" aria-hidden="true"></svg><div><span class="n">359/359</span><span class="u">V2 files loaded byte-identical</span></div></div>
         </div>
       </article>
@@ -479,6 +479,14 @@ footer { margin-top: 160px; border-top: 1px solid var(--line); background: var(-
           <div class="ft"><svg class="knob" viewBox="0 0 52 52" data-v=".15" aria-hidden="true"></svg><div><span class="n">≈ 2.3 kB</span><span class="u">per voice</span></div></div>
         </div>
       </article>
+      <article class="dev w8 rv" style="--acc: var(--mod)">
+        <div class="devhd"><span class="led"></span>4k · Mentor's synth</div>
+        <div class="body">
+          <h3>A 4k intro's synth, as settings</h3>
+          <p>Mentor wrote the synth of TBC's 4k intros Atrium (Breakpoint 2008) and Elevated (Breakpoint 2009), both with music by Puryx. It is now a set of settings in the same voice: a detuned oscillator pair, a pitch drop for the kicks, a linear envelope with a hold, and a resonant filter swept by two LFOs. Its tree of filter, delay, distortion and mixer machines becomes tracks, effect devices and mix buses. Both soundtracks are on the <a href="songs/">songs page</a>.</p>
+          <div class="ft"><svg class="knob" viewBox="0 0 52 52" data-v="1" aria-hidden="true"></svg><div><span class="n">2/2</span><span class="u">soundtracks within 0.14 dB of the original code</span></div></div>
+        </div>
+      </article>
     </div>
   </div>
 </section>
@@ -491,7 +499,7 @@ footer { margin-top: 160px; border-top: 1px solid var(--line); background: var(-
       <p>Nothing was rewritten to sound "close enough". Each legacy algorithm survives whole as a <strong>mode</strong> of its kind, with its own parameters in their original order. At 44.1 kHz and tempo 120 every mode renders <strong>bit-identically</strong> to the effect it came from.</p>
     </div>
     <div class="merge rv" id="merge"><svg viewBox="0 0 1180 420" id="merge-svg" role="img" aria-label="Diagram: sixteen legacy effects from WaveSabre, Tunefish 4 and the Screwdriver fork, each joined by a line to one of nine unified effect kinds."></svg></div>
-    <p class="note">Left: WaveSabre in orange, Tunefish 4 in cyan, Screwdriver from the qm210 WaveSabre fork in green. Right: V2 and cauldron modes joined the same kinds later.</p>
+    <p class="note">Left: WaveSabre in orange, Tunefish 4 in cyan, Screwdriver from the qm210 WaveSabre fork in green. Right: V2, cauldron and 4k-synth modes joined the same kinds later.</p>
   </div>
 </section>
 
@@ -533,6 +541,7 @@ footer { margin-top: 160px; border-top: 1px solid var(--line); background: var(-
         <div class="ctr rv"><div class="v" data-n="6">0<small>/6</small></div><div class="l">reference tracks, A/B approved</div></div>
         <div class="ctr rv"><div class="v" data-n="15">0<small>/15</small></div><div class="l">Farbrausch V2 tracks, A/B approved</div></div>
         <div class="ctr rv"><div class="v" data-n="82">0<small>/85</small></div><div class="l">mini-cauldron phrases</div></div>
+        <div class="ctr rv" style="grid-column: 1 / -1"><div class="v" data-n="2">0<small>/2</small></div><div class="l">4k soundtracks (Atrium, Elevated) measured against Mentor's own synth code, assembled and run under Wine, and against captures of the released intros. The A/B listen is still to come.</div></div>
         <p class="crit">Pass: BS.1770 loudness within ±1 dB, every octave band within ±3 dB, onsets aligned. Engines with randomness are judged on 8 seeds.</p>
       </div>
     </div>
@@ -553,11 +562,11 @@ footer { margin-top: 160px; border-top: 1px solid var(--line); background: var(-
     </div>
     <ol class="steps">
       <li class="rv"><h3>Port first, then unify</h3><p>WaveSabre and Tunefish 4 were ported to Rust and checked against upstream before anything was merged. The Tunefish port passed on the first run.</p></li>
-      <li class="rv"><h3>Old engines as oracles</h3><p>The legacy engines stay in the tree as judges until a parity report passes and an A/B listen is signed off.</p></li>
+      <li class="rv"><h3>Old engines as oracles</h3><p>The legacy engines stay in the tree as judges until a parity report passes and an A/B listen is signed off. Where no port exists, the original code is the judge: Mentor's 4k synth is assembled from its source and run under Wine.</p></li>
       <li class="rv"><h3>Measurements redesign it</h3><p>The first full run found mono noise 3–5 dB low, 2 ms envelopes 1.75 dB quiet, voices that would not die and a matrix scan eating a quarter of the time. Each became a fix.</p></li>
       <li class="rv"><h3>Reverse-engineer what shipped</h3><p>Two 1997 DOS intros by The Black Lotus ran under an x86 emulator until their music started. The rebuilt generator reproduces every sample byte for byte: 32 of 32, 66 of 66.</p></li>
       <li class="rv"><h3>Measure size, never guess</h3><p>Bare i686 probes, packed with squishy and xz, in six compile configurations. Per-module cost and ablation builds. Ideas that made the player bigger are written down too.</p></li>
-      <li class="rv"><h3>Keep the music private</h3><p>Released tracks are used for testing on the machine and never committed. The repository holds patches and measurements, not other people's music.</p></li>
+      <li class="rv"><h3>Ask the musicians</h3><p>Released music is published only as credited, adapted versions while its authors are asked, and comes down at their request. Teo said yes first. Original recordings and engine sources stay off the repository.</p></li>
     </ol>
   </div>
 </section>
@@ -674,6 +683,13 @@ footer { margin-top: 160px; border-top: 1px solid var(--line); background: var(-
           <div class="to"><p><b>to qm</b>A fork that adds one good device is how a scene tool grows. It is in.</p></div>
         </div>
       </article>
+      <article class="team wide rv" style="--acc: var(--voice)" data-mark="TBC">
+        <div><div class="who">4k synth · 2008–09</div><h3>TBC, with Rgba and Loonies</h3><p class="made">Elevated source release · CC BY-NC-SA 3.0</p></div>
+        <div>
+          <p class="took">Mentor's oscillator pair, pitch drop and linear envelope, the LFO-swept filter, the atan, sine and knee distortions, and the ping-pong and allpass delays. Learned from the Elevated source release and checked against it; no code copied.</p>
+          <div class="to"><p><b>to Mentor</b>A whole synth, filter tree included, in about 400 lines of x87, small enough to share a 4k with iq's landscapes. Running your code as the judge was a pleasure.</p><p><b>to Puryx</b>Your two soundtracks were the test: every number for this synth was earned against them, and both now play in a browser DAW.</p></div>
+        </div>
+      </article>
       <article class="team wide rv" style="--acc: var(--osc)" data-mark="TEO">
         <div><div class="who">music · permission</div><h3>Teo</h3><p class="made">Digital Dynamite · Rebels</p></div>
         <div>
@@ -682,7 +698,7 @@ footer { margin-top: 160px; border-top: 1px solid var(--line); background: var(-
         </div>
       </article>
     </div>
-    <p class="also"><b>Also studied:</b> 64klang (Alcatraz), Sointu, 4klang, Oidos and Clinkster, compared from source while choosing the base. <b>Tools:</b> libopenmpt, the unicorn emulator, capstone, Wine, libgsm, squishy and xz.</p>
+    <p class="also"><b>Also studied:</b> 64klang (Alcatraz), Sointu, 4klang, Oidos and Clinkster, compared from source while choosing the base. <b>Tools:</b> libopenmpt, the unicorn emulator, capstone, Wine, nasm, libgsm, squishy and xz.</p>
   </div>
 </section>
 </main>
@@ -697,7 +713,7 @@ footer { margin-top: 160px; border-top: 1px solid var(--line); background: var(-
       </div>
       <div><h4>Inside</h4><ul><li>unisynth · the instrument</li><li>synth-core · the player</li><li>synth-convert · the converter</li><li><a href="daw/">daw</a> · the browser editor</li><li><a href="songs/">songs</a> · every converted song, played live</li></ul></div>
       <div><h4>Source</h4><ul><li><a href="https://github.com/unisynth/unisynth">github.com/unisynth/unisynth</a></li><li>code: GPL-3.0-or-later</li><li>page, films, words: © robson / Exceed</li></ul></div>
-      <div><h4>Greetings</h4><ul><li>Logicoma</li><li>Brain Control</li><li>Farbrausch</li><li>The Black Lotus</li><li>Team210</li></ul></div>
+      <div><h4>Greetings</h4><ul><li>Logicoma</li><li>Brain Control</li><li>Farbrausch</li><li>The Black Lotus</li><li>TBC</li><li>Rgba</li><li>Loonies</li><li>Team210</li></ul></div>
     </div>
     <div class="sig" aria-hidden="true">exceed · 2026</div>
   </div>
@@ -721,9 +737,10 @@ const SHAPES = [
   (p, t) => Math.sin(p + Math.sin(p * 3.7) * 1.4) * Math.exp(-((p % 25.1) / 9)) * (.6 + .4 * Math.sin(p * .21 + t)),
   p => (((p / 6.283) % 1) * 2 - 1) * .9,
   (p, t) => { const ph = (p / 6.283) % 1, q = Math.round(Math.sin(p) * 6 + Math.sin(p * 2.01 + t) * 3) / 9; return ph < .5 ? q : q * -.6 + .2 * Math.sign(Math.sin(p * 8)); },
+  (p, t) => { const d = .985 + .01 * Math.sin(t * .4), f = r => { const u = p * r / 6.283; return 2 * (u - Math.round(u)); }; return (f(2 - d) + f(d)) * .45; },
 ];
-const NAMES = ['phase-mod operator', 'band-limited saw/pulse', 'spectral wavetable', 'sampler · GSM / GM.DLS', 'naive oscillator', 'cauldron'];
-const FROM = ['WaveSabre · Logicoma', 'WaveSabre · Logicoma', 'Tunefish 4 · Brain Control', 'WaveSabre · Logicoma', 'V2 · Farbrausch', 'mini-cauldron · The Black Lotus, 1997'];
+const NAMES = ['phase-mod operator', 'band-limited saw/pulse', 'spectral wavetable', 'sampler · GSM / GM.DLS', 'naive oscillator', 'cauldron', 'oscillator pair'];
+const FROM = ['WaveSabre · Logicoma', 'WaveSabre · Logicoma', 'Tunefish 4 · Brain Control', 'WaveSabre · Logicoma', 'V2 · Farbrausch', 'mini-cauldron · The Black Lotus, 1997', '4k synth · Mentor / TBC, 2008'];
 let type = 0, auto = true;
 const pills = [...document.querySelectorAll('.pills button')];
 const setType = (i, user) => { type = i; if (user) auto = false; pills.forEach((b, j) => b.setAttribute('aria-pressed', j === i)); document.getElementById('osc-name').textContent = NAMES[i]; document.getElementById('osc-from').textContent = 'lineage: ' + FROM[i]; };
@@ -734,7 +751,7 @@ const ph = document.getElementById('phosphor'), word = document.querySelector('.
 const meters = [...document.querySelectorAll('.ch .meter i')];
 function hero(now) {
   const [x, w, h] = fit(ph), t = Math.max(0, now - t0) / 1000;
-  if (auto && !reduce) { const i = Math.floor(t / 3.5) % 6; if (i !== type) setType(i); }
+  if (auto && !reduce) { const i = Math.floor(t / 3.5) % SHAPES.length; if (i !== type) setType(i); }
   x.globalCompositeOperation = 'destination-out'; x.fillStyle = 'rgba(0,0,0,0.2)'; x.fillRect(0, 0, w, h); x.globalCompositeOperation = 'source-over';
   const f = SHAPES[type], wr = word.getBoundingClientRect(), cy = wr.top - ph.getBoundingClientRect().top + wr.height * .5, amp = Math.min(h * .2, wr.height * .55), cyc = w < 700 ? 2 : 3.5;
   [[COL.osc, 1, 2.2, 0], [COL.filt, .35, 1.2, .9], [COL.lfo, .25, 1, 1.8]].forEach(([c, a, lw, off]) => {
@@ -766,7 +783,7 @@ function drawMinis(now) {
     const [x, w, h] = fit(c); x.clearRect(0, 0, w, h);
     if (c.dataset.mini === 'osc') {
       [COL.osc, COL.filt, COL.lfo].forEach((col, j) => {
-        const f = SHAPES[(type + j * 2) % 6]; x.strokeStyle = col; x.globalAlpha = j ? .45 : 1; x.lineWidth = j ? 1 : 1.8; x.beginPath();
+        const f = SHAPES[(type + j * 2) % SHAPES.length]; x.strokeStyle = col; x.globalAlpha = j ? .45 : 1; x.lineWidth = j ? 1 : 1.8; x.beginPath();
         for (let px = 0; px <= w; px += 2) { const y = h / 2 - f(px / w * 4 * 6.283 + t * 2, t) * h * .34; px ? x.lineTo(px, y) : x.moveTo(px, y); } x.stroke();
       }); x.globalAlpha = 1;
     } else {
