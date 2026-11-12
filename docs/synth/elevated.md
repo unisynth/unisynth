@@ -2,7 +2,8 @@
 
 Change `add-elevated-import`. Songs of Mentor's (TBC) 4k synthesizer import into `unisynth`:
 - **Elevated** (RGBA & TBC, Breakpoint 2009), from its public source release;
-- **Atrium** (TBC & Loonies, Breakpoint 2008).
+- **Atrium** (TBC & Loonies, Breakpoint 2008);
+- **Receptor** (TBC, NVScene 2008 4k), carved from its exe: no source was released (change add-receptor-import).
 
 There is no legacy engine crate. The original code is the reference, assembled and run under Wine by
 `tools/elevated-parity`. The behavioural reading of the engine, provenance and measurements are in
@@ -52,8 +53,15 @@ exactly on the terminator with one stack entry. A tree that reads the same under
 
 Synth `k` reads rows `k·NUM_ROWS…`. Step `s` of row `r` is at frame `(16r + s)·step`.
 - Note byte n is MIDI note n.
-- Note 0 holds whatever sounds.
-- **`0x7F` cuts.** The converter sends a note-off, and a linear envelope ends at once.
+- Notes 0 and `0x80` hold whatever sounds.
+- **`0x7F` and `0xFF` cut.** The converter sends a note-off, and a linear envelope ends at once.
+- **Glide (`0x80 | n`, Receptor's build).** Note n slides linearly in frequency towards the next non-empty byte of
+  its own 16-step pattern, searched cyclically, at the rate that reaches it on that step. The slide runs on until the
+  next non-empty step or the envelope's end. The converter writes a pitch-bend lane on the track: byte 128 (exactly
+  no bend) outside glides, a step to the slide's start at the note, then ramp points within 0.05 semitones of the
+  curve. The instrument's bend range is the largest offset the synth needs. An end further than 24 semitones shifts
+  the played note by whole semitones so both ends fit. The player reads automation once per sub-block, so the step
+  back to 128 reaches the next note up to one sub-block (2.3 ms at 100 frames) late.
 - The original *overwrites* its buffer per note, so every channel is monophonic with a hard cut. The instrument has
   capacity 1 with steal oldest.
 
@@ -85,6 +93,17 @@ The mode laws are in [`unisynth.md`](unisynth.md), section Effects. Two points m
 - **The LFOs.** The original's coupled-form LFOs are computed in closed form from the absolute song frame, so a render
   can start anywhere.
 
+## Receptor: a song without a source
+
+Receptor's synth is Atrium's build with a new synth machine: the glide flag, and a cut that zeroes a gate instead of
+the envelope (same output). `tools/elevated-parity` takes it from the released exe:
+1. `crinkler-unpack.py` emulates Crinkler's decompressor (unicorn) and dumps the unpacked image (base 0x410000).
+2. `carve.py receptor` writes `music.asm`/`music.h` from the dump at the build's addresses (tree 0x422154, sequence
+   0x4218C8, patterns 0x422B10; 4010 frames per step, 133 rows, 16 synths), checked against its code.
+3. `dump-ref.c` runs the intro's own `generateMusic` on the dump under Wine. The dump sits in the harness's own
+   `.bss` (image base 0x400000), so the loader reserves its addresses before Wine's heaps. The x87 runs at 24 bits:
+   the intro renders right after `IDirect3D9::CreateDevice` without `D3DCREATE_FPU_PRESERVE`.
+
 ## Parity
 
 `tools/elevated-parity`:
@@ -94,6 +113,8 @@ The mode laws are in [`unisynth.md`](unisynth.md), section Effects. Two points m
 
 Both songs pass, against the original and against their captures, and 20 of 22 solo renders pass. The two slow pads
 fail only the onset alignment: they have no transients. The table is in `research/elevated-synth.md` §10.
+Receptor passes against its own code and its capture, and 12 of 16 solos pass. The four failures are slow pads
+that fail only onset alignment (§12 there).
 
 The DAW and the songs page carry both as `project/music/released/{atrium,elevated}.song.json`
 (`tools/elevated-parity/make-demos.py`: credits from pouet and the nfos, track names from instrument and notes;

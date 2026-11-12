@@ -14,7 +14,7 @@
 //! only under its own table, which picks it unless `--table` says. Behaviour and laws: `research/elevated-synth.md`,
 //! `docs/synth/elevated.md`.
 
-use crate::model::{Dev, Ev, SongM, Trk};
+use crate::model::{Auto, Dev, Ev, SongM, Trk};
 use crate::{ConvError, Converted};
 use unisynth::law::host as inv;
 use unisynth::params::{self as p, e, el, o, shape as sh, v};
@@ -288,15 +288,16 @@ pub fn notes(m: &Music, k: usize) -> Result<Vec<(u64, u8, Option<u8>)>, ConvErro
                 .get(pat * 16 + s)
                 .ok_or_else(|| input(format!("synth {k} row {r}: pattern {pat} is outside _pattern_data")))?;
             let frame = (16 * r + s) as u64 * m.step as u64;
-            match n {
+            match n & 0x7f {
+                // 0x80 too: the synth doubles the byte, so bit 7 alone is an empty step
                 0 => {}
                 0x7f => {
-                    // the original renders the note with zero envelope steps: silence, a cut
+                    // the original renders silence for the note's length (zero envelope or zero gate): a cut
                     if let Some(old) = sounding.take() {
                         out.push((frame, old, None));
                     }
                 }
-                n if n >= 0x80 => return Err(input(format!("synth {k} row {r} step {s}: note byte {n} is above 127"))),
+                // bit 7 on a note is the Receptor build's glide flag ([`glides`]); the note is the same
                 n => {
                     out.push((frame, n, Some(100)));
                     sounding = Some(n);
@@ -307,12 +308,129 @@ pub fn notes(m: &Music, k: usize) -> Result<Vec<(u64, u8, Option<u8>)>, ConvErro
     Ok(out)
 }
 
+/// A note with the glide flag (bit 7, the Receptor build): from its start the pitch moves linearly in frequency
+/// towards `target`, the next non-empty byte of the same pattern (searched cyclically, so a note late in its pattern
+/// aims at the pattern's first; a cut aims at note 127), at the rate that reaches it `steps` steps later. The slide
+/// runs on at that rate until something overwrites the note: the next non-empty step in time (`next`), or the note's
+/// own end.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Glide {
+    pub frame: u64,
+    pub note: u8,
+    pub target: u8,
+    /// 1..=16; 16 is the note itself (no slide).
+    pub steps: u32,
+    /// The frame of the next non-empty step of the synth, if any.
+    pub next: Option<u64>,
+}
+
+/// The glides of synth `k` (call after [`notes`], which checks the sequence).
+pub fn glides(m: &Music, k: usize) -> Result<Vec<Glide>, ConvError> {
+    let byte = |r: usize, s: usize| -> Result<(usize, u8), ConvError> {
+        let pat = *m.sequence.get(k * m.rows + r).ok_or_else(|| input(format!("_sequence_data has no row {r} for synth {k}")))? as usize;
+        let b = *m.patterns.get(pat * 16 + s).ok_or_else(|| input(format!("synth {k} row {r}: pattern {pat} is outside _pattern_data")))?;
+        Ok((pat, b))
+    };
+    let mut out: Vec<Glide> = vec![];
+    for r in 0..m.rows {
+        for s in 0..16 {
+            let (pat, b) = byte(r, s)?;
+            let frame = (16 * r + s) as u64 * m.step as u64;
+            if b & 0x7f != 0 {
+                if let Some(g) = out.last_mut().filter(|g| g.next.is_none()) {
+                    g.next = Some(frame);
+                }
+            }
+            if b < 0x80 || b & 0x7f == 0 || b == 0xff {
+                continue;
+            }
+            let steps = (1..=16).find(|d| m.patterns[pat * 16 + (s + d) % 16] & 0x7f != 0).expect("the note itself");
+            let target = m.patterns[pat * 16 + (s + steps) % 16] & 0x7f;
+            out.push(Glide { frame, note: b & 0x7f, target, steps: steps as u32, next: None });
+        }
+    }
+    Ok(out)
+}
+
+/// Semitones above `note` of a glide `t` frames after its start (linear in frequency; floored at −96).
+fn glide_semis(g: &Glide, step: u32, t: f64) -> f64 {
+    let ratio = ((g.target as f64 - g.note as f64) / 12.0).exp2();
+    let r = 1.0 + (ratio - 1.0) * t / (g.steps as f64 * step as f64);
+    if r <= 2f64.powf(-8.0) { -96.0 } else { 12.0 * r.log2() }
+}
+
+/// A synth's glides as a played-note shift per glide frame, the bend range and the bend lane (absolute frames).
+/// The note plays at `note + shift` so both ends of its slide fit ±24 semitones; the lane sits at byte 128 (exactly
+/// no bend) outside the glides, steps to the slide's start at its note, ramps through points that keep the
+/// linear-in-frequency curve within 0.05 semitones, and steps back at its end. The player reads automation once per
+/// sub-block, so the step back lands up to one sub-block (2.3 ms at 100 frames) late on the next note.
+fn bend_plan(gs: &[Glide], step: u32, env_len: u64, end: u64, k: usize, w: &mut Vec<String>) -> (Vec<(u64, i32)>, f32, Vec<(u64, u8)>) {
+    // per glide: start, end frame, shift
+    let spans: Vec<(&Glide, u64, i32)> = gs
+        .iter()
+        .filter(|g| g.steps < 16 && g.target != g.note)
+        .map(|g| {
+            let stop = g.next.unwrap_or(end).min(g.frame + env_len).min(end);
+            let last = glide_semis(g, step, (stop - g.frame) as f64);
+            let shift = if last > 24.0 { (last - 24.0).ceil() as i32 } else if last < -24.0 { -((-last - 24.0).ceil() as i32) } else { 0 };
+            (g, stop, shift)
+        })
+        .collect();
+    let mut range = 0.0f64;
+    for &(g, stop, shift) in &spans {
+        let last = glide_semis(g, step, (stop - g.frame) as f64) - shift as f64;
+        range = range.max((shift as f64).abs()).max(last.abs());
+    }
+    if range > 24.0 {
+        w.push(format!("synth {k}: a glide spans more than 48 semitones; it stops at the bend range"));
+        range = 24.0;
+    }
+    let byte = |s: f64| (127.5 + s.clamp(-range, range) * 255.0 / (2.0 * range)).round().clamp(0.0, 255.0) as u8;
+    let mut pts: Vec<(u64, u8)> = vec![(0, 128)];
+    // a step at `f`: the held value is anchored at `f` even when it does not change, or the player would interpolate
+    // the following ramp from the previous point and bend the notes before the glide
+    let set = |pts: &mut Vec<(u64, u8)>, f: u64, v: u8| {
+        let &(lf, lv) = pts.last().unwrap();
+        if lf != f {
+            pts.push((f, lv));
+        }
+        if lv != v {
+            pts.push((f, v));
+        }
+    };
+    for &(g, stop, shift) in &spans {
+        let s = |t: f64| glide_semis(g, step, t) - shift as f64;
+        let len = (stop - g.frame) as f64;
+        let mut n = 1usize;
+        while n < 1024 && (0..n).any(|i| {
+            let (a, b) = (len * i as f64 / n as f64, len * (i + 1) as f64 / n as f64);
+            (s((a + b) / 2.0) - (s(a) + s(b)) / 2.0).abs() > 0.05
+        }) {
+            n *= 2;
+        }
+        set(&mut pts, g.frame, byte(s(0.0)));
+        for i in 1..=n {
+            let f = g.frame + (len * i as f64 / n as f64).round() as u64;
+            pts.push((f, byte(s((f - g.frame) as f64))));
+        }
+        set(&mut pts, stop, 128);
+    }
+    (spans.iter().map(|&(g, _, sh)| (g.frame, sh)).collect(), range as f32, pts)
+}
+
 /// The unified instrument chunk of a synth machine.
-pub fn instrument(s: &Synth, k: usize, w: &mut Vec<String>) -> Result<Vec<u8>, ConvError> {
+/// `bend_range` (semitones) is set when the synth glides.
+pub fn instrument(s: &Synth, k: usize, bend_range: Option<f32>, w: &mut Vec<String>) -> Result<Vec<u8>, ConvError> {
     if let Some(i) = s.seg.iter().position(|&x| x <= 0) {
         return Err(input(format!("synth {k}: its {} segment is {} frames (the original divides by it)", ["attack", "decay", "sustain", "release"][i], s.seg[i])));
     }
     let mut val = p::DEFAULTS;
+    if let Some(r) = bend_range {
+        val[p::ctl::BEND_RANGE] = inv::inv_bend_range(r);
+        if s.freq_exp != 1.0 {
+            w.push(format!("synth {k}: a glide on a pitch-drop synth slides in plain frequency here (the original slides before the drop)"));
+        }
+    }
     // one voice, each new note cuts the last (the original overwrites); full gain at any velocity
     val[v::CAPACITY] = inv::inv_count(1, 1, 64);
     val[v::VELOCITY] = 0.0;
@@ -460,6 +578,8 @@ pub fn convert(asm: &str, header: &str, opt: Options) -> Result<Converted, ConvE
     let mut tracks: Vec<Trk> = vec![];
     let mut stack: Vec<usize> = vec![];
     let mut synth = 0usize;
+    let frames = music.rows as f64 * 16.0 * music.step as f64;
+    let frames_u = frames as u64;
     for (at, m) in &ms {
         match m {
             Machine::Synth(s) => {
@@ -467,18 +587,46 @@ pub fn convert(asm: &str, header: &str, opt: Options) -> Result<Converted, ConvE
                 if opt.solo.is_some_and(|k| k != synth) {
                     s.volume = 0.0;
                 }
-                devices.push(Dev { kind: unisynth::kind::INSTRUMENT, chunk: instrument(&s, synth, &mut w)? });
+                let evs = notes(&music, synth)?;
+                let env_len = s.seg.iter().map(|&x| x.max(0) as u64).sum::<u64>();
+                let (shifts, range, bend) = bend_plan(&glides(&music, synth)?, music.step, env_len, frames_u, synth, &mut w);
+                let glides = !shifts.is_empty();
+                devices.push(Dev { kind: unisynth::kind::INSTRUMENT, chunk: instrument(&s, synth, glides.then_some(range), &mut w)? });
                 let mut prev = 0u64;
-                let lane: Vec<Ev> = notes(&music, synth)?
+                let mut playing = 0u8;
+                let lane: Vec<Ev> = evs
                     .into_iter()
                     .map(|(f, n, vel)| {
                         let d = (f - prev) as i32;
                         prev = f;
+                        // a glide note plays shifted; its note-off names what it played
+                        let n = match vel {
+                            Some(_) => {
+                                let sh = shifts.iter().find(|x| x.0 == f).map_or(0, |x| x.1);
+                                playing = (n as i32 + sh).clamp(0, 127) as u8;
+                                playing
+                            }
+                            None => playing,
+                        };
                         (d, n, vel)
                     })
                     .collect();
                 lanes.push(lane);
-                tracks.push(Trk { volume: 1.0, receives: vec![], devices: vec![devices.len() - 1], lane: lanes.len() - 1, autos: vec![] });
+                let autos = if glides {
+                    let mut last = 0u64;
+                    let points = bend
+                        .into_iter()
+                        .map(|(f, b)| {
+                            let d = (f - last) as i32;
+                            last = f;
+                            (d, b)
+                        })
+                        .collect();
+                    vec![Auto { device: 0, param: p::ctl::BEND, points }]
+                } else {
+                    vec![]
+                };
+                tracks.push(Trk { volume: 1.0, receives: vec![], devices: vec![devices.len() - 1], lane: lanes.len() - 1, autos });
                 stack.push(tracks.len() - 1);
                 synth += 1;
             }
@@ -505,7 +653,6 @@ pub fn convert(asm: &str, header: &str, opt: Options) -> Result<Converted, ConvE
         lanes.push(vec![]);
         tracks.push(Trk { volume: 1.0, receives: vec![(master, 0, 1.0)], devices: vec![], lane: lanes.len() - 1, autos: vec![] });
     }
-    let frames = music.rows as f64 * 16.0 * music.step as f64;
     let tempo = (RATE * 60.0 / (4.0 * music.step as f64)).round() as i32;
     w.dedup();
     let s = SongM { tempo, rate: RATE as i32, length: frames / RATE + opt.tail, devices, lanes, tracks };

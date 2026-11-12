@@ -317,3 +317,108 @@ fn a_negative_stereo_factor_warns_and_solo_silences_the_others() {
     assert!(master(s.tracks[1].devices[0]) > 0.0);
     assert!(err(convert(&t, &h, Options { solo: Some(2), ..Options::default() })).contains("--solo 2"));
 }
+
+// ---- glides and the Receptor build's note bytes (change add-receptor-import) ----
+
+#[test]
+fn ff_cuts_80_holds_and_a_flagged_note_plays_its_note() {
+    let mut pat = vec![0u8; 16];
+    pat[0] = 0x80 | 61; // a glide note
+    pat[2] = 0x80; // nothing
+    pat[4] = 0xff; // a cut
+    let m = Music { step: 100, rows: 1, patterns: pat, sequence: vec![0], tree: vec![] };
+    assert_eq!(notes(&m, 0).unwrap(), [(0, 61, Some(100)), (400, 61, None)]);
+}
+
+#[test]
+fn a_glide_targets_the_next_note_of_its_pattern_cyclically() {
+    let mut pat = vec![0u8; 32];
+    pat[1] = 0x80 | 57; // → 69, three steps on
+    pat[4] = 69;
+    pat[12] = 0x80 | 60; // → 57 (wraps to step 1: five steps), the next note in time is in pattern 1
+    pat[16 + 3] = 40;
+    pat[16 + 9] = 0x80 | 40; // the only note… after its own step: wraps to step 3 (40): no slide
+    let m = Music { step: 100, rows: 2, patterns: pat, sequence: vec![0, 1], tree: vec![] };
+    let g = glides(&m, 0).unwrap();
+    assert_eq!(g.len(), 3);
+    assert_eq!((g[0].frame, g[0].note, g[0].target, g[0].steps, g[0].next), (100, 57, 69, 3, Some(400)));
+    assert_eq!((g[1].frame, g[1].note, g[1].target, g[1].steps, g[1].next), (1200, 60, 57, 5, Some(1900)));
+    assert_eq!((g[2].frame, g[2].target, g[2].steps, g[2].next), (2500, 40, 10, None));
+}
+
+/// The frequency of a sine render between two frames, from its zero crossings.
+fn hz(l: &[f32], a: usize, b: usize) -> f64 {
+    let z: Vec<f64> = (a..b)
+        .filter(|&i| l[i] < 0.0 && l[i + 1] >= 0.0)
+        .map(|i| i as f64 + (-l[i] / (l[i + 1] - l[i])) as f64)
+        .collect();
+    (z.len() - 1) as f64 * 44100.0 / (z[z.len() - 1] - z[0])
+}
+
+const SINE: [(u8, u8, f32, f32); 3] = [(1, 2, 0.0, 1.0), (3, 1, 0.0, 0.0), (3, 1, 0.0, 0.0)];
+
+#[test]
+fn a_glide_moves_linearly_in_frequency_to_the_next_note() {
+    // 220 Hz → 440 Hz over two steps of 0.25 s; then 440 Hz held
+    let mut tree = synth([16, 64, 60000, 100], 0.0, 1.0, 0.0, 0.5, 1.0, SINE);
+    tree.push(255);
+    let mut pat = vec![0u8; 16];
+    pat[0] = 0x80 | 57;
+    pat[2] = 69;
+    let (t, h) = asm(11025, 1, &pat, &[0], &tree);
+    let c = convert(&t, &h, Options::default()).unwrap();
+    let s = SongM::read(&c.blob).unwrap();
+    assert_eq!(s.tracks[0].autos.len(), 1);
+    assert_eq!((s.tracks[0].autos[0].device, s.tracks[0].autos[0].param), (0, p::ctl::BEND));
+    let l = render(&c.blob, 0.8);
+    let at = |sec: f64| hz(&l, (sec * 44100.0) as usize - 600, (sec * 44100.0) as usize + 600);
+    // linear in Hz: 220 + 220·t/0.5 (half way 330; linear in semitones would give 311)
+    for sec in [0.05, 0.15, 0.25, 0.35, 0.45] {
+        let want = 220.0 + 220.0 * sec / 0.5;
+        assert!((at(sec) / want - 1.0).abs() < 0.01, "{sec} s: {} Hz, want {want}", at(sec));
+    }
+    assert!((at(0.65) - 440.0).abs() < 1.5, "the next note {}", at(0.65));
+    assert!(c.warnings.is_empty(), "{:?}", c.warnings);
+}
+
+#[test]
+fn a_glide_past_two_octaves_shifts_its_note_into_the_bend_range() {
+    // 25 semitones up: the note plays one semitone higher and bends from −1 to +24
+    let mut tree = synth([16, 64, 60000, 100], 0.0, 1.0, 0.0, 0.5, 1.0, SINE);
+    tree.push(255);
+    let mut pat = vec![0u8; 16];
+    pat[0] = 0x80 | 40;
+    pat[4] = 65;
+    let (t, h) = asm(5000, 1, &pat, &[0], &tree);
+    let c = convert(&t, &h, Options::default()).unwrap();
+    let s = SongM::read(&c.blob).unwrap();
+    assert_eq!(s.lanes[0][0].1, 41);
+    let v = unisynth::chunk::Chunk::parse(&s.devices[0].chunk).unwrap().values();
+    assert!((unisynth::law::bend_range(v[p::ctl::BEND_RANGE]) - 24.0).abs() < 1e-4);
+    let l = render(&c.blob, 0.5);
+    // from note 40 to note 65 in 20 000 frames, linear in Hz; within 2 %: a bend byte is 0.19 semitone at range 24,
+    // and automation is read once per 100-frame sub-block (~0.14 semitone behind where this slide is steepest)
+    let (f0, f1) = (440.0 * 2f64.powf((40.0 - 69.0) / 12.0), 440.0 * 2f64.powf((65.0 - 69.0) / 12.0));
+    for c in [2000usize, 10000, 18000] {
+        let want = f0 + (f1 - f0) * c as f64 / 20000.0;
+        let got = hz(&l, c - 1500, c + 1500);
+        assert!((got / want - 1.0).abs() < 0.02, "frame {c}: {got} Hz, want {want}");
+    }
+    assert!(c.warnings.is_empty(), "{:?}", c.warnings);
+}
+
+#[test]
+fn notes_before_a_glide_keep_their_pitch() {
+    // a plain 220 Hz note for 4 steps, then a glide 220 → 440: the plain note is not bent ahead of the glide
+    let mut tree = synth([16, 64, 60000, 100], 0.0, 1.0, 0.0, 0.5, 1.0, SINE);
+    tree.push(255);
+    let mut pat = vec![0u8; 16];
+    pat[0] = 57;
+    pat[4] = 0x80 | 57;
+    pat[6] = 69;
+    let (t, h) = asm(5000, 1, &pat, &[0], &tree);
+    let l = render(&convert(&t, &h, Options::default()).unwrap().blob, 0.8);
+    for c in [5000usize, 10000, 17000] {
+        assert!((hz(&l, c - 1500, c + 1500) / 220.0 - 1.0).abs() < 0.003, "frame {c}: {} Hz", hz(&l, c - 1500, c + 1500));
+    }
+}
