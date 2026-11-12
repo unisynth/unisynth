@@ -3,9 +3,13 @@
 # the song's music.asm/music.h are copied OUTSIDE the repo into $ELEVATED_REF/<song>/, assembled with nasm -f win32,
 # linked with our MIT harness render-ref.c (i686 MinGW) and run under Wine in a Linux container. Nothing original is
 # committed; the sources stay where the user keeps them.
-#   build-ref.sh [song …]            songs: atrium, elevated (default both)
+#   build-ref.sh [song …]            songs: atrium, elevated, receptor (default all)
 #   ELEVATED_SRC  Atrium's synth.asm + music.asm + music.h (default ~/Downloads/zenekk/TBC - Atrium)
 #   ELEVATED_REF  work dir (default /tmp/elevated-ref); Elevated's public source is cloned into it
+#   RECEPTOR_SRC  Receptor's exe directory (default ~/Downloads/zenekk/TBC-Receptor, receptor_1920_1080.exe from
+#                 scene.org nvscene08). No source was released: crinkler-unpack.py dumps the exe's unpacked image
+#                 (once, receptor.unpacked.bin), carve.py writes music.asm/music.h beside it, and the MIT dump-ref.c
+#                 runs the intro's own generateMusic on the dump under Wine (x87 at 24 bits, as after CreateDevice).
 #   SOLO=1        also render every synth machine alone: <song>-solo<k>.wav
 #   DOCKER        docker binary (default: docker on PATH, else Docker.app's)
 # Prints each WAV; exits 0 with a message when a song's sources or docker are missing.
@@ -38,8 +42,36 @@ locate() {
   esac
 }
 
-for song in "${@:-atrium elevated}"; do
+# Receptor: the intro's own code, from its unpacked image
+receptor() {
+  local dir="${RECEPTOR_SRC:-$HOME/Downloads/zenekk/TBC-Receptor}" W="$REF/receptor"
+  if [ ! -f "$dir/receptor_1920_1080.exe" ]; then
+    echo "receptor: skipped (no receptor_1920_1080.exe in $dir)"
+    return
+  fi
+  if [ ! -f "$dir/receptor.unpacked.bin" ]; then
+    uv run -q --with unicorn "$HERE/crinkler-unpack.py" "$dir/receptor_1920_1080.exe" "$dir/receptor.unpacked.bin"
+  fi
+  python3 "$HERE/carve.py" receptor "$dir/receptor.unpacked.bin" "$dir"
+  rm -rf "$W" && mkdir -p "$W"
+  cp "$dir/receptor.unpacked.bin" "$HERE/dump-ref.c" "$W/"
+  solos=""
+  [ "${SOLO:-0}" = 1 ] && solos=1
+  "$DOCKER" run --rm -v "$W":/w -w /w -e SOLOS="$solos" "$IMAGE" sh -c '
+    set -e
+    i686-w64-mingw32-gcc -O2 -s -Wl,--image-base,0x400000 -Wl,--disable-dynamicbase -o dump-ref.exe dump-ref.c
+    wine dump-ref.exe receptor.unpacked.bin receptor.wav
+    if [ -n "$SOLOS" ]; then
+      k=0
+      while wine dump-ref.exe receptor.unpacked.bin "receptor-solo$k.wav" --solo "$k" 2>/dev/null; do k=$((k + 1)); done
+      rm -f "receptor-solo$k.wav"
+    fi'
+  ls "$W"/*.wav
+}
+
+for song in "${@:-atrium elevated receptor}"; do
   for s in $song; do
+    if [ "$s" = receptor ]; then receptor; continue; fi
     locate "$s"
     if [ ! -f "$DIR/synth.asm" ] || [ ! -f "$DIR/music.asm" ] || [ ! -f "$DIR/music.h" ]; then
       echo "$s: skipped (no synth.asm/music.asm/music.h in $DIR)"

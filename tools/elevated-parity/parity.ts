@@ -6,8 +6,8 @@
 // --solo k against the reference's SOLO=1 renders). With --capture, the converted song is also checked against the
 // YouTube capture (capture.ts). Writes report.md (metrics, never audio) next to this file.
 //
-//   bun tools/elevated-parity/parity.ts [--solo] [--capture] [--report path] [song…]     songs: atrium, elevated
-//   ELEVATED_SRC / ELEVATED_REF as in build-ref.sh; run build-ref.sh (SOLO=1 for --solo) first
+//   bun tools/elevated-parity/parity.ts [--solo] [--capture] [--report path] [song…]     songs: atrium, elevated, receptor
+//   ELEVATED_SRC / ELEVATED_REF / RECEPTOR_SRC as in build-ref.sh; run build-ref.sh (SOLO=1 for --solo) first
 // Exit 0 when every song that ran passed, or when the sources or reference renders are absent (skipped); 1 on a failure.
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -18,16 +18,19 @@ import { capturesDir, checkCapture } from "./capture.ts";
 
 const ROOT = resolve(import.meta.dir, "../..");
 export const PROFILE = "fast";
-export const SONGS = ["atrium", "elevated"] as const;
+export const SONGS = ["atrium", "elevated", "receptor"] as const;
 export const TOL: Tolerance = { ...DEFAULT_TOL, bandFloorDb: BAND_FLOOR_DB, onsetAlignment: MIN_ALIGNMENT };
 
 export const srcDir = () => process.env.ELEVATED_SRC ?? join(homedir(), "Downloads/zenekk/TBC - Atrium");
 export const refDir = () => process.env.ELEVATED_REF ?? "/tmp/elevated-ref";
+/** Receptor's intro (its exe; build-ref.sh carves music.asm/music.h beside it). */
+export const receptorDir = () => process.env.RECEPTOR_SRC ?? join(homedir(), "Downloads/zenekk/TBC-Receptor");
 
 /** A song's music.asm (its music.h sits beside it). */
 export function musicAsm(song: string): string {
   if (song === "atrium") return join(srcDir(), "music.asm");
   if (song === "elevated") return join(refDir(), "elevated-src/src/music.asm");
+  if (song === "receptor") return join(receptorDir(), "music.asm");
   throw new Error(`unknown song ${song}`);
 }
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fetches the audio of public YouTube captures of the intros played by Mentor's 4k synth (Elevated, Atrium) into a
+# Fetches the audio of public YouTube captures of the intros played by Mentor's 4k synth (Elevated, Atrium, Receptor) into a
 # local directory OUTSIDE the repo (change add-elevated-import; the music belongs to its authors: never committed).
 #   ELEVATED_CAPTURES=<dir> (default ~/Downloads/64k-tools/elevated-captures)
 # Needs uvx (runs yt-dlp without installing it) and ffmpeg; exits 0 with a message when either is missing.
@@ -7,7 +7,7 @@
 set -euo pipefail
 DIR="${ELEVATED_CAPTURES:-$HOME/Downloads/64k-tools/elevated-captures}"
 # slug, video id (Annikras HQ captures, checked 2026-11-10)
-CAPTURES=("elevated jB0vBmiTr6o" "atrium jlRoOqRs0bs")
+CAPTURES=("elevated jB0vBmiTr6o" "atrium jlRoOqRs0bs" "receptor 0UOpWfX6gw8")
 for tool in uvx ffmpeg; do
   if ! command -v "$tool" >/dev/null; then
     echo "elevated captures: skipped ($tool not found)"

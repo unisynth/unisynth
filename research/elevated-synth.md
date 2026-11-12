@@ -266,3 +266,69 @@ builds without them, and the effect-mode position lookup.
 | no-remorse | 28 796 | 28 880 | +84 |
 | tf4testsong | 26 964 | 27 084 | +120 |
 | turtles | 37 400 | 37 544 | +144 |
+
+## 12. Receptor: the song carved from its exe (change add-receptor-import, 2026-11-11)
+
+**Receptor** (TBC, NVScene 2008 4k, 2nd; [demozoo 31385](https://demozoo.org/productions/31385/),
+[pouet 51449](https://www.pouet.net/prod.php?which=51449); code Mentor, music Puryx). The release
+(`files.scene.org/get/parties/2008/nvscene08/4k/tbc_-_receptor.zip`) has five Crinkler-packed resolution builds and no
+source. Capture: Annikras `0UOpWfX6gw8` (191.8 s).
+
+**Unpacking.** `tools/elevated-parity/crinkler-unpack.py` emulates the exe's own decompressor (unicorn) until it jumps to
+0x420000 and dumps from 0x410000: 11.7 KB of code and data. Crinkler keeps its hash tables inside the section's
+~270 MB virtual size, so the emulation maps all of it and takes about 3.5 minutes.
+
+**The engine.** Instruction-by-instruction against Atrium's build:
+
+| part | against Atrium |
+|---|---|
+| data block (note start and step, 32 767, 1/32 768, envelope steps) | the same; the cutoff scale is the full float `0x38156592` (Atrium truncates it to `0x38150000`) |
+| machine table (8 machines at 0x421548, atan included) | the same |
+| delay, filter, compressor, mixer, sine, atan, allpass, oscillator, noise LCG | identical instructions |
+| tree walker | identical but one `cdq` for `xor edx, edx` |
+| synth machine | glide flag, gate cut, per-row counters |
+
+The synth machine's changes:
+- **Glide.** A note byte with bit 7 starts the note and searches the following steps of its own pattern, cyclically,
+  for the next non-empty byte. That byte's note (127 for a cut) is the target, and d is the number of steps. The
+  frequency increment gains `(f_target − f_note)/(d·step)` per sample, before the pitch factor. With a pitch factor of 1
+  that is a linear slide in frequency. The slide only stops when the next rendered note overwrites the note.
+- **Cut.** `0x7F`/`0xFF` set a gate multiplier to 0 for the note's length; the envelope is the normal one. The output
+  is the same as Atrium's zero envelope.
+- **Counters.** Two dwords per row (frames since the last note-on, note-ons so far) carried row to row. Nothing in the
+  synth reads them; the visuals presumably do.
+
+**The song.** At 0x422154 the tree is 2484 bytes: 16 synths, 27 filters, 9 atan, 3 sine, 8 allpass, 5 delays, 15 mixers and
+1 compressor. 4010 frames per step (165 BPM), 133 rows, 42 patterns, 193.5 s (8 533 280 frames; `TOTAL_SAMPLES`
+0x830000). There are 143 glide notes on six synths (14: 62, 5: 30, 15: 21, 8: 18, 9: 10, 10: 2); all six have a pitch
+factor of 1 and a base of 0. Intervals are −24, −12, −5, +12, +24 and +25 semitones, over 2–12 steps. Every glide's
+in-pattern target is the note that actually follows it, at exactly that distance. There are 21 cuts. `carve.py receptor`
+writes `music.asm`/`music.h`; the intro has no `_tempo_data`, so the carve writes one from the code's constants.
+
+**Reference.** `dump-ref.c` runs the intro's `generateMusic` (0x4206CD) on the dump under Wine. The intro calls it right
+after `IDirect3D9::CreateDevice` with behaviour flags 0x20 (no `FPU_PRESERVE`), so the x87 runs at 24 bits; the harness
+does the same (`--fpu`). Rendering at 24 and at 53 bits gives the same metrics against the capture: octave bands
+within 0.36 dB, all 6 windows aligned (corr ≥ 0.87, lag 64 frames). Synth 5's solo agrees between the two to 0.1 dB.
+
+**Parity** (`parity.ts --solo --capture receptor`, table in `tools/elevated-parity/report.md`):
+- The song passes: loudness +0.22 dB, worst band 0.86 dB at 250 Hz, alignment 0.94. The capture check passes too:
+  6/6 windows, bands within 0.51 dB.
+- 12 of 16 solos pass. The four that fail are slow pads that fail only onset alignment, with loudness within 0.64 dB
+  and bands within 2.31 dB:
+
+| solo | patch | alignment corr / lag | level-envelope corr |
+|---|---|---|---|
+| 6, 7 | attack 98 304 frames | 0.31 / 0.48 | 0.88 / 0.85 |
+| 8 | sustain 50 176 frames | 0.50 | 0.92 |
+| 14 | attack 3072 frames | 0.55 at lag −128 frames | 0.98 |
+
+  Solo 14 shows the same lag and correlation with every glide flag cleared, in both the dump and the song. Solo 10
+  (also attack 3072 frames) is borderline at 0.49 (level-envelope corr 0.99).
+
+Ruled out for solos 6/7: synth 6's pair detune 2.002 (clamped to the encoding's 2, so copy A is a constant instead of a
+−0.002·φ sine). Mirroring it to 1.998, which keeps a slow sine, leaves the correlation where it was (0.30, 0.48).
+
+**Found and fixed.** In the first glide lane, a glide that starts at byte 128 added no anchor point at its note, so the
+player interpolated the ramp from the previous point, often seconds earlier, and bent the notes before every glide.
+Solo 5 was −5.8 dB at 63 Hz. After the fix it is −1.85 dB; with all glide flags cleared it is −1.5 dB, the patch's
+baseline. The test is `notes_before_a_glide_keep_their_pitch`.
