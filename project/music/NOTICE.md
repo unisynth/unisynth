@@ -78,6 +78,15 @@ in its `music.asm` and `synth.asm`, so `elevated.song.json` carries `CC-BY-NC-SA
 non-commercially. Both are published while Puryx and Mentor are asked for permission through Teo, and are removed at
 their request; adapted versions.
 
+It also holds the song of TBC's "Receptor" (2nd in the PC 4k intro competition at NVScene 2008; pouet 51449, Demozoo
+31385), music by Puryx, code by Mentor, `receptor.song.json`, also written by `tools/elevated-parity/make-demos.py`. No
+source was released: the song file was carved from the intro's unpacked executable (`tools/elevated-parity`:
+`crinkler-unpack.py`, `carve.py`) and converted by `synth-convert elevated`, its glides as pitch-bend automation. It is
+within 0.22 dB loudness and 0.86 dB per octave band of the intro's own synth code, which `dump-ref.c` runs, and it passes
+the timing check against a capture of the released intro. **No licence is stated, the music belongs to its authors.**
+Permission has not been asked yet: it is published as an adapted reference copy until Puryx and Mentor are asked, and
+is removed at their request.
+
 It also holds "Alien Sex Clone", the soundtrack of Fudge's 64K intro that won the PC 64K intro competition at The Party
 1998, music by Simon (Demozoo 21494; Demozoo music 202313 credits Echo and Simn for the final version of the song),
 `fudge-alien-sex-clone.song.json`, written by `tools/xm-gen/make-demos.py`. The intro generated 22 of its 25 XM samples

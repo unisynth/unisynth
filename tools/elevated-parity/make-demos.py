@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Turn the two songs of Mentor's 4k synth (Atrium, Elevated) into DAW demo songs with meta (title, author,
+"""Turn the songs of Mentor's 4k synth (Atrium, Elevated, Receptor) into DAW demo songs with meta (title, author,
 description, copyright, licence, url, adapted_from) and derived track names, written to project/music/released/
 (third-party music, committed while the authors are asked for permission; see project/music/NOTICE.md).
 
   python3 tools/elevated-parity/make-demos.py
 
 Sources as tools/elevated-parity (ELEVATED_SRC: Atrium's music.asm + music.h; ELEVATED_REF: the Elevated source
-release, cloned by build-ref.sh). Uses target/release/{synth-convert,song}.
+release, cloned by build-ref.sh; RECEPTOR_SRC: Receptor's music.asm + music.h carved by build-ref.sh receptor). Uses target/release/{synth-convert,song}.
 """
 import importlib.util, json, os, subprocess, tempfile
 
@@ -15,6 +15,7 @@ OUT = os.path.join(ROOT, "project/music/released")
 BIN = os.path.join(ROOT, "target/release")
 SRC = os.environ.get("ELEVATED_SRC", os.path.expanduser("~/Downloads/zenekk/TBC - Atrium"))
 REF = os.environ.get("ELEVATED_REF", "/tmp/elevated-ref")
+RECEPTOR = os.environ.get("RECEPTOR_SRC", os.path.expanduser("~/Downloads/zenekk/TBC-Receptor"))
 spec = importlib.util.spec_from_file_location("ws", os.path.join(ROOT, "tools/ws-extract/make-demos.py"))
 ws = importlib.util.module_from_spec(spec); spec.loader.exec_module(ws)
 
@@ -29,7 +30,17 @@ SONGS = [
      "2009 and the Scene.org Award for best 4k intro", "Puryx (Christian Rønde)", "visuals by iq, synth and "
      "optimization by Mentor (Rune L. H. Stubbe) (the intro's nfo and its source release)",
      os.path.join(REF, "elevated-src/src/music.asm"), "CC-BY-NC-SA-3.0", (-0.03, -0.51)),
+    ("receptor", "Receptor", "TBC", "August 2008", 51449, 31385, "placed 2nd in the PC 4k intro competition at "
+     "NVScene 2008 and was nominated for the Scene.org Award for best 4k intro", "Puryx", "code and design by Mentor "
+     "(the intro's nfo)", os.path.join(RECEPTOR, "music.asm"), None, (0.22, 0.86)),
 ]
+
+# what a song needs said beyond the common description
+EXTRA = {
+    "receptor": "No source was released: the song file was carved from the intro's unpacked executable "
+    "(tools/elevated-parity/carve.py). Its synth adds glides (a flagged note slides linearly in frequency to the next "
+    "note of its pattern), played here as pitch-bend automation. ",
+}
 
 
 def main():
@@ -73,7 +84,7 @@ def main():
             "machine tree as tracks, effect devices and mix buses) and imported with `song import` (notes rounded to "
             f"960 ticks per beat). Against the original synth code it differs by {ld:+.2f} dB loudness and at most "
             f"{abs(band):.2f} dB in any octave band, and it passes the timing check against a capture of the released "
-            "intro (tools/elevated-parity). Track names are derived here from each track's notes; the song file does "
+            f"intro (tools/elevated-parity). {EXTRA.get(slug, '')}Track names are derived here from each track's notes; the song file does "
             f"not name them. {terms}It is published here as an adapted reference copy while the authors are asked "
             "for permission, and is removed at their request."
         )
